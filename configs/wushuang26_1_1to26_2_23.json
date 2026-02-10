@@ -1,7 +1,7 @@
 {
     "meta": {
         "name": "wushuang26_1_1to26_2_23",
-        "game":"王者荣耀"
+        "game": "王者荣耀"
     },
     "economy": {
         "cost_per_roll": {
@@ -10,11 +10,9 @@
             "amount": 10
         },
         "max_roll": 1000,
-        "per_cost_to_RMB": 1,
-        "currency_id": "wuxiang_point",
-        "currency_name": "无相积分"
+        "per_cost_to_RMB": 1
     },
-    "item": {
+    "items": {
         "wuxiang_point": {
             "name": "无相积分",
             "trigger_rule": null,
@@ -148,139 +146,148 @@
             }
         }
     },
-    "drops": [
-        {
-            "probability": 0.004,
-            "type": "item",
-            "id": "random_limited_skin",
-            "amount": 1
-        },
-        {
-            "probability": 0.005,
-            "type": "item",
-            "id": "random_legendary_skin",
-            "amount": 1
-        },
-        {
-            "probability": 0.135,
-            "type": "item",
-            "id": "random_skin",
-            "amount": 1
-        },
-        {
-            "probability": 0.008,
-            "type": "item",
-            "id": "wuxiang_point",
-            "amount": 68
-        },
-        {
-            "probability": 0.04,
-            "type": "item",
-            "id": "wuxiang_point",
-            "amount": 28
-        },
-        {
-            "probability": 0.237,
-            "type": "item",
-            "id": "wuxiang_point",
-            "amount": 18
-        },
-        {
-            "probability": 0.3,
-            "type": "item",
-            "id": "wuxiang_point",
-            "amount": 8
-        },
-        {
-            "probability": 0.15,
-            "type": "item",
-            "id": "skin_fragment8",
-            "amount": 1
-        },
-        {
-            "probability": 0.121,
-            "type": "item",
-            "id": "xiaozhoujimeng2",
-            "amount": 1
-        }
-    ],
+    "drops": {
+        "name": "main_pool",
+        "entries": [
+            {
+                "probability": 0.004,
+                "type": "item",
+                "id": "random_limited_skin",
+                "amount": 1
+            },
+            {
+                "probability": 0.005,
+                "type": "item",
+                "id": "random_legendary_skin",
+                "amount": 1
+            },
+            {
+                "probability": 0.135,
+                "type": "item",
+                "id": "random_skin",
+                "amount": 1
+            },
+            {
+                "probability": 0.008,
+                "type": "item",
+                "id": "wuxiang_point",
+                "amount": 68
+            },
+            {
+                "probability": 0.04,
+                "type": "item",
+                "id": "wuxiang_point",
+                "amount": 28
+            },
+            {
+                "probability": 0.237,
+                "type": "item",
+                "id": "wuxiang_point",
+                "amount": 18
+            },
+            {
+                "probability": 0.3,
+                "type": "item",
+                "id": "wuxiang_point",
+                "amount": 8
+            },
+            {
+                "probability": 0.15,
+                "type": "item",
+                "id": "skin_fragment8",
+                "amount": 1
+            },
+            {
+                "probability": 0.121,
+                "type": "item",
+                "id": "xiaozhoujimeng2",
+                "amount": 1
+            }
+        ]
+    },
     "trigger_rules": {
-        "random_limited_skin_sub_roll": {
-            "type": "sub_roll",
-            "drops": [
-                {
-                    "probability": 0.0034,
-                    "type": "item",
-                    "id": "sunwukong-wuxiang",
-                    "amount": 1
-                },
-                {
-                    "probability": 0.0033,
-                    "type": "item",
-                    "id": "yao-zhenwohezi",
-                    "amount": 1
-                },
-                {
-                    "probability": 0.0033,
-                    "type": "item",
-                    "id": "zhenji-xuejingqiyu",
-                    "amount": 1
-                },
-                {
-                    "probability": 0.01,
-                    "type": "item",
-                    "id": "xuejingqiyuquanpingtianmu",
-                    "amount": 1
-                },
-                {
-                    "probability": 0.32,
-                    "type": "item",
-                    "id": "xiaoqiao-shanhailinlangsheng",
-                    "amount": 1
-                },
-                {
-                    "probability": 0.33,
-                    "type": "item",
-                    "id": "zhaoyun-longdan",
-                    "amount": 1
-                },
-                {
-                    "probability": 0.33,
-                    "type": "item",
-                    "id": "daji-reqingsangba",
-                    "amount": 1
-                }
-            ]
+        "random_limited_skin": {
+            "type": "sub_pool",
+            "drops": {
+                "name": "random_limited_skin_pool",
+                "entries": [
+                    {
+                        "probability": 0.0034,
+                        "type": "item",
+                        "id": "sunwukong-wuxiang",
+                        "amount": 1
+                    },
+                    {
+                        "probability": 0.0033,
+                        "type": "item",
+                        "id": "yao-zhenwohezi",
+                        "amount": 1
+                    },
+                    {
+                        "probability": 0.0033,
+                        "type": "item",
+                        "id": "zhenji-xuejingqiyu",
+                        "amount": 1
+                    },
+                    {
+                        "probability": 0.01,
+                        "type": "item",
+                        "id": "xuejingqiyuquanpingtianmu",
+                        "amount": 1
+                    },
+                    {
+                        "probability": 0.32,
+                        "type": "item",
+                        "id": "xiaoqiao-shanhailinlangsheng",
+                        "amount": 1
+                    },
+                    {
+                        "probability": 0.33,
+                        "type": "item",
+                        "id": "zhaoyun-longdan",
+                        "amount": 1
+                    },
+                    {
+                        "probability": 0.33,
+                        "type": "item",
+                        "id": "daji-reqingsangba",
+                        "amount": 1
+                    }
+                ]
+            }
         },
-        "random_skin_sub_roll": {
-            "type": "sub_roll",
-            "drops": [
-                {
-                    "probability": 0.10,
-                    "type": "item",
-                    "id": "epic_skin",
-                    "amount": 1
-                },
-                {
-                    "probability": 0.30,
-                    "type": "item",
-                    "id": "brave_skin",
-                    "amount": 1
-                },
-                {
-                    "probability": 0.60,
-                    "type": "item",
-                    "id": "companion_skin",
-                    "amount": 1
-                }
-            ]
+        "random_skin": {
+            "type": "sub_pool",
+            "drops": {
+                "name": "random_skin_pool",
+                "entries": [
+                    {
+                        "probability": 0.10,
+                        "type": "item",
+                        "id": "epic_skin",
+                        "amount": 1
+                    },
+                    {
+                        "probability": 0.30,
+                        "type": "item",
+                        "id": "brave_skin",
+                        "amount": 1
+                    },
+                    {
+                        "probability": 0.60,
+                        "type": "item",
+                        "id": "companion_skin",
+                        "amount": 1
+                    }
+                ]
+            }
         }
     },
-    "milestone": {
+    "milestones": {
         "5roll": {
             "type": "roll_count",
             "roll_count": 5,
-            "reward_item": {
+            "reward": {
                 "type": "item",
                 "id": "random_skin",
                 "amount": 1
@@ -289,7 +296,7 @@
         "10roll": {
             "type": "roll_count",
             "roll_count": 10,
-            "reward_item": {
+            "reward": {
                 "type": "item",
                 "id": "random_skin",
                 "amount": 1
@@ -298,7 +305,7 @@
         "25roll": {
             "type": "roll_count",
             "roll_count": 25,
-            "reward_item": {
+            "reward": {
                 "type": "item",
                 "id": "random_skin",
                 "amount": 1
@@ -307,7 +314,7 @@
         "40roll": {
             "type": "roll_count",
             "roll_count": 40,
-            "reward_item": {
+            "reward": {
                 "type": "item",
                 "id": "wuxiang_point",
                 "amount": 288
@@ -316,7 +323,7 @@
         "45roll": {
             "type": "roll_count",
             "roll_count": 45,
-            "reward_item": {
+            "reward": {
                 "type": "item",
                 "id": "random_skin",
                 "amount": 1
@@ -325,7 +332,7 @@
         "50roll": {
             "type": "roll_count",
             "roll_count": 50,
-            "reward_item": {
+            "reward": {
                 "type": "item",
                 "id": "random_skin",
                 "amount": 1
@@ -334,7 +341,7 @@
         "65roll": {
             "type": "roll_count",
             "roll_count": 65,
-            "reward_item": {
+            "reward": {
                 "type": "item",
                 "id": "random_skin",
                 "amount": 1
@@ -343,7 +350,7 @@
         "80roll": {
             "type": "roll_count",
             "roll_count": 80,
-            "reward_item": {
+            "reward": {
                 "type": "item",
                 "id": "wuxiang_point",
                 "amount": 288
@@ -352,7 +359,7 @@
         "85roll": {
             "type": "roll_count",
             "roll_count": 85,
-            "reward_item": {
+            "reward": {
                 "type": "item",
                 "id": "random_skin",
                 "amount": 1
@@ -361,7 +368,7 @@
         "90roll": {
             "type": "roll_count",
             "roll_count": 90,
-            "reward_item": {
+            "reward": {
                 "type": "item",
                 "id": "random_skin",
                 "amount": 1
@@ -370,7 +377,7 @@
         "105roll": {
             "type": "roll_count",
             "roll_count": 105,
-            "reward_item": {
+            "reward": {
                 "type": "item",
                 "id": "random_skin",
                 "amount": 1
@@ -379,53 +386,66 @@
         "120roll": {
             "type": "roll_count",
             "roll_count": 120,
-            "reward_item": {
+            "reward": {
                 "type": "item",
                 "id": "wuxiang_point",
                 "amount": 288
             }
         }
     },
-    "termination_conditions": {
-        "wuxiang_skin": {
-            "type": "any_of",
-            "condition": [
+    "termination_conditions": [
+        {
+            "type": "logic",
+            "op": "OR",
+            "children": [
                 {
-                    "type": "item",
+                    "type": "predicate",
+                    "subject": "item",
                     "id": "sunwukong-wuxiang",
-                    "target_amount": 1
+                    "op": ">=",
+                    "value": 1
                 },
                 {
-                    "type": "item",
+                    "type": "predicate",
+                    "subject": "item",
                     "id": "wuxiang_point",
-                    "target_amount": 998
+                    "op": ">=",
+                    "value": 998
                 }
             ]
         },
-        "wuxiang_all": {
-            "type": "any_of",
-            "condition": [
+        {
+            "type": "logic",
+            "op": "OR",
+            "children": [
                 {
-                    "type": "all_of",
-                    "condition": [
+                    "type": "logic",
+                    "op": "AND",
+                    "children": [
                         {
-                            "type": "item",
+                            "type": "predicate",
+                            "subject": "item",
                             "id": "sunwukong-wuxiang",
-                            "target_amount": 1
+                            "op": ">=",
+                            "value": 1
                         },
                         {
-                            "type": "item",
+                            "type": "predicate",
+                            "subject": "item",
                             "id": "wuxiang_point",
-                            "target_amount": 675
+                            "op": ">=",
+                            "value": 675
                         }
                     ]
                 },
                 {
-                    "type": "item",
+                    "type": "predicate",
+                    "subject": "item",
                     "id": "wuxiang_point",
-                    "target_amount": 1673
+                    "op": ">=",
+                    "value": 1673
                 }
             ]
         }
-    }
+    ]
 }
