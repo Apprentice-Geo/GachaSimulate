@@ -3,10 +3,10 @@ import numpy as np
 from math import isclose
 from typing import List, Tuple, Dict, Any
 from collections import namedtuple
-from src.models.ItemDef import Item, ItemBehavior,Resolve
-from src.models.DropDef import Drop
-from src.models.MilestoneDef import Milestone, Reward
-from src.models.TerminationDef import LogicNode, CheckNode
+from .models.ItemDef import Item, ItemBehavior, Resolve
+from .models.DropDef import Drop
+from .models.MilestoneDef import Milestone, Reward
+from .models.TerminationDef import LogicNode, CheckNode
 
 class config_parser:
     def __init__(self, config_path):

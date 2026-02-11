@@ -4,12 +4,12 @@ from typing import Tuple
 
 class ConditionNode: ...
 
-@dataclass(frozen=True)
+@dataclass(frozen=True,slots=True)
 class LogicNode(ConditionNode):
     op: str
     children: Tuple[ConditionNode, ...]
 
-@dataclass(frozen=True)
+@dataclass(frozen=True,slots=True)
 class CheckNode(ConditionNode):
     subject: str
     id: str

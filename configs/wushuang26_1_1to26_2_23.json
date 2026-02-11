@@ -20,7 +20,7 @@
         },
         "random_limited_skin": {
             "name": "随机限定皮肤礼",
-            "trigger_rule": "random_limited_skin_sub_roll",
+            "trigger_rule": "random_limited_skin_pool",
             "resolve_result": null
         },
         "random_legendary_skin": {
@@ -34,7 +34,7 @@
         },
         "random_skin": {
             "name": "随机皮肤礼",
-            "trigger_rule": "random_skin_sub_roll",
+            "trigger_rule": "random_skin_pool",
             "resolve_result": null
         },
         "skin_fragment8": {

@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 
-@dataclass(frozen=True)
+@dataclass(frozen=True,slots=True)
 class Milestone:
     type: str
     roll_count: int
     reward:Reward
 
-@dataclass(frozen=True)
+@dataclass(frozen=True,slots=True)
 class Reward:
     type: str
     id: str
