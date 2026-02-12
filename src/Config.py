@@ -24,7 +24,7 @@ class config_parser:
         self._get_trigger_rules(self.config.get("trigger_rules",{}))
         self._get_milestones(self.config.get("milestones",{}))
         self._get_drops(self.config.get("drops",{}))
-        self._get_termination_tree(self.config.get("termination_conditions",{}))
+        self.Termination_tree = self._get_termination_node(self.config.get("termination_conditions",{})[0])
 
     def _get_items(self):
         items = self.config.get("items", {})
@@ -105,11 +105,6 @@ class config_parser:
                 op=condition["op"],
                 value=condition["value"]
             )
-    
-    def _get_termination_tree(self,termination_conditions):
-        self.Termination_tree=LogicNode(op="OR",children=tuple(
-            self._get_termination_node(c) for c in termination_conditions)
-        )
         
         
     
