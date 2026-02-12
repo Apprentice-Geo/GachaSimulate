@@ -13,6 +13,7 @@ class config_parser:
         with open(config_path, 'r', encoding='utf-8') as f:
             self.config = json.load(f)
         self.Config_name=self.config.get("meta",{}).get("name","")
+        self.RMB_per_roll=self.config.get("economy",{}).get("cost_per_roll",{}).get("amount",0.0)*self.config.get("economy",{}).get("per_cost_to_RMB",0.0)
         self.Items_dict: Dict[str, Item] = {}
         self.DropPools: Dict[str,List[Drop]] = {}
         self.ItemBehaviors_dict: Dict[str, ItemBehavior] = {}

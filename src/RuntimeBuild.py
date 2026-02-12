@@ -103,6 +103,7 @@ class runtime_builder:
         self._build_milestones()
         self.Termination_tree=self._build_termination(self.Termination_tree)
         return runtime_context(
+            RMB_per_roll=self.config.RMB_per_roll,
             item_id_index=self.item_id_index,
             item_list=self.item_list,
             resolve_list=self.resolve_list,

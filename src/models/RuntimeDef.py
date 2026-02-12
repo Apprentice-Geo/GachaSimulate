@@ -47,6 +47,7 @@ class check_node(ConditionNode):
 
 @dataclass(frozen=True,slots=True)
 class runtime_context:
+    RMB_per_roll:int
     item_id_index:Dict[str,int]
     item_list:List[item]
     resolve_list:List[resolve]
