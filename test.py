@@ -26,11 +26,15 @@ if __name__ == "__main__":
     # print(runtime_ctx.milestone_list)
     # print(runtime_ctx.Termination_tree)
     simulator = montecarlo(runtime_ctx,seed=2026212)
-    result = simulate_until_total_rolls(simulator, target_total_rolls=10000)
+    result = simulate_until_total_rolls(simulator, target_total_rolls=1000000)
 
     print("Total runs:", result["total_runs"])
     print("Total rolls:", result["total_rolls"])
     print("RMB cost total:", result["RMB_cost_total"])
+    print("terminate reasons distribution:")
+    unique, counts = np.unique(result["terminate_reasons"], return_counts=True)
+    for reason, count in zip(unique, counts):
+        print(f"  {reason}: {count}")
     print("Average rolls per run:", np.mean(result["roll_counts"]))
     print("Average RMB cost per run:", np.mean(result["RMB_costs"]))
     print("Lifetime acquired (per item):")

@@ -7,7 +7,8 @@ class runtime_state:
         "lifetime_acquired",  # 统计用累计获得
         "roll_count",
         "RMB_cost",
-        "terminated"
+        "terminated",
+        "terminate_reason"
     )
 
     def __init__(self, item_count: int):
@@ -16,6 +17,7 @@ class runtime_state:
         self.roll_count = 0
         self.RMB_cost = 0
         self.terminated = False
+        self.terminate_reason=None
 
 
 class montecarlo:
@@ -129,27 +131,43 @@ class montecarlo:
                     self._apply_op(op, state)
 
     def _check_termination(self, state):
-        if self._eval_logic(self.ctx.Termination_tree, state):
+        ok, reason = self._eval_logic(self.ctx.Termination_tree, state)
+        if ok:
             state.terminated = True
-            return True
+            state.terminate_reason = reason
         return False
     
     def _eval_logic(self, node, state):
 
         if node.op == "OR":
-            return any(self._eval_logic(c, state) for c in node.children)
+            for c in node.children:
+                ok, reason = self._eval_logic(c, state)
+                if ok:
+                    return True, reason
+            return False, None
 
         if node.op == "AND":
-            return all(self._eval_logic(c, state) for c in node.children)
+            reasons = []
+            for c in node.children:
+                ok, reason = self._eval_logic(c, state)
+                if not ok:
+                    return False, None
+                reasons.append(reason)
+            return True, reasons[0] 
 
         if node.__class__.__name__ == "check_node":
             val = state.inventory[node.index]
-            if node.op == ">=":
-                return val >= node.value
-            if node.op == ">":
-                return val > node.value
-            if node.op == "==":
-                return val == node.value
+
+            cond = (
+                (node.op == ">=" and val >= node.value) or
+                (node.op == ">" and val > node.value) or
+                (node.op == "==" and val == node.value)
+            )
+
+            if cond:
+                return True, node.reason
+            return False, None
+
             
 
 

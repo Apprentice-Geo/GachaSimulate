@@ -44,6 +44,7 @@ class check_node(ConditionNode):
     index: int
     op: str
     value: int
+    reason: str
 
 @dataclass(frozen=True,slots=True)
 class runtime_context:

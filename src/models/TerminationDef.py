@@ -15,3 +15,4 @@ class CheckNode(ConditionNode):
     id: str
     op: str
     value: int
+    reason: str

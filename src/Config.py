@@ -104,7 +104,8 @@ class config_parser:
                 subject=condition["subject"],
                 id=condition["id"],
                 op=condition["op"],
-                value=condition["value"]
+                value=condition["value"],
+                reason=condition["reason"]
             )
         
         

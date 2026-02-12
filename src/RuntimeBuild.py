@@ -91,7 +91,8 @@ class runtime_builder:
                 return check_node(
                     index=self.item_id_index[node.id],
                     op=node.op,
-                    value=node.value
+                    value=node.value,
+                    reason=node.reason
                 )
         else:
             raise TypeError(f"Unknown termination node: {node}")

@@ -15,6 +15,7 @@ def simulate_until_total_rolls(sim: montecarlo, target_total_rolls: int):
     roll_counts = []
     RMB_costs = []
     lifetime_records = []
+    terminate_reasons=[]
     total_RMB_cost = 0
     total_rolls = 0
     total_runs = 0
@@ -25,6 +26,7 @@ def simulate_until_total_rolls(sim: montecarlo, target_total_rolls: int):
         roll_counts.append(state.roll_count)
         RMB_costs.append(state.RMB_cost)
         lifetime_records.append(state.lifetime_acquired.copy())
+        terminate_reasons.append(state.terminate_reason)
         total_RMB_cost += state.RMB_cost
         total_rolls += state.roll_count
         total_runs += 1
@@ -34,6 +36,7 @@ def simulate_until_total_rolls(sim: montecarlo, target_total_rolls: int):
         "roll_counts": np.asarray(roll_counts, dtype=np.int32),
         "RMB_costs": np.asarray(RMB_costs, dtype=np.int32),
         "lifetime_acquired": np.vstack(lifetime_records).astype(np.int32),
+        "terminate_reasons": np.array(terminate_reasons, dtype="U32"),
         "RMB_cost_total": np.int64(total_RMB_cost),
         "total_rolls": np.int64(total_rolls),
         "total_runs": np.int32(total_runs),
@@ -51,6 +54,7 @@ def save_simulation_result(path: str, result: dict, ctx):
         roll_counts=result["roll_counts"],
         RMB_costs=result["RMB_costs"],
         lifetime_acquired=result["lifetime_acquired"],
+        terminate_reasons=result["terminate_reasons"],
         RMB_cost_total=result["RMB_cost_total"],
         total_rolls=result["total_rolls"],
         total_runs=result["total_runs"],
@@ -66,6 +70,7 @@ def load_simulation_result(path: str):
         "roll_counts": data["roll_counts"],
         "RMB_costs": data["RMB_costs"],
         "lifetime_acquired": data["lifetime_acquired"],
+        "terminate_reasons": data["terminate_reasons"],
         "RMB_cost_total": int(data["RMB_cost_total"]),
         "total_rolls": int(data["total_rolls"]),
         "total_runs": int(data["total_runs"]),
