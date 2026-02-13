@@ -50,6 +50,7 @@ class check_node(ConditionNode):
 class runtime_context:
     RMB_per_roll:int
     item_id_index:Dict[str,int]
+    item_id_name:Dict[str,str]
     item_list:List[item]
     resolve_list:List[resolve]
     pool_id_index:Dict[str,int]

@@ -8,6 +8,7 @@ class runtime_builder:
     def __init__(self, config: config_parser):
         self.config = config
         self.item_id_index:Dict[str,int]={}
+        self.item_id_name:Dict[str,str]={}
         self.item_list:List[item]=[]
         self.tmp_resolve_list:List[Tuple[int,Resolve]]=[]
         self.resolve_list:List[resolve]=[]
@@ -29,6 +30,7 @@ class runtime_builder:
                 resolve_index=len(self.tmp_resolve_list)
                 self.tmp_resolve_list.append((i,it.behavior.resolve_result))
             self.item_id_index[id]=i
+            self.item_id_name[id]=it.name
             self.item_list.append(item(
                 index=i,
                 trigger=trigger_index,
@@ -106,6 +108,7 @@ class runtime_builder:
         return runtime_context(
             RMB_per_roll=self.config.RMB_per_roll,
             item_id_index=self.item_id_index,
+            item_id_name=self.item_id_name,
             item_list=self.item_list,
             resolve_list=self.resolve_list,
             pool_id_index=self.pool_id_index,
