@@ -3,10 +3,11 @@ from src.Simulate import load_simulation_result, save_simulation_result, simulat
 from src.Config import config_parser
 from src.RuntimeBuild import runtime_builder
 from src.MonteCarlo import montecarlo
+from src.Visualize import Visualizer
 import numpy as np
 
 if __name__ == "__main__":
-    JSON_PATH="configs/sunwukong-wuxiang26_1_1_26_2_23_skin.json"
+    JSON_PATH="configs/sunwukong-wuxiang26_1_1_26_2_23_all.json"
     config = config_parser(JSON_PATH)
     # print(config.Config_name)
     # print(config.Items_dict)
@@ -26,9 +27,9 @@ if __name__ == "__main__":
     # print(runtime_ctx.milestone_id_index)
     # print(runtime_ctx.milestone_list)
     # print(runtime_ctx.Termination_tree)
-    # simulator = montecarlo(runtime_ctx,seed=2026212)
-    # result = simulate_until_total_rolls(simulator, target_total_rolls=100000)
-
+    simulator = montecarlo(runtime_ctx,seed=0)
+    result = simulate_until_total_rolls(simulator, target_total_rolls=500_000)
+    save_simulation_result("./data/" + Path(JSON_PATH).stem + "_simulation_result.npz", result, runtime_ctx)
     result=load_simulation_result("./data/" + Path(JSON_PATH).stem + "_simulation_result.npz")
     print("Total runs:", result["total_runs"])
     print("Total rolls:", result["total_rolls"])
@@ -43,4 +44,10 @@ if __name__ == "__main__":
     for item_id, index in runtime_ctx.item_id_index.items():
         total_acquired = np.sum(result["lifetime_acquired"][:, index])
         print(f"  {item_id}: {total_acquired}") 
+
+    viz = Visualizer(result)
+
+    viz.plot_roll_distribution()
+    viz.plot_cdf()
+
     

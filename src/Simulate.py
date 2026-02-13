@@ -6,6 +6,7 @@ import numpy as np
 import hashlib
 from datetime import datetime
 import json
+from tqdm import tqdm
 
 def simulate_until_total_rolls(sim: montecarlo, target_total_rolls: int):
     """
@@ -15,24 +16,35 @@ def simulate_until_total_rolls(sim: montecarlo, target_total_rolls: int):
     roll_counts = []
     RMB_costs = []
     lifetime_records = []
-    terminate_reasons=[]
+    terminate_reasons = []
+
     total_RMB_cost = 0
     total_rolls = 0
     total_runs = 0
 
-    while total_rolls < target_total_rolls:
-        state = sim.run_once()
+    with tqdm(total=target_total_rolls, desc="Simulating", unit="roll") as pbar:
 
-        roll_counts.append(state.roll_count)
-        RMB_costs.append(state.RMB_cost)
-        lifetime_records.append(state.lifetime_acquired.copy())
-        terminate_reasons.append(state.terminate_reason)
-        total_RMB_cost += state.RMB_cost
-        total_rolls += state.roll_count
-        total_runs += 1
+        while total_rolls < target_total_rolls:
+            state = sim.run_once()
+
+            roll_counts.append(state.roll_count)
+            RMB_costs.append(state.RMB_cost)
+            lifetime_records.append(state.lifetime_acquired.copy())
+            terminate_reasons.append(state.terminate_reason)
+
+            total_RMB_cost += state.RMB_cost
+            total_rolls += state.roll_count
+            total_runs += 1
+
+            # 更新进度条（按实际增加的抽数）
+            pbar.update(state.roll_count)
+
+            # 防止超过总量导致进度条溢出
+            if total_rolls > target_total_rolls:
+                pbar.update(target_total_rolls - pbar.n)
 
     return {
-        "seed":sim.seed,
+        "seed": sim.seed,
         "roll_counts": np.asarray(roll_counts, dtype=np.int32),
         "RMB_costs": np.asarray(RMB_costs, dtype=np.int32),
         "lifetime_acquired": np.vstack(lifetime_records).astype(np.int32),
@@ -41,6 +53,7 @@ def simulate_until_total_rolls(sim: montecarlo, target_total_rolls: int):
         "total_rolls": np.int64(total_rolls),
         "total_runs": np.int32(total_runs),
     }
+
 
 def save_simulation_result(path: str, result: dict, ctx):
     
