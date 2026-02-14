@@ -90,6 +90,11 @@ class Visualizer:
                 color=P95_COLOR,
                 ha="right",
                 va="top")
+        
+        # 强制显示关键 x 轴刻度
+        current_xticks = list(ax.get_xticks())
+        new_xticks = sorted(set(current_xticks + [p50, p75, p95]))
+        ax.set_xticks(new_xticks)
 
         # 标题与标签
         ax.set_title("Roll Count Distribution")

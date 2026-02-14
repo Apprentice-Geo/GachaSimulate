@@ -4,11 +4,14 @@ from src.Config import config_parser
 from src.RuntimeBuild import runtime_builder
 from src.MonteCarlo import montecarlo
 from src.Visualize import Visualizer
+import os
 import numpy as np
 
 if __name__ == "__main__":
-    JSON_PATH="configs/sunwukong-wuxiang26_1_1_26_2_23_all.json"
-    config = config_parser(JSON_PATH)
+    CONFIG_JSON_PATH="configs/sunwukong-wuxiang/config.json"
+    TERMINATION_JSON_PATH="configs/sunwukong-wuxiang/termination_skin.json"
+    name=os.path.basename(os.path.dirname(CONFIG_JSON_PATH))
+    config = config_parser(config_path=CONFIG_JSON_PATH, termination_path=TERMINATION_JSON_PATH)
     # print(config.Config_name)
     # print(config.Items_dict)
     # print(config.ItemBehaviors_dict)
@@ -27,10 +30,10 @@ if __name__ == "__main__":
     # print(runtime_ctx.milestone_id_index)
     # print(runtime_ctx.milestone_list)
     # print(runtime_ctx.Termination_tree)
-    simulator = montecarlo(runtime_ctx,seed=0)
-    result = simulate_until_total_rolls(simulator, target_total_rolls=500_000)
-    save_simulation_result("./data/" + Path(JSON_PATH).stem + "_simulation_result.npz", result, runtime_ctx)
-    result=load_simulation_result("./data/" + Path(JSON_PATH).stem + "_simulation_result.npz")
+    # simulator = montecarlo(runtime_ctx,seed=0)
+    # result = simulate_until_total_rolls(simulator, target_total_rolls=10_000_000)
+    # save_simulation_result("./data/" + name + "_" + Path(TERMINATION_JSON_PATH).stem + "_simulation_result.npz", result, runtime_ctx)
+    result=load_simulation_result("./data/" + name + "_" + Path(TERMINATION_JSON_PATH).stem + "_simulation_result.npz")
     print("Total runs:", result["total_runs"])
     print("Total rolls:", result["total_rolls"])
     print("RMB cost total:", result["RMB_cost_total"])

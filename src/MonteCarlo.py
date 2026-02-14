@@ -135,10 +135,11 @@ class montecarlo:
         if ok:
             state.terminated = True
             state.terminate_reason = reason
-        return False
+        return ok
     
     def _eval_logic(self, node, state):
-
+        if node is None:
+            return False, None
         if node.op == "OR":
             for c in node.children:
                 ok, reason = self._eval_logic(c, state)

@@ -9,7 +9,7 @@ from .models.MilestoneDef import Milestone, Reward
 from .models.TerminationDef import LogicNode, CheckNode
 
 class config_parser:
-    def __init__(self, config_path):
+    def __init__(self, config_path,termination_path=None):
         with open(config_path, 'r', encoding='utf-8') as f:
             self.config = json.load(f)
         self.Config_name=self.config.get("meta",{}).get("name","")
@@ -19,13 +19,18 @@ class config_parser:
         self.ItemBehaviors_dict: Dict[str, ItemBehavior] = {}
         self.Rules_dict: Dict[str, Any] = {}
         self.Milestones_dict:Dict[str,Milestone]={}
-        self.Termination_tree:LogicNode
+        self.Termination_tree:LogicNode | None=None
 
         self._get_items()
         self._get_trigger_rules(self.config.get("trigger_rules",{}))
         self._get_milestones(self.config.get("milestones",{}))
         self._get_drops(self.config.get("drops",{}))
-        self.Termination_tree = self._get_termination_node(self.config.get("termination_conditions",{})[0])
+        if termination_path is not None:
+            with open(termination_path, 'r', encoding='utf-8') as f:
+                termination_config = json.load(f)
+            self.Termination_tree=self._get_termination_node(termination_config.get("termination_conditions",{}))
+        else:
+            self.Termination_tree=None
 
     def _get_items(self):
         items = self.config.get("items", {})

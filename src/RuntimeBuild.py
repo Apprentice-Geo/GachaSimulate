@@ -17,7 +17,7 @@ class runtime_builder:
         self.pool_list:List[pool]=[]
         self.milestone_id_index:Dict[str,int]={}
         self.milestone_list:List[milestone]=[]
-        self.Termination_tree:LogicNode=config.Termination_tree
+        self.Termination_tree:LogicNode | None=config.Termination_tree
     
     def _build_items(self):
         for i,(id,it) in enumerate(self.config.Items_dict.items()):
@@ -104,7 +104,10 @@ class runtime_builder:
         self._build_resolves()
         self._build_pools()
         self._build_milestones()
-        self.Termination_tree=self._build_termination(self.Termination_tree)
+        if self.Termination_tree is not None:
+            self.Termination_tree=self._build_termination(self.Termination_tree)
+        else:
+            self.Termination_tree=None
         return runtime_context(
             RMB_per_roll=self.config.RMB_per_roll,
             item_id_index=self.item_id_index,

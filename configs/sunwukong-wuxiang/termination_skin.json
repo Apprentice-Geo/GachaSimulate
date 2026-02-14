@@ -1,0 +1,26 @@
+{
+    "termination_conditions": 
+        {
+            "type": "logic",
+            "op": "OR",
+            "children": [
+                {
+                    "type": "predicate",
+                    "subject": "item",
+                    "id": "sunwukong-wuxiang",
+                    "op": ">=",
+                    "value": 1,
+                    "reason": "skin obtained"
+                },
+                {
+                    "type": "predicate",
+                    "subject": "item",
+                    "id": "wuxiang_point",
+                    "op": ">=",
+                    "value": 998,
+                    "reason": "point exchange"
+                }
+            ]
+        }
+    
+}
