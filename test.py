@@ -9,8 +9,9 @@ import numpy as np
 
 if __name__ == "__main__":
     CONFIG_JSON_PATH="configs/sunwukong-wuxiang/config.json"
-    TERMINATION_JSON_PATH="configs/sunwukong-wuxiang/termination_skin.json"
+    TERMINATION_JSON_PATH="configs/sunwukong-wuxiang/termination_all_exchange.json"
     name=os.path.basename(os.path.dirname(CONFIG_JSON_PATH))
+    simulate_name=f"{name}_{Path(TERMINATION_JSON_PATH).stem}"
     config = config_parser(config_path=CONFIG_JSON_PATH, termination_path=TERMINATION_JSON_PATH)
     # print(config.Config_name)
     # print(config.Items_dict)
@@ -30,10 +31,10 @@ if __name__ == "__main__":
     # print(runtime_ctx.milestone_id_index)
     # print(runtime_ctx.milestone_list)
     # print(runtime_ctx.Termination_tree)
-    # simulator = montecarlo(runtime_ctx,seed=0)
-    # result = simulate_until_total_rolls(simulator, target_total_rolls=10_000_000)
-    # save_simulation_result("./data/" + name + "_" + Path(TERMINATION_JSON_PATH).stem + "_simulation_result.npz", result, runtime_ctx)
-    result=load_simulation_result("./data/" + name + "_" + Path(TERMINATION_JSON_PATH).stem + "_simulation_result.npz")
+    simulator = montecarlo(runtime_ctx,seed=0)
+    result = simulate_until_total_rolls(simulator, target_total_rolls=10_000_000)
+    save_simulation_result("./data/" + simulate_name + "_simulation_result.npz", result, runtime_ctx)
+    result=load_simulation_result("./data/" + simulate_name + "_simulation_result.npz")
     print("Total runs:", result["total_runs"])
     print("Total rolls:", result["total_rolls"])
     print("RMB cost total:", result["RMB_cost_total"])
@@ -50,7 +51,7 @@ if __name__ == "__main__":
 
     viz = Visualizer(result)
 
-    viz.plot_roll_distribution()
-    viz.plot_cdf()
+    viz.plot_roll_distribution(save_path=f"./images/{simulate_name}_roll_distribution.png")
+    viz.plot_cdf(save_path=f"./images/{simulate_name}_cdf.png")
 
     

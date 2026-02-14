@@ -1,7 +1,8 @@
 {
     "meta": {
         "name": "sunwukong-wuxiang26_1_1_26_2_23_all",
-        "game": "王者荣耀"
+        "game": "王者荣耀",
+        "time": "26_1_1_26_2_23"
     },
     "economy": {
         "cost_per_roll": {

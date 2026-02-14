@@ -1,9 +1,32 @@
+import os
 import numpy as np
+from matplotlib import rcParams, font_manager
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 from matplotlib.transforms import blended_transform_factory
 from typing import Dict
 
+# 当前文件所在目录（src）
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 项目根目录
+project_root = os.path.dirname(current_dir)
+
+# 字体路径
+font_path = os.path.join(
+    project_root,
+    "fonts",
+    "SourceHanSansSC-Medium.otf"
+)
+
+# 注册字体
+font_manager.fontManager.addfont(font_path)
+prop = font_manager.FontProperties(fname=font_path)
+
+# 强制使用该字体
+rcParams["font.family"] = "sans-serif"
+rcParams["font.sans-serif"] = [prop.get_name()]
+rcParams["axes.unicode_minus"] = False
 
 class Visualizer:
 
@@ -97,9 +120,9 @@ class Visualizer:
         ax.set_xticks(new_xticks)
 
         # 标题与标签
-        ax.set_title("Roll Count Distribution")
-        ax.set_xlabel("Rolls")
-        ax.set_ylabel("Density")
+        ax.set_title("累计抽数分布")
+        ax.set_xlabel("累计抽数")
+        ax.set_ylabel("概率密度")
 
         # 保留四边边框并加粗
         for spine in ax.spines.values():
@@ -200,9 +223,9 @@ class Visualizer:
         ax.set_xticks(new_xticks)
 
         # 标题与标签
-        ax.set_title("Empirical CDF of Roll Counts")
-        ax.set_xlabel("Rolls")
-        ax.set_ylabel("Cumulative Probability")
+        ax.set_title("累计成功概率")
+        ax.set_xlabel("累计抽数")
+        ax.set_ylabel("累计概率")
 
         # 保留四边边框，并略微加粗
         for spine in ax.spines.values():
