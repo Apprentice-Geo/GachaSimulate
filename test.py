@@ -8,8 +8,9 @@ import os
 import numpy as np
 
 if __name__ == "__main__":
-    CONFIG_JSON_PATH="configs/sunwukong-wuxiang/config.json"
-    TERMINATION_JSON_PATH="configs/sunwukong-wuxiang/termination_all_exchange.json"
+    BASE_PATH="configs/lixin-wenxinjian"
+    CONFIG_JSON_PATH=BASE_PATH + "/config.json"
+    TERMINATION_JSON_PATH=BASE_PATH + "/termination_all_exchange.json"
     name=os.path.basename(os.path.dirname(CONFIG_JSON_PATH))
     simulate_name=f"{name}_{Path(TERMINATION_JSON_PATH).stem}"
     config = config_parser(config_path=CONFIG_JSON_PATH, termination_path=TERMINATION_JSON_PATH)
@@ -31,9 +32,9 @@ if __name__ == "__main__":
     # print(runtime_ctx.milestone_id_index)
     # print(runtime_ctx.milestone_list)
     # print(runtime_ctx.Termination_tree)
-    simulator = montecarlo(runtime_ctx,seed=0)
-    result = simulate_until_total_rolls(simulator, target_total_rolls=10_000_000)
-    save_simulation_result("./data/" + simulate_name + "_simulation_result.npz", result, runtime_ctx)
+    # simulator = montecarlo(runtime_ctx,seed=1)
+    # result = simulate_until_total_rolls(simulator, target_total_rolls=10_000_000)
+    # save_simulation_result("./data/" + simulate_name + "_simulation_result.npz", result, runtime_ctx)
     result=load_simulation_result("./data/" + simulate_name + "_simulation_result.npz")
     print("Total runs:", result["total_runs"])
     print("Total rolls:", result["total_rolls"])

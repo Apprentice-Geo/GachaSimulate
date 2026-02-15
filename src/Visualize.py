@@ -2,7 +2,7 @@ import os
 import numpy as np
 from matplotlib import rcParams, font_manager
 import matplotlib.pyplot as plt
-from matplotlib.ticker import PercentFormatter
+from matplotlib.ticker import PercentFormatter,MaxNLocator
 from matplotlib.transforms import blended_transform_factory
 from typing import Dict
 
@@ -38,33 +38,25 @@ class Visualizer:
         if len(self.roll_counts) != self.total_runs:
             raise ValueError("roll_counts length mismatch total_runs")
 
-    # -----------------------------
-    # 1. 毕业抽数分布
-    # -----------------------------
     def plot_roll_distribution(self, save_path="roll_distribution.png", dpi=200):
         data = self.roll_counts
 
-        p50 = np.percentile(data, 50)
-        p75 = np.percentile(data, 75)
-        p95 = np.percentile(data, 95)
+        p50 = int(np.percentile(data, 50))
+        p75 = int(np.percentile(data, 75))
+        p95 = int(np.percentile(data, 95))
 
-        # 颜色定义（与 CDF 保持一致）
         PRIMARY = "#00FFFF"
-
         P50_COLOR = "#00C853"
         P75_COLOR = "#FFD600"
         P95_COLOR = "#FF3D00"
-
         GRID_COLOR = "#B0B0B0"
 
         FIG_BG = "#F0F2F5"
         AX_BG = "white"
 
-        # 创建图
         fig, ax = plt.subplots(figsize=(10, 6), facecolor=FIG_BG)
         ax.set_facecolor(AX_BG)
 
-        # 主直方图
         ax.hist(
             data,
             bins="fd",
@@ -75,7 +67,6 @@ class Visualizer:
             linewidth=0.8
         )
 
-        # 网格
         ax.grid(
             True,
             which="major",
@@ -86,45 +77,52 @@ class Visualizer:
             alpha=0.5
         )
 
-        # 分位竖线
-        ax.axvline(p50, linestyle="--", color=P50_COLOR, linewidth=1.5)
-        ax.axvline(p75, linestyle="--", color=P75_COLOR, linewidth=1.5)
-        ax.axvline(p95, linestyle="--", color=P95_COLOR, linewidth=1.5)
+        # 分位竖线（保留）
+        line50 = ax.axvline(p50, linestyle="--", color=P50_COLOR, linewidth=1.5)
+        line75 = ax.axvline(p75, linestyle="--", color=P75_COLOR, linewidth=1.5)
+        line95 = ax.axvline(p95, linestyle="--", color=P95_COLOR, linewidth=1.5)
 
-        # 强制整数刻度
-        from matplotlib.ticker import MaxNLocator
+        
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-        # 在线顶部标注分位值
         ymax = ax.get_ylim()[1]
+        ax.text(p50, ymax * 0.90, f"P50", color=P50_COLOR, ha="right", va="top")
+        ax.text(p75, ymax * 0.85, f"P75", color=P75_COLOR, ha="right", va="top")
+        ax.text(p95, ymax * 0.80, f"P95", color=P95_COLOR, ha="left", va="top")
 
-        ax.text(p50, ymax * 0.50, f"P50",
-                color=P50_COLOR,
-                ha="right",
-                va="top")
+        # 左下角图例
+        legend = ax.legend(
+            handles=[line50, line75, line95],
+            labels=[
+                f"P50：{p50}",
+                f"P75：{p75}",
+                f"P95：{p95}"
+            ],
+            loc="lower left",
+            frameon=True,
+            fancybox=True,
+            shadow=False,
+            borderpad=0.8
+        )
 
-        ax.text(p75, ymax * 0.75, f"P75",
-                color=P75_COLOR,
-                ha="right",
-                va="top")
+        # 卡片样式
+        frame = legend.get_frame()
+        frame.set_facecolor("white")
+        frame.set_edgecolor("#E0E0E0")
+        frame.set_linewidth(0.8)
+        frame.set_alpha(0.95)
 
-        ax.text(p95, ymax * 0.95, f"P95",
+        # 图例文字颜色匹配线条
+        for text, color in zip(
+            legend.get_texts(),
+            [P50_COLOR, P75_COLOR, P95_COLOR]
+        ):
+            text.set_color(color)
 
-                color=P95_COLOR,
-                ha="right",
-                va="top")
-        
-        # 强制显示关键 x 轴刻度
-        current_xticks = list(ax.get_xticks())
-        new_xticks = sorted(set(current_xticks + [p50, p75, p95]))
-        ax.set_xticks(new_xticks)
-
-        # 标题与标签
         ax.set_title("累计抽数分布")
         ax.set_xlabel("累计抽数")
         ax.set_ylabel("概率密度")
 
-        # 保留四边边框并加粗
         for spine in ax.spines.values():
             spine.set_linewidth(1.2)
 
@@ -132,12 +130,6 @@ class Visualizer:
         plt.savefig(save_path, dpi=dpi, facecolor=fig.get_facecolor())
         plt.close()
 
-
-
-
-    # -----------------------------
-    # 2. CDF 曲线
-    # -----------------------------
     def plot_cdf(self, save_path="cdf.png", dpi=200):
         data = np.sort(self.roll_counts)
         n = len(data)
@@ -147,9 +139,7 @@ class Visualizer:
         p75 = int(np.percentile(data, 75))
         p95 = int(np.percentile(data, 95))
 
-        # 颜色定义
         PRIMARY = "#00FFFF"
-
         P50_COLOR = "#00C853"
         P75_COLOR = "#FFD600"
         P95_COLOR = "#FF3D00"
@@ -160,14 +150,12 @@ class Visualizer:
         FIG_BG = "#F0F2F5"
         AX_BG = "white"
 
-        # 创建图
         fig, ax = plt.subplots(figsize=(10, 6), facecolor=FIG_BG)
         ax.set_facecolor(AX_BG)
 
-        # 主 CDF 曲线
         ax.step(data, y, where="post", color=PRIMARY, linewidth=2)
 
-        plt.grid(
+        ax.grid(
             True,
             which="major",
             axis="both",
@@ -176,58 +164,61 @@ class Visualizer:
             color="#B0B0B0",
             alpha=0.5
         )
-        # 横向分位线（灰色虚线）
+
         ax.axhline(0.5, linestyle="--", color=HLINE_COLOR, linewidth=1.2)
         ax.axhline(0.75, linestyle="--", color=HLINE_COLOR, linewidth=1.2)
         ax.axhline(0.95, linestyle="--", color=HLINE_COLOR, linewidth=1.2)
 
-        # 1. 合并刻度（修改 Locator）
         current_yticks = list(ax.get_yticks())
         new_yticks = sorted(set(current_yticks + [0.5, 0.75, 0.95]))
         ax.set_yticks(new_yticks)
 
-        # 2. 修改 Formatter
-        
         ax.yaxis.set_major_formatter(PercentFormatter(1.0))
 
-        # 竖向分位线（亮色虚线）
-        ax.axvline(p50, linestyle="--", color=P50_COLOR, linewidth=1.5)
-        ax.axvline(p75, linestyle="--", color=P75_COLOR, linewidth=1.5)
-        ax.axvline(p95, linestyle="--", color=P95_COLOR, linewidth=1.5)
-
-        
+        # 竖向分位线
+        line50 = ax.axvline(p50, linestyle="--", color=P50_COLOR, linewidth=1.5)
+        line75 = ax.axvline(p75, linestyle="--", color=P75_COLOR, linewidth=1.5)
+        line95 = ax.axvline(p95, linestyle="--", color=P95_COLOR, linewidth=1.5)
 
         transform = blended_transform_factory(ax.transData, ax.transAxes)
+        ax.text(p50, 0.90, "P50", color=P50_COLOR, ha="right", va="top", transform=transform)
+        ax.text(p75, 0.85, "P75", color=P75_COLOR, ha="right", va="top", transform=transform)
+        ax.text(p95, 0.80, "P95", color=P95_COLOR, ha="left", va="top", transform=transform)
 
-        ax.text(p50, 0.90, "P50",
-                color=P50_COLOR,
-                ha="right",
-                va="top",
-                transform=transform)
 
-        ax.text(p75, 0.85, "P75",
-                color=P75_COLOR,
-                ha="right",
-                va="top",
-                transform=transform)
+        # 左下角图例
+        legend = ax.legend(
+            handles=[line50, line75, line95],
+            labels=[
+                f"P50：{p50}",
+                f"P75：{p75}",
+                f"P95：{p95}"
+            ],
+            loc="lower left",
+            frameon=True,
+            fancybox=True,
+            shadow=False,
+            borderpad=0.8
+        )
 
-        ax.text(p95, 0.80, "P95",
-                color=P95_COLOR,
-                ha="right",
-                va="top",
-                transform=transform)
+        # 卡片样式
+        frame = legend.get_frame()
+        frame.set_facecolor("white")
+        frame.set_edgecolor("#E0E0E0")
+        frame.set_linewidth(0.8)
+        frame.set_alpha(0.95)
 
-        # 强制显示关键 x 轴刻度
-        current_xticks = list(ax.get_xticks())
-        new_xticks = sorted(set(current_xticks + [p50, p75, p95]))
-        ax.set_xticks(new_xticks)
+        # 图例文字颜色匹配线条
+        for text, color in zip(
+            legend.get_texts(),
+            [P50_COLOR, P75_COLOR, P95_COLOR]
+        ):
+            text.set_color(color)
 
-        # 标题与标签
         ax.set_title("累计成功概率")
         ax.set_xlabel("累计抽数")
         ax.set_ylabel("累计概率")
 
-        # 保留四边边框，并略微加粗
         for spine in ax.spines.values():
             spine.set_linewidth(1.2)
 
@@ -236,3 +227,5 @@ class Visualizer:
         plt.tight_layout()
         plt.savefig(save_path, dpi=dpi, facecolor=fig.get_facecolor())
         plt.close()
+
+    

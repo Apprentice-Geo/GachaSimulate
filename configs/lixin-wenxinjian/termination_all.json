@@ -1,0 +1,38 @@
+{
+    "termination_conditions": {
+        "type": "logic",
+        "op": "OR",
+        "children": [
+            {
+                "type": "logic",
+                "op": "AND",
+                "children": [
+                    {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "lixin-wenxinjian",
+                        "op": ">=",
+                        "value": 1,
+                        "reason": "skin obtained"
+                    },
+                    {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "jianxinling",
+                        "op": ">=",
+                        "value": 1511,
+                        "reason": "skin obtained"
+                    }
+                ]
+            },
+            {
+                "type": "predicate",
+                "subject": "item",
+                "id": "jianxinling",
+                "op": ">=",
+                "value": 2509,
+                "reason": "point exchange"
+            }
+        ]
+    }
+}
