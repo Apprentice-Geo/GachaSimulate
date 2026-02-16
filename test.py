@@ -10,7 +10,7 @@ import numpy as np
 if __name__ == "__main__":
     BASE_PATH="configs/lixin-wenxinjian"
     CONFIG_JSON_PATH=BASE_PATH + "/config.json"
-    TERMINATION_JSON_PATH=BASE_PATH + "/termination_all_exchange.json"
+    TERMINATION_JSON_PATH=BASE_PATH + "/termination_all.json"
     name=os.path.basename(os.path.dirname(CONFIG_JSON_PATH))
     simulate_name=f"{name}_{Path(TERMINATION_JSON_PATH).stem}"
     config = config_parser(config_path=CONFIG_JSON_PATH, termination_path=TERMINATION_JSON_PATH)

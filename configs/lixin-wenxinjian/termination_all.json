@@ -20,7 +20,7 @@
                         "subject": "item",
                         "id": "jianxinling",
                         "op": ">=",
-                        "value": 1511,
+                        "value": 833,
                         "reason": "skin obtained"
                     }
                 ]
@@ -30,7 +30,7 @@
                 "subject": "item",
                 "id": "jianxinling",
                 "op": ">=",
-                "value": 2509,
+                "value": 1831,
                 "reason": "point exchange"
             }
         ]

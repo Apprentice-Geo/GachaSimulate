@@ -57,12 +57,14 @@ class Visualizer:
         fig, ax = plt.subplots(figsize=(10, 6), facecolor=FIG_BG)
         ax.set_facecolor(AX_BG)
 
+        bins = np.arange(min(data), max(data) + 2) - 0.5
+
         ax.hist(
             data,
-            bins="fd",
+            bins=bins,
             density=True,
             color=PRIMARY,
-            alpha=0.8,
+            alpha=0.85,
             edgecolor="#00CED1",
             linewidth=0.8
         )
