@@ -53,23 +53,22 @@ class montecarlo:
     
     def _one_roll_cycle(self, state: runtime_state):
 
-        # ① 主池
+        # 主池
         state.roll_count += 1
         state.RMB_cost += self.ctx.RMB_per_roll
         self._execute_pool(self.main_pool, state)
 
-        # ⑥ milestone
+        # milestone
         self._milestone_phase(state)
 
-        # ③ 终止判断（目标类保护）
+        # 终止判断（目标类保护）
         if self._check_termination(state):
             return
 
-        # ④ resolve阶段
-        self._resolve_phase(state)
-
-        # ⑤ 终止判断（货币路径）
-        self._check_termination(state)
+        # resolve阶段
+        if self.ctx.resolve_flag:
+            self._resolve_phase(state)
+            self._check_termination(state)
 
     def _execute_pool(self, pool, state):
         r = self.rng.random()

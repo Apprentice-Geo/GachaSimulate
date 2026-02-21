@@ -52,6 +52,7 @@ class runtime_context:
     item_id_index:Dict[str,int]
     item_id_name:Dict[str,str]
     item_list:List[item]
+    resolve_flag:bool=False
     resolve_list:List[resolve]
     pool_id_index:Dict[str,int]
     pool_list:List[pool]

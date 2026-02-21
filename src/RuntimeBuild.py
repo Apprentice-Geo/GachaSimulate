@@ -11,6 +11,7 @@ class runtime_builder:
         self.item_id_name:Dict[str,str]={}
         self.item_list:List[item]=[]
         self.tmp_resolve_list:List[Tuple[int,Resolve]]=[]
+        self.resolve_flag:bool=False
         self.resolve_list:List[resolve]=[]
         self.pool_id_index:Dict[str,int]={}
         self.tmp_pool_list:List[str]=[]
@@ -27,6 +28,7 @@ class runtime_builder:
                 trigger_index=len(self.tmp_pool_list)
                 self.tmp_pool_list.append(it.behavior.trigger_rule)
             if it.behavior.resolve_result is not None:
+                self.resolve_flag=True
                 resolve_index=len(self.tmp_resolve_list)
                 self.tmp_resolve_list.append((i,it.behavior.resolve_result))
             self.item_id_index[id]=i
@@ -113,6 +115,7 @@ class runtime_builder:
             item_id_index=self.item_id_index,
             item_id_name=self.item_id_name,
             item_list=self.item_list,
+            resolve_flag=self.resolve_flag,
             resolve_list=self.resolve_list,
             pool_id_index=self.pool_id_index,
             pool_list=self.pool_list,
