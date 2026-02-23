@@ -17,7 +17,7 @@
                                 "id": "sunwukong-wuxiang",
                                 "op": ">=",
                                 "value": 1,
-                                "reason": "skin obtained"
+                                "actions": []
                             },
                             {
                                 "type": "predicate",
@@ -25,7 +25,7 @@
                                 "id": "yao-zhenwohezi",
                                 "op": ">=",
                                 "value": 1,
-                                "reason": "skin obtained"
+                                "actions": []
                             },
                             {
                                 "type": "predicate",
@@ -33,7 +33,7 @@
                                 "id": "zhenji-xuejingqiyu",
                                 "op": ">=",
                                 "value": 1,
-                                "reason": "skin obtained"
+                                "actions": []
                             },
                             {
                                 "type": "predicate",
@@ -41,7 +41,7 @@
                                 "id": "xuejingqiyuquanpingtianmu",
                                 "op": ">=",
                                 "value": 1,
-                                "reason": "skin obtained"
+                                "actions": []
                             }
                         ]
                     },
@@ -51,7 +51,13 @@
                         "id": "wuxiang_point",
                         "op": ">=",
                         "value": 675,
-                        "reason": "skin obtained"
+                        "actions": []
+                    }
+                ],
+                "actions": [
+                    {
+                        "type": "termination",
+                        "meta": "skin obtained"
                     }
                 ]
             },
@@ -61,8 +67,14 @@
                 "id": "wuxiang_point",
                 "op": ">=",
                 "value": 1673,
-                "reason": "point exchange"
+                "actions": [
+                    {
+                        "type": "termination",
+                        "meta": "point exchange"
+                    }
+                ]
             }
-        ]
+        ],
+        "actions": []
     }
 }
