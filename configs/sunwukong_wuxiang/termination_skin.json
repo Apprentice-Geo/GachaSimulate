@@ -13,7 +13,7 @@
                     "actions":[
                         {
                             "type":"termination",
-                            "meta":"skin obtained"
+                            "reason":"skin obtained"
                         }
                     ]
                 },
@@ -26,12 +26,12 @@
                     "actions":[
                         {
                             "type":"termination",
-                            "meta":"point exchange"
+                            "reason":"point exchange"
                         }
                     ]
                 }
             ],
-            "actions":[]
+            "actions":null
         }
     
 }

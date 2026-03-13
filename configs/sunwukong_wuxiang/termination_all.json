@@ -14,7 +14,7 @@
                             "id": "sunwukong-wuxiang",
                             "op": ">=",
                             "value": 1,
-                            "actions":[]
+                            "actions":null
                         },
                         {
                             "type": "predicate",
@@ -22,13 +22,13 @@
                             "id": "wuxiang_point",
                             "op": ">=",
                             "value": 675,
-                            "actions":[]
+                            "actions":null
                         }
                     ],
                     "actions":[
                         {
                             "type":"termination",
-                            "meta":"skin obtained"
+                            "reason":"skin obtained"
                         }
                     ]
                 },
@@ -41,12 +41,12 @@
                     "actions":[
                         {
                             "type":"termination",
-                            "meta":"point exchange"
+                            "reason":"point exchange"
                         }
                     ]
                 }
             ],
-            "actions":[]
+            "actions":null
         }
     
 }

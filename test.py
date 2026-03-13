@@ -1,8 +1,8 @@
 from pathlib import Path
-from src.Simulate import load_simulation_result, save_simulation_result, simulate_until_total_rolls
-from src.Config import config_parser
-from src.RuntimeBuild import runtime_builder
-from src.MonteCarlo import montecarlo
+from run import load_simulation_result, save_simulation_result, simulate_until_total_rolls
+from parser import config_parser
+from builder import runtime_builder
+from engine import montecarlo
 from src.Visualize import Visualizer
 import os
 import numpy as np

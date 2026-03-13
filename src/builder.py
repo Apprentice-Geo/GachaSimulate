@@ -1,4 +1,4 @@
-from .Config import config_parser
+from .parser import config_parser
 from .models.ItemDef import *
 from .models.DropDef import *
 from .models.RuntimeDef import *
