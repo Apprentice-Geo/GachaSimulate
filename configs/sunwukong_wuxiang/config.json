@@ -10,9 +10,8 @@
             "cost_id": "wuxiang_coin",
             "cost_name": "无相祈愿币",
             "amount": 10,
-            "per_cost_to_RMB": 1
-        },
-        "max_draw": 1000
+            "per_cost_to_rmb": 1
+        }
     },
     "items": {
         "wuxiang_point": {
@@ -72,7 +71,7 @@
                 "amount": 1
             }
         ],
-        "random_limited_skin":[
+        "random_limited_skin": [
             {
                 "type": "draw_pool",
                 "pool_id": "random_limited_skin_pool",
@@ -239,7 +238,7 @@
         ]
     },
     "pools": {
-        "base_pool": {
+        "begin_pool": {
             "entries": [
                 {
                     "probability": 0.004,
@@ -366,126 +365,210 @@
             ]
         }
     },
-    "draw_stage": {
+    "stages": {
         "5draw": {
-            "draw_count": 5,
-            "actions": [
-                {
-                    "type": "add_item",
-                    "item_id": "random_skin",
-                    "amount": 1
-                }
-            ]
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 5,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
+            }
         },
         "10draw": {
-            "draw_count": 10,
-            "actions": [
-                {
-                    "type": "add_item",
-                    "item_id": "random_skin",
-                    "amount": 1
-                }
-            ]
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 10,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
+            }
         },
         "25draw": {
-            "draw_count": 25,
-            "actions": [
-                {
-                    "type": "add_item",
-                    "item_id": "random_skin",
-                    "amount": 1
-                }
-            ]
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 25,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
+            }
         },
         "40draw": {
-            "draw_count": 40,
-            "actions": [
-                {
-                    "type": "add_item",
-                    "item_id": "wuxiang_point",
-                    "amount": 288
-                }
-            ]
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 40,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "wuxiang_point",
+                        "amount": 288
+                    }
+                ]
+            }
         },
         "45draw": {
-            "draw_count": 45,
-            "actions": [
-                {
-                    "type": "add_item",
-                    "item_id": "random_skin",
-                    "amount": 1
-                }
-            ]
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 45,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
+            }
         },
         "50draw": {
-            "draw_count": 50,
-            "actions": [
-                {
-                    "type": "add_item",
-                    "item_id": "random_skin",
-                    "amount": 1
-                }
-            ]
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 50,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
+            }
         },
         "65draw": {
-            "draw_count": 65,
-            "actions": [
-                {
-                    "type": "add_item",
-                    "item_id": "random_skin",
-                    "amount": 1
-                }
-            ]
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 65,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
+            }
         },
         "80draw": {
-            "draw_count": 80,
-            "actions": [
-                {
-                    "type": "add_item",
-                    "item_id": "wuxiang_point",
-                    "amount": 288
-                }
-            ]
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 80,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "wuxiang_point",
+                        "amount": 288
+                    }
+                ]
+            }
         },
         "85draw": {
-            "draw_count": 85,
-            "actions": [
-                {
-                    "type": "add_item",
-                    "item_id": "random_skin",
-                    "amount": 1
-                }
-            ]
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 85,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
+            }
         },
         "90draw": {
-            "draw_count": 90,
-            "actions": [
-                {
-                    "type": "add_item",
-                    "item_id": "random_skin",
-                    "amount": 1
-                }
-            ]
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 90,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
+            }
         },
         "105draw": {
-            "draw_count": 105,
-            "actions": [
-                {
-                    "type": "add_item",
-                    "item_id": "random_skin",
-                    "amount": 1
-                }
-            ]
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 105,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
+            }
         },
         "120draw": {
-            "draw_count": 120,
-            "actions": [
-                {
-                    "type": "add_item",
-                    "item_id": "wuxiang_point",
-                    "amount": 288
-                }
-            ]
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 120,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "wuxiang_point",
+                        "amount": 288
+                    }
+                ]
+            }
         }
     }
 }

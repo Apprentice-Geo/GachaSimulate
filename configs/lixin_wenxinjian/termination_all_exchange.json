@@ -1,39 +1,45 @@
 {
+    "protected_items": [
+        "lixin_wenxinjian",
+        "gongsunli_lihenyan",
+        "yao_qilingchilongjian",
+        "jianxinling"
+    ],
     "termination_conditions": {
         "type": "logic",
         "op": "OR",
-        "children": [
+        "conditions": [
             {
                 "type": "logic",
                 "op": "AND",
-                "children": [
+                "conditions": [
                     {
                         "type": "logic",
                         "op": "OR",
-                        "children": [
+                        "conditions": [
                             {
                                 "type": "predicate",
                                 "subject": "item",
-                                "id": "lixin-wenxinjian",
+                                "id": "lixin_wenxinjian",
                                 "op": ">=",
                                 "value": 1,
-                                "reason": "skin obtained"
+                                "actions": null
                             },
                             {
                                 "type": "predicate",
                                 "subject": "item",
-                                "id": "gongsunli-lihenyan",
+                                "id": "gongsunli_lihenyan",
                                 "op": ">=",
                                 "value": 1,
-                                "reason": "skin obtained"
+                                "actions": null
                             },
                             {
                                 "type": "predicate",
                                 "subject": "item",
-                                "id": "yao-qilingchilongjian",
+                                "id": "yao_qilingchilongjian",
                                 "op": ">=",
                                 "value": 1,
-                                "reason": "skin obtained"
+                                "actions": null
                             }
                         ]
                     },
@@ -43,6 +49,12 @@
                         "id": "jianxinling",
                         "op": ">=",
                         "value": 833,
+                        "actions": null
+                    }
+                ],
+                "actions": [
+                    {
+                        "type": "termination",
                         "reason": "skin obtained"
                     }
                 ]
@@ -53,8 +65,14 @@
                 "id": "jianxinling",
                 "op": ">=",
                 "value": 1831,
-                "reason": "point exchange"
+                "actions": [
+                    {
+                        "type": "termination",
+                        "reason": "point exchange"
+                    }
+                ]
             }
-        ]
+        ],
+        "actions": null
     }
 }

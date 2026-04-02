@@ -2,7 +2,7 @@ import os
 import numpy as np
 from matplotlib import rcParams, font_manager
 import matplotlib.pyplot as plt
-from matplotlib.ticker import PercentFormatter,MaxNLocator
+from matplotlib.ticker import PercentFormatter, MaxNLocator
 from matplotlib.transforms import blended_transform_factory
 from typing import Dict
 
@@ -13,11 +13,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 
 # 字体路径
-font_path = os.path.join(
-    project_root,
-    "fonts",
-    "SourceHanSansSC-Medium.otf"
-)
+font_path = os.path.join(project_root, "fonts", "SourceHanSansSC-Medium.otf")
 
 # 注册字体
 font_manager.fontManager.addfont(font_path)
@@ -28,10 +24,11 @@ rcParams["font.family"] = "sans-serif"
 rcParams["font.sans-serif"] = [prop.get_name()]
 rcParams["axes.unicode_minus"] = False
 
+
 class Visualizer:
 
     def __init__(self, result: Dict):
-        self.roll_counts = np.asarray(result["roll_counts"])
+        self.draw_count = np.asarray(result["draw_count"])
         self.terminate_reasons = np.asarray(result["terminate_reasons"])
         self.total_runs = int(result["total_runs"])
 
@@ -41,14 +38,14 @@ class Visualizer:
     def plot_roll_distribution(self, save_path="roll_distribution.png", dpi=500):
         data = self.roll_counts
 
-        p5= int(np.percentile(data, 5))
-        p25= int(np.percentile(data, 25))
+        p5 = int(np.percentile(data, 5))
+        p25 = int(np.percentile(data, 25))
         p50 = int(np.percentile(data, 50))
         p75 = int(np.percentile(data, 75))
         p95 = int(np.percentile(data, 95))
 
         PRIMARY = "#00FFFF"
-        P5_COLOR="#A020F0"
+        P5_COLOR = "#A020F0"
         P25_COLOR = "#00FF00"
         P50_COLOR = "#0000FF"
         P75_COLOR = "#FFD700"
@@ -70,7 +67,7 @@ class Visualizer:
             color=PRIMARY,
             alpha=0.85,
             edgecolor="#00CED1",
-            linewidth=0.8
+            linewidth=0.8,
         )
 
         ax.grid(
@@ -80,7 +77,7 @@ class Visualizer:
             linestyle="--",
             linewidth=0.8,
             color=GRID_COLOR,
-            alpha=0.5
+            alpha=0.5,
         )
 
         # 分位竖线（保留）
@@ -90,7 +87,6 @@ class Visualizer:
         line75 = ax.axvline(p75, linestyle="--", color=P75_COLOR, linewidth=1.5)
         line95 = ax.axvline(p95, linestyle="--", color=P95_COLOR, linewidth=1.5)
 
-        
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
         ymax = ax.get_ylim()[1]
@@ -102,19 +98,19 @@ class Visualizer:
 
         # 左下角图例
         legend = ax.legend(
-            handles=[line5,line25,line50, line75, line95],
+            handles=[line5, line25, line50, line75, line95],
             labels=[
                 f"P5：{p5}",
                 f"P25：{p25}",
                 f"P50：{p50}",
                 f"P75：{p75}",
-                f"P95：{p95}"
+                f"P95：{p95}",
             ],
             loc="lower left",
             frameon=True,
             fancybox=True,
             shadow=False,
-            borderpad=0.8
+            borderpad=0.8,
         )
 
         # 卡片样式
@@ -126,8 +122,7 @@ class Visualizer:
 
         # 图例文字颜色匹配线条
         for text, color in zip(
-            legend.get_texts(),
-            [P5_COLOR, P25_COLOR, P50_COLOR, P75_COLOR, P95_COLOR]
+            legend.get_texts(), [P5_COLOR, P25_COLOR, P50_COLOR, P75_COLOR, P95_COLOR]
         ):
             text.set_color(color)
 
@@ -147,14 +142,14 @@ class Visualizer:
         n = len(data)
         y = np.arange(1, n + 1) / n
 
-        p5= int(np.percentile(data, 5))
-        p25= int(np.percentile(data, 25))
+        p5 = int(np.percentile(data, 5))
+        p25 = int(np.percentile(data, 25))
         p50 = int(np.percentile(data, 50))
         p75 = int(np.percentile(data, 75))
         p95 = int(np.percentile(data, 95))
 
         PRIMARY = "#00FFFF"
-        P5_COLOR="#A020F0"
+        P5_COLOR = "#A020F0"
         P25_COLOR = "#00FF00"
         P50_COLOR = "#0000FF"
         P75_COLOR = "#FFD700"
@@ -177,7 +172,7 @@ class Visualizer:
             linestyle="--",
             linewidth=0.8,
             color=GRID_COLOR,
-            alpha=0.5
+            alpha=0.5,
         )
 
         ax.axhline(0.05, linestyle="--", color=HLINE_COLOR, linewidth=1.2)
@@ -199,33 +194,78 @@ class Visualizer:
         line75 = ax.axvline(p75, linestyle="--", color=P75_COLOR, linewidth=1.5)
         line95 = ax.axvline(p95, linestyle="--", color=P95_COLOR, linewidth=1.5)
 
-        #分位线交点
-        plt.scatter([p5, p25, p50, p75, p95], [0.05, 0.25, 0.5, 0.75, 0.95], color=[P5_COLOR, P25_COLOR, P50_COLOR, P75_COLOR, P95_COLOR], s=40, zorder=5)
+        # 分位线交点
+        plt.scatter(
+            [p5, p25, p50, p75, p95],
+            [0.05, 0.25, 0.5, 0.75, 0.95],
+            color=[P5_COLOR, P25_COLOR, P50_COLOR, P75_COLOR, P95_COLOR],
+            s=40,
+            zorder=5,
+        )
 
-        #分别使用数据坐标和轴坐标的混合坐标系来放置文本，使其既能贴近分位线又能固定在图的上方
+        # 分别使用数据坐标和轴坐标的混合坐标系来放置文本，使其既能贴近分位线又能固定在图的上方
         transform = blended_transform_factory(ax.transData, ax.transAxes)
-        ax.text(p5, 0.05, "P5 ", color=P5_COLOR, ha="right", va="bottom", transform=transform)
-        ax.text(p25, 0.25, "P25 ", color=P25_COLOR, ha="right", va="bottom", transform=transform)
-        ax.text(p50, 0.50, "P50 ", color=P50_COLOR, ha="right", va="bottom", transform=transform)
-        ax.text(p75, 0.75, "P75 ", color=P75_COLOR, ha="right", va="bottom", transform=transform)
-        ax.text(p95, 0.95, "P95 ", color=P95_COLOR, ha="right", va="bottom", transform=transform)
-
+        ax.text(
+            p5,
+            0.05,
+            "P5 ",
+            color=P5_COLOR,
+            ha="right",
+            va="bottom",
+            transform=transform,
+        )
+        ax.text(
+            p25,
+            0.25,
+            "P25 ",
+            color=P25_COLOR,
+            ha="right",
+            va="bottom",
+            transform=transform,
+        )
+        ax.text(
+            p50,
+            0.50,
+            "P50 ",
+            color=P50_COLOR,
+            ha="right",
+            va="bottom",
+            transform=transform,
+        )
+        ax.text(
+            p75,
+            0.75,
+            "P75 ",
+            color=P75_COLOR,
+            ha="right",
+            va="bottom",
+            transform=transform,
+        )
+        ax.text(
+            p95,
+            0.95,
+            "P95 ",
+            color=P95_COLOR,
+            ha="right",
+            va="bottom",
+            transform=transform,
+        )
 
         # 左下角图例
         legend = ax.legend(
-            handles=[line5,line25,line50, line75, line95],
+            handles=[line5, line25, line50, line75, line95],
             labels=[
                 f"P5：{p5}",
                 f"P25：{p25}",
                 f"P50：{p50}",
                 f"P75：{p75}",
-                f"P95：{p95}"
+                f"P95：{p95}",
             ],
             loc="lower left",
             frameon=True,
             fancybox=True,
             shadow=False,
-            borderpad=0.8
+            borderpad=0.8,
         )
 
         # 卡片样式
@@ -237,8 +277,7 @@ class Visualizer:
 
         # 图例文字颜色匹配线条
         for text, color in zip(
-            legend.get_texts(),
-            [P5_COLOR, P25_COLOR, P50_COLOR, P75_COLOR, P95_COLOR]
+            legend.get_texts(), [P5_COLOR, P25_COLOR, P50_COLOR, P75_COLOR, P95_COLOR]
         ):
             text.set_color(color)
 
@@ -254,5 +293,3 @@ class Visualizer:
         plt.tight_layout()
         plt.savefig(save_path, dpi=dpi, facecolor=fig.get_facecolor())
         plt.close()
-
-    

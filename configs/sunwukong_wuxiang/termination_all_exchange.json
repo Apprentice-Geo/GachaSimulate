@@ -1,20 +1,27 @@
 {
+    "protected_items":[
+        "sunwukong_wuxiang",
+        "yao_zhenwohezi",
+        "zhenji_xuejingqiyu",
+        "xuejingqiyuquanpingtianmu",
+        "wuxiang_point"
+    ],
     "termination_conditions": {
         "type": "logic",
         "op": "OR",
-        "children": [
+        "conditions": [
             {
                 "type": "logic",
                 "op": "AND",
-                "children": [
+                "conditions": [
                     {
                         "type": "logic",
                         "op": "OR",
-                        "children": [
+                        "conditions": [
                             {
                                 "type": "predicate",
                                 "subject": "item",
-                                "id": "sunwukong-wuxiang",
+                                "id": "sunwukong_wuxiang",
                                 "op": ">=",
                                 "value": 1,
                                 "actions": null
@@ -22,7 +29,7 @@
                             {
                                 "type": "predicate",
                                 "subject": "item",
-                                "id": "yao-zhenwohezi",
+                                "id": "yao_zhenwohezi",
                                 "op": ">=",
                                 "value": 1,
                                 "actions": null
@@ -30,7 +37,7 @@
                             {
                                 "type": "predicate",
                                 "subject": "item",
-                                "id": "zhenji-xuejingqiyu",
+                                "id": "zhenji_xuejingqiyu",
                                 "op": ">=",
                                 "value": 1,
                                 "actions": null

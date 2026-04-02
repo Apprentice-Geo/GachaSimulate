@@ -1,469 +1,689 @@
 {
     "meta": {
-        "name": "lixin-wenxinjian",
+        "name": "lixin_wenxinjian",
         "source": "https://pvp.qq.com/web201706/newsdetail.shtml?tid=795182",
         "game": "王者荣耀",
         "time": "26_2_15_26_3_22"
     },
     "economy": {
-        "cost_per_roll": {
+        "cost_per_draw": {
             "cost_id": "wenxinbi",
             "cost_name": "问心币",
-            "amount": 10
-        },
-        "max_roll": 1000,
-        "per_cost_to_RMB": 1
+            "amount": 10,
+            "per_cost_to_rmb": 1
+        }
     },
     "items": {
         "jianxinling": {
-            "name": "剑心令",
-            "trigger_rule": null,
-            "resolve_result": null
+            "name": "剑心令"
         },
         "random_limited_skin": {
-            "name": "随机限定皮肤礼",
-            "trigger_rule": "random_limited_skin_pool",
-            "resolve_result": null
+            "name": "随机限定皮肤礼"
         },
         "random_legendary_skin": {
-            "name": "随机传说皮肤",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 120
-            }
+            "name": "随机传说皮肤"
         },
         "random_skin": {
-            "name": "随机皮肤礼",
-            "trigger_rule": "random_skin_pool",
-            "resolve_result": null
+            "name": "随机皮肤礼"
         },
         "skin_fragment8": {
-            "name": "皮肤碎片8",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 5
-            }
+            "name": "皮肤碎片8"
         },
         "yanyuhuadie2": {
-            "name": "烟雨化蝶2",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 5
-            }
+            "name": "烟雨化蝶2"
         },
-        "lixin-wenxinjian": {
-            "name": "李信-问心剑",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 288
-            }
+        "lixin_wenxinjian": {
+            "name": "李信_问心剑"
         },
-        "gongsunli-lihenyan": {
-            "name": "公孙离-离恨烟",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 288
-            }
+        "gongsunli_lihenyan": {
+            "name": "公孙离_离恨烟"
         },
-        "yao-qilingchilongjian": {
-            "name": "耀-器灵螭龙剑",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 288
-            }
+        "yao_qilingchilongjian": {
+            "name": "耀_器灵螭龙剑"
         },
         "moranjianghutianmu": {
-            "name": "墨染江湖天幕",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 288
-            }
+            "name": "墨染江湖天幕"
         },
-        "bailixuance-baihuzhi": {
-            "name": "百里玄策-白虎志",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 288
-            }
+        "bailixuance_baihuzhi": {
+            "name": "百里玄策_白虎志"
         },
-        "sunwukong-qitiandasheng": {
-            "name": "孙悟空-齐天大圣",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 288
-            }
+        "sunwukong_qitiandasheng": {
+            "name": "孙悟空_齐天大圣"
         },
-        "sunshangxiang-yijielingqi": {
-            "name": "孙尚香-异界灵契",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 288
-            }
+        "sunshangxiang_yijielingqi": {
+            "name": "孙尚香_异界灵契"
         },
-        "wangzhaojun-xingqiongzhisheng": {
-            "name": "王昭君-星穹之声",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 288
-            }
+        "wangzhaojun_xingqiongzhisheng": {
+            "name": "王昭君_星穹之声"
         },
-        "libai-fengqiuhuang": {
-            "name": "李白-凤求凰",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 288
-            }
+        "libai_fengqiuhuang": {
+            "name": "李白_凤求凰"
         },
         "epic_skin": {
-            "name": "史诗皮肤",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 60
-            }
+            "name": "史诗皮肤"
         },
         "brave_skin": {
-            "name": "勇者皮肤",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 40
-            }
+            "name": "勇者皮肤"
         },
         "companion_skin": {
-            "name": "伴生皮肤",
-            "trigger_rule": null,
-            "resolve_result": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 20
-            }
+            "name": "伴生皮肤"
         }
     },
-    "drops": {
-        "name": "main_pool",
-        "entries": [
+    "item_draw": {
+        "random_skin": [
             {
-                "probability": 0.004,
-                "type": "item",
-                "id": "random_limited_skin",
+                "type": "draw_pool",
+                "pool_id": "random_skin_pool",
                 "amount": 1
-            },
+            }
+        ],
+        "random_limited_skin": [
             {
-                "probability": 0.005,
-                "type": "item",
-                "id": "random_legendary_skin",
-                "amount": 1
-            },
-            {
-                "probability": 0.135,
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
-            },
-            {
-                "probability": 0.008,
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 68
-            },
-            {
-                "probability": 0.04,
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 28
-            },
-            {
-                "probability": 0.237,
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 18
-            },
-            {
-                "probability": 0.3,
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 8
-            },
-            {
-                "probability": 0.15,
-                "type": "item",
-                "id": "skin_fragment8",
-                "amount": 1
-            },
-            {
-                "probability": 0.121,
-                "type": "item",
-                "id": "yanyuhuadie2",
+                "type": "draw_pool",
+                "pool_id": "random_limited_skin_pool",
                 "amount": 1
             }
         ]
     },
-    "trigger_rules": {
-        "random_limited_skin": {
-            "type": "sub_pool",
-            "drops": {
-                "name": "random_limited_skin_pool",
-                "entries": [
+    "item_resolve": {
+        "random_legendary_skin": [
+            {
+                "type": "reduce_item",
+                "id": "random_legendary_skin",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 120
+            }
+        ],
+        "skin_fragment8": [
+            {
+                "type": "reduce_item",
+                "id": "skin_fragment8",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 5
+            }
+        ],
+        "yanyuhuadie2": [
+            {
+                "type": "reduce_item",
+                "id": "yanyuhuadie2",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 5
+            }
+        ],
+        "lixin_wenxinjian": [
+            {
+                "type": "reduce_item",
+                "id": "lixin_wenxinjian",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 288
+            }
+        ],
+        "gongsunli_lihenyan": [
+            {
+                "type": "reduce_item",
+                "id": "gongsunli_lihenyan",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 288
+            }
+        ],
+        "yao_qilingchilongjian": [
+            {
+                "type": "reduce_item",
+                "id": "yao_qilingchilongjian",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 288
+            }
+        ],
+        "moranjianghutianmu": [
+            {
+                "type": "reduce_item",
+                "id": "moranjianghutianmu",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 288
+            }
+        ],
+        "bailixuance_baihuzhi": [
+            {
+                "type": "reduce_item",
+                "id": "bailixuance_baihuzhi",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 288
+            }
+        ],
+        "sunwukong_qitiandasheng": [
+            {
+                "type": "reduce_item",
+                "id": "sunwukong_qitiandasheng",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 288
+            }
+        ],
+        "sunshangxiang_yijielingqi": [
+            {
+                "type": "reduce_item",
+                "id": "sunshangxiang_yijielingqi",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 288
+            }
+        ],
+        "wangzhaojun_xingqiongzhisheng": [
+            {
+                "type": "reduce_item",
+                "id": "wangzhaojun_xingqiongzhisheng",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 288
+            }
+        ],
+        "libai_fengqiuhuang": [
+            {
+                "type": "reduce_item",
+                "id": "libai_fengqiuhuang",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 288
+            }
+        ],
+        "epic_skin": [
+            {
+                "type": "reduce_item",
+                "id": "epic_skin",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 60
+            }
+        ],
+        "brave_skin": [
+            {
+                "type": "reduce_item",
+                "id": "brave_skin",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 40
+            }
+        ],
+        "companion_skin": [
+            {
+                "type": "reduce_item",
+                "id": "companion_skin",
+                "amount": 1
+            },
+            {
+                "type": "add_item",
+                "id": "jianxinling",
+                "amount": 20
+            }
+        ]
+    },
+    "pools": {
+        "begin_pool": {
+            "entries": [
+                {
+                    "probability": 0.004,
+                    "type": "item",
+                    "id": "random_limited_skin",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.005,
+                    "type": "item",
+                    "id": "random_legendary_skin",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.135,
+                    "type": "item",
+                    "id": "random_skin",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.008,
+                    "type": "item",
+                    "id": "jianxinling",
+                    "amount": 68
+                },
+                {
+                    "probability": 0.04,
+                    "type": "item",
+                    "id": "jianxinling",
+                    "amount": 28
+                },
+                {
+                    "probability": 0.237,
+                    "type": "item",
+                    "id": "jianxinling",
+                    "amount": 18
+                },
+                {
+                    "probability": 0.3,
+                    "type": "item",
+                    "id": "jianxinling",
+                    "amount": 8
+                },
+                {
+                    "probability": 0.15,
+                    "type": "item",
+                    "id": "skin_fragment8",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.121,
+                    "type": "item",
+                    "id": "yanyuhuadie2",
+                    "amount": 1
+                }
+            ]
+        },
+        "random_limited_skin_pool": {
+            "entries": [
+                {
+                    "probability": 0.0034,
+                    "type": "item",
+                    "id": "lixin_wenxinjian",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.0033,
+                    "type": "item",
+                    "id": "gongsunli_lihenyan",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.0033,
+                    "type": "item",
+                    "id": "yao_qilingchilongjian",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.01,
+                    "type": "item",
+                    "id": "moranjianghutianmu",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.162,
+                    "type": "item",
+                    "id": "bailixuance_baihuzhi",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.162,
+                    "type": "item",
+                    "id": "sunwukong_qitiandasheng",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.162,
+                    "type": "item",
+                    "id": "sunshangxiang_yijielingqi",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.162,
+                    "type": "item",
+                    "id": "wangzhaojun_xingqiongzhisheng",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.162,
+                    "type": "item",
+                    "id": "libai_fengqiuhuang",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.17,
+                    "type": "item",
+                    "id": "jianxinling",
+                    "amount": 288
+                }
+            ]
+        },
+        "random_skin_pool": {
+            "entries": [
+                {
+                    "probability": 0.10,
+                    "type": "item",
+                    "id": "epic_skin",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.30,
+                    "type": "item",
+                    "id": "brave_skin",
+                    "amount": 1
+                },
+                {
+                    "probability": 0.60,
+                    "type": "item",
+                    "id": "companion_skin",
+                    "amount": 1
+                }
+            ]
+        }
+    },
+    "stages": {
+        "5draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 5,
+                "actions": [
                     {
-                        "probability": 0.0034,
-                        "type": "item",
-                        "id": "lixin-wenxinjian",
+                        "type": "add_item",
+                        "item_id": "random_skin",
                         "amount": 1
-                    },
+                    }
+                ]
+            }
+        },
+        "10draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 10,
+                "actions": [
                     {
-                        "probability": 0.0033,
-                        "type": "item",
-                        "id": "gongsunli-lihenyan",
+                        "type": "add_item",
+                        "item_id": "random_skin",
                         "amount": 1
-                    },
+                    }
+                ]
+            }
+        },
+        "25draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 25,
+                "actions": [
                     {
-                        "probability": 0.0033,
-                        "type": "item",
-                        "id": "yao-qilingchilongjian",
+                        "type": "add_item",
+                        "item_id": "random_skin",
                         "amount": 1
-                    },
+                    }
+                ]
+            }
+        },
+        "40draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 40,
+                "actions": [
                     {
-                        "probability": 0.01,
-                        "type": "item",
-                        "id": "moranjianghutianmu",
-                        "amount": 1
-                    },
-                    {
-                        "probability": 0.162,
-                        "type": "item",
-                        "id": "bailixuance-baihuzhi",
-                        "amount": 1
-                    },
-                    {
-                        "probability": 0.162,
-                        "type": "item",
-                        "id": "sunwukong-qitiandasheng",
-                        "amount": 1
-                    },
-                    {
-                        "probability": 0.162,
-                        "type": "item",
-                        "id": "sunshangxiang-yijielingqi",
-                        "amount": 1
-                    },
-                    {
-                        "probability": 0.162,
-                        "type": "item",
-                        "id": "wangzhaojun-xingqiongzhisheng",
-                        "amount": 1
-                    },
-                    {
-                        "probability": 0.162,
-                        "type": "item",
-                        "id": "libai-fengqiuhuang",
-                        "amount": 1
-                    },
-                    {
-                        "probability": 0.17,
-                        "type": "item",
-                        "id": "jianxinling",
+                        "type": "add_item",
+                        "item_id": "jianxinling",
                         "amount": 288
                     }
                 ]
             }
         },
-        "random_skin": {
-            "type": "sub_pool",
-            "drops": {
-                "name": "random_skin_pool",
-                "entries": [
+        "45draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 45,
+                "actions": [
                     {
-                        "probability": 0.10,
-                        "type": "item",
-                        "id": "epic_skin",
-                        "amount": 1
-                    },
-                    {
-                        "probability": 0.30,
-                        "type": "item",
-                        "id": "brave_skin",
-                        "amount": 1
-                    },
-                    {
-                        "probability": 0.60,
-                        "type": "item",
-                        "id": "companion_skin",
+                        "type": "add_item",
+                        "item_id": "random_skin",
                         "amount": 1
                     }
                 ]
             }
-        }
-    },
-    "milestones": {
-        "5roll": {
-            "type": "roll_count",
-            "roll_count": 5,
-            "reward": {
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
+        },
+        "50draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 50,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
             }
         },
-        "10roll": {
-            "type": "roll_count",
-            "roll_count": 10,
-            "reward": {
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
+        "65draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 65,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
             }
         },
-        "25roll": {
-            "type": "roll_count",
-            "roll_count": 25,
-            "reward": {
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
+        "80draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 80,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "jianxinling",
+                        "amount": 288
+                    }
+                ]
             }
         },
-        "40roll": {
-            "type": "roll_count",
-            "roll_count": 40,
-            "reward": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 288
+        "85draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 85,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
             }
         },
-        "45roll": {
-            "type": "roll_count",
-            "roll_count": 45,
-            "reward": {
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
+        "90draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 90,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
             }
         },
-        "50roll": {
-            "type": "roll_count",
-            "roll_count": 50,
-            "reward": {
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
+        "105draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 105,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
             }
         },
-        "65roll": {
-            "type": "roll_count",
-            "roll_count": 65,
-            "reward": {
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
+        "120draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 120,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "jianxinling",
+                        "amount": 288
+                    }
+                ]
             }
         },
-        "80roll": {
-            "type": "roll_count",
-            "roll_count": 80,
-            "reward": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 288
+        "125draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 125,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
             }
         },
-        "85roll": {
-            "type": "roll_count",
-            "roll_count": 85,
-            "reward": {
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
+        "130draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 130,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
             }
         },
-        "90roll": {
-            "type": "roll_count",
-            "roll_count": 90,
-            "reward": {
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
+        "145draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 145,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
             }
         },
-        "105roll": {
-            "type": "roll_count",
-            "roll_count": 105,
-            "reward": {
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
-            }
-        },
-        "120roll": {
-            "type": "roll_count",
-            "roll_count": 120,
-            "reward": {
-                "type": "item",
-                "id": "jianxinling",
-                "amount": 288
-            }
-        },
-        "125roll": {
-            "type": "roll_count",
-            "roll_count": 125,
-            "reward": {
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
-            }
-        },
-        "130roll": {
-            "type": "roll_count",
-            "roll_count": 130,
-            "reward": {
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
-            }
-        },
-        "145roll": {
-            "type": "roll_count",
-            "roll_count": 145,
-            "reward": {
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
-            }
-        },
-        "160roll": {
-            "type": "roll_count",
-            "roll_count": 160,
-            "reward": {
-                "type": "item",
-                "id": "random_skin",
-                "amount": 1
+        "160draw": {
+            "once": true,
+            "conditions": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 160,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "item_id": "random_skin",
+                        "amount": 1
+                    }
+                ]
             }
         }
     }

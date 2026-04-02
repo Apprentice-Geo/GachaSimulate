@@ -1,179 +1,224 @@
-import numpy as np
-from .models.RuntimeDef import runtime_context
+from __future__ import annotations
 
-class runtime_state:
-    __slots__ = (
-        "inventory",          # 规则用库存（会被分解）
-        "lifetime_acquired",  # 统计用累计获得
-        "roll_count",
-        "RMB_cost",
-        "terminated",
-        "terminate_reason"
+from collections import deque
+from typing import Deque, Iterable
+
+try:
+    from .runtime import (
+        Action,
+        AddItem,
+        CheckNode,
+        ConditionNode,
+        DrawPool,
+        LogicNode,
+        ReduceItem,
+        RuntimeContext,
+        RuntimeState,
+        Termination,
     )
-
-    def __init__(self, item_count: int):
-        self.inventory = np.zeros(item_count, dtype=np.int32)
-        self.lifetime_acquired = np.zeros(item_count, dtype=np.int32)
-        self.roll_count = 0
-        self.RMB_cost = 0
-        self.terminated = False
-        self.terminate_reason=None
+except ImportError:
+    from runtime import (
+        Action,
+        AddItem,
+        CheckNode,
+        ConditionNode,
+        DrawPool,
+        LogicNode,
+        ReduceItem,
+        RuntimeContext,
+        RuntimeState,
+        Termination,
+    )
 
 
 class montecarlo:
-
-    def __init__(self, ctx: runtime_context, seed=None):
+    def __init__(self, ctx: RuntimeContext, seed=None):
         self.ctx = ctx
         self.seed = seed
-        self.rng = np.random.default_rng(seed)
-        self.main_pool = ctx.pool_list[ctx.pool_id_index["main_pool"]]
-        self.protected_items = self._collect_termination_items(ctx.Termination_tree)
+        self._protected_snapshot: tuple[int, ...] = ()
 
-    
-    def _collect_termination_items(self, node):
-        items = set()
+    def run_once(self) -> RuntimeState:
+        state = RuntimeState(item_count=len(self.ctx.item_list), seed=self.seed)
+        state.main_pool_index = self.ctx.begin_pool_index
+        state.stage_execute = [False] * len(self.ctx.draw_stage_list)
+        self._protected_snapshot = self._get_protected_inventory_snapshot(state)
 
-        def dfs(n):
-            if n.__class__.__name__ == "check_node":
-                items.add(n.index)
-            for c in getattr(n, "children", []):
-                dfs(c)
-
-        dfs(node)
-        return items
-
-
-    def run_once(self) -> runtime_state:
-        state = runtime_state(len(self.ctx.item_list))
-
-        while not state.terminated:
-            self._one_roll_cycle(state)
+        while not state.terminate:
+            self._one_draw_cycle(state)
 
         return state
-    
-    def _one_roll_cycle(self, state: runtime_state):
 
-        # 主池
-        state.roll_count += 1
-        state.RMB_cost += self.ctx.RMB_per_roll
-        self._execute_pool(self.main_pool, state)
+    def _one_draw_cycle(self, state: RuntimeState) -> None:
+        action_queue: Deque[Action] = deque()
 
-        # milestone
-        self._milestone_phase(state)
+        state.draw_count += 1
+        state.rmb_cost += self.ctx.rmb_per_roll
 
-        # 终止判断（目标类保护）
-        if self._check_termination(state):
-            return
+        action_queue.append(self.ctx.pool_draw_list[state.main_pool_index])
+        self._drain_action_queue(state, action_queue)
 
-        # resolve阶段
-        if self.ctx.resolve_flag:
-            self._resolve_phase(state)
-            self._check_termination(state)
+        self._stage_phase(state, action_queue)
+        self._drain_action_queue(state, action_queue)
 
-    def _execute_pool(self, pool, state):
-        r = self.rng.random()
-        idx = np.searchsorted(pool.cdf, r)
-        op = pool.ops[idx]
-        self._apply_op(op, state)
+        self._resolve_phase(state, action_queue)
+        self._drain_action_queue(state, action_queue)
 
-    def _apply_op(self, op, state, count_lifetime=True):
-        t = op.__class__.__name__
+        if self._should_check_termination(state):
+            should_terminate, termination_actions = self._eval_condition(
+                self.ctx.termination_tree, state
+            )
+            if should_terminate:
+                self._enqueue_actions(action_queue, termination_actions)
+                self._drain_action_queue(state, action_queue)
 
-        if t == "add_item":
-            self._add_item(op.index, op.amount, state, count_lifetime)
-
-        elif t == "reduce_item":
-            state.inventory[op.index] -= op.amount
-
-    def _add_item(self, idx, amount, state, count_lifetime=True):
-        
-        item_def = self.ctx.item_list[idx]
-        if item_def.trigger is not None:
-            pool = self.ctx.pool_list[item_def.trigger]
-            self._execute_pool(pool, state)
-        else:
-            state.inventory[idx] += amount
-
-            if count_lifetime:
-                state.lifetime_acquired[idx] += amount
-
-            
-
-
-
-    def _resolve_phase(self, state):
-
-        for idx, item_def in enumerate(self.ctx.item_list):
-
-            if idx in self.protected_items:
+    def _stage_phase(self, state: RuntimeState, action_queue: Deque[Action]) -> None:
+        for stage_index, stage in enumerate(self.ctx.draw_stage_list):
+            if stage.once and state.stage_execute[stage_index]:
                 continue
 
-            if item_def.resolve is None:
+            ok, stage_actions = self._eval_condition(stage.condition, state)
+            if ok:
+                self._enqueue_actions(action_queue, stage_actions)
+                if stage.once:
+                    state.stage_execute[stage_index] = True
+
+    def _resolve_phase(self, state: RuntimeState, action_queue: Deque[Action]) -> None:
+        protected = set(self.ctx.protected_items_index)
+
+        for item_index, resolve_actions in enumerate(self.ctx.item_resolve_list):
+            if item_index in protected:
+                continue
+            if not resolve_actions:
                 continue
 
-            count = state.inventory[idx]
+            count = int(state.inventory[item_index])
             if count <= 0:
                 continue
 
-            res = self.ctx.resolve_list[item_def.resolve]
-           
             for _ in range(count):
-                for op in res.ops:
-                    
-                    self._apply_op(op, state, count_lifetime=False)
+                self._enqueue_actions(action_queue, resolve_actions)
 
+    def _drain_action_queue(
+        self, state: RuntimeState, action_queue: Deque[Action]
+    ) -> None:
+        max_steps = 1_000_000
+        steps = 0
 
-    def _milestone_phase(self, state):
-        for ms in self.ctx.milestone_list:
-            if state.roll_count == ms.roll_count:
-                for op in ms.ops:
-                    self._apply_op(op, state)
+        while action_queue and not state.terminate:
+            steps += 1
+            if steps > max_steps:
+                raise RuntimeError(
+                    "action queue exceeded max steps; possible action loop"
+                )
 
-    def _check_termination(self, state):
-        ok, reason = self._eval_logic(self.ctx.Termination_tree, state)
-        if ok:
-            state.terminated = True
-            state.terminate_reason = reason
-        return ok
-    
-    def _eval_logic(self, node, state):
+            action = action_queue.popleft()
+            self._apply_action(action, state, action_queue)
+
+    def _apply_action(
+        self, action: Action, state: RuntimeState, action_queue: Deque[Action]
+    ) -> None:
+        if isinstance(action, AddItem):
+            action.execute(state, self.ctx)
+
+            draw_actions = self.ctx.item_draw_list[action.item_index]
+            if draw_actions:
+                for _ in range(action.amount):
+                    self._enqueue_actions(action_queue, draw_actions)
+            return
+
+        if isinstance(action, (DrawPool, ReduceItem, Termination)):
+            action.execute(state, self.ctx)
+            return
+
+        action.execute(state, self.ctx)
+
+    def _eval_condition(
+        self, node: ConditionNode | None, state: RuntimeState
+    ) -> tuple[bool, list[Action]]:
         if node is None:
-            return False, None
-        if node.op == "OR":
-            for c in node.children:
-                ok, reason = self._eval_logic(c, state)
-                if ok:
-                    return True, reason
-            return False, None
+            return False, []
 
-        if node.op == "AND":
-            reasons = []
-            for c in node.children:
-                ok, reason = self._eval_logic(c, state)
-                if not ok:
-                    return False, None
-                reasons.append(reason)
-            return True, reasons[0] 
+        if isinstance(node, CheckNode):
+            left = self._get_subject_value(node.subject, node.id, state)
+            ok = self._compare(left, node.op, node.value)
+            if ok:
+                return True, list(node.actions or [])
+            return False, []
 
-        if node.__class__.__name__ == "check_node":
-            val = state.inventory[node.index]
+        if isinstance(node, LogicNode):
+            if node.op == "OR":
+                for child in node.conditions:
+                    ok, child_actions = self._eval_condition(child, state)
+                    if ok:
+                        actions = list(node.actions or [])
+                        actions.extend(child_actions)
+                        return True, actions
+                return False, []
 
-            cond = (
-                (node.op == ">=" and val >= node.value) or
-                (node.op == ">" and val > node.value) or
-                (node.op == "==" and val == node.value)
-            )
+            if node.op == "AND":
+                aggregated: list[Action] = []
+                for child in node.conditions:
+                    ok, child_actions = self._eval_condition(child, state)
+                    if not ok:
+                        return False, []
+                    aggregated.extend(child_actions)
+                actions = list(node.actions or [])
+                actions.extend(aggregated)
+                return True, actions
 
-            if cond:
-                return True, node.reason
-            return False, None
+            raise ValueError(f"unsupported logic op: {node.op}")
 
-            
+        raise TypeError(f"unsupported condition node type: {type(node).__name__}")
 
+    def _get_subject_value(
+        self, subject: str, subject_id: str | None, state: RuntimeState
+    ) -> int:
+        if subject == "draw_count":
+            return state.draw_count
+        if subject == "rmb_cost":
+            return state.rmb_cost
+        if subject == "item":
+            if subject_id is None:
+                raise ValueError("item predicate requires id")
+            return int(state.inventory[self.ctx.item_id_index[subject_id]])
 
+        raise ValueError(f"unsupported predicate subject: {subject}")
 
+    def _compare(self, left: int, op: str, right: int) -> bool:
+        if op == ">=":
+            return left >= right
+        if op == ">":
+            return left > right
+        if op == "==":
+            return left == right
+        if op == "<=":
+            return left <= right
+        if op == "<":
+            return left < right
+        if op == "!=":
+            return left != right
 
+        raise ValueError(f"unsupported predicate op: {op}")
 
+    def _get_protected_inventory_snapshot(self, state: RuntimeState) -> tuple[int, ...]:
+        if not self.ctx.protected_items_index:
+            return ()
+        return tuple(int(state.inventory[i]) for i in self.ctx.protected_items_index)
 
+    def _should_check_termination(self, state: RuntimeState) -> bool:
+        # Keep compatibility with configs that do not define protected items.
+        if not self.ctx.protected_items_index:
+            return True
 
+        current_snapshot = self._get_protected_inventory_snapshot(state)
+        if current_snapshot == self._protected_snapshot:
+            return False
 
+        self._protected_snapshot = current_snapshot
+        return True
+
+    def _enqueue_actions(
+        self, action_queue: Deque[Action], actions: Iterable[Action] | None
+    ) -> None:
+        for action in actions or []:
+            action_queue.append(action)
