@@ -5,8 +5,7 @@ from typing import Any
 
 import numpy as np
 
-try:
-    from .runtime import (
+from gacha_sim.core.runtime import (
         Action,
         AddItem,
         CheckNode,
@@ -21,22 +20,7 @@ try:
         Stage,
         Termination,
     )
-except ImportError:
-    from runtime import (
-        Action,
-        AddItem,
-        CheckNode,
-        ConditionNode,
-        DrawPool,
-        Item,
-        LogicNode,
-        Pool,
-        PoolChange,
-        ReduceItem,
-        RuntimeContext,
-        Stage,
-        Termination,
-    )
+
 
 
 class runtime_builder:
@@ -45,7 +29,7 @@ class runtime_builder:
             self.config = json.load(f)
         with open(termination_path, "r", encoding="utf-8") as f:
             self.termination_config = json.load(f)
-        self.rmb_per_roll = 0
+        self.rmb_per_draw = 0
         self.item_id_index = {}
         self.item_list = []
         self.item_resolve_index = []
@@ -141,7 +125,7 @@ class runtime_builder:
         per_cost_to_rmb = economy.get(
             "per_cost_to_rmb", economy.get("per_cost_to_RMB", 1)
         )
-        self.rmb_per_roll = int(
+        self.rmb_per_draw = int(
             float(cost_config.get("amount", 0)) * float(per_cost_to_rmb)
         )
 
@@ -341,7 +325,7 @@ class runtime_builder:
         ]
 
         return RuntimeContext(
-            rmb_per_roll=self.rmb_per_roll,
+            rmb_per_draw=self.rmb_per_draw,
             begin_pool_index=self.pool_id_index.get("begin_pool", 0),
             item_id_index=self.item_id_index,
             item_list=self.item_list,

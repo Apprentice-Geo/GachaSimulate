@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import numpy as np
 from matplotlib import rcParams, font_manager
 import matplotlib.pyplot as plt
@@ -6,11 +7,8 @@ from matplotlib.ticker import PercentFormatter, MaxNLocator
 from matplotlib.transforms import blended_transform_factory
 from typing import Dict
 
-# 当前文件所在目录（src）
-current_dir = os.path.dirname(os.path.abspath(__file__))
-
 # 项目根目录
-project_root = os.path.dirname(current_dir)
+project_root = Path(__file__).resolve().parents[3]
 
 # 字体路径
 font_path = os.path.join(project_root, "fonts", "SourceHanSansSC-Medium.otf")
@@ -32,11 +30,11 @@ class Visualizer:
         self.terminate_reasons = np.asarray(result["terminate_reasons"])
         self.total_runs = int(result["total_runs"])
 
-        if len(self.roll_counts) != self.total_runs:
-            raise ValueError("roll_counts length mismatch total_runs")
+        if len(self.draw_count) != self.total_runs:
+            raise ValueError("draw_count length mismatch total_runs")
 
-    def plot_roll_distribution(self, save_path="roll_distribution.png", dpi=500):
-        data = self.roll_counts
+    def plot_draw_distribution(self, save_path="draw_distribution.png", dpi=500):
+        data = self.draw_count
 
         p5 = int(np.percentile(data, 5))
         p25 = int(np.percentile(data, 25))
@@ -138,7 +136,7 @@ class Visualizer:
         plt.close()
 
     def plot_cdf(self, save_path="cdf.png", dpi=500):
-        data = np.sort(self.roll_counts)
+        data = np.sort(self.draw_count)
         n = len(data)
         y = np.arange(1, n + 1) / n
 

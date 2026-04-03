@@ -6,14 +6,9 @@ from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1]
-SRC_DIR = ROOT / "src"
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-
-from builder import runtime_builder
-from engine import montecarlo
-from runtime import (
+from gacha_sim.core.builder import runtime_builder
+from gacha_sim.core.engine import montecarlo
+from gacha_sim.core.runtime import (
     AddItem,
     CheckNode,
     DrawPool,
@@ -23,6 +18,8 @@ from runtime import (
     Stage,
     Termination,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class CountingMonteCarlo(montecarlo):
@@ -137,6 +134,55 @@ class EngineIntegrationTest(unittest.TestCase):
         self.assertTrue(state.terminate)
         self.assertEqual(state.draw_count, 3)
         self.assertEqual(sim.termination_eval_count, 1)
+
+    def test_draw_pool_triggers_nested_item_draw(self) -> None:
+        item_list = [
+            Item(id="ticket", name="Ticket"),
+            Item(id="target", name="Target"),
+        ]
+        item_id_index = {item.id: i for i, item in enumerate(item_list)}
+
+        ctx = RuntimeContext(
+            rmb_per_roll=10,
+            begin_pool_index=0,
+            item_id_index=item_id_index,
+            item_list=item_list,
+            item_resolve_list=[[], []],
+            item_draw_list=[
+                [DrawPool(pool_index=1)],
+                [],
+            ],
+            pool_id_index={"begin_pool": 0, "bonus_pool": 1},
+            pool_list=[
+                Pool(
+                    cdf=np.array([1.0], dtype=np.float64),
+                    actions=[AddItem(item_index=item_id_index["ticket"], amount=1)],
+                ),
+                Pool(
+                    cdf=np.array([1.0], dtype=np.float64),
+                    actions=[AddItem(item_index=item_id_index["target"], amount=1)],
+                ),
+            ],
+            pool_draw_list=[DrawPool(pool_index=0), DrawPool(pool_index=1)],
+            draw_stage_id_index={},
+            draw_stage_list=[],
+            protected_items_index=[],
+            termination_tree=CheckNode(
+                subject="item",
+                id="target",
+                op=">=",
+                value=1,
+                actions=[Termination(reason="target reached")],
+            ),
+        )
+
+        sim = montecarlo(ctx, seed=0)
+        state = sim.run_once()
+
+        self.assertTrue(state.terminate)
+        self.assertEqual(state.terminate_reason, "target reached")
+        self.assertEqual(int(state.inventory[item_id_index["target"]]), 1)
+        self.assertEqual(state.draw_count, 1)
 
     def test_engine_runs_with_wuxiang_builder_output(self) -> None:
         config_path = ROOT / "configs" / "sunwukong_wuxiang" / "config.json"

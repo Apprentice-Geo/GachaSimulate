@@ -4,14 +4,20 @@ import sys
 import unittest
 from pathlib import Path
 
+from gacha_sim.core.builder import runtime_builder
+from gacha_sim.core.engine import montecarlo
+from gacha_sim.core.runtime import (
+    AddItem,
+    CheckNode,
+    DrawPool,
+    Item,
+    Pool,
+    RuntimeContext,
+    Stage,
+    Termination,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
-SRC_DIR = ROOT / "src"
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-
-from builder import runtime_builder
-from runtime import RuntimeContext
-
 
 class BuilderWuxiangTest(unittest.TestCase):
     def setUp(self) -> None:

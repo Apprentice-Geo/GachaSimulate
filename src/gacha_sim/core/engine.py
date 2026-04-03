@@ -1,44 +1,32 @@
 from __future__ import annotations
-
+import numpy as np
 from collections import deque
 from typing import Deque, Iterable
 
-try:
-    from .runtime import (
-        Action,
-        AddItem,
-        CheckNode,
-        ConditionNode,
-        DrawPool,
-        LogicNode,
-        ReduceItem,
-        RuntimeContext,
-        RuntimeState,
-        Termination,
-    )
-except ImportError:
-    from runtime import (
-        Action,
-        AddItem,
-        CheckNode,
-        ConditionNode,
-        DrawPool,
-        LogicNode,
-        ReduceItem,
-        RuntimeContext,
-        RuntimeState,
-        Termination,
-    )
+
+from gacha_sim.core.runtime import (
+    Action,
+    AddItem,
+    CheckNode,
+    ConditionNode,
+    DrawPool,
+    LogicNode,
+    ReduceItem,
+    RuntimeContext,
+    RuntimeState,
+    Termination,
+)
 
 
 class montecarlo:
     def __init__(self, ctx: RuntimeContext, seed=None):
         self.ctx = ctx
         self.seed = seed
+        self.rng = np.random.default_rng(self.seed)
         self._protected_snapshot: tuple[int, ...] = ()
 
     def run_once(self) -> RuntimeState:
-        state = RuntimeState(item_count=len(self.ctx.item_list), seed=self.seed)
+        state = RuntimeState(item_count=len(self.ctx.item_list), rng=self.rng)
         state.main_pool_index = self.ctx.begin_pool_index
         state.stage_execute = [False] * len(self.ctx.draw_stage_list)
         self._protected_snapshot = self._get_protected_inventory_snapshot(state)
@@ -52,7 +40,7 @@ class montecarlo:
         action_queue: Deque[Action] = deque()
 
         state.draw_count += 1
-        state.rmb_cost += self.ctx.rmb_per_roll
+        state.rmb_cost += self.ctx.rmb_per_draw
 
         action_queue.append(self.ctx.pool_draw_list[state.main_pool_index])
         self._drain_action_queue(state, action_queue)
@@ -126,7 +114,12 @@ class montecarlo:
                     self._enqueue_actions(action_queue, draw_actions)
             return
 
-        if isinstance(action, (DrawPool, ReduceItem, Termination)):
+        if isinstance(action, DrawPool):
+            drawn_action = action.execute(state, self.ctx)
+            self._enqueue_actions(action_queue,[drawn_action])
+            return
+        
+        if isinstance(action, (ReduceItem, Termination)):
             action.execute(state, self.ctx)
             return
 
