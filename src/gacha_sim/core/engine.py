@@ -22,6 +22,7 @@ class montecarlo:
     def __init__(self, ctx: RuntimeContext, seed=None):
         self.ctx = ctx
         self.seed = seed
+        # 此处定义全局rng,避免多次模拟时重复创建同一个种子的rng,导致每次模拟结果重复
         self.rng = np.random.default_rng(self.seed)
         self._protected_snapshot: tuple[int, ...] = ()
 
@@ -115,10 +116,10 @@ class montecarlo:
             return
 
         if isinstance(action, DrawPool):
-            drawn_action = action.execute(state, self.ctx)
-            self._enqueue_actions(action_queue,[drawn_action])
+            drawn_results = action.execute(state, self.ctx)
+            self._enqueue_actions(action_queue, drawn_results)
             return
-        
+
         if isinstance(action, (ReduceItem, Termination)):
             action.execute(state, self.ctx)
             return

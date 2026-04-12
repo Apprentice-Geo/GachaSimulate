@@ -36,18 +36,10 @@ class Visualizer:
     def plot_draw_distribution(self, save_path="draw_distribution.png", dpi=500):
         data = self.draw_count
 
-        p5 = int(np.percentile(data, 5))
-        p25 = int(np.percentile(data, 25))
-        p50 = int(np.percentile(data, 50))
-        p75 = int(np.percentile(data, 75))
-        p95 = int(np.percentile(data, 95))
+        p_mean = int(np.mean(data))
 
         PRIMARY = "#00FFFF"
-        P5_COLOR = "#A020F0"
-        P25_COLOR = "#00FF00"
-        P50_COLOR = "#0000FF"
-        P75_COLOR = "#FFD700"
-        P95_COLOR = "#FF0000"
+        MEAN_COLOR = "#00FF00"
         GRID_COLOR = "#B0B0B0"
 
         FIG_BG = "#F0F2F5"
@@ -58,7 +50,7 @@ class Visualizer:
 
         bins = np.arange(min(data), max(data) + 2) - 0.5
 
-        ax.hist(
+        hist_density, _, _ = ax.hist(
             data,
             bins=bins,
             density=True,
@@ -67,6 +59,12 @@ class Visualizer:
             edgecolor="#00CED1",
             linewidth=0.8,
         )
+
+        peak_y = float(np.max(hist_density))
+        text_y = peak_y * 1.05
+        current_ymin, current_ymax = ax.get_ylim()
+        if text_y > current_ymax:
+            ax.set_ylim(current_ymin, text_y * 1.05)
 
         ax.grid(
             True,
@@ -78,31 +76,20 @@ class Visualizer:
             alpha=0.5,
         )
 
-        # 分位竖线（保留）
-        line5 = ax.axvline(p5, linestyle="--", color=P5_COLOR, linewidth=1.5)
-        line25 = ax.axvline(p25, linestyle="--", color=P25_COLOR, linewidth=1.5)
-        line50 = ax.axvline(p50, linestyle="--", color=P50_COLOR, linewidth=1.5)
-        line75 = ax.axvline(p75, linestyle="--", color=P75_COLOR, linewidth=1.5)
-        line95 = ax.axvline(p95, linestyle="--", color=P95_COLOR, linewidth=1.5)
-
-        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-
-        ymax = ax.get_ylim()[1]
-        ax.text(p5, ymax * 0.95, f"P5 ", color=P5_COLOR, ha="right", va="bottom")
-        ax.text(p25, ymax * 0.90, f"P25 ", color=P25_COLOR, ha="right", va="bottom")
-        ax.text(p50, ymax * 0.85, f"P50 ", color=P50_COLOR, ha="right", va="bottom")
-        ax.text(p75, ymax * 0.80, f"P75 ", color=P75_COLOR, ha="right", va="bottom")
-        ax.text(p95, ymax * 0.75, f"P95 ", color=P95_COLOR, ha="right", va="bottom")
-
+        line_mean = ax.axvline(p_mean, linestyle="--", color=MEAN_COLOR, linewidth=1.5)
+        ax.text(
+            p_mean,
+            text_y,
+            "MEAN ",
+            color=MEAN_COLOR,
+            ha="right",
+            va="bottom",
+        )
         # 左下角图例
         legend = ax.legend(
-            handles=[line5, line25, line50, line75, line95],
+            handles=[line_mean],
             labels=[
-                f"P5：{p5}",
-                f"P25：{p25}",
-                f"P50：{p50}",
-                f"P75：{p75}",
-                f"P95：{p95}",
+                f"MEAN:{p_mean}",
             ],
             loc="lower left",
             frameon=True,
@@ -119,9 +106,7 @@ class Visualizer:
         frame.set_alpha(0.95)
 
         # 图例文字颜色匹配线条
-        for text, color in zip(
-            legend.get_texts(), [P5_COLOR, P25_COLOR, P50_COLOR, P75_COLOR, P95_COLOR]
-        ):
+        for text, color in zip(legend.get_texts(), [MEAN_COLOR]):
             text.set_color(color)
 
         ax.set_title("累计抽数分布")
@@ -253,11 +238,11 @@ class Visualizer:
         legend = ax.legend(
             handles=[line5, line25, line50, line75, line95],
             labels=[
-                f"P5：{p5}",
-                f"P25：{p25}",
-                f"P50：{p50}",
-                f"P75：{p75}",
-                f"P95：{p95}",
+                f"P5:{p5}",
+                f"P25:{p25}",
+                f"P50:{p50}",
+                f"P75:{p75}",
+                f"P95:{p95}",
             ],
             loc="lower left",
             frameon=True,

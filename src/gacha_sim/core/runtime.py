@@ -16,9 +16,7 @@ class RuntimeContext:
     item_draw_list: List[List[Action]]
     pool_id_index: Dict[str, int]
     pool_list: List[Pool]
-    pool_draw_list: List[
-        Action
-    ]  # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
+    pool_draw_list: List[Action]  # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
     draw_stage_id_index: Dict[str, int]
     draw_stage_list: List[Stage]
     protected_items_index: List[int]
@@ -89,8 +87,8 @@ class DrawPool(Action):
     ) -> Action:
         r = runtime_state.rng.random()
         idx = np.searchsorted(runtime_context.pool_list[self.pool_index].cdf, r)
-        action = runtime_context.pool_list[self.pool_index].actions[idx]
-        return action
+        actions = runtime_context.pool_list[self.pool_index].actions[idx]
+        return actions
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,7 +136,7 @@ class Stage:
 @dataclass(frozen=True, slots=True)
 class Pool:
     cdf: np.ndarray
-    actions: List[AddItem]
+    actions: List[List[Action]]
 
 
 @dataclass(frozen=True, slots=True)

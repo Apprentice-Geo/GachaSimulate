@@ -12,7 +12,7 @@ import numpy as np
 
 if __name__ == "__main__":
     project_root = Path(__file__).resolve().parent
-    BASE_PATH = os.path.join(project_root, "configs", "sunwukong_wuxiang")
+    BASE_PATH = os.path.join(project_root, "configs", "lixin_wenxinjian")
     CONFIG_JSON_PATH = BASE_PATH + "/config.json"
     TERMINATION_JSON_PATH = BASE_PATH + "/termination_skin.json"
     name = os.path.basename(os.path.dirname(CONFIG_JSON_PATH))
@@ -20,23 +20,9 @@ if __name__ == "__main__":
     builder = runtime_builder(
         config_path=CONFIG_JSON_PATH, termination_path=TERMINATION_JSON_PATH
     )
-    # print(config.Config_name)
-    # print(config.Items_dict)
-    # print(config.ItemBehaviors_dict)
-    # print(config.Rules_dict)
-    # print(config.Milestones_dict)
-    # print(config.DropPools)
-    # print(config.Termination_tree)
+    
     ctx = builder.build()
-    # print(runtime_ctx.item_id_index)
-    # print(runtime_ctx.item_id_name)
-    # print(runtime_ctx.item_list)
-    # print(runtime_ctx.resolve_list)
-    # print(runtime_ctx.pool_id_index)
-    # print(runtime_ctx.pool_list)
-    # print(runtime_ctx.milestone_id_index)
-    # print(runtime_ctx.milestone_list)
-    # print(runtime_ctx.Termination_tree)
+   
     simulator = montecarlo(ctx, seed=0)
     result = simulate_until_total_draw(simulator, target_total_draw=1000000)
     data_dir = Path("./data")

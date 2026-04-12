@@ -6,21 +6,20 @@ from typing import Any
 import numpy as np
 
 from gacha_sim.core.runtime import (
-        Action,
-        AddItem,
-        CheckNode,
-        ConditionNode,
-        DrawPool,
-        Item,
-        LogicNode,
-        Pool,
-        PoolChange,
-        ReduceItem,
-        RuntimeContext,
-        Stage,
-        Termination,
-    )
-
+    Action,
+    AddItem,
+    CheckNode,
+    ConditionNode,
+    DrawPool,
+    Item,
+    LogicNode,
+    Pool,
+    PoolChange,
+    ReduceItem,
+    RuntimeContext,
+    Stage,
+    Termination,
+)
 
 
 class runtime_builder:
@@ -43,62 +42,52 @@ class runtime_builder:
         self.protected_items_index = []
         self.termination_tree = None
 
-
     def _resolve_item_index(self, item_id: str) -> int:
         return self.item_id_index[item_id]
-        
 
     def _resolve_pool_index(self, pool_id: str) -> int:
         if pool_id not in self.pool_id_index:
             raise KeyError(f"unknown pool id: {pool_id}")
         return self.pool_id_index[pool_id]
 
+    def _build_action(self, action_config: dict[str, Any]) -> Action:
+        action_type = action_config.get("type")
+
+        if action_type == "add_item":
+            item_id = action_config.get("id", action_config.get("item_id"))
+            return AddItem(
+                item_index=self._resolve_item_index(item_id),
+                amount=int(action_config.get("amount", 1)),
+            )
+        elif action_type == "reduce_item":
+            item_id = action_config.get("id", action_config.get("item_id"))
+            return ReduceItem(
+                item_index=self._resolve_item_index(item_id),
+                amount=int(action_config.get("amount", 1)),
+            )
+        elif action_type == "draw_pool":
+            pool_id = action_config["pool_id"]
+            return DrawPool(
+                pool_index=self._resolve_pool_index(pool_id),
+            )
+        elif action_type == "pool_change":
+            pool_id = action_config.get("pool_id", action_config.get("id"))
+            return PoolChange(
+                pool_index=self._resolve_pool_index(pool_id),
+            )
+        elif action_type == "termination":
+            return Termination(
+                reason=str(action_config.get("reason", "")),
+            )
+        else:
+            raise ValueError(f"unsupported action type: {action_type}")
+
     def _build_actions(
         self, action_configs: list[dict[str, Any]] | None
     ) -> list[Action]:
         actions: list[Action] = []
         for action_config in action_configs or []:
-            action_type = action_config.get("type")
-
-            if action_type == "add_item":
-                item_id = action_config.get("id", action_config.get("item_id"))
-                actions.append(
-                    AddItem(
-                        item_index=self._resolve_item_index(item_id),
-                        amount=int(action_config.get("amount", 1)),
-                    )
-                )
-            elif action_type == "reduce_item":
-                item_id = action_config.get("id", action_config.get("item_id"))
-                actions.append(
-                    ReduceItem(
-                        item_index=self._resolve_item_index(item_id),
-                        amount=int(action_config.get("amount", 1)),
-                    )
-                )
-            elif action_type == "draw_pool":
-                pool_id = action_config["pool_id"]
-                actions.append(
-                    DrawPool(
-                        pool_index=self._resolve_pool_index(pool_id),
-                    )
-                )
-            elif action_type == "pool_change":
-                pool_id = action_config.get("pool_id", action_config.get("id"))
-                actions.append(
-                    PoolChange(
-                        pool_index=self._resolve_pool_index(pool_id),
-                    )
-                )
-            elif action_type == "termination":
-                actions.append(
-                    Termination(
-                        reason=str(action_config.get("reason", "")),
-                    )
-                )
-            else:
-                raise ValueError(f"unsupported action type: {action_type}")
-
+            actions.append(self._build_action(action_config))
         return actions
 
     def _build_items(self):
@@ -121,12 +110,9 @@ class runtime_builder:
             self.item_draw_list.append([])
 
         economy = self.config.get("economy", {})
-        cost_config = economy.get("cost_per_roll") or economy.get("cost_per_draw") or {}
-        per_cost_to_rmb = economy.get(
-            "per_cost_to_rmb", economy.get("per_cost_to_RMB", 1)
-        )
-        self.rmb_per_draw = int(
-            float(cost_config.get("amount", 0)) * float(per_cost_to_rmb)
+        cost_config = economy.get("cost_per_draw")
+        self.rmb_per_draw = cost_config.get("amount") * cost_config.get(
+            "per_cost_to_rmb"
         )
 
     def _build_resolves(self):
@@ -141,40 +127,14 @@ class runtime_builder:
             item_index = self._resolve_item_index(item_id)
             self.item_resolve_list[item_index] = self._build_actions(actions_config)
 
-        for item_index, item_config in enumerate(self.config.get("items", {}).values()):
-            trigger_rule = item_config.get("trigger_rule")
-            if trigger_rule and not self.item_draw_list[item_index]:
-                self.item_draw_list[item_index] = [
-                    DrawPool(pool_index=self._resolve_pool_index(trigger_rule))
-                ]
-
-            resolve_result = item_config.get("resolve_result")
-            if resolve_result and not self.item_resolve_list[item_index]:
-                target_item_id = resolve_result.get("id")
-                target_item_index = self._resolve_item_index(target_item_id)
-                amount = int(resolve_result.get("amount", 1))
-                self.item_resolve_list[item_index] = [
-                    ReduceItem(item_index=item_index, amount=1),
-                    AddItem(item_index=target_item_index, amount=amount),
-                ]
-
     def _build_pools(self):
         self.pool_id_index.clear()
         self.pool_list.clear()
 
         pool_sources: list[tuple[str, dict[str, Any]]] = []
 
-        if "drops" in self.config:
-            drops = self.config["drops"]
-            pool_sources.append((drops.get("name", "main_pool"), drops))
-
         for pool_id, pool_config in self.config.get("pools", {}).items():
             pool_sources.append((pool_id, pool_config))
-
-        for rule_id, rule_config in self.config.get("trigger_rules", {}).items():
-            if rule_config.get("type") == "sub_pool":
-                drops = rule_config.get("drops", {})
-                pool_sources.append((drops.get("name", rule_id), drops))
 
         ordered_pool_sources: list[tuple[str, dict[str, Any]]] = []
         seen_pool_ids: set[str] = set()
@@ -189,47 +149,19 @@ class runtime_builder:
 
         for pool_id, pool_config in ordered_pool_sources:
             entries = pool_config.get("entries", [])
-            actions: list[Action] = []
+            actions: list[list[Action]] = []
             probabilities: list[float] = []
 
             for entry in entries:
                 probabilities.append(float(entry.get("probability", 0.0)))
-                entry_type = entry.get("type")
-
-                if entry_type == "item":
-                    actions.append(
-                        AddItem(
-                            item_index=self._resolve_item_index(entry["id"]),
-                            amount=int(entry.get("amount", 1)),
-                        )
-                    )
-                elif entry_type == "draw_pool":
-                    actions.append(
-                        DrawPool(
-                            pool_index=self._resolve_pool_index(entry["pool_id"]),
-                        )
-                    )
-                elif entry_type == "pool_change":
-                    actions.append(
-                        PoolChange(
-                            pool_index=self._resolve_pool_index(entry["pool_id"]),
-                        )
-                    )
-                elif entry_type == "termination":
-                    actions.append(
-                        Termination(
-                            reason=str(entry.get("reason", "")),
-                        )
-                    )
-                else:
-                    raise ValueError(f"unsupported pool entry type: {entry_type}")
+                actions.append(self._build_actions(entry.get("actions", [])))
 
             cdf = np.cumsum(np.asarray(probabilities, dtype=np.float64))
             if cdf.size:
                 cdf[-1] = 1.0
 
             self.pool_list.append(Pool(cdf=cdf, actions=actions))
-    
+
     def _build_pool_draw_list(self):
         self.pool_draw_list.clear()
         for pool_index in range(len(self.pool_list)):
@@ -239,35 +171,15 @@ class runtime_builder:
         self.draw_stage_id_index.clear()
         self.draw_stage_list.clear()
 
-        stage_sources = self.config.get("stages")
-        if stage_sources is None:
-            stage_sources = self.config.get("milestones", {})
+        stage_sources = self.config.get("stages", {})
 
         for stage_id, stage_config in stage_sources.items():
-            if "reward" in stage_config:
-                reward = stage_config.get("reward", {})
-                condition = CheckNode(
-                    subject="draw_count",
-                    id=None,
-                    op=">=",
-                    value=int(stage_config.get("roll_count", 0)),
-                    actions=self._build_actions(
-                        [
-                            {
-                                "type": "add_item",
-                                "id": reward.get("id"),
-                                "amount": reward.get("amount", 1),
-                            }
-                        ]
-                    ),
-                )
-                stage_once = True
-            else:
-                condition_config = stage_config.get(
-                    "condition", stage_config.get("conditions")
-                )
-                condition = self._build_termination_tree(condition_config)
-                stage_once = bool(stage_config.get("once", False))
+
+            condition_config = stage_config.get(
+                "condition", stage_config.get("conditions")
+            )
+            condition = self._build_termination_tree(condition_config)
+            stage_once = bool(stage_config.get("once", False))
 
             self.draw_stage_id_index[stage_id] = len(self.draw_stage_list)
             self.draw_stage_list.append(

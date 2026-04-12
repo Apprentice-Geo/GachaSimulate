@@ -44,12 +44,12 @@ class EngineUnitTest(unittest.TestCase):
         pool_list = [
             Pool(
                 cdf=np.array([1.0], dtype=np.float64),
-                actions=[AddItem(item_index=item_id_index["target"], amount=1)],
+                actions=[[AddItem(item_index=item_id_index["target"], amount=1)]],
             )
         ]
 
         ctx = RuntimeContext(
-            rmb_per_roll=10,
+            rmb_per_draw=10,
             begin_pool_index=0,
             item_id_index=item_id_index,
             item_list=item_list,
@@ -91,12 +91,12 @@ class EngineIntegrationTest(unittest.TestCase):
         pool_list = [
             Pool(
                 cdf=np.array([1.0], dtype=np.float64),
-                actions=[AddItem(item_index=item_id_index["token"], amount=1)],
+                actions=[[AddItem(item_index=item_id_index["token"], amount=1)]],
             )
         ]
 
         ctx = RuntimeContext(
-            rmb_per_roll=10,
+            rmb_per_draw=10,
             begin_pool_index=0,
             item_id_index=item_id_index,
             item_list=item_list,
@@ -143,7 +143,7 @@ class EngineIntegrationTest(unittest.TestCase):
         item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
         ctx = RuntimeContext(
-            rmb_per_roll=10,
+            rmb_per_draw=10,
             begin_pool_index=0,
             item_id_index=item_id_index,
             item_list=item_list,
@@ -156,11 +156,11 @@ class EngineIntegrationTest(unittest.TestCase):
             pool_list=[
                 Pool(
                     cdf=np.array([1.0], dtype=np.float64),
-                    actions=[AddItem(item_index=item_id_index["ticket"], amount=1)],
+                    actions=[[AddItem(item_index=item_id_index["ticket"], amount=1)]],
                 ),
                 Pool(
                     cdf=np.array([1.0], dtype=np.float64),
-                    actions=[AddItem(item_index=item_id_index["target"], amount=1)],
+                    actions=[[AddItem(item_index=item_id_index["target"], amount=1)]],
                 ),
             ],
             pool_draw_list=[DrawPool(pool_index=0), DrawPool(pool_index=1)],

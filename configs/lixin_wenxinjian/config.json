@@ -272,57 +272,93 @@
             "entries": [
                 {
                     "probability": 0.004,
-                    "type": "item",
-                    "id": "random_limited_skin",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "random_limited_skin",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.005,
-                    "type": "item",
-                    "id": "random_legendary_skin",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "random_legendary_skin",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.135,
-                    "type": "item",
-                    "id": "random_skin",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "random_skin",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.008,
-                    "type": "item",
-                    "id": "jianxinling",
-                    "amount": 68
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "jianxinling",
+                            "amount": 68
+                        }
+                    ]
                 },
                 {
                     "probability": 0.04,
-                    "type": "item",
-                    "id": "jianxinling",
-                    "amount": 28
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "jianxinling",
+                            "amount": 28
+                        }
+                    ]
                 },
                 {
                     "probability": 0.237,
-                    "type": "item",
-                    "id": "jianxinling",
-                    "amount": 18
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "jianxinling",
+                            "amount": 18
+                        }
+                    ]
                 },
                 {
                     "probability": 0.3,
-                    "type": "item",
-                    "id": "jianxinling",
-                    "amount": 8
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "jianxinling",
+                            "amount": 8
+                        }
+                    ]
                 },
                 {
                     "probability": 0.15,
-                    "type": "item",
-                    "id": "skin_fragment8",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "skin_fragment8",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.121,
-                    "type": "item",
-                    "id": "yanyuhuadie2",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "yanyuhuadie2",
+                            "amount": 1
+                        }
+                    ]
                 }
             ]
         },
@@ -330,63 +366,103 @@
             "entries": [
                 {
                     "probability": 0.0034,
-                    "type": "item",
-                    "id": "lixin_wenxinjian",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "lixin_wenxinjian",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.0033,
-                    "type": "item",
-                    "id": "gongsunli_lihenyan",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "gongsunli_lihenyan",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.0033,
-                    "type": "item",
-                    "id": "yao_qilingchilongjian",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "yao_qilingchilongjian",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.01,
-                    "type": "item",
-                    "id": "moranjianghutianmu",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "moranjianghutianmu",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.162,
-                    "type": "item",
-                    "id": "bailixuance_baihuzhi",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "bailixuance_baihuzhi",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.162,
-                    "type": "item",
-                    "id": "sunwukong_qitiandasheng",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "sunwukong_qitiandasheng",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.162,
-                    "type": "item",
-                    "id": "sunshangxiang_yijielingqi",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "sunshangxiang_yijielingqi",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.162,
-                    "type": "item",
-                    "id": "wangzhaojun_xingqiongzhisheng",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "wangzhaojun_xingqiongzhisheng",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.162,
-                    "type": "item",
-                    "id": "libai_fengqiuhuang",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "libai_fengqiuhuang",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.17,
-                    "type": "item",
-                    "id": "jianxinling",
-                    "amount": 288
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "jianxinling",
+                            "amount": 288
+                        }
+                    ]
                 }
             ]
         },
@@ -394,21 +470,33 @@
             "entries": [
                 {
                     "probability": 0.10,
-                    "type": "item",
-                    "id": "epic_skin",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "epic_skin",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.30,
-                    "type": "item",
-                    "id": "brave_skin",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "brave_skin",
+                            "amount": 1
+                        }
+                    ]
                 },
                 {
                     "probability": 0.60,
-                    "type": "item",
-                    "id": "companion_skin",
-                    "amount": 1
+                    "actions":[
+                        {
+                            "type": "add_item",
+                            "id": "companion_skin",
+                            "amount": 1
+                        }
+                    ]
                 }
             ]
         }
