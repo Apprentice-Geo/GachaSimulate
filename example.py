@@ -12,9 +12,9 @@ import numpy as np
 
 if __name__ == "__main__":
     project_root = Path(__file__).resolve().parent
-    BASE_PATH = os.path.join(project_root, "configs", "lixin_wenxinjian")
+    BASE_PATH = os.path.join(project_root, "configs", "test")
     CONFIG_JSON_PATH = BASE_PATH + "/config.json"
-    TERMINATION_JSON_PATH = BASE_PATH + "/termination_skin.json"
+    TERMINATION_JSON_PATH = BASE_PATH + "/termination.json"
     name = os.path.basename(os.path.dirname(CONFIG_JSON_PATH))
     simulate_name = f"{name}_{Path(TERMINATION_JSON_PATH).stem}"
     builder = runtime_builder(

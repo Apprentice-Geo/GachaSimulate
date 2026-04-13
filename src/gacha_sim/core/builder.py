@@ -54,7 +54,7 @@ class runtime_builder:
         action_type = action_config.get("type")
 
         if action_type == "add_item":
-            item_id = action_config.get("id", action_config.get("item_id"))
+            item_id = action_config.get("id")
             return AddItem(
                 item_index=self._resolve_item_index(item_id),
                 amount=int(action_config.get("amount", 1)),
@@ -115,17 +115,19 @@ class runtime_builder:
             "per_cost_to_rmb"
         )
 
-    def _build_resolves(self):
-        item_draw_config = self.config.get("item_draw", {})
+    def _build_item_resolves(self):
         item_resolve_config = self.config.get("item_resolve", {})
-
-        for item_id, actions_config in item_draw_config.items():
-            item_index = self._resolve_item_index(item_id)
-            self.item_draw_list[item_index] = self._build_actions(actions_config)
 
         for item_id, actions_config in item_resolve_config.items():
             item_index = self._resolve_item_index(item_id)
             self.item_resolve_list[item_index] = self._build_actions(actions_config)
+
+    def _build_item_draws(self):
+        item_draw_config = self.config.get("item_draw", {})
+
+        for item_id, actions_config in item_draw_config.items():
+            item_index = self._resolve_item_index(item_id)
+            self.item_draw_list[item_index] = self._build_actions(actions_config)
 
     def _build_pools(self):
         self.pool_id_index.clear()
@@ -136,18 +138,10 @@ class runtime_builder:
         for pool_id, pool_config in self.config.get("pools", {}).items():
             pool_sources.append((pool_id, pool_config))
 
-        ordered_pool_sources: list[tuple[str, dict[str, Any]]] = []
-        seen_pool_ids: set[str] = set()
-        for pool_id, pool_config in pool_sources:
-            if pool_id in seen_pool_ids:
-                continue
-            seen_pool_ids.add(pool_id)
-            ordered_pool_sources.append((pool_id, pool_config))
-
-        for index, (pool_id, _) in enumerate(ordered_pool_sources):
+        for index, (pool_id, _) in enumerate(pool_sources):
             self.pool_id_index[pool_id] = index
 
-        for pool_id, pool_config in ordered_pool_sources:
+        for pool_id, pool_config in pool_sources:
             entries = pool_config.get("entries", [])
             actions: list[list[Action]] = []
             probabilities: list[float] = []
@@ -226,7 +220,8 @@ class runtime_builder:
         self._build_items()
         self._build_pools()
         self._build_pool_draw_list()
-        self._build_resolves()
+        self._build_item_draws()
+        self._build_item_resolves() 
         self._build_stages()
         self.termination_tree = self._build_termination_tree(
             self.termination_config.get("termination_conditions")

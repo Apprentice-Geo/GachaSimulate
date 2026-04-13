@@ -3,7 +3,7 @@
         "name": "sunwukong_wuxiang",
         "source": "https://pvp.qq.com/web201706/newsdetail.shtml?tid=791287",
         "game": "王者荣耀",
-        "time": "26_1_1_26_2_23"
+        "time": "2026_1_1_2026_2_23"
     },
     "economy": {
         "cost_per_draw": {
@@ -67,15 +67,13 @@
         "random_skin": [
             {
                 "type": "draw_pool",
-                "pool_id": "random_skin_pool",
-                "amount": 1
+                "pool_id": "random_skin_pool"
             }
         ],
         "random_limited_skin": [
             {
                 "type": "draw_pool",
-                "pool_id": "random_limited_skin_pool",
-                "amount": 1
+                "pool_id": "random_limited_skin_pool"
             }
         ]
     },
@@ -453,7 +451,7 @@
                 "actions": [
                     {
                         "type": "add_item",
-                        "item_id": "random_skin",
+                        "id": "random_skin",
                         "amount": 1
                     }
                 ]
@@ -470,7 +468,7 @@
                 "actions": [
                     {
                         "type": "add_item",
-                        "item_id": "random_skin",
+                        "id": "random_skin",
                         "amount": 1
                     }
                 ]
@@ -487,7 +485,7 @@
                 "actions": [
                     {
                         "type": "add_item",
-                        "item_id": "random_skin",
+                        "id": "random_skin",
                         "amount": 1
                     }
                 ]
@@ -504,7 +502,7 @@
                 "actions": [
                     {
                         "type": "add_item",
-                        "item_id": "wuxiang_point",
+                        "id": "wuxiang_point",
                         "amount": 288
                     }
                 ]
@@ -521,7 +519,7 @@
                 "actions": [
                     {
                         "type": "add_item",
-                        "item_id": "random_skin",
+                        "id": "random_skin",
                         "amount": 1
                     }
                 ]
@@ -538,7 +536,7 @@
                 "actions": [
                     {
                         "type": "add_item",
-                        "item_id": "random_skin",
+                        "id": "random_skin",
                         "amount": 1
                     }
                 ]
@@ -555,7 +553,7 @@
                 "actions": [
                     {
                         "type": "add_item",
-                        "item_id": "random_skin",
+                        "id": "random_skin",
                         "amount": 1
                     }
                 ]
@@ -572,7 +570,7 @@
                 "actions": [
                     {
                         "type": "add_item",
-                        "item_id": "wuxiang_point",
+                        "id": "wuxiang_point",
                         "amount": 288
                     }
                 ]
@@ -589,7 +587,7 @@
                 "actions": [
                     {
                         "type": "add_item",
-                        "item_id": "random_skin",
+                        "id": "random_skin",
                         "amount": 1
                     }
                 ]
@@ -606,7 +604,7 @@
                 "actions": [
                     {
                         "type": "add_item",
-                        "item_id": "random_skin",
+                        "id": "random_skin",
                         "amount": 1
                     }
                 ]
@@ -623,7 +621,7 @@
                 "actions": [
                     {
                         "type": "add_item",
-                        "item_id": "random_skin",
+                        "id": "random_skin",
                         "amount": 1
                     }
                 ]
@@ -640,7 +638,7 @@
                 "actions": [
                     {
                         "type": "add_item",
-                        "item_id": "wuxiang_point",
+                        "id": "wuxiang_point",
                         "amount": 288
                     }
                 ]
