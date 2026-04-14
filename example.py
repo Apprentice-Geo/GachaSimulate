@@ -23,13 +23,13 @@ if __name__ == "__main__":
     
     ctx = builder.build()
    
-    simulator = montecarlo(ctx, seed=0)
-    result = simulate_until_total_draw(simulator, target_total_draw=1000000)
-    data_dir = Path("./data")
-    data_dir.mkdir(parents=True, exist_ok=True)
-    save_simulation_result(
-        "./data/" + simulate_name + "_simulation_result.npz", result, ctx
-    )
+    # simulator = montecarlo(ctx, seed=0)
+    # result = simulate_until_total_draw(simulator, target_total_draw=1000000)
+    # data_dir = Path("./data")
+    # data_dir.mkdir(parents=True, exist_ok=True)
+    # save_simulation_result(
+    #     "./data/" + simulate_name + "_simulation_result.npz", result, ctx
+    # )
     result = load_simulation_result(
         "./data/" + simulate_name + "_simulation_result.npz"
     )
@@ -51,6 +51,6 @@ if __name__ == "__main__":
     img_dir = Path("./images")
     img_dir.mkdir(parents=True, exist_ok=True)
     viz.plot_draw_distribution(
-        save_path=f"./images/{simulate_name}_draw_distribution.png"
+        save_path=f"./images/{simulate_name}_draw_distribution.svg"
     )
-    viz.plot_cdf(save_path=f"./images/{simulate_name}_cdf.png")
+    viz.plot_cdf(save_path=f"./images/{simulate_name}_cdf.svg")

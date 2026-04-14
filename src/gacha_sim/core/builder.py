@@ -233,7 +233,7 @@ class runtime_builder:
 
         return RuntimeContext(
             rmb_per_draw=self.rmb_per_draw,
-            begin_pool_index=self.pool_id_index.get("begin_pool", 0),
+            begin_pool_index=self.pool_id_index.get("begin_pool"),
             item_id_index=self.item_id_index,
             item_list=self.item_list,
             item_resolve_list=self.item_resolve_list,

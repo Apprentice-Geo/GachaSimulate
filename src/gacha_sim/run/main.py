@@ -54,13 +54,8 @@ def simulate_until_total_draw(sim: montecarlo, target_total_draw: int):
 
 
 def save_simulation_result(path: str, result: dict, ctx):
-    
-    # 规则签名（简易 hash）
-    ctx_signature = hashlib.md5(
-        json.dumps(str(ctx), sort_keys=True).encode()
-    ).hexdigest()
-
-    np.savez_compressed(
+        
+        np.savez_compressed(
         path,
         draw_count=result["draw_count"],
         rmb_cost=result["rmb_cost"],
@@ -69,8 +64,8 @@ def save_simulation_result(path: str, result: dict, ctx):
         rmb_cost_total=result["rmb_cost_total"],
         total_draw=result["total_draw"],
         total_runs=result["total_runs"],
-        seed=-1 if result["seed"] is None else result["seed"],
-        ctx_signature=ctx_signature,
+        has_seed=result["seed"] is not None,
+        seed=0 if result["seed"] is None else int(result["seed"]),
         timestamp=str(datetime.now())
     )
 
@@ -85,7 +80,7 @@ def load_simulation_result(path: str):
         "rmb_cost_total": int(data["rmb_cost_total"]),
         "total_draw": int(data["total_draw"]),
         "total_runs": int(data["total_runs"]),
-        "seed": int(data["seed"]),
-        "ctx_signature": str(data["ctx_signature"]),
-        "timestamp": str(data["timestamp"]),
+        "has_seed": bool(data["has_seed"]),
+        "seed": int(data["seed"]) if data["has_seed"] else None,
+        "timestamp": str(data["timestamp"])
     }
