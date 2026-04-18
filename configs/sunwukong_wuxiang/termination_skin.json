@@ -3,7 +3,7 @@
         "sunwukong_wuxiang",
         "wuxiang_point"
     ],
-    "termination_conditions": {
+    "termination_condition": {
         "type": "logic",
         "op": "OR",
         "conditions": [

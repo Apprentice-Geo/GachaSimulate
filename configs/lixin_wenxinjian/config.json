@@ -73,13 +73,13 @@
         "random_skin": [
             {
                 "type": "draw_pool",
-                "pool_id": "random_skin_pool"
+                "id": "random_skin_pool"
             }
         ],
         "random_limited_skin": [
             {
                 "type": "draw_pool",
-                "pool_id": "random_limited_skin_pool"
+                "id": "random_limited_skin_pool"
             }
         ]
     },
@@ -502,7 +502,7 @@
     "stages": {
         "5draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -519,7 +519,7 @@
         },
         "10draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -536,7 +536,7 @@
         },
         "25draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -553,7 +553,7 @@
         },
         "40draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -570,7 +570,7 @@
         },
         "45draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -587,7 +587,7 @@
         },
         "50draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -604,7 +604,7 @@
         },
         "65draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -621,7 +621,7 @@
         },
         "80draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -638,7 +638,7 @@
         },
         "85draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -655,7 +655,7 @@
         },
         "90draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -672,7 +672,7 @@
         },
         "105draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -689,7 +689,7 @@
         },
         "120draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -706,7 +706,7 @@
         },
         "125draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -723,7 +723,7 @@
         },
         "130draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -740,7 +740,7 @@
         },
         "145draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,
@@ -757,7 +757,7 @@
         },
         "160draw": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,

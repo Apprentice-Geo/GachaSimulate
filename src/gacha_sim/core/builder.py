@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
-
+from .validator import validate_files
 import numpy as np
 
 from gacha_sim.core.runtime import (
@@ -28,6 +28,7 @@ class runtime_builder:
             self.config = json.load(f)
         with open(termination_path, "r", encoding="utf-8") as f:
             self.termination_config = json.load(f)
+        validate_files(self.config, self.termination_config)
         self.rmb_per_draw = 0
         self.item_id_index = {}
         self.item_list = []
@@ -46,32 +47,30 @@ class runtime_builder:
         return self.item_id_index[item_id]
 
     def _resolve_pool_index(self, pool_id: str) -> int:
-        if pool_id not in self.pool_id_index:
-            raise KeyError(f"unknown pool id: {pool_id}")
         return self.pool_id_index[pool_id]
 
     def _build_action(self, action_config: dict[str, Any]) -> Action:
         action_type = action_config.get("type")
 
         if action_type == "add_item":
-            item_id = action_config.get("id")
+            item_id = action_config["id"]
             return AddItem(
                 item_index=self._resolve_item_index(item_id),
                 amount=int(action_config.get("amount", 1)),
             )
         elif action_type == "reduce_item":
-            item_id = action_config.get("id", action_config.get("item_id"))
+            item_id = action_config["id"]
             return ReduceItem(
                 item_index=self._resolve_item_index(item_id),
                 amount=int(action_config.get("amount", 1)),
             )
         elif action_type == "draw_pool":
-            pool_id = action_config["pool_id"]
+            pool_id = action_config["id"]
             return DrawPool(
                 pool_index=self._resolve_pool_index(pool_id),
             )
         elif action_type == "pool_change":
-            pool_id = action_config.get("pool_id", action_config.get("id"))
+            pool_id = action_config["id"]
             return PoolChange(
                 pool_index=self._resolve_pool_index(pool_id),
             )
@@ -168,10 +167,7 @@ class runtime_builder:
         stage_sources = self.config.get("stages", {})
 
         for stage_id, stage_config in stage_sources.items():
-
-            condition_config = stage_config.get(
-                "condition", stage_config.get("conditions")
-            )
+            condition_config = stage_config["condition"]
             condition = self._build_termination_tree(condition_config)
             stage_once = bool(stage_config.get("once", False))
 
@@ -183,34 +179,33 @@ class runtime_builder:
                 )
             )
 
-    def _build_termination_tree(self, ConditionNode):
-        if ConditionNode is None:
+    def _build_termination_tree(self, condition_config: dict[str, Any] | None):
+        if condition_config is None:
             return None
 
-        condition_type = ConditionNode.get("type")
-        actions_config = ConditionNode.get("actions")
+        condition_type = condition_config.get("type")
+        actions_config = condition_config.get("actions")
         actions = (
             self._build_actions(actions_config) if actions_config is not None else None
         )
 
         if condition_type == "logic":
-            child_key = "conditions"
             conditions = [
                 self._build_termination_tree(child)
-                for child in ConditionNode.get(child_key, [])
+                for child in condition_config.get("conditions", [])
             ]
             return LogicNode(
-                op=ConditionNode.get("op", "OR"),
+                op=condition_config.get("op", "OR"),
                 conditions=conditions,
                 actions=actions,
             )
 
         if condition_type == "predicate":
             return CheckNode(
-                subject=ConditionNode["subject"],
-                id=ConditionNode.get("id"),
-                op=ConditionNode["op"],
-                value=int(ConditionNode.get("value", 0)),
+                subject=condition_config["subject"],
+                id=condition_config.get("id"),
+                op=condition_config["op"],
+                value=int(condition_config.get("value", 0)),
                 actions=actions,
             )
 
@@ -224,7 +219,7 @@ class runtime_builder:
         self._build_item_resolves() 
         self._build_stages()
         self.termination_tree = self._build_termination_tree(
-            self.termination_config.get("termination_conditions")
+            self.termination_config["termination_condition"]
         )
         self.protected_items_index = [
             self._resolve_item_index(item_id)
@@ -233,7 +228,7 @@ class runtime_builder:
 
         return RuntimeContext(
             rmb_per_draw=self.rmb_per_draw,
-            begin_pool_index=self.pool_id_index.get("begin_pool"),
+            begin_pool_index=0,
             item_id_index=self.item_id_index,
             item_list=self.item_list,
             item_resolve_list=self.item_resolve_list,

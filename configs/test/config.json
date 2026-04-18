@@ -55,13 +55,13 @@
         "random_precious_item": [
             {
                 "type": "draw_pool",
-                "pool_id": "precious_item_pool"
+                "id": "precious_item_pool"
             }
         ],
         "random_ordinary_item": [
             {
                 "type": "draw_pool",
-                "pool_id": "ordinary_item_pool"
+                "id": "ordinary_item_pool"
             }
         ]
     },
@@ -123,7 +123,7 @@
             {
                 "type": "reduce_item",
                 "id": "ordinary_item_2",
-                "amount": 5
+                "amount": 1
             }
         ],
         "ordinary_item_3": [
@@ -187,7 +187,7 @@
         "pool_1": {
             "entries": [
                 {
-                    "probability": 0.05,
+                    "probability": 0.005,
                     "actions": [
                         {
                             "type": "add_item",
@@ -275,7 +275,7 @@
         "precious_item_pool": {
             "entries": [
                 {
-                    "probability": 0.01,
+                    "probability": 0.1,
                     "actions": [
                         {
                             "type": "add_item",
@@ -344,7 +344,7 @@
     "stages": {
         "have_target_item_1": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "item",
                 "id": "target_item_1",
@@ -353,14 +353,14 @@
                 "actions": [
                     {
                         "type": "pool_change",
-                        "pool_id": "pool_1"
+                        "id": "pool_1"
                     }
                 ]
             }
         },
         "have_target_item_2": {
             "once": true,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "item",
                 "id": "target_item_2",
@@ -369,14 +369,14 @@
                 "actions": [
                     {
                         "type": "pool_change",
-                        "pool_id": "pool_2"
+                        "id": "pool_2"
                     }
                 ]
             }
         },
         "per_draw": {
             "once": false,
-            "conditions": {
+            "condition": {
                 "type": "predicate",
                 "subject": "draw_count",
                 "id": null,

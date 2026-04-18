@@ -3,7 +3,7 @@
         "lixin_wenxinjian",
         "jianxinling"
     ],
-    "termination_conditions": {
+    "termination_condition": {
         "type": "logic",
         "op": "OR",
         "conditions": [

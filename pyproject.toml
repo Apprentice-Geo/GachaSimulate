@@ -2,7 +2,7 @@
 name = "gacha_sim"
 version = "0.1.0"
 description = "Monte Carlo Gacha Simulator"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

@@ -53,7 +53,7 @@ def simulate_until_total_draw(sim: montecarlo, target_total_draw: int):
     }
 
 
-def save_simulation_result(path: str, result: dict, ctx):
+def save_simulation_result(path: str, result: dict):
         
         np.savez_compressed(
         path,

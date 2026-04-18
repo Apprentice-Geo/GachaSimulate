@@ -1,9 +1,9 @@
 from __future__ import annotations
-from dataclasses import dataclass
-import numpy as np
-from typing import Dict, List, List
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Dict, List
+
+import numpy as np
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,8 +51,6 @@ class RuntimeState:
 
 
 class Action(ABC):
-
-    # abstract method to execute the action, which must be implemented by subclasses
     @abstractmethod
     def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
         pass
