@@ -3,15 +3,11 @@
         "name": "sunwukong_wuxiang",
         "source": "https://pvp.qq.com/web201706/newsdetail.shtml?tid=791287",
         "game": "王者荣耀",
-        "time": "2026_1_1_2026_2_23"
-    },
-    "economy": {
-        "cost_per_draw": {
-            "cost_id": "wuxiang_coin",
+        "time": "2026_1_1_2026_2_23",
+        "cost_id": "wuxiang_coin",
             "cost_name": "无相祈愿币",
             "amount": 10,
-            "per_cost_to_rmb": 1
-        }
+        "per_cost_to_rmb": 1
     },
     "items": {
         "wuxiang_point": {

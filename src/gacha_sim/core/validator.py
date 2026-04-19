@@ -17,7 +17,7 @@ ACTION_TYPES = {
     "pool_change",
     "termination",
 }
-PREDICATE_SUBJECTS = {"item", "draw_count", "rmb_cost"}
+PREDICATE_SUBJECTS = {"item", "draw_count"}
 PREDICATE_OPS = {">=", ">", "==", "<=", "<", "!="}
 LOGIC_OPS = {"AND", "OR"}
 
@@ -185,17 +185,6 @@ def _validate_condition(
 
 def validate_config(config: dict[str, Any]) -> None:
     config = _require_mapping(config, "config")
-
-    economy = _require_mapping(config.get("economy"), "config.economy")
-    cost_per_draw = _require_mapping(
-        economy.get("cost_per_draw"), "config.economy.cost_per_draw"
-    )
-    _require_positive_int(cost_per_draw.get("amount"), "config.economy.cost_per_draw.amount")
-    per_cost_to_rmb = _require_number(
-        cost_per_draw.get("per_cost_to_rmb"), "config.economy.cost_per_draw.per_cost_to_rmb"
-    )
-    if per_cost_to_rmb <= 0:
-        _fail("config.economy.cost_per_draw.per_cost_to_rmb", "must be greater than 0")
 
     items = _require_mapping(config.get("items"), "config.items")
     item_ids = set(items.keys())

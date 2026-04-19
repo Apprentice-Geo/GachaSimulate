@@ -9,12 +9,6 @@
 
 ```json
 {
-  "economy": {
-    "cost_per_draw": {
-      "amount": 10,
-      "per_cost_to_rmb": 1
-    }
-  },
   "items": {
     "item_a": {"name": "Item A"}
   },
@@ -96,7 +90,6 @@
 
 - `item`: 读取当前库存，必须提供 `id`
 - `draw_count`
-- `rmb_cost`
 
 ### Logic Nodes
 

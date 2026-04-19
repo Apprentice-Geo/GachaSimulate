@@ -8,7 +8,6 @@ import numpy as np
 
 @dataclass(frozen=True, slots=True)
 class RuntimeContext:
-    rmb_per_draw: int
     begin_pool_index: int
     item_id_index: Dict[str, int]
     item_list: List[Item]
@@ -32,7 +31,6 @@ class RuntimeState:
         "acquired",  # 统计用累计获得
         "reduced",  # 统计用累计消耗
         "draw_count",
-        "rmb_cost",
         "terminate",
         "terminate_reason",
     )
@@ -45,7 +43,6 @@ class RuntimeState:
         self.acquired = np.zeros(item_count, dtype=np.int32)
         self.reduced = np.zeros(item_count, dtype=np.int32)
         self.draw_count = 0
-        self.rmb_cost = 0
         self.terminate = False
         self.terminate_reason = None
 

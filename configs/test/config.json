@@ -3,15 +3,11 @@
         "name": "test",
         "source": null,
         "game": null,
-        "time": "2026_4_13"
-    },
-    "economy": {
-        "cost_per_draw": {
-            "cost_id": "test_coin",
+        "time": "2026_4_13",
+        "cost_id": "test_coin",
             "cost_name": "测试币",
             "amount": 10,
-            "per_cost_to_rmb": 1
-        }
+        "per_cost_to_rmb": 1
     },
     "items": {
         "target_item_1": {

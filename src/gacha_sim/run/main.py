@@ -1,9 +1,7 @@
 from gacha_sim.core.builder import runtime_builder
 from gacha_sim.core.engine import montecarlo
 import numpy as np
-import hashlib
 from datetime import datetime
-import json
 from tqdm import tqdm
 
 def simulate_until_total_draw(sim: montecarlo, target_total_draw: int):
@@ -12,11 +10,9 @@ def simulate_until_total_draw(sim: montecarlo, target_total_draw: int):
     """
 
     draw_count = []
-    rmb_cost = []
     acquired_records = []
     terminate_reasons = []
 
-    total_rmb_cost = 0
     total_draw = 0
     total_runs = 0
 
@@ -26,11 +22,9 @@ def simulate_until_total_draw(sim: montecarlo, target_total_draw: int):
             state = sim.run_once()
 
             draw_count.append(state.draw_count)
-            rmb_cost.append(state.rmb_cost)
             acquired_records.append(state.acquired.copy())
             terminate_reasons.append(state.terminate_reason)
 
-            total_rmb_cost += state.rmb_cost
             total_draw += state.draw_count
             total_runs += 1
 
@@ -44,10 +38,8 @@ def simulate_until_total_draw(sim: montecarlo, target_total_draw: int):
     return {
         "seed": sim.seed,
         "draw_count": np.asarray(draw_count, dtype=np.int32),
-        "rmb_cost": np.asarray(rmb_cost, dtype=np.int32),
         "lifetime_acquired": np.vstack(acquired_records).astype(np.int32),
         "terminate_reasons": np.array(terminate_reasons, dtype="U32"),
-        "rmb_cost_total": np.int64(total_rmb_cost),
         "total_draw": np.int64(total_draw),
         "total_runs": np.int32(total_runs),
     }
@@ -58,10 +50,8 @@ def save_simulation_result(path: str, result: dict):
         np.savez_compressed(
         path,
         draw_count=result["draw_count"],
-        rmb_cost=result["rmb_cost"],
         lifetime_acquired=result["lifetime_acquired"],
         terminate_reasons=result["terminate_reasons"],
-        rmb_cost_total=result["rmb_cost_total"],
         total_draw=result["total_draw"],
         total_runs=result["total_runs"],
         has_seed=result["seed"] is not None,
@@ -74,10 +64,8 @@ def load_simulation_result(path: str):
 
     return {
         "draw_count": data["draw_count"],
-        "rmb_cost": data["rmb_cost"],
         "lifetime_acquired": data["lifetime_acquired"],
         "terminate_reasons": data["terminate_reasons"],
-        "rmb_cost_total": int(data["rmb_cost_total"]),
         "total_draw": int(data["total_draw"]),
         "total_runs": int(data["total_runs"]),
         "has_seed": bool(data["has_seed"]),

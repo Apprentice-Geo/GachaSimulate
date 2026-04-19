@@ -110,7 +110,6 @@ def test_builds_without_optional_sections(tmp_path: Path) -> None:
     _write_json(
         config_path,
         {
-            "economy": {"cost_per_draw": {"amount": 2, "per_cost_to_rmb": 3}},
             "items": {
                 "token": {"name": "Token"},
                 "target": {"name": "Target"},
@@ -144,7 +143,6 @@ def test_builds_without_optional_sections(tmp_path: Path) -> None:
 
     ctx = runtime_builder(str(config_path), str(termination_path)).build()
 
-    assert ctx.rmb_per_draw == 6
     assert ctx.begin_pool_index == 0
     assert ctx.item_draw_list == [[], []]
     assert ctx.item_resolve_list == [[], []]

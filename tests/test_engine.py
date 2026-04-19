@@ -36,7 +36,6 @@ def test_runs_with_manual_context() -> None:
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
     ctx = RuntimeContext(
-        rmb_per_draw=10,
         begin_pool_index=0,
         item_id_index=item_id_index,
         item_list=item_list,
@@ -67,7 +66,6 @@ def test_runs_with_manual_context() -> None:
     assert state.terminate is True
     assert state.terminate_reason == "target reached"
     assert state.draw_count == 1
-    assert state.rmb_cost == 10
     assert int(state.inventory[item_id_index["target"]]) == 1
 
 
@@ -76,7 +74,6 @@ def test_checks_termination_only_after_protected_changes() -> None:
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
     ctx = RuntimeContext(
-        rmb_per_draw=10,
         begin_pool_index=0,
         item_id_index=item_id_index,
         item_list=item_list,
@@ -126,7 +123,6 @@ def test_triggers_followup_draw_from_item() -> None:
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
     ctx = RuntimeContext(
-        rmb_per_draw=10,
         begin_pool_index=0,
         item_id_index=item_id_index,
         item_list=item_list,
@@ -174,7 +170,6 @@ def test_runs_real_config() -> None:
     assert state.terminate is True
     assert state.terminate_reason in {"skin obtained", "point exchange"}
     assert state.draw_count > 0
-    assert state.rmb_cost > 0
 
 
 def test_reaches_expected_final_state(test_ctx: RuntimeContext) -> None:
@@ -183,7 +178,6 @@ def test_reaches_expected_final_state(test_ctx: RuntimeContext) -> None:
     assert state.terminate is True
     assert state.terminate_reason == "all target items obtained"
     assert state.draw_count == 459
-    assert state.rmb_cost == 4590
     assert state.main_pool_index == test_ctx.pool_id_index["pool_2"]
     assert state.stage_execute == [True, True, False]
     assert state.inventory.tolist() == [1, 1, 1, 40, 357, 0, 0, 0, 0, 0, 0, 9494]

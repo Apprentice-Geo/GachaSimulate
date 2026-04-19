@@ -41,7 +41,6 @@ class montecarlo:
         action_queue: Deque[Action] = deque()
 
         state.draw_count += 1
-        state.rmb_cost += self.ctx.rmb_per_draw
 
         action_queue.append(self.ctx.pool_draw_list[state.main_pool_index])
         self._drain_action_queue(state, action_queue)
@@ -169,8 +168,6 @@ class montecarlo:
     ) -> int:
         if subject == "draw_count":
             return state.draw_count
-        if subject == "rmb_cost":
-            return state.rmb_cost
         if subject == "item":
             if subject_id is None:
                 raise ValueError("item predicate requires id")

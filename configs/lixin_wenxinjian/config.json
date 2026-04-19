@@ -3,15 +3,11 @@
         "name": "lixin_wenxinjian",
         "source": "https://pvp.qq.com/web201706/newsdetail.shtml?tid=795182",
         "game": "王者荣耀",
-        "time": "2026_2_15_2026_3_22"
-    },
-    "economy": {
-        "cost_per_draw": {
-            "cost_id": "wenxinbi",
+        "time": "2026_2_15_2026_3_22",
+        "cost_id": "wenxinbi",
             "cost_name": "问心币",
             "amount": 10,
-            "per_cost_to_rmb": 1
-        }
+        "per_cost_to_rmb": 1
     },
     "items": {
         "jianxinling": {

@@ -24,12 +24,11 @@ from gacha_sim.core.runtime import (
 
 class runtime_builder:
     def __init__(self, config_path: str, termination_path: str):
+        validate_files(config_path, termination_path)
         with open(config_path, "r", encoding="utf-8") as f:
             self.config = json.load(f)
         with open(termination_path, "r", encoding="utf-8") as f:
             self.termination_config = json.load(f)
-        validate_files(self.config, self.termination_config)
-        self.rmb_per_draw = 0
         self.item_id_index = {}
         self.item_list = []
         self.item_resolve_index = []
@@ -107,12 +106,6 @@ class runtime_builder:
             )
             self.item_resolve_list.append([])
             self.item_draw_list.append([])
-
-        economy = self.config.get("economy", {})
-        cost_config = economy.get("cost_per_draw")
-        self.rmb_per_draw = cost_config.get("amount") * cost_config.get(
-            "per_cost_to_rmb"
-        )
 
     def _build_item_resolves(self):
         item_resolve_config = self.config.get("item_resolve", {})
@@ -227,7 +220,6 @@ class runtime_builder:
         ]
 
         return RuntimeContext(
-            rmb_per_draw=self.rmb_per_draw,
             begin_pool_index=0,
             item_id_index=self.item_id_index,
             item_list=self.item_list,
