@@ -1,0 +1,18 @@
+{
+    "protected_items": [
+        "xinyuanjifeng"
+    ],
+    "termination_condition": {
+        "type": "predicate",
+        "subject": "item",
+        "id": "xinyuanjifeng",
+        "op": ">=",
+        "value": 20000,
+        "actions": [
+            {
+                "type": "termination",
+                "reason": "xinyuanjifeng over 20000"
+            }
+        ]
+    }
+}

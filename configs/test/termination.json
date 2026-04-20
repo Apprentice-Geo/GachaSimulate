@@ -1,0 +1,71 @@
+{
+    "protected_items": [
+        "target_item_1",
+        "target_item_2",
+        "target_item_3",
+        "general_fragment"
+    ],
+    "termination_condition": {
+        "type": "logic",
+        "op": "OR",
+        "conditions": [
+            {
+                "type": "logic",
+                "op": "AND",
+                "conditions": [
+                    {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "target_item_1",
+                        "op": ">=",
+                        "value": 1,
+                        "actions": null
+                    },
+                    {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "target_item_2",
+                        "op": ">=",
+                        "value": 1,
+                        "actions": null
+                    },
+                    {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "target_item_3",
+                        "op": ">=",
+                        "value": 1,
+                        "actions": null
+                    }
+                ],
+                "actions": [
+                    {
+                        "type": "termination",
+                        "reason": "all target items obtained"
+                    }
+                ]
+            },
+            {
+                "type": "logic",
+                "op": "AND",
+                "conditions": [
+                    {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "general_fragment",
+                        "op": ">=",
+                        "value": 10000,
+                        "actions": null
+                    }
+                ],
+                "actions": [
+                    {
+                        "type": "termination",
+                        "reason": "fragment exchange"
+                    }
+                ]
+            }
+        ],
+        "actions": null
+    }
+}

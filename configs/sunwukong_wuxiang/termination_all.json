@@ -1,0 +1,54 @@
+{
+    "protected_items": [
+        "sunwukong_wuxiang",
+        "wuxiang_point"
+    ],
+    "termination_condition": {
+        "type": "logic",
+        "op": "OR",
+        "conditions": [
+            {
+                "type": "logic",
+                "op": "AND",
+                "conditions": [
+                    {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "sunwukong_wuxiang",
+                        "op": ">=",
+                        "value": 1,
+                        "actions": null
+                    },
+                    {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "wuxiang_point",
+                        "op": ">=",
+                        "value": 675,
+                        "actions": null
+                    }
+                ],
+                "actions": [
+                    {
+                        "type": "termination",
+                        "reason": "skin obtained"
+                    }
+                ]
+            },
+            {
+                "type": "predicate",
+                "subject": "item",
+                "id": "wuxiang_point",
+                "op": ">=",
+                "value": 1673,
+                "actions": [
+                    {
+                        "type": "termination",
+                        "reason": "point exchange"
+                    }
+                ]
+            }
+        ],
+        "actions": null
+    }
+}
