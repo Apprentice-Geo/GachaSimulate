@@ -508,14 +508,7 @@ class Visualizer:
         )
 
         self._apply_grid(ax, theme, axis="y")
-        ax.axhline(
-            1.0,
-            linestyle="--",
-            color="#6B747D",
-            linewidth=1.8,
-            alpha=0.9,
-            zorder=1,
-        )
+        
         self._apply_axis_style(ax, theme, hide_top_right=True)
         ax.set_xlim(left=0)
         ax.set_ylim(bottom=0)
