@@ -3,3 +3,4 @@ __pycache__/
 .vscode/
 .codex
 *.egg-info/
+images/

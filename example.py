@@ -10,15 +10,11 @@ from gacha_sim.run.visualize import Visualizer
 import os
 import numpy as np
 
-if __name__ == "__main__":
+def run_save(CONFIG_NAME:str, TERMINATION_NAME:str,TARGET_TOTAL_DRAW:int=100000000,SEED:int=0):
     project_root = Path(__file__).resolve().parent
-    CONFIG_NAME = "sunwukong_wuxiang"
-    TERMINATION_NAME = "termination_all_exchange"
     BASE_PATH = os.path.join(project_root, "configs", CONFIG_NAME)
     CONFIG_JSON_PATH = os.path.join(BASE_PATH, "config.json")
     TERMINATION_JSON_PATH = os.path.join(BASE_PATH, TERMINATION_NAME + ".json")
-    TARGET_TOTAL_DRAW = 100000000
-    SEED = 0
     RESULT_FILE_PATH = (
         f"./data/{CONFIG_NAME}_{TERMINATION_NAME}_{TARGET_TOTAL_DRAW}_seed{SEED}.npz"
     )
@@ -53,7 +49,16 @@ if __name__ == "__main__":
     viz = Visualizer(result)
     img_dir = Path("./images")
     img_dir.mkdir(parents=True, exist_ok=True)
-    viz.plot_draw_distribution(
-        save_path=f"./images/{simulate_name}_draw_distribution.svg"
-    )
+    # viz.plot_draw_distribution(
+    #     save_path=f"./images/{simulate_name}_draw_distribution.svg"
+    # )
     viz.plot_cdf(save_path=f"./images/{simulate_name}_cdf.svg")
+if __name__ == "__main__":
+    BASE_SEED=0
+    run_save("quanjiahezi_maniandaji", "termination_quan1",SEED=BASE_SEED+1)
+    run_save("quanjiahezi_maniandaji", "termination_shenjiangwei",SEED=BASE_SEED+2)
+    run_save("quanjiahezi_maniandaji", "termination_mouzhugeliang",SEED=BASE_SEED+3)
+    run_save("banjiahezi_xiadanzhonhun", "termination_quan1",SEED=BASE_SEED+4)
+    run_save("banjiahezi_xiadanzhonhun", "termination_shiweiyan",SEED=BASE_SEED+5)
+
+

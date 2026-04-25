@@ -1,38 +1,47 @@
 {
     "meta": {
         "name": "test",
-        "source": "https://mp.weixin.qq.com/s/geByodTqXB60NdY9f5JFFg",
+        "source": "https://www.sanguosha.cn/pc/news-detail-2100.html",
         "game": "sanguoshayidonban",
-        "time": "2026_4_13",
-        "cost_id": "xinyuanjifeng",
-        "cost_name": "心愿积分",
-        "amount": 5,
-        "per_cost_to_rmb": null
+        "time": "2026_4_25",
+        "cost_id": "xiaddanzhonhun",
+        "cost_name": "侠胆忠魂",
+        "amount": 1,
+        "per_cost_to_rmb": 1
     },
     "items": {
-        "xinyuanjifeng": {
-            "name": "心愿积分"
+        "shiweiyan": {
+            "name": "势魏延"
         },
-        "huanledou": {
-            "name": "欢乐豆"
+        "shishibaozhu_33": {
+            "name": "史诗宝珠33"
         },
-        "cailanzi": {
-            "name": "菜篮子"
+        "fenyuezhenlv_huangfusongdontaibao": {
+            "name": "奋钺振旅·皇甫嵩动态包"
         },
-        "yinbi": {
-            "name": "银币"
+        "jianghun": {
+            "name": "将魂"
+        },
+        "shishibaozhu": {
+            "name": "史诗宝珠"
+        },
+        "jingliangwupin": {
+            "name": "精良物品"
+        },
+        "putonwupin": {
+            "name": "普通物品"
         }
     },
     "pools": {
         "begin_pool": {
             "entries": [
                 {
-                    "probability": 0.00003,
+                    "probability": 0.0001,
                     "actions": [
                         {
                             "type": "add_item",
-                            "id": "xinyuanjifeng",
-                            "amount": 20000
+                            "id": "shiweiyan",
+                            "amount": 1
                         }
                     ]
                 },
@@ -41,8 +50,8 @@
                     "actions": [
                         {
                             "type": "add_item",
-                            "id": "xinyuanjifeng",
-                            "amount": 5000
+                            "id": "shishibaozhu_33",
+                            "amount": 1
                         }
                     ]
                 },
@@ -51,58 +60,48 @@
                     "actions": [
                         {
                             "type": "add_item",
-                            "id": "xinyuanjifeng",
-                            "amount": 500
+                            "id": "fenyuezhenlv_huangfusongdontaibao",
+                            "amount": 1
                         }
                     ]
                 },
                 {
-                    "probability": 0.0015,
+                    "probability": 0.0005,
                     "actions": [
                         {
                             "type": "add_item",
-                            "id": "xinyuanjifeng",
-                            "amount": 50
+                            "id": "jianghun",
+                            "amount": 1000
                         }
                     ]
                 },
                 {
-                    "probability": 0.2,
+                    "probability": 0.0025,
                     "actions": [
                         {
                             "type": "add_item",
-                            "id": "xinyuanjifeng",
-                            "amount": 2
+                            "id": "shishibaozhu",
+                            "amount": 1
                         }
                     ]
                 },
                 {
-                    "probability": 0.2,
+                    "probability": 0.0875,
                     "actions": [
                         {
                             "type": "add_item",
-                            "id": "huanledou",
-                            "amount": 50
+                            "id": "jingliangwupin",
+                            "amount": 1
                         }
                     ]
                 },
                 {
-                    "probability": 0.2,
+                    "probability": 0.9088,
                     "actions": [
                         {
                             "type": "add_item",
-                            "id": "cailanzi",
-                            "amount": 6
-                        }
-                    ]
-                },
-                {
-                    "probability": 0.39787,
-                    "actions": [
-                        {
-                            "type": "add_item",
-                            "id": "yinbi",
-                            "amount": 100
+                            "id": "putonwupin",
+                            "amount": 1
                         }
                     ]
                 }

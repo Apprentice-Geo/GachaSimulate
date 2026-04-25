@@ -8,7 +8,6 @@ import numpy as np
 from matplotlib import font_manager, rcParams
 from matplotlib.patches import FancyBboxPatch
 from matplotlib.ticker import MaxNLocator, PercentFormatter
-from matplotlib.transforms import blended_transform_factory
 
 # 项目根目录
 project_root = Path(__file__).resolve().parents[3]
@@ -84,6 +83,9 @@ class CdfData:
     values: np.ndarray
     cumulative: np.ndarray
     percentiles: CdfPercentiles
+    mean_draw: int
+    mean_level: float
+    max_draw: int
 
 
 class Visualizer:
@@ -99,7 +101,7 @@ class Visualizer:
     DRAW_DISTRIBUTION_MEAN_COLOR = "#3B82F6"
     DRAW_DISTRIBUTION_EDGE_COLOR = "#DDE3E8"
     DASHBOARD_CHIP_WIDTH = 0.125
-    DASHBOARD_CHIP_HEIGHT = 0.20
+    DASHBOARD_CHIP_HEIGHT = 0.12
     DASHBOARD_CHIP_GAP = 0.05
     DASHBOARD_CHIP_Y = 0.10
     DASHBOARD_CHIP_FONTSIZE = 8.8
@@ -124,12 +126,13 @@ class Visualizer:
         CdfPercentileMark("P75", 0.75, "#f46d43", 1.5, 0.85),
         CdfPercentileMark("P95", 0.95, "#d7191c", 2.0, 0.95),
     ]
-    CDF_EMPHASIS_LABELS = {"P50", "P95"}
-    CDF_CARD_BOUNDS = (0.075, 0.125, 0.85, 0.67)
-    CDF_HEADER_BOUNDS = (0.09, 0.81, 0.82, 0.14)
-    CDF_PLOT_BOUNDS = (0.155, 0.215, 0.705, 0.50)
-    CDF_FOOTER_BOUNDS = (0.09, 0.035, 0.82, 0.08)
-
+    CDF_MEAN_COLOR = "#3B82F6"
+    CDF_MAX_COLOR = "#8B0000"
+    CDF_EMPHASIS_LABELS = {"P50", "P95", "MAX"}
+    CDF_CARD_BOUNDS = (0.075, 0.145, 0.85, 0.62)
+    CDF_HEADER_BOUNDS = (0.09, 0.77, 0.82, 0.19)
+    CDF_PLOT_BOUNDS = (0.155, 0.235, 0.705, 0.46)
+    CDF_FOOTER_BOUNDS = (0.09, 0.025, 0.82, 0.08)
 
     def __init__(self, result: Dict):
         self.draw_count = np.asarray(result["draw_count"])
@@ -193,7 +196,7 @@ class Visualizer:
             length=self.CDF_THEME.tick_length,
             direction="out",
         )
-        ax.set_ylim(0, 1)
+        ax.set_ylim(0, 1.1)
         self._draw_cdf_footer(footer_ax, plot_data)
 
         self._save_figure(fig, save_path, dpi, tight_layout=False, bbox_tight=False)
@@ -239,10 +242,14 @@ class Visualizer:
         values = np.sort(self.draw_count)
         count = len(values)
         cumulative = np.arange(1, count + 1) / count
+        mean_draw = int(np.mean(values))
 
         return CdfData(
             values=values,
             cumulative=cumulative,
+            mean_draw=mean_draw,
+            mean_level=float(np.searchsorted(values, mean_draw, side="right") / count),
+            max_draw=int(np.max(values)),
             percentiles=CdfPercentiles(
                 p5=int(np.percentile(values, 5)),
                 p25=int(np.percentile(values, 25)),
@@ -421,12 +428,31 @@ class Visualizer:
         )
 
     def _draw_cdf_header(self, ax, plot_data: CdfData) -> None:
-        percentile_values = plot_data.percentiles.values()
+        percentile_by_label = dict(
+            zip(
+                [mark.label for mark in self.CDF_PERCENTILE_MARKS],
+                plot_data.percentiles.values(),
+            )
+        )
+        mark_by_label = {mark.label: mark for mark in self.CDF_PERCENTILE_MARKS}
+        metric_rows = [
+            [
+                ("P50", percentile_by_label["P50"], mark_by_label["P50"].color, True),
+                ("P95", percentile_by_label["P95"], mark_by_label["P95"].color, True),
+                ("MEAN", plot_data.mean_draw, self.CDF_MEAN_COLOR, True),
+                ("MAX", plot_data.max_draw, self.CDF_MAX_COLOR, True),
+            ],
+            [
+                ("P5", percentile_by_label["P5"], mark_by_label["P5"].color, False),
+                ("P25", percentile_by_label["P25"], mark_by_label["P25"].color, False),
+                ("P75", percentile_by_label["P75"], mark_by_label["P75"].color, False),
+            ],
+        ]
 
         # Header: title and percentile chips sit on the page background.
         ax.text(
             0.5,
-            self.DASHBOARD_TITLE_Y,
+            0.98,
             "累计抽数-成功概率关系",
             transform=ax.transAxes,
             ha="center",
@@ -436,40 +462,39 @@ class Visualizer:
             color=self.CDF_THEME.title_color,
         )
 
-        chip_width = self.DASHBOARD_CHIP_WIDTH
-        chip_gap = self.DASHBOARD_CHIP_GAP
-        chip_start_x = 0.5 - (
-            len(self.CDF_PERCENTILE_MARKS) * chip_width
-            + (len(self.CDF_PERCENTILE_MARKS) - 1) * chip_gap
-        ) / 2
-        chip_y = self.DASHBOARD_CHIP_Y
-        for idx, (mark, value) in enumerate(
-            zip(self.CDF_PERCENTILE_MARKS, percentile_values)
+        row_y_positions = [0.44, 0.20]
+        row_widths = [0.125, 0.125]
+        row_gaps = [0.045, 0.05]
+        for row, chip_y, chip_width, chip_gap in zip(
+            metric_rows, row_y_positions, row_widths, row_gaps
         ):
-            x = chip_start_x + idx * (chip_width + chip_gap)
-            is_emphasis = mark.label in self.CDF_EMPHASIS_LABELS
-            chip = FancyBboxPatch(
-                (x, chip_y),
-                chip_width,
-                self.DASHBOARD_CHIP_HEIGHT,
-                boxstyle="round,pad=0.012,rounding_size=0.035",
-                transform=ax.transAxes,
-                facecolor="#F3F6F8" if is_emphasis else "#FAFBFC",
-                edgecolor=mark.color,
-                linewidth=1.1 if is_emphasis else 0.8,
+            chip_start_x = (
+                0.5 - (len(row) * chip_width + (len(row) - 1) * chip_gap) / 2
             )
-            ax.add_patch(chip)
-            ax.text(
-                x + 0.016,
-                chip_y + self.DASHBOARD_CHIP_HEIGHT / 2,
-                f"{mark.label}  {value}",
-                transform=ax.transAxes,
-                ha="left",
-                va="center",
-                fontsize=self.DASHBOARD_CHIP_FONTSIZE,
-                fontweight="bold" if is_emphasis else "normal",
-                color=mark.color,
-            )
+            for idx, (label, value, color, is_emphasis) in enumerate(row):
+                x = chip_start_x + idx * (chip_width + chip_gap)
+                chip = FancyBboxPatch(
+                    (x, chip_y),
+                    chip_width,
+                    self.DASHBOARD_CHIP_HEIGHT,
+                    boxstyle="round,pad=0.012,rounding_size=0.035",
+                    transform=ax.transAxes,
+                    facecolor="#F3F6F8" if is_emphasis else "#FAFBFC",
+                    edgecolor=color,
+                    linewidth=1.1 if is_emphasis else 0.8,
+                )
+                ax.add_patch(chip)
+                ax.text(
+                    x + 0.016,
+                    chip_y + self.DASHBOARD_CHIP_HEIGHT / 2,
+                    f"{label}  {value}",
+                    transform=ax.transAxes,
+                    ha="left",
+                    va="center",
+                    fontsize=self.DASHBOARD_CHIP_FONTSIZE,
+                    fontweight="bold" if is_emphasis else "normal",
+                    color=color,
+                )
 
     def _draw_cdf(self, ax, plot_data: CdfData) -> None:
         theme = self.CDF_THEME
@@ -483,6 +508,14 @@ class Visualizer:
         )
 
         self._apply_grid(ax, theme, axis="y")
+        ax.axhline(
+            1.0,
+            linestyle="--",
+            color="#6B747D",
+            linewidth=1.8,
+            alpha=0.9,
+            zorder=1,
+        )
         self._apply_axis_style(ax, theme, hide_top_right=True)
         ax.set_xlim(left=0)
         ax.set_ylim(bottom=0)
@@ -491,7 +524,7 @@ class Visualizer:
 
         percentile_values = plot_data.percentiles.values()
 
-        ax.yaxis.set_major_locator(MaxNLocator(nbins=6))
+        ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0, 1.1])
         ax.yaxis.set_major_formatter(PercentFormatter(1.0))
 
         for value, mark in zip(percentile_values, self.CDF_PERCENTILE_MARKS):
@@ -504,6 +537,33 @@ class Visualizer:
                 alpha=mark.alpha,
                 solid_capstyle="butt",
             )
+        ax.plot(
+            [plot_data.max_draw, plot_data.max_draw],
+            [0, 1.0],
+            linestyle="-.",
+            color=self.CDF_MAX_COLOR,
+            linewidth=2.4,
+            alpha=0.98,
+            solid_capstyle="butt",
+        )
+        ax.plot(
+            [plot_data.mean_draw, plot_data.mean_draw],
+            [0, plot_data.mean_level],
+            linestyle=(0, (6, 3)),
+            color=self.CDF_MEAN_COLOR,
+            linewidth=2.0,
+            alpha=0.95,
+            solid_capstyle="butt",
+        )
+        ax.plot(
+            [0, plot_data.mean_draw],
+            [plot_data.mean_level, plot_data.mean_level],
+            linestyle=(0, (6, 3)),
+            color=self.CDF_MEAN_COLOR,
+            linewidth=1.6,
+            alpha=0.75,
+            solid_capstyle="butt",
+        )
 
         point_sizes = [
             64 if mark.label in self.CDF_EMPHASIS_LABELS else 34
@@ -518,8 +578,25 @@ class Visualizer:
             edgecolor="white",
             linewidth=0.8,
         )
+        ax.scatter(
+            [plot_data.mean_draw],
+            [plot_data.mean_level],
+            color=[self.CDF_MEAN_COLOR],
+            s=70,
+            zorder=6,
+            edgecolor="white",
+            linewidth=0.8,
+        )
+        ax.scatter(
+            [plot_data.max_draw],
+            [1.0],
+            color=[self.CDF_MAX_COLOR],
+            s=78,
+            zorder=6,
+            edgecolor="white",
+            linewidth=0.8,
+        )
 
-        transform = blended_transform_factory(ax.transData, ax.transAxes)
         for value, mark in zip(percentile_values, self.CDF_PERCENTILE_MARKS):
             ax.text(
                 value,
@@ -528,16 +605,40 @@ class Visualizer:
                 color=mark.color,
                 ha="right",
                 va="bottom",
-                transform=transform,
                 fontsize=10,
                 fontweight=(
                     "bold" if mark.label in self.CDF_EMPHASIS_LABELS else "normal"
                 ),
+                zorder=8,
             )
+        ax.text(
+            plot_data.mean_draw,
+            plot_data.mean_level,
+            " MEAN",
+            color=self.CDF_MEAN_COLOR,
+            ha="left",
+            va="top",
+            fontsize=10,
+            fontweight="bold",
+            zorder=8,
+        )
+        ax.text(
+            plot_data.max_draw,
+            1.0,
+            "MAX ",
+            color=self.CDF_MAX_COLOR,
+            ha="right",
+            va="bottom",
+            fontsize=10,
+            fontweight="bold",
+            zorder=8,
+        )
 
     def _draw_cdf_footer(self, ax, plot_data: CdfData) -> None:
         p50 = plot_data.percentiles.p50
         p95 = plot_data.percentiles.p95
+        mean_draw = plot_data.mean_draw
+        max_draw = plot_data.max_draw
 
         # Footer: reading note sits outside the card on the page background.
         ax.text(
@@ -545,8 +646,10 @@ class Visualizer:
             0.62,
             (
                 f"P50={p50} 表示半数模拟在该抽数内成功；"
-                f"P95={p95} 表示 95% 模拟在该抽数内成功。\n"
-                "P5/P25/P75 可同样理解。"
+                f"P95={p95} 表示 95% 模拟在该抽数内成功，"
+                "P5/P25/P75 可同样理解。\n"
+                f"MEAN={mean_draw} 表示平均成功抽数，横线对应其累计成功概率；"
+                f"MAX={max_draw} 表示本轮模拟中成功所需的最大抽数。"
             ),
             transform=ax.transAxes,
             ha="center",
