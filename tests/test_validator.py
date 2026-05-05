@@ -73,9 +73,44 @@ def test_requires_termination_actions_inside_termination_tree(
 
 def test_requires_positive_integer_amount(test_config: dict) -> None:
     config = deepcopy(test_config)
-    config["item_resolve"]["ordinary_item_1"][1]["amount"] = 0
+    config["item_resolve"]["ordinary_item_1"]["actions"][1]["amount"] = 0
 
     with pytest.raises(ValidationError, match="must be a positive integer"):
+        validate_config(config)
+
+
+def test_requires_item_resolve_retain(test_config: dict) -> None:
+    config = deepcopy(test_config)
+    del config["item_resolve"]["ordinary_item_1"]["retain"]
+
+    with pytest.raises(ValidationError, match=r"\.retain: is required"):
+        validate_config(config)
+
+
+def test_rejects_negative_item_resolve_retain(test_config: dict) -> None:
+    config = deepcopy(test_config)
+    config["item_resolve"]["ordinary_item_1"]["retain"] = -1
+
+    with pytest.raises(ValidationError, match="must be a non-negative integer"):
+        validate_config(config)
+
+
+def test_allows_zero_amount_for_set_item(test_config: dict) -> None:
+    config = deepcopy(test_config)
+    config["stages"]["per_draw"]["condition"]["actions"] = [
+        {"type": "set_item", "id": "general_fragment", "amount": 0}
+    ]
+
+    validate_config(config)
+
+
+def test_rejects_negative_amount_for_set_item(test_config: dict) -> None:
+    config = deepcopy(test_config)
+    config["stages"]["per_draw"]["condition"]["actions"] = [
+        {"type": "set_item", "id": "general_fragment", "amount": -1}
+    ]
+
+    with pytest.raises(ValidationError, match="must be a non-negative integer"):
         validate_config(config)
 
 
@@ -84,6 +119,21 @@ def test_requires_pool_probabilities_to_sum_to_one(test_config: dict) -> None:
     config["pools"]["begin_pool"]["entries"][0]["probability"] = 0.02
 
     with pytest.raises(ValidationError, match="probability sum must be 1"):
+        validate_config(config)
+
+
+def test_allows_null_pool_entry_actions(test_config: dict) -> None:
+    config = deepcopy(test_config)
+    config["pools"]["begin_pool"]["entries"][0]["actions"] = None
+
+    validate_config(config)
+
+
+def test_rejects_empty_pool_entry_actions(test_config: dict) -> None:
+    config = deepcopy(test_config)
+    config["pools"]["begin_pool"]["entries"][0]["actions"] = []
+
+    with pytest.raises(ValidationError, match="must be null or a non-empty array"):
         validate_config(config)
 
 

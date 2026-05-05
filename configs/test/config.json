@@ -5,8 +5,8 @@
         "game": null,
         "time": "2026_4_13",
         "cost_id": "test_coin",
-            "cost_name": "测试币",
-            "amount": 10,
+        "cost_name": "测试币",
+        "amount": 10,
         "per_cost_to_rmb": 1
     },
     "items": {
@@ -62,78 +62,96 @@
         ]
     },
     "item_resolve": {
-        "precious_item_1": [
-            {
-                "type": "add_item",
-                "id": "general_fragment",
-                "amount": 120
-            },
-            {
-                "type": "reduce_item",
-                "id": "precious_item_1",
-                "amount": 1
-            }
-        ],
-        "precious_item_2": [
-            {
-                "type": "add_item",
-                "id": "general_fragment",
-                "amount": 60
-            },
-            {
-                "type": "reduce_item",
-                "id": "precious_item_2",
-                "amount": 1
-            }
-        ],
-        "precious_item_3": [
-            {
-                "type": "add_item",
-                "id": "general_fragment",
-                "amount": 20
-            },
-            {
-                "type": "reduce_item",
-                "id": "precious_item_3",
-                "amount": 1
-            }
-        ],
-        "ordinary_item_1": [
-            {
-                "type": "add_item",
-                "id": "general_fragment",
-                "amount": 60
-            },
-            {
-                "type": "reduce_item",
-                "id": "ordinary_item_1",
-                "amount": 1
-            }
-        ],
-        "ordinary_item_2": [
-            {
-                "type": "add_item",
-                "id": "general_fragment",
-                "amount": 30
-            },
-            {
-                "type": "reduce_item",
-                "id": "ordinary_item_2",
-                "amount": 1
-            }
-        ],
-        "ordinary_item_3": [
-            {
-                "type": "add_item",
-                "id": "general_fragment",
-                "amount": 10
-            },
-            {
-                "type": "reduce_item",
-                "id": "ordinary_item_3",
-                "amount": 1
-            }
-        ]
+        "precious_item_1": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "add_item",
+                    "id": "general_fragment",
+                    "amount": 120
+                },
+                {
+                    "type": "reduce_item",
+                    "id": "precious_item_1",
+                    "amount": 1
+                }
+            ]
+        },
+        "precious_item_2": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "add_item",
+                    "id": "general_fragment",
+                    "amount": 60
+                },
+                {
+                    "type": "reduce_item",
+                    "id": "precious_item_2",
+                    "amount": 1
+                }
+            ]
+        },
+        "precious_item_3": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "add_item",
+                    "id": "general_fragment",
+                    "amount": 20
+                },
+                {
+                    "type": "reduce_item",
+                    "id": "precious_item_3",
+                    "amount": 1
+                }
+            ]
+        },
+        "ordinary_item_1": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "add_item",
+                    "id": "general_fragment",
+                    "amount": 60
+                },
+                {
+                    "type": "reduce_item",
+                    "id": "ordinary_item_1",
+                    "amount": 1
+                }
+            ]
+        },
+        "ordinary_item_2": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "add_item",
+                    "id": "general_fragment",
+                    "amount": 30
+                },
+                {
+                    "type": "reduce_item",
+                    "id": "ordinary_item_2",
+                    "amount": 1
+                }
+            ]
+        },
+        "ordinary_item_3": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "add_item",
+                    "id": "general_fragment",
+                    "amount": 10
+                },
+                {
+                    "type": "reduce_item",
+                    "id": "ordinary_item_3",
+                    "amount": 1
+                }
+            ]
+        }
     },
     "pools": {
         "begin_pool": {
@@ -257,7 +275,7 @@
                     ]
                 },
                 {
-                    "probability": 0.1000,
+                    "probability": 0.1,
                     "actions": [
                         {
                             "type": "add_item",

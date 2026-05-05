@@ -1,0 +1,39 @@
+{
+    "retained_items": [
+        "talangtongxintianmu",
+        "nezha2duihuanbi"
+    ],
+    "termination_condition": {
+        "type": "logic",
+        "op": "OR",
+        "conditions": [
+            {
+                "type": "predicate",
+                "subject": "item",
+                "id": "talangtongxintianmu",
+                "op": ">=",
+                "value": 1,
+                "actions": [
+                    {
+                        "type": "termination",
+                        "reason": "tianmu"
+                    }
+                ]
+            },
+            {
+                "type": "predicate",
+                "subject": "item",
+                "id": "nezha2duihuanbi",
+                "op": ">=",
+                "value": 428,
+                "actions": [
+                    {
+                        "type": "termination",
+                        "reason": "exchange"
+                    }
+                ]
+            }
+        ],
+        "actions":null
+    }
+}

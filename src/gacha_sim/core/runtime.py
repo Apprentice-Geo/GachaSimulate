@@ -11,14 +11,14 @@ class RuntimeContext:
     begin_pool_index: int
     item_id_index: Dict[str, int]
     item_list: List[Item]
-    item_resolve_list: List[List[Action]]  # resolve 某个物品时执行的动作
+    item_resolve_list: List[ItemResolve]  # resolve 某个物品时执行的动作
     item_draw_list: List[List[Action]]
     pool_id_index: Dict[str, int]
     pool_list: List[Pool]
     pool_draw_list: List[Action]  # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
     draw_stage_id_index: Dict[str, int]
     draw_stage_list: List[Stage]
-    protected_items_index: List[int]
+    retained_items_index: List[int]
     termination_tree: ConditionNode
 
 
@@ -71,6 +71,15 @@ class ReduceItem(Action):
     def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
         runtime_state.inventory[self.item_index] -= self.amount
         runtime_state.reduced[self.item_index] += self.amount
+
+
+@dataclass(frozen=True, slots=True)
+class SetItem(Action):
+    item_index: int
+    amount: int
+
+    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
+        runtime_state.inventory[self.item_index] = self.amount
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,3 +147,9 @@ class Pool:
 class Item:
     id: str
     name: str
+
+
+@dataclass(frozen=True, slots=True)
+class ItemResolve:
+    retain: int
+    actions: List[Action]

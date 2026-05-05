@@ -54,11 +54,12 @@ def run_save(CONFIG_NAME:str, TERMINATION_NAME:str,TARGET_TOTAL_DRAW:int=1000000
     # )
     viz.plot_cdf(save_path=f"./images/{simulate_name}_cdf.svg")
 if __name__ == "__main__":
-    BASE_SEED=0
-    run_save("quanjiahezi_maniandaji", "termination_quan1",SEED=BASE_SEED+1)
-    run_save("quanjiahezi_maniandaji", "termination_shenjiangwei",SEED=BASE_SEED+2)
-    run_save("quanjiahezi_maniandaji", "termination_mouzhugeliang",SEED=BASE_SEED+3)
-    run_save("banjiahezi_xiadanzhonhun", "termination_quan1",SEED=BASE_SEED+4)
-    run_save("banjiahezi_xiadanzhonhun", "termination_shiweiyan",SEED=BASE_SEED+5)
+    BASE_SEED=int("0721")
+    run_save("nezha2_zhenpinchuanshuo", "termination_skin",TARGET_TOTAL_DRAW=100000000,SEED=BASE_SEED+1)
+    run_save("nezha2_zhenpinchuanshuo", "termination_skin_33days",TARGET_TOTAL_DRAW=100000000,SEED=BASE_SEED+1)
+    run_save("nezha2_zhenpinchuanshuo", "termination_skin_all",TARGET_TOTAL_DRAW=100000000,SEED=BASE_SEED+1)
+    run_save("nezha2_zhenpinchuanshuo", "termination_tianmu",TARGET_TOTAL_DRAW=100000000,SEED=BASE_SEED+1)
+    
+
 
 

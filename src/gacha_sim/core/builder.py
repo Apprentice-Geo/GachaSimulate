@@ -12,11 +12,13 @@ from gacha_sim.core.runtime import (
     ConditionNode,
     DrawPool,
     Item,
+    ItemResolve,
     LogicNode,
     Pool,
     PoolChange,
     ReduceItem,
     RuntimeContext,
+    SetItem,
     Stage,
     Termination,
 )
@@ -39,7 +41,7 @@ class runtime_builder:
         self.pool_draw_list = []
         self.draw_stage_id_index = {}
         self.draw_stage_list = []
-        self.protected_items_index = []
+        self.retained_items_index = []
         self.termination_tree = None
 
     def _resolve_item_index(self, item_id: str) -> int:
@@ -62,6 +64,12 @@ class runtime_builder:
             return ReduceItem(
                 item_index=self._resolve_item_index(item_id),
                 amount=int(action_config.get("amount", 1)),
+            )
+        elif action_type == "set_item":
+            item_id = action_config["id"]
+            return SetItem(
+                item_index=self._resolve_item_index(item_id),
+                amount=int(action_config.get("amount", 0)),
             )
         elif action_type == "draw_pool":
             pool_id = action_config["id"]
@@ -104,15 +112,18 @@ class runtime_builder:
                     name=item_config.get("name", ""),
                 )
             )
-            self.item_resolve_list.append([])
+            self.item_resolve_list.append(ItemResolve(retain=0, actions=[]))
             self.item_draw_list.append([])
 
     def _build_item_resolves(self):
         item_resolve_config = self.config.get("item_resolve", {})
 
-        for item_id, actions_config in item_resolve_config.items():
+        for item_id, resolve_config in item_resolve_config.items():
             item_index = self._resolve_item_index(item_id)
-            self.item_resolve_list[item_index] = self._build_actions(actions_config)
+            self.item_resolve_list[item_index] = ItemResolve(
+                retain=int(resolve_config["retain"]),
+                actions=self._build_actions(resolve_config["actions"]),
+            )
 
     def _build_item_draws(self):
         item_draw_config = self.config.get("item_draw", {})
@@ -214,9 +225,9 @@ class runtime_builder:
         self.termination_tree = self._build_termination_tree(
             self.termination_config["termination_condition"]
         )
-        self.protected_items_index = [
+        self.retained_items_index = [
             self._resolve_item_index(item_id)
-            for item_id in self.termination_config.get("protected_items", [])
+            for item_id in self.termination_config.get("retained_items", [])
         ]
 
         return RuntimeContext(
@@ -230,6 +241,6 @@ class runtime_builder:
             pool_draw_list=self.pool_draw_list,
             draw_stage_id_index=self.draw_stage_id_index,
             draw_stage_list=self.draw_stage_list,
-            protected_items_index=self.protected_items_index,
+            retained_items_index=self.retained_items_index,
             termination_tree=self.termination_tree,
         )

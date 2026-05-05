@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from gacha_sim.core.builder import runtime_builder
-from gacha_sim.core.runtime import AddItem, CheckNode, DrawPool, LogicNode, PoolChange, ReduceItem, RuntimeContext, Termination
+from gacha_sim.core.runtime import AddItem, CheckNode, DrawPool, ItemResolve, LogicNode, PoolChange, ReduceItem, RuntimeContext, SetItem, Termination
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -27,7 +27,7 @@ def test_builds_expected_runtime_structure() -> None:
         "have_target_item_2": 1,
         "per_draw": 2,
     }
-    assert ctx.protected_items_index == [0, 1, 2, 11]
+    assert ctx.retained_items_index == [0, 1, 2, 11]
 
     precious_trigger = ctx.item_draw_list[ctx.item_id_index["random_precious_item"]]
     ordinary_trigger = ctx.item_draw_list[ctx.item_id_index["random_ordinary_item"]]
@@ -40,11 +40,13 @@ def test_builds_expected_runtime_structure() -> None:
 
     precious_resolve = ctx.item_resolve_list[ctx.item_id_index["precious_item_1"]]
     ordinary_resolve = ctx.item_resolve_list[ctx.item_id_index["ordinary_item_2"]]
-    assert [(type(action), action.item_index, action.amount) for action in precious_resolve] == [
+    assert precious_resolve.retain == 0
+    assert ordinary_resolve.retain == 0
+    assert [(type(action), action.item_index, action.amount) for action in precious_resolve.actions] == [
         (AddItem, 11, 120),
         (ReduceItem, 5, 1),
     ]
-    assert [(type(action), action.item_index, action.amount) for action in ordinary_resolve] == [
+    assert [(type(action), action.item_index, action.amount) for action in ordinary_resolve.actions] == [
         (AddItem, 11, 30),
         (ReduceItem, 9, 1),
     ]
@@ -129,7 +131,7 @@ def test_builds_without_optional_sections(tmp_path: Path) -> None:
     _write_json(
         termination_path,
         {
-            "protected_items": ["target"],
+            "retained_items": ["target"],
             "termination_condition": {
                 "type": "predicate",
                 "subject": "item",
@@ -145,5 +147,68 @@ def test_builds_without_optional_sections(tmp_path: Path) -> None:
 
     assert ctx.begin_pool_index == 0
     assert ctx.item_draw_list == [[], []]
-    assert ctx.item_resolve_list == [[], []]
+    assert ctx.item_resolve_list == [
+        ItemResolve(retain=0, actions=[]),
+        ItemResolve(retain=0, actions=[]),
+    ]
     assert ctx.draw_stage_list == []
+
+
+def test_builds_set_item_action(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.json"
+    termination_path = tmp_path / "termination.json"
+    _write_json(
+        config_path,
+        {
+            "items": {
+                "counter": {"name": "Counter"},
+                "target": {"name": "Target"},
+            },
+            "pools": {
+                "begin_pool": {
+                    "entries": [
+                        {
+                            "probability": 1.0,
+                            "actions": [{"type": "add_item", "id": "counter"}],
+                        }
+                    ]
+                }
+            },
+            "stages": {
+                "reset_counter": {
+                    "once": True,
+                    "condition": {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "counter",
+                        "op": ">=",
+                        "value": 1,
+                        "actions": [
+                            {"type": "set_item", "id": "counter", "amount": 0}
+                        ],
+                    },
+                }
+            },
+        },
+    )
+    _write_json(
+        termination_path,
+        {
+            "retained_items": [],
+            "termination_condition": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": None,
+                "op": ">=",
+                "value": 1,
+                "actions": [{"type": "termination", "reason": "done"}],
+            },
+        },
+    )
+
+    ctx = runtime_builder(str(config_path), str(termination_path)).build()
+
+    action = ctx.draw_stage_list[0].condition.actions[0]
+    assert isinstance(action, SetItem)
+    assert action.item_index == ctx.item_id_index["counter"]
+    assert action.amount == 0

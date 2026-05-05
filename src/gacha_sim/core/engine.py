@@ -1,7 +1,6 @@
 from __future__ import annotations
 import numpy as np
-from collections import deque
-from typing import Deque, Iterable
+from typing import Iterable
 
 
 from gacha_sim.core.runtime import (
@@ -14,6 +13,7 @@ from gacha_sim.core.runtime import (
     ReduceItem,
     RuntimeContext,
     RuntimeState,
+    SetItem,
     Termination,
 )
 
@@ -24,13 +24,11 @@ class montecarlo:
         self.seed = seed
         # 此处定义全局rng,避免多次模拟时重复创建同一个种子的rng,导致每次模拟结果重复
         self.rng = np.random.default_rng(self.seed)
-        self._protected_snapshot: tuple[int, ...] = ()
 
     def run_once(self) -> RuntimeState:
         state = RuntimeState(item_count=len(self.ctx.item_list), rng=self.rng)
         state.main_pool_index = self.ctx.begin_pool_index
         state.stage_execute = [False] * len(self.ctx.draw_stage_list)
-        self._protected_snapshot = self._get_protected_inventory_snapshot(state)
 
         while not state.terminate:
             self._one_draw_cycle(state)
@@ -38,88 +36,70 @@ class montecarlo:
         return state
 
     def _one_draw_cycle(self, state: RuntimeState) -> None:
-        action_queue: Deque[Action] = deque()
-
         state.draw_count += 1
 
-        action_queue.append(self.ctx.pool_draw_list[state.main_pool_index])
-        self._drain_action_queue(state, action_queue)
+        self._execute_action(state, self.ctx.pool_draw_list[state.main_pool_index])
 
-        self._stage_phase(state, action_queue)
-        self._drain_action_queue(state, action_queue)
+        self._stage_phase(state)
+        self._resolve_phase(state)
 
-        self._resolve_phase(state, action_queue)
-        self._drain_action_queue(state, action_queue)
+        should_terminate, termination_actions = self._eval_condition(
+            self.ctx.termination_tree, state
+        )
+        if should_terminate:
+            self._execute_actions(state, termination_actions)
 
-        if self._should_check_termination(state):
-            should_terminate, termination_actions = self._eval_condition(
-                self.ctx.termination_tree, state
-            )
-            if should_terminate:
-                self._enqueue_actions(action_queue, termination_actions)
-                self._drain_action_queue(state, action_queue)
-
-    def _stage_phase(self, state: RuntimeState, action_queue: Deque[Action]) -> None:
+    def _stage_phase(self, state: RuntimeState) -> None:
         for stage_index, stage in enumerate(self.ctx.draw_stage_list):
             if stage.once and state.stage_execute[stage_index]:
                 continue
 
             ok, stage_actions = self._eval_condition(stage.condition, state)
             if ok:
-                self._enqueue_actions(action_queue, stage_actions)
                 if stage.once:
                     state.stage_execute[stage_index] = True
+                self._execute_actions(state, stage_actions)
 
-    def _resolve_phase(self, state: RuntimeState, action_queue: Deque[Action]) -> None:
-        protected = set(self.ctx.protected_items_index)
+    def _resolve_phase(self, state: RuntimeState) -> None:
+        retained = set(self.ctx.retained_items_index)
 
-        for item_index, resolve_actions in enumerate(self.ctx.item_resolve_list):
-            if item_index in protected:
-                continue
-            if not resolve_actions:
+        for item_index, item_resolve in enumerate(self.ctx.item_resolve_list):
+            if not item_resolve.actions:
                 continue
 
             count = int(state.inventory[item_index])
-            if count <= 0:
+            retain = max(item_resolve.retain, 1 if item_index in retained else 0)
+            resolve_count = count - retain
+            if resolve_count <= 0:
                 continue
 
-            for _ in range(count):
-                self._enqueue_actions(action_queue, resolve_actions)
+            for _ in range(resolve_count):
+                self._execute_actions(state, item_resolve.actions)
 
-    def _drain_action_queue(
-        self, state: RuntimeState, action_queue: Deque[Action]
+    def _execute_actions(
+        self, state: RuntimeState, actions: Iterable[Action] | None
     ) -> None:
-        max_steps = 1_000_000
-        steps = 0
+        for action in actions or []:
+            if state.terminate:
+                return
+            self._execute_action(state, action)
 
-        while action_queue and not state.terminate:
-            steps += 1
-            if steps > max_steps:
-                raise RuntimeError(
-                    "action queue exceeded max steps; possible action loop"
-                )
-
-            action = action_queue.popleft()
-            self._apply_action(action, state, action_queue)
-
-    def _apply_action(
-        self, action: Action, state: RuntimeState, action_queue: Deque[Action]
-    ) -> None:
+    def _execute_action(self, state: RuntimeState, action: Action) -> None:
         if isinstance(action, AddItem):
             action.execute(state, self.ctx)
 
             draw_actions = self.ctx.item_draw_list[action.item_index]
             if draw_actions:
                 for _ in range(action.amount):
-                    self._enqueue_actions(action_queue, draw_actions)
+                    self._execute_actions(state, draw_actions)
             return
 
         if isinstance(action, DrawPool):
             drawn_results = action.execute(state, self.ctx)
-            self._enqueue_actions(action_queue, drawn_results)
+            self._execute_actions(state, drawn_results)
             return
 
-        if isinstance(action, (ReduceItem, Termination)):
+        if isinstance(action, (ReduceItem, SetItem, Termination)):
             action.execute(state, self.ctx)
             return
 
@@ -190,26 +170,3 @@ class montecarlo:
             return left != right
 
         raise ValueError(f"unsupported predicate op: {op}")
-
-    def _get_protected_inventory_snapshot(self, state: RuntimeState) -> tuple[int, ...]:
-        if not self.ctx.protected_items_index:
-            return ()
-        return tuple(int(state.inventory[i]) for i in self.ctx.protected_items_index)
-
-    def _should_check_termination(self, state: RuntimeState) -> bool:
-        # Keep compatibility with configs that do not define protected items.
-        if not self.ctx.protected_items_index:
-            return True
-
-        current_snapshot = self._get_protected_inventory_snapshot(state)
-        if current_snapshot == self._protected_snapshot:
-            return False
-
-        self._protected_snapshot = current_snapshot
-        return True
-
-    def _enqueue_actions(
-        self, action_queue: Deque[Action], actions: Iterable[Action] | None
-    ) -> None:
-        for action in actions or []:
-            action_queue.append(action)

@@ -3,10 +3,10 @@
         "name": "lixin_wenxinjian",
         "source": "https://pvp.qq.com/web201706/newsdetail.shtml?tid=795182",
         "game": "王者荣耀",
-        "time": "2026_2_15_2026_3_22",
+        "time": "2026_2_15",
         "cost_id": "wenxinbi",
-            "cost_name": "问心币",
-            "amount": 10,
+        "cost_name": "问心币",
+        "amount": 10,
         "per_cost_to_rmb": 1
     },
     "items": {
@@ -80,186 +80,231 @@
         ]
     },
     "item_resolve": {
-        "random_legendary_skin": [
-            {
-                "type": "reduce_item",
-                "id": "random_legendary_skin",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 120
-            }
-        ],
-        "skin_fragment8": [
-            {
-                "type": "reduce_item",
-                "id": "skin_fragment8",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 5
-            }
-        ],
-        "yanyuhuadie2": [
-            {
-                "type": "reduce_item",
-                "id": "yanyuhuadie2",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 5
-            }
-        ],
-        "lixin_wenxinjian": [
-            {
-                "type": "reduce_item",
-                "id": "lixin_wenxinjian",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 288
-            }
-        ],
-        "gongsunli_lihenyan": [
-            {
-                "type": "reduce_item",
-                "id": "gongsunli_lihenyan",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 288
-            }
-        ],
-        "yao_qilingchilongjian": [
-            {
-                "type": "reduce_item",
-                "id": "yao_qilingchilongjian",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 288
-            }
-        ],
-        "moranjianghutianmu": [
-            {
-                "type": "reduce_item",
-                "id": "moranjianghutianmu",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 288
-            }
-        ],
-        "bailixuance_baihuzhi": [
-            {
-                "type": "reduce_item",
-                "id": "bailixuance_baihuzhi",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 288
-            }
-        ],
-        "sunwukong_qitiandasheng": [
-            {
-                "type": "reduce_item",
-                "id": "sunwukong_qitiandasheng",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 288
-            }
-        ],
-        "sunshangxiang_yijielingqi": [
-            {
-                "type": "reduce_item",
-                "id": "sunshangxiang_yijielingqi",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 288
-            }
-        ],
-        "wangzhaojun_xingqiongzhisheng": [
-            {
-                "type": "reduce_item",
-                "id": "wangzhaojun_xingqiongzhisheng",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 288
-            }
-        ],
-        "libai_fengqiuhuang": [
-            {
-                "type": "reduce_item",
-                "id": "libai_fengqiuhuang",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 288
-            }
-        ],
-        "epic_skin": [
-            {
-                "type": "reduce_item",
-                "id": "epic_skin",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 60
-            }
-        ],
-        "brave_skin": [
-            {
-                "type": "reduce_item",
-                "id": "brave_skin",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 40
-            }
-        ],
-        "companion_skin": [
-            {
-                "type": "reduce_item",
-                "id": "companion_skin",
-                "amount": 1
-            },
-            {
-                "type": "add_item",
-                "id": "jianxinling",
-                "amount": 20
-            }
-        ]
+        "random_legendary_skin": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "random_legendary_skin",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 120
+                }
+            ]
+        },
+        "skin_fragment8": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "skin_fragment8",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 5
+                }
+            ]
+        },
+        "yanyuhuadie2": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "yanyuhuadie2",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 5
+                }
+            ]
+        },
+        "lixin_wenxinjian": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "lixin_wenxinjian",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 288
+                }
+            ]
+        },
+        "gongsunli_lihenyan": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "gongsunli_lihenyan",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 288
+                }
+            ]
+        },
+        "yao_qilingchilongjian": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "yao_qilingchilongjian",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 288
+                }
+            ]
+        },
+        "moranjianghutianmu": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "moranjianghutianmu",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 288
+                }
+            ]
+        },
+        "bailixuance_baihuzhi": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "bailixuance_baihuzhi",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 288
+                }
+            ]
+        },
+        "sunwukong_qitiandasheng": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "sunwukong_qitiandasheng",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 288
+                }
+            ]
+        },
+        "sunshangxiang_yijielingqi": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "sunshangxiang_yijielingqi",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 288
+                }
+            ]
+        },
+        "wangzhaojun_xingqiongzhisheng": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "wangzhaojun_xingqiongzhisheng",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 288
+                }
+            ]
+        },
+        "libai_fengqiuhuang": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "libai_fengqiuhuang",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 288
+                }
+            ]
+        },
+        "epic_skin": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "epic_skin",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 60
+                }
+            ]
+        },
+        "brave_skin": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "brave_skin",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 40
+                }
+            ]
+        },
+        "companion_skin": {
+            "retain": 0,
+            "actions": [
+                {
+                    "type": "reduce_item",
+                    "id": "companion_skin",
+                    "amount": 1
+                },
+                {
+                    "type": "add_item",
+                    "id": "jianxinling",
+                    "amount": 20
+                }
+            ]
+        }
     },
     "pools": {
         "begin_pool": {
@@ -463,7 +508,7 @@
         "random_skin_pool": {
             "entries": [
                 {
-                    "probability": 0.10,
+                    "probability": 0.1,
                     "actions": [
                         {
                             "type": "add_item",
@@ -473,7 +518,7 @@
                     ]
                 },
                 {
-                    "probability": 0.30,
+                    "probability": 0.3,
                     "actions": [
                         {
                             "type": "add_item",
@@ -483,7 +528,7 @@
                     ]
                 },
                 {
-                    "probability": 0.60,
+                    "probability": 0.6,
                     "actions": [
                         {
                             "type": "add_item",
