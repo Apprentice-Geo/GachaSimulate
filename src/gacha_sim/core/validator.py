@@ -108,11 +108,10 @@ def _validate_actions(
     item_ids: set[str],
     pool_ids: set[str],
     termination_only: bool,
-    allow_empty: bool = True,
 ) -> None:
     actions = _require_list(actions, path)
-    if not allow_empty and not actions:
-        _fail(path, "must be null or a non-empty array")
+    if not actions:
+        _fail(path, "must be a non-empty array")
     for index, action in enumerate(actions):
         _validate_action(
             action,
@@ -155,7 +154,9 @@ def _validate_condition(
 
         if "value" not in condition:
             _fail(path + ".value", "is required")
-        if not isinstance(condition["value"], int) or isinstance(condition["value"], bool):
+        if not isinstance(condition["value"], int) or isinstance(
+            condition["value"], bool
+        ):
             _fail(path + ".value", "must be an integer")
 
         if "id" not in condition:
@@ -205,51 +206,63 @@ def validate_config(config: dict[str, Any]) -> None:
     pools = _require_mapping(config.get("pools"), "config.pools")
     if not pools:
         _fail("config.pools", "must be non-empty")
-    if next(iter(pools)) != "begin_pool":
-        _fail("config.pools", "first pool must be named 'begin_pool'")
     pool_ids = set(pools.keys())
 
-    item_draw = config.get("item_draw", {})
-    item_draw = _require_mapping(item_draw, "config.item_draw")
-    for item_id, actions in item_draw.items():
-        if item_id not in item_ids:
-            _fail(f"config.item_draw.{item_id}", f"unknown item id: {item_id}")
+    initial = _require_mapping(config.get("initial"), "config.initial")
+    begin_pool = initial.get("begin_pool")
+    if not isinstance(begin_pool, str):
+        _fail("config.initial.begin_pool", "must be a string pool id")
+    if begin_pool not in pool_ids:
+        _fail("config.initial.begin_pool", f"unknown pool id: {begin_pool}")
+    if "actions" in initial:
         _validate_actions(
-            actions,
-            f"config.item_draw.{item_id}",
+            initial["actions"],
+            "config.initial.actions",
             item_ids=item_ids,
             pool_ids=pool_ids,
             termination_only=False,
         )
 
-    item_resolve = config.get("item_resolve", {})
-    item_resolve = _require_mapping(item_resolve, "config.item_resolve")
-    for item_id, resolve_config in item_resolve.items():
-        if item_id not in item_ids:
-            _fail(f"config.item_resolve.{item_id}", f"unknown item id: {item_id}")
-        resolve_config = _require_mapping(
-            resolve_config,
-            f"config.item_resolve.{item_id}",
-        )
-        if "retain" not in resolve_config:
-            _fail(f"config.item_resolve.{item_id}.retain", "is required")
-        _require_non_negative_int(
-            resolve_config["retain"],
-            f"config.item_resolve.{item_id}.retain",
-        )
-        if "actions" not in resolve_config:
-            _fail(f"config.item_resolve.{item_id}.actions", "is required")
-        _validate_actions(
-            resolve_config["actions"],
-            f"config.item_resolve.{item_id}.actions",
-            item_ids=item_ids,
-            pool_ids=pool_ids,
-            termination_only=False,
-        )
+    for item_id, item_config in items.items():
+        item_config = _require_mapping(item_config, f"config.items.{item_id}")
+
+        if "on_acquire" in item_config:
+            _validate_actions(
+                item_config["on_acquire"],
+                f"config.items.{item_id}.on_acquire",
+                item_ids=item_ids,
+                pool_ids=pool_ids,
+                termination_only=False,
+            )
+
+        if "resolve" in item_config:
+            resolve_config = _require_mapping(
+                item_config["resolve"],
+                f"config.items.{item_id}.resolve",
+            )
+            if not resolve_config:
+                _fail(f"config.items.{item_id}.resolve", "must be non-empty")
+            if "retain" not in resolve_config:
+                _fail(f"config.items.{item_id}.resolve.retain", "is required")
+            _require_non_negative_int(
+                resolve_config["retain"],
+                f"config.items.{item_id}.resolve.retain",
+            )
+            if "actions" not in resolve_config:
+                _fail(f"config.items.{item_id}.resolve.actions", "is required")
+            _validate_actions(
+                resolve_config["actions"],
+                f"config.items.{item_id}.resolve.actions",
+                item_ids=item_ids,
+                pool_ids=pool_ids,
+                termination_only=False,
+            )
 
     for pool_id, pool_config in pools.items():
         pool_config = _require_mapping(pool_config, f"config.pools.{pool_id}")
-        entries = _require_list(pool_config.get("entries"), f"config.pools.{pool_id}.entries")
+        entries = _require_list(
+            pool_config.get("entries"), f"config.pools.{pool_id}.entries"
+        )
         if not entries:
             _fail(f"config.pools.{pool_id}.entries", "must be non-empty")
 
@@ -266,17 +279,13 @@ def validate_config(config: dict[str, Any]) -> None:
                     "must be non-negative",
                 )
             total_probability += probability
-            if "actions" not in entry:
-                _fail(f"config.pools.{pool_id}.entries[{index}].actions", "is required")
-            actions = entry["actions"]
-            if actions is not None:
+            if "actions" in entry:
                 _validate_actions(
-                    actions,
+                    entry["actions"],
                     f"config.pools.{pool_id}.entries[{index}].actions",
                     item_ids=item_ids,
                     pool_ids=pool_ids,
                     termination_only=False,
-                    allow_empty=False,
                 )
 
         if not math.isclose(total_probability, 1.0, rel_tol=1e-9, abs_tol=1e-9):
@@ -300,9 +309,7 @@ def validate_config(config: dict[str, Any]) -> None:
         )
 
 
-def validate_termination(
-    termination: dict[str, Any], config: dict[str, Any]
-) -> None:
+def validate_termination(termination: dict[str, Any], config: dict[str, Any]) -> None:
     termination = _require_mapping(termination, "termination")
     config = _require_mapping(config, "config")
     item_ids = set(_require_mapping(config.get("items"), "config.items").keys())

@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MonteCarlo-GachaSimulate/termination.schema.json",
+  "title": "Gacha simulation termination config",
+  "type": "object",
+  "description": "Schema for termination*.json. Item id references are checked against config.json by the Python validator.",
+  "required": [
+    "termination_condition"
+  ],
+  "properties": {
+    "retained_items": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "Item id. The validator checks that it exists in config.items."
+      },
+      "default": []
+    },
+    "termination_condition": {
+      "$ref": "#/$defs/condition"
+    }
+  },
+  "$defs": {
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/terminationAction"
+      }
+    },
+    "terminationAction": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "termination"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "condition": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/predicateCondition"
+        },
+        {
+          "$ref": "#/$defs/logicCondition"
+        }
+      ]
+    },
+    "predicateCondition": {
+      "type": "object",
+      "required": [
+        "type",
+        "subject",
+        "id",
+        "op",
+        "value"
+      ],
+      "properties": {
+        "type": {
+          "const": "predicate"
+        },
+        "subject": {
+          "enum": [
+            "item",
+            "draw_count"
+          ]
+        },
+        "id": {
+          "description": "Item id when subject is item; null when subject is draw_count."
+        },
+        "op": {
+          "enum": [
+            ">=",
+            ">",
+            "==",
+            "<=",
+            "<",
+            "!="
+          ]
+        },
+        "value": {
+          "type": "integer"
+        },
+        "actions": {
+          "$ref": "#/$defs/actions"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "subject": {
+                "const": "item"
+              }
+            },
+            "required": [
+              "subject"
+            ]
+          },
+          "then": {
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "id": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "logicCondition": {
+      "type": "object",
+      "required": [
+        "type",
+        "op",
+        "conditions"
+      ],
+      "properties": {
+        "type": {
+          "const": "logic"
+        },
+        "op": {
+          "enum": [
+            "AND",
+            "OR"
+          ]
+        },
+        "conditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/condition"
+          }
+        },
+        "actions": {
+          "$ref": "#/$defs/actions"
+        }
+      }
+    }
+  }
+}

@@ -9,6 +9,9 @@
         "amount": 5,
         "per_cost_to_rmb": null
     },
+    "initial": {
+        "begin_pool": "begin_pool"
+    },
     "items": {
         "xinyuanjifeng": {
             "name": "心愿积分"
@@ -27,7 +30,7 @@
         "begin_pool": {
             "entries": [
                 {
-                    "probability": 0.00003,
+                    "probability": 3e-05,
                     "actions": [
                         {
                             "type": "add_item",

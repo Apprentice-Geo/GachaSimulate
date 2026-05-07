@@ -18,24 +18,21 @@
                         "subject": "item",
                         "id": "target_item_1",
                         "op": ">=",
-                        "value": 1,
-                        "actions": null
+                        "value": 1
                     },
                     {
                         "type": "predicate",
                         "subject": "item",
                         "id": "target_item_2",
                         "op": ">=",
-                        "value": 1,
-                        "actions": null
+                        "value": 1
                     },
                     {
                         "type": "predicate",
                         "subject": "item",
                         "id": "target_item_3",
                         "op": ">=",
-                        "value": 1,
-                        "actions": null
+                        "value": 1
                     }
                 ],
                 "actions": [
@@ -54,8 +51,7 @@
                         "subject": "item",
                         "id": "general_fragment",
                         "op": ">=",
-                        "value": 10000,
-                        "actions": null
+                        "value": 10000
                     }
                 ],
                 "actions": [
@@ -65,7 +61,6 @@
                     }
                 ]
             }
-        ],
-        "actions": null
+        ]
     }
 }

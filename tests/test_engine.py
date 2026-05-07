@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
 
 import numpy as np
@@ -7,8 +8,26 @@ import pytest
 
 from gacha_sim.core.builder import runtime_builder
 from gacha_sim.core.engine import montecarlo
-from gacha_sim.core.runtime import AddItem, CheckNode, DrawPool, Item, ItemResolve, Pool, ReduceItem, RuntimeContext, SetItem, Stage, Termination
-from gacha_sim.run.main import load_simulation_result, save_simulation_result, simulate_until_total_draw
+from gacha_sim.core.runtime import (
+    AddItem,
+    CheckNode,
+    DrawPool,
+    Item,
+    ItemResolve,
+    LogicNode,
+    Pool,
+    PoolChange,
+    ReduceItem,
+    RuntimeContext,
+    SetItem,
+    Stage,
+    Termination,
+)
+from gacha_sim.run.main import (
+    load_simulation_result,
+    save_simulation_result,
+    simulate_until_total_draw,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -37,6 +56,7 @@ def test_runs_with_manual_context() -> None:
 
     ctx = RuntimeContext(
         begin_pool_index=0,
+        initial_actions=[],
         item_id_index=item_id_index,
         item_list=item_list,
         item_resolve_list=[
@@ -78,6 +98,7 @@ def test_checks_termination_after_each_draw() -> None:
 
     ctx = RuntimeContext(
         begin_pool_index=0,
+        initial_actions=[],
         item_id_index=item_id_index,
         item_list=item_list,
         item_resolve_list=[
@@ -124,12 +145,228 @@ def test_checks_termination_after_each_draw() -> None:
     assert sim.termination_eval_count == 3
 
 
+def test_initial_actions_are_visible_to_first_stage() -> None:
+    item_list = [Item(id="token", name="Token"), Item(id="target", name="Target")]
+    item_id_index = {item.id: i for i, item in enumerate(item_list)}
+
+    ctx = RuntimeContext(
+        begin_pool_index=0,
+        initial_actions=[AddItem(item_index=item_id_index["token"], amount=1)],
+        item_id_index=item_id_index,
+        item_list=item_list,
+        item_resolve_list=[
+            ItemResolve(retain=0, actions=[]),
+            ItemResolve(retain=0, actions=[]),
+        ],
+        item_draw_list=[[], []],
+        pool_id_index={"begin_pool": 0},
+        pool_list=[Pool(cdf=np.array([1.0], dtype=np.float64), actions=[[]])],
+        pool_draw_list=[DrawPool(pool_index=0)],
+        draw_stage_id_index={"grant_target": 0},
+        draw_stage_list=[
+            Stage(
+                once=True,
+                condition=CheckNode(
+                    subject="item",
+                    id="token",
+                    op=">=",
+                    value=1,
+                    actions=[AddItem(item_index=item_id_index["target"], amount=1)],
+                ),
+            )
+        ],
+        retained_items_index=[],
+        termination_tree=CheckNode(
+            subject="item",
+            id="target",
+            op=">=",
+            value=1,
+            actions=[Termination(reason="target reached")],
+        ),
+    )
+
+    state = montecarlo(ctx, seed=0).run_once()
+
+    assert state.draw_count == 1
+    assert int(state.inventory[item_id_index["token"]]) == 1
+    assert int(state.inventory[item_id_index["target"]]) == 1
+
+
+def test_once_stage_executes_only_once() -> None:
+    item_list = [Item(id="counter", name="Counter"), Item(id="bonus", name="Bonus")]
+    item_id_index = {item.id: i for i, item in enumerate(item_list)}
+
+    ctx = RuntimeContext(
+        begin_pool_index=0,
+        initial_actions=[],
+        item_id_index=item_id_index,
+        item_list=item_list,
+        item_resolve_list=[
+            ItemResolve(retain=0, actions=[]),
+            ItemResolve(retain=0, actions=[]),
+        ],
+        item_draw_list=[[], []],
+        pool_id_index={"begin_pool": 0},
+        pool_list=[
+            Pool(
+                cdf=np.array([1.0], dtype=np.float64),
+                actions=[[AddItem(item_index=item_id_index["counter"], amount=1)]],
+            )
+        ],
+        pool_draw_list=[DrawPool(pool_index=0)],
+        draw_stage_id_index={"grant_bonus": 0},
+        draw_stage_list=[
+            Stage(
+                once=True,
+                condition=CheckNode(
+                    subject="item",
+                    id="counter",
+                    op=">=",
+                    value=1,
+                    actions=[AddItem(item_index=item_id_index["bonus"], amount=1)],
+                ),
+            )
+        ],
+        retained_items_index=[],
+        termination_tree=CheckNode(
+            subject="draw_count",
+            id=None,
+            op=">=",
+            value=3,
+            actions=[Termination(reason="done")],
+        ),
+    )
+
+    state = montecarlo(ctx, seed=0).run_once()
+
+    assert state.draw_count == 3
+    assert state.stage_execute == [True]
+    assert int(state.acquired[item_id_index["counter"]]) == 3
+    assert int(state.acquired[item_id_index["bonus"]]) == 1
+
+
+def test_pool_change_affects_next_draw() -> None:
+    item_list = [Item(id="first", name="First"), Item(id="second", name="Second")]
+    item_id_index = {item.id: i for i, item in enumerate(item_list)}
+
+    ctx = RuntimeContext(
+        begin_pool_index=0,
+        initial_actions=[],
+        item_id_index=item_id_index,
+        item_list=item_list,
+        item_resolve_list=[
+            ItemResolve(retain=0, actions=[]),
+            ItemResolve(retain=0, actions=[]),
+        ],
+        item_draw_list=[[], []],
+        pool_id_index={"begin_pool": 0, "second_pool": 1},
+        pool_list=[
+            Pool(
+                cdf=np.array([1.0], dtype=np.float64),
+                actions=[[AddItem(item_index=item_id_index["first"], amount=1)]],
+            ),
+            Pool(
+                cdf=np.array([1.0], dtype=np.float64),
+                actions=[[AddItem(item_index=item_id_index["second"], amount=1)]],
+            ),
+        ],
+        pool_draw_list=[DrawPool(pool_index=0), DrawPool(pool_index=1)],
+        draw_stage_id_index={"switch_pool": 0},
+        draw_stage_list=[
+            Stage(
+                once=True,
+                condition=CheckNode(
+                    subject="draw_count",
+                    id=None,
+                    op=">=",
+                    value=1,
+                    actions=[PoolChange(pool_index=1)],
+                ),
+            )
+        ],
+        retained_items_index=[],
+        termination_tree=CheckNode(
+            subject="draw_count",
+            id=None,
+            op=">=",
+            value=2,
+            actions=[Termination(reason="done")],
+        ),
+    )
+
+    state = montecarlo(ctx, seed=0).run_once()
+
+    assert state.draw_count == 2
+    assert state.main_pool_index == ctx.pool_id_index["second_pool"]
+    assert int(state.acquired[item_id_index["first"]]) == 1
+    assert int(state.acquired[item_id_index["second"]]) == 1
+
+
+def test_or_condition_short_circuits_later_branch_actions() -> None:
+    item_list = [
+        Item(id="parent", name="Parent"),
+        Item(id="first", name="First"),
+        Item(id="second", name="Second"),
+    ]
+    item_id_index = {item.id: i for i, item in enumerate(item_list)}
+
+    ctx = RuntimeContext(
+        begin_pool_index=0,
+        initial_actions=[],
+        item_id_index=item_id_index,
+        item_list=item_list,
+        item_resolve_list=[
+            ItemResolve(retain=0, actions=[]),
+            ItemResolve(retain=0, actions=[]),
+            ItemResolve(retain=0, actions=[]),
+        ],
+        item_draw_list=[[], [], []],
+        pool_id_index={"begin_pool": 0},
+        pool_list=[Pool(cdf=np.array([1.0], dtype=np.float64), actions=[[]])],
+        pool_draw_list=[DrawPool(pool_index=0)],
+        draw_stage_id_index={},
+        draw_stage_list=[],
+        retained_items_index=[],
+        termination_tree=LogicNode(
+            op="OR",
+            actions=[AddItem(item_index=item_id_index["parent"], amount=1)],
+            conditions=[
+                CheckNode(
+                    subject="draw_count",
+                    id=None,
+                    op=">=",
+                    value=1,
+                    actions=[
+                        AddItem(item_index=item_id_index["first"], amount=1),
+                        Termination(reason="first branch"),
+                    ],
+                ),
+                CheckNode(
+                    subject="draw_count",
+                    id=None,
+                    op=">=",
+                    value=1,
+                    actions=[AddItem(item_index=item_id_index["second"], amount=1)],
+                ),
+            ],
+        ),
+    )
+
+    state = montecarlo(ctx, seed=0).run_once()
+
+    assert state.terminate_reason == "first branch"
+    assert int(state.acquired[item_id_index["parent"]]) == 1
+    assert int(state.acquired[item_id_index["first"]]) == 1
+    assert int(state.acquired[item_id_index["second"]]) == 0
+
+
 def test_stage_actions_are_visible_to_later_stages_in_same_draw() -> None:
     item_list = [Item(id="counter", name="Counter"), Item(id="target", name="Target")]
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
     ctx = RuntimeContext(
         begin_pool_index=0,
+        initial_actions=[],
         item_id_index=item_id_index,
         item_list=item_list,
         item_resolve_list=[
@@ -190,6 +427,7 @@ def test_triggers_followup_draw_from_item() -> None:
 
     ctx = RuntimeContext(
         begin_pool_index=0,
+        initial_actions=[],
         item_id_index=item_id_index,
         item_list=item_list,
         item_resolve_list=[
@@ -235,6 +473,7 @@ def test_set_item_only_changes_inventory_without_followup_draw() -> None:
 
     ctx = RuntimeContext(
         begin_pool_index=0,
+        initial_actions=[],
         item_id_index=item_id_index,
         item_list=item_list,
         item_resolve_list=[
@@ -287,6 +526,7 @@ def test_item_resolve_retains_configured_inventory() -> None:
 
     ctx = RuntimeContext(
         begin_pool_index=0,
+        initial_actions=[],
         item_id_index=item_id_index,
         item_list=item_list,
         item_resolve_list=[
@@ -334,6 +574,7 @@ def test_retained_item_keeps_one_but_resolves_duplicates() -> None:
 
     ctx = RuntimeContext(
         begin_pool_index=0,
+        initial_actions=[],
         item_id_index=item_id_index,
         item_list=item_list,
         item_resolve_list=[
@@ -400,15 +641,14 @@ def test_reaches_expected_final_state(test_ctx: RuntimeContext) -> None:
     assert state.reduced.tolist() == [0, 0, 0, 0, 0, 5, 12, 23, 29, 97, 231, 0]
 
 
-def test_saves_and_loads_simulation_result(
-    tmp_path: Path, test_ctx: RuntimeContext
-) -> None:
+def test_saves_and_loads_simulation_result(test_ctx: RuntimeContext) -> None:
     ctx = test_ctx
 
     result = simulate_until_total_draw(montecarlo(ctx, seed=0), target_total_draw=100)
-    output_path = tmp_path / "result.npz"
-    save_simulation_result(str(output_path), result)
-    restored = load_simulation_result(str(output_path))
+    output = BytesIO()
+    save_simulation_result(output, result)
+    output.seek(0)
+    restored = load_simulation_result(output)
 
     assert restored["total_draw"] >= 100
     assert restored["total_runs"] == len(restored["draw_count"])

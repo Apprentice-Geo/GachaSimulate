@@ -24,11 +24,19 @@ class montecarlo:
         self.seed = seed
         # 此处定义全局rng,避免多次模拟时重复创建同一个种子的rng,导致每次模拟结果重复
         self.rng = np.random.default_rng(self.seed)
+        self.resolvable_item_indices = [
+            item_index
+            for item_index, item_resolve in enumerate(self.ctx.item_resolve_list)
+            if item_resolve.actions
+        ]
+        self.retained_items_index_set = set(self.ctx.retained_items_index)
 
     def run_once(self) -> RuntimeState:
         state = RuntimeState(item_count=len(self.ctx.item_list), rng=self.rng)
         state.main_pool_index = self.ctx.begin_pool_index
         state.stage_execute = [False] * len(self.ctx.draw_stage_list)
+        state.active_stage_indices = list(range(len(self.ctx.draw_stage_list)))
+        self._execute_actions(state, self.ctx.initial_actions)
 
         while not state.terminate:
             self._one_draw_cycle(state)
@@ -50,25 +58,31 @@ class montecarlo:
             self._execute_actions(state, termination_actions)
 
     def _stage_phase(self, state: RuntimeState) -> None:
-        for stage_index, stage in enumerate(self.ctx.draw_stage_list):
-            if stage.once and state.stage_execute[stage_index]:
-                continue
+        active_stage_pos = 0
+        while active_stage_pos < len(state.active_stage_indices):
+            stage_index = state.active_stage_indices[active_stage_pos]
+            stage = self.ctx.draw_stage_list[stage_index]
 
             ok, stage_actions = self._eval_condition(stage.condition, state)
             if ok:
                 if stage.once:
                     state.stage_execute[stage_index] = True
+                    state.active_stage_indices.pop(active_stage_pos)
+                else:
+                    active_stage_pos += 1
                 self._execute_actions(state, stage_actions)
-
-    def _resolve_phase(self, state: RuntimeState) -> None:
-        retained = set(self.ctx.retained_items_index)
-
-        for item_index, item_resolve in enumerate(self.ctx.item_resolve_list):
-            if not item_resolve.actions:
                 continue
 
+            active_stage_pos += 1
+
+    def _resolve_phase(self, state: RuntimeState) -> None:
+        for item_index in self.resolvable_item_indices:
+            item_resolve = self.ctx.item_resolve_list[item_index]
             count = int(state.inventory[item_index])
-            retain = max(item_resolve.retain, 1 if item_index in retained else 0)
+            retain = max(
+                item_resolve.retain,
+                1 if item_index in self.retained_items_index_set else 0,
+            )
             resolve_count = count - retain
             if resolve_count <= 0:
                 continue

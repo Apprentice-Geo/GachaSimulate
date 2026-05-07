@@ -9,6 +9,9 @@
         "amount": 6,
         "per_cost_to_rmb": 1
     },
+    "initial": {
+        "begin_pool": "begin_pool"
+    },
     "items": {
         "nezha2duihuanbi": {
             "name": "哪吒2兑换币"
@@ -29,16 +32,76 @@
             "name": "特殊徽章4"
         },
         "kai_donghailongwang_aoguang": {
-            "name": "铠_东海龙王_敖光"
+            "name": "铠_东海龙王_敖光",
+            "resolve": {
+                "retain": 1,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "kai_donghailongwang_aoguang",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "nezha2duihuanbi",
+                        "amount": 198
+                    }
+                ]
+            }
         },
         "miyue_xihailongwang_aorun": {
-            "name": "芈月_西海龙王_敖闰"
+            "name": "芈月_西海龙王_敖闰",
+            "resolve": {
+                "retain": 1,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "miyue_xihailongwang_aorun",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "nezha2duihuanbi",
+                        "amount": 198
+                    }
+                ]
+            }
         },
         "talangtongxintianmu": {
-            "name": "踏浪同心天幕"
+            "name": "踏浪同心天幕",
+            "resolve": {
+                "retain": 1,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "talangtongxintianmu",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "nezha2duihuanbi",
+                        "amount": 168
+                    }
+                ]
+            }
         },
         "yijianhuiyoutianmu": {
-            "name": "以毽会友天幕"
+            "name": "以毽会友天幕",
+            "resolve": {
+                "retain": 1,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "yijianhuiyoutianmu",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "nezha2duihuanbi",
+                        "amount": 168
+                    }
+                ]
+            }
         },
         "jifenduobaodiyongquan": {
             "name": "积分夺宝抵用券"
@@ -51,68 +114,6 @@
         },
         "gexingchuochuoyijianhuiyou": {
             "name": "个性戳戳以毽会友"
-        }
-    },
-    "item_resolve": {
-        "kai_donghailongwang_aoguang": {
-            "retain": 1,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "kai_donghailongwang_aoguang",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "nezha2duihuanbi",
-                    "amount": 198
-                }
-            ]
-        },
-        "miyue_xihailongwang_aorun": {
-            "retain": 1,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "miyue_xihailongwang_aorun",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "nezha2duihuanbi",
-                    "amount": 198
-                }
-            ]
-        },
-        "talangtongxintianmu": {
-            "retain": 1,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "talangtongxintianmu",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "nezha2duihuanbi",
-                    "amount": 168
-                }
-            ]
-        },
-        "yijianhuiyoutianmu": {
-            "retain": 1,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "yijianhuiyoutianmu",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "nezha2duihuanbi",
-                    "amount": 168
-                }
-            ]
         }
     },
     "pools": {
@@ -229,7 +230,7 @@
                     ]
                 },
                 {
-                    "probability": 0.10,
+                    "probability": 0.1,
                     "actions": [
                         {
                             "type": "add_item",
@@ -267,8 +268,7 @@
                     ]
                 },
                 {
-                    "probability": 0.5,
-                    "actions": null
+                    "probability": 0.5
                 }
             ]
         },
@@ -285,8 +285,7 @@
                     ]
                 },
                 {
-                    "probability": 0.75,
-                    "actions": null
+                    "probability": 0.75
                 }
             ]
         },
@@ -303,8 +302,7 @@
                     ]
                 },
                 {
-                    "probability": 0.9,
-                    "actions": null
+                    "probability": 0.9
                 }
             ]
         },
@@ -392,8 +390,7 @@
                         "subject": "item",
                         "id": "teshuhuizhangbaodijishu",
                         "op": "<",
-                        "value": 10,
-                        "actions": null
+                        "value": 10
                     },
                     {
                         "type": "logic",
@@ -408,32 +405,28 @@
                                         "subject": "item",
                                         "id": "teshuhuizhang1",
                                         "op": "==",
-                                        "value": 0,
-                                        "actions": null
+                                        "value": 0
                                     },
                                     {
                                         "type": "predicate",
                                         "subject": "item",
                                         "id": "teshuhuizhang2",
                                         "op": "==",
-                                        "value": 0,
-                                        "actions": null
+                                        "value": 0
                                     },
                                     {
                                         "type": "predicate",
                                         "subject": "item",
                                         "id": "teshuhuizhang3",
                                         "op": "==",
-                                        "value": 0,
-                                        "actions": null
+                                        "value": 0
                                     },
                                     {
                                         "type": "predicate",
                                         "subject": "item",
                                         "id": "teshuhuizhang4",
                                         "op": "==",
-                                        "value": 0,
-                                        "actions": null
+                                        "value": 0
                                     }
                                 ],
                                 "actions": [
@@ -452,32 +445,28 @@
                                         "subject": "item",
                                         "id": "teshuhuizhang1",
                                         "op": "==",
-                                        "value": 1,
-                                        "actions": null
+                                        "value": 1
                                     },
                                     {
                                         "type": "predicate",
                                         "subject": "item",
                                         "id": "teshuhuizhang2",
                                         "op": "==",
-                                        "value": 0,
-                                        "actions": null
+                                        "value": 0
                                     },
                                     {
                                         "type": "predicate",
                                         "subject": "item",
                                         "id": "teshuhuizhang3",
                                         "op": "==",
-                                        "value": 0,
-                                        "actions": null
+                                        "value": 0
                                     },
                                     {
                                         "type": "predicate",
                                         "subject": "item",
                                         "id": "teshuhuizhang4",
                                         "op": "==",
-                                        "value": 0,
-                                        "actions": null
+                                        "value": 0
                                     }
                                 ],
                                 "actions": [
@@ -496,32 +485,28 @@
                                         "subject": "item",
                                         "id": "teshuhuizhang1",
                                         "op": "==",
-                                        "value": 1,
-                                        "actions": null
+                                        "value": 1
                                     },
                                     {
                                         "type": "predicate",
                                         "subject": "item",
                                         "id": "teshuhuizhang2",
                                         "op": "==",
-                                        "value": 1,
-                                        "actions": null
+                                        "value": 1
                                     },
                                     {
                                         "type": "predicate",
                                         "subject": "item",
                                         "id": "teshuhuizhang3",
                                         "op": "==",
-                                        "value": 0,
-                                        "actions": null
+                                        "value": 0
                                     },
                                     {
                                         "type": "predicate",
                                         "subject": "item",
                                         "id": "teshuhuizhang4",
                                         "op": "==",
-                                        "value": 0,
-                                        "actions": null
+                                        "value": 0
                                     }
                                 ],
                                 "actions": [
@@ -540,32 +525,28 @@
                                         "subject": "item",
                                         "id": "teshuhuizhang1",
                                         "op": "==",
-                                        "value": 1,
-                                        "actions": null
+                                        "value": 1
                                     },
                                     {
                                         "type": "predicate",
                                         "subject": "item",
                                         "id": "teshuhuizhang2",
                                         "op": "==",
-                                        "value": 1,
-                                        "actions": null
+                                        "value": 1
                                     },
                                     {
                                         "type": "predicate",
                                         "subject": "item",
                                         "id": "teshuhuizhang3",
                                         "op": "==",
-                                        "value": 1,
-                                        "actions": null
+                                        "value": 1
                                     },
                                     {
                                         "type": "predicate",
                                         "subject": "item",
                                         "id": "teshuhuizhang4",
                                         "op": "==",
-                                        "value": 0,
-                                        "actions": null
+                                        "value": 0
                                     }
                                 ],
                                 "actions": [
@@ -575,12 +556,10 @@
                                     }
                                 ]
                             }
-                        ],
-                        "actions": null
+                        ]
                     }
                 ]
-            },
-            "actions": null
+            }
         },
         "teshuhuizhangbaodi_execute": {
             "once": false,
@@ -630,32 +609,28 @@
                         "subject": "item",
                         "id": "teshuhuizhang1",
                         "op": "==",
-                        "value": 1,
-                        "actions": null
+                        "value": 1
                     },
                     {
                         "type": "predicate",
                         "subject": "item",
                         "id": "teshuhuizhang2",
                         "op": "==",
-                        "value": 1,
-                        "actions": null
+                        "value": 1
                     },
                     {
                         "type": "predicate",
                         "subject": "item",
                         "id": "teshuhuizhang3",
                         "op": "==",
-                        "value": 1,
-                        "actions": null
+                        "value": 1
                     },
                     {
                         "type": "predicate",
                         "subject": "item",
                         "id": "teshuhuizhang4",
                         "op": "==",
-                        "value": 1,
-                        "actions": null
+                        "value": 1
                     }
                 ],
                 "actions": [

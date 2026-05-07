@@ -9,301 +9,300 @@
         "amount": 10,
         "per_cost_to_rmb": 1
     },
+    "initial": {
+        "begin_pool": "begin_pool"
+    },
     "items": {
         "jianxinling": {
             "name": "剑心令"
         },
         "random_limited_skin": {
-            "name": "随机限定皮肤礼"
+            "name": "随机限定皮肤礼",
+            "on_acquire": [
+                {
+                    "type": "draw_pool",
+                    "id": "random_limited_skin_pool"
+                }
+            ]
         },
         "random_legendary_skin": {
-            "name": "随机传说皮肤"
+            "name": "随机传说皮肤",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "random_legendary_skin",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 120
+                    }
+                ]
+            }
         },
         "random_skin": {
-            "name": "随机皮肤礼"
-        },
-        "skin_fragment8": {
-            "name": "皮肤碎片8"
-        },
-        "yanyuhuadie2": {
-            "name": "烟雨化蝶2"
-        },
-        "lixin_wenxinjian": {
-            "name": "李信_问心剑"
-        },
-        "gongsunli_lihenyan": {
-            "name": "公孙离_离恨烟"
-        },
-        "yao_qilingchilongjian": {
-            "name": "耀_器灵螭龙剑"
-        },
-        "moranjianghutianmu": {
-            "name": "墨染江湖天幕"
-        },
-        "bailixuance_baihuzhi": {
-            "name": "百里玄策_白虎志"
-        },
-        "sunwukong_qitiandasheng": {
-            "name": "孙悟空_齐天大圣"
-        },
-        "sunshangxiang_yijielingqi": {
-            "name": "孙尚香_异界灵契"
-        },
-        "wangzhaojun_xingqiongzhisheng": {
-            "name": "王昭君_星穹之声"
-        },
-        "libai_fengqiuhuang": {
-            "name": "李白_凤求凰"
-        },
-        "epic_skin": {
-            "name": "史诗皮肤"
-        },
-        "brave_skin": {
-            "name": "勇者皮肤"
-        },
-        "companion_skin": {
-            "name": "伴生皮肤"
-        }
-    },
-    "item_draw": {
-        "random_skin": [
-            {
-                "type": "draw_pool",
-                "id": "random_skin_pool"
-            }
-        ],
-        "random_limited_skin": [
-            {
-                "type": "draw_pool",
-                "id": "random_limited_skin_pool"
-            }
-        ]
-    },
-    "item_resolve": {
-        "random_legendary_skin": {
-            "retain": 0,
-            "actions": [
+            "name": "随机皮肤礼",
+            "on_acquire": [
                 {
-                    "type": "reduce_item",
-                    "id": "random_legendary_skin",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 120
+                    "type": "draw_pool",
+                    "id": "random_skin_pool"
                 }
             ]
         },
         "skin_fragment8": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "skin_fragment8",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 5
-                }
-            ]
+            "name": "皮肤碎片8",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "skin_fragment8",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 5
+                    }
+                ]
+            }
         },
         "yanyuhuadie2": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "yanyuhuadie2",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 5
-                }
-            ]
+            "name": "烟雨化蝶2",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "yanyuhuadie2",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 5
+                    }
+                ]
+            }
         },
         "lixin_wenxinjian": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "lixin_wenxinjian",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 288
-                }
-            ]
+            "name": "李信_问心剑",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "lixin_wenxinjian",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 288
+                    }
+                ]
+            }
         },
         "gongsunli_lihenyan": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "gongsunli_lihenyan",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 288
-                }
-            ]
+            "name": "公孙离_离恨烟",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "gongsunli_lihenyan",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 288
+                    }
+                ]
+            }
         },
         "yao_qilingchilongjian": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "yao_qilingchilongjian",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 288
-                }
-            ]
+            "name": "耀_器灵螭龙剑",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "yao_qilingchilongjian",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 288
+                    }
+                ]
+            }
         },
         "moranjianghutianmu": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "moranjianghutianmu",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 288
-                }
-            ]
+            "name": "墨染江湖天幕",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "moranjianghutianmu",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 288
+                    }
+                ]
+            }
         },
         "bailixuance_baihuzhi": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "bailixuance_baihuzhi",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 288
-                }
-            ]
+            "name": "百里玄策_白虎志",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "bailixuance_baihuzhi",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 288
+                    }
+                ]
+            }
         },
         "sunwukong_qitiandasheng": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "sunwukong_qitiandasheng",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 288
-                }
-            ]
+            "name": "孙悟空_齐天大圣",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "sunwukong_qitiandasheng",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 288
+                    }
+                ]
+            }
         },
         "sunshangxiang_yijielingqi": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "sunshangxiang_yijielingqi",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 288
-                }
-            ]
+            "name": "孙尚香_异界灵契",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "sunshangxiang_yijielingqi",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 288
+                    }
+                ]
+            }
         },
         "wangzhaojun_xingqiongzhisheng": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "wangzhaojun_xingqiongzhisheng",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 288
-                }
-            ]
+            "name": "王昭君_星穹之声",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "wangzhaojun_xingqiongzhisheng",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 288
+                    }
+                ]
+            }
         },
         "libai_fengqiuhuang": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "libai_fengqiuhuang",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 288
-                }
-            ]
+            "name": "李白_凤求凰",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "libai_fengqiuhuang",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 288
+                    }
+                ]
+            }
         },
         "epic_skin": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "epic_skin",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 60
-                }
-            ]
+            "name": "史诗皮肤",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "epic_skin",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 60
+                    }
+                ]
+            }
         },
         "brave_skin": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "brave_skin",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 40
-                }
-            ]
+            "name": "勇者皮肤",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "brave_skin",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 40
+                    }
+                ]
+            }
         },
         "companion_skin": {
-            "retain": 0,
-            "actions": [
-                {
-                    "type": "reduce_item",
-                    "id": "companion_skin",
-                    "amount": 1
-                },
-                {
-                    "type": "add_item",
-                    "id": "jianxinling",
-                    "amount": 20
-                }
-            ]
+            "name": "伴生皮肤",
+            "resolve": {
+                "retain": 0,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "companion_skin",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "jianxinling",
+                        "amount": 20
+                    }
+                ]
+            }
         }
     },
     "pools": {

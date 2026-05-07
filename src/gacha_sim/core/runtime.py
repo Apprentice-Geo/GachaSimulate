@@ -9,13 +9,16 @@ import numpy as np
 @dataclass(frozen=True, slots=True)
 class RuntimeContext:
     begin_pool_index: int
+    initial_actions: List[Action]
     item_id_index: Dict[str, int]
     item_list: List[Item]
     item_resolve_list: List[ItemResolve]  # resolve 某个物品时执行的动作
     item_draw_list: List[List[Action]]
     pool_id_index: Dict[str, int]
     pool_list: List[Pool]
-    pool_draw_list: List[Action]  # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
+    pool_draw_list: List[
+        Action
+    ]  # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
     draw_stage_id_index: Dict[str, int]
     draw_stage_list: List[Stage]
     retained_items_index: List[int]
@@ -27,6 +30,7 @@ class RuntimeState:
         "rng",
         "main_pool_index",
         "stage_execute",
+        "active_stage_indices",
         "inventory",  # 规则用库存
         "acquired",  # 统计用累计获得
         "reduced",  # 统计用累计消耗
@@ -39,6 +43,7 @@ class RuntimeState:
         self.rng = rng
         self.main_pool_index = 0
         self.stage_execute = []
+        self.active_stage_indices = []
         self.inventory = np.zeros(item_count, dtype=np.int32)
         self.acquired = np.zeros(item_count, dtype=np.int32)
         self.reduced = np.zeros(item_count, dtype=np.int32)

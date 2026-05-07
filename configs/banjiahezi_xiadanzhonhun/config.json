@@ -9,6 +9,9 @@
         "amount": 1,
         "per_cost_to_rmb": 1
     },
+    "initial": {
+        "begin_pool": "begin_pool"
+    },
     "items": {
         "shiweiyan": {
             "name": "势魏延"

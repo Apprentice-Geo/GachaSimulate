@@ -2,7 +2,9 @@ from gacha_sim.core.builder import runtime_builder
 from gacha_sim.core.engine import montecarlo
 import numpy as np
 from datetime import datetime
+from typing import BinaryIO
 from tqdm import tqdm
+
 
 def simulate_until_total_draw(sim: montecarlo, target_total_draw: int):
     """
@@ -45,9 +47,9 @@ def simulate_until_total_draw(sim: montecarlo, target_total_draw: int):
     }
 
 
-def save_simulation_result(path: str, result: dict):
-        
-        np.savez_compressed(
+def save_simulation_result(path: str | BinaryIO, result: dict):
+
+    np.savez_compressed(
         path,
         draw_count=result["draw_count"],
         lifetime_acquired=result["lifetime_acquired"],
@@ -56,10 +58,11 @@ def save_simulation_result(path: str, result: dict):
         total_runs=result["total_runs"],
         has_seed=result["seed"] is not None,
         seed=0 if result["seed"] is None else int(result["seed"]),
-        timestamp=str(datetime.now())
+        timestamp=str(datetime.now()),
     )
 
-def load_simulation_result(path: str):
+
+def load_simulation_result(path: str | BinaryIO):
     data = np.load(path, allow_pickle=False)
 
     return {
@@ -70,5 +73,5 @@ def load_simulation_result(path: str):
         "total_runs": int(data["total_runs"]),
         "has_seed": bool(data["has_seed"]),
         "seed": int(data["seed"]) if data["has_seed"] else None,
-        "timestamp": str(data["timestamp"])
+        "timestamp": str(data["timestamp"]),
     }

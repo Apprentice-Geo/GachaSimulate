@@ -22,24 +22,21 @@
                                 "subject": "item",
                                 "id": "lixin_wenxinjian",
                                 "op": ">=",
-                                "value": 1,
-                                "actions": null
+                                "value": 1
                             },
                             {
                                 "type": "predicate",
                                 "subject": "item",
                                 "id": "gongsunli_lihenyan",
                                 "op": ">=",
-                                "value": 1,
-                                "actions": null
+                                "value": 1
                             },
                             {
                                 "type": "predicate",
                                 "subject": "item",
                                 "id": "yao_qilingchilongjian",
                                 "op": ">=",
-                                "value": 1,
-                                "actions": null
+                                "value": 1
                             }
                         ]
                     },
@@ -48,8 +45,7 @@
                         "subject": "item",
                         "id": "jianxinling",
                         "op": ">=",
-                        "value": 833,
-                        "actions": null
+                        "value": 833
                     }
                 ],
                 "actions": [
@@ -72,7 +68,6 @@
                     }
                 ]
             }
-        ],
-        "actions": null
+        ]
     }
 }

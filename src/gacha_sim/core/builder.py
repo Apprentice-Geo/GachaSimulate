@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
-from .validator import validate_files
+from .validator import validate_config, validate_files, validate_termination
 import numpy as np
 
 from gacha_sim.core.runtime import (
@@ -31,6 +31,21 @@ class runtime_builder:
             self.config = json.load(f)
         with open(termination_path, "r", encoding="utf-8") as f:
             self.termination_config = json.load(f)
+        self._init_runtime_storage()
+
+    @classmethod
+    def from_config(
+        cls, config: dict[str, Any], termination_config: dict[str, Any]
+    ) -> "runtime_builder":
+        validate_config(config)
+        validate_termination(termination_config, config)
+        builder = cls.__new__(cls)
+        builder.config = config
+        builder.termination_config = termination_config
+        builder._init_runtime_storage()
+        return builder
+
+    def _init_runtime_storage(self):
         self.item_id_index = {}
         self.item_list = []
         self.item_resolve_index = []
@@ -42,6 +57,8 @@ class runtime_builder:
         self.draw_stage_id_index = {}
         self.draw_stage_list = []
         self.retained_items_index = []
+        self.begin_pool_index = 0
+        self.initial_actions = []
         self.termination_tree = None
 
     def _resolve_item_index(self, item_id: str) -> int:
@@ -116,9 +133,10 @@ class runtime_builder:
             self.item_draw_list.append([])
 
     def _build_item_resolves(self):
-        item_resolve_config = self.config.get("item_resolve", {})
-
-        for item_id, resolve_config in item_resolve_config.items():
+        for item_id, item_config in self.config.get("items", {}).items():
+            resolve_config = item_config.get("resolve")
+            if resolve_config is None:
+                continue
             item_index = self._resolve_item_index(item_id)
             self.item_resolve_list[item_index] = ItemResolve(
                 retain=int(resolve_config["retain"]),
@@ -126,9 +144,10 @@ class runtime_builder:
             )
 
     def _build_item_draws(self):
-        item_draw_config = self.config.get("item_draw", {})
-
-        for item_id, actions_config in item_draw_config.items():
+        for item_id, item_config in self.config.get("items", {}).items():
+            actions_config = item_config.get("on_acquire")
+            if actions_config is None:
+                continue
             item_index = self._resolve_item_index(item_id)
             self.item_draw_list[item_index] = self._build_actions(actions_config)
 
@@ -158,6 +177,11 @@ class runtime_builder:
                 cdf[-1] = 1.0
 
             self.pool_list.append(Pool(cdf=cdf, actions=actions))
+
+    def _build_initial(self):
+        initial_config = self.config["initial"]
+        self.begin_pool_index = self._resolve_pool_index(initial_config["begin_pool"])
+        self.initial_actions = self._build_actions(initial_config.get("actions"))
 
     def _build_pool_draw_list(self):
         self.pool_draw_list.clear()
@@ -218,9 +242,10 @@ class runtime_builder:
     def build(self):
         self._build_items()
         self._build_pools()
+        self._build_initial()
         self._build_pool_draw_list()
         self._build_item_draws()
-        self._build_item_resolves() 
+        self._build_item_resolves()
         self._build_stages()
         self.termination_tree = self._build_termination_tree(
             self.termination_config["termination_condition"]
@@ -231,7 +256,8 @@ class runtime_builder:
         ]
 
         return RuntimeContext(
-            begin_pool_index=0,
+            begin_pool_index=self.begin_pool_index,
+            initial_actions=self.initial_actions,
             item_id_index=self.item_id_index,
             item_list=self.item_list,
             item_resolve_list=self.item_resolve_list,

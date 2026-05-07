@@ -9,6 +9,9 @@
         "amount": 1,
         "per_cost_to_rmb": 2
     },
+    "initial": {
+        "begin_pool": "begin_pool"
+    },
     "items": {
         "shenjiangwei": {
             "name": "神姜维"
@@ -42,7 +45,7 @@
         "begin_pool": {
             "entries": [
                 {
-                    "probability": 0.00005,
+                    "probability": 5e-05,
                     "actions": [
                         {
                             "type": "add_item",
@@ -52,7 +55,7 @@
                     ]
                 },
                 {
-                    "probability": 0.00005,
+                    "probability": 5e-05,
                     "actions": [
                         {
                             "type": "add_item",

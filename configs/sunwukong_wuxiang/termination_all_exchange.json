@@ -1,5 +1,5 @@
 {
-    "retained_items":[
+    "retained_items": [
         "sunwukong_wuxiang",
         "yao_zhenwohezi",
         "zhenji_xuejingqiyu",
@@ -23,32 +23,28 @@
                                 "subject": "item",
                                 "id": "sunwukong_wuxiang",
                                 "op": ">=",
-                                "value": 1,
-                                "actions": null
+                                "value": 1
                             },
                             {
                                 "type": "predicate",
                                 "subject": "item",
                                 "id": "yao_zhenwohezi",
                                 "op": ">=",
-                                "value": 1,
-                                "actions": null
+                                "value": 1
                             },
                             {
                                 "type": "predicate",
                                 "subject": "item",
                                 "id": "zhenji_xuejingqiyu",
                                 "op": ">=",
-                                "value": 1,
-                                "actions": null
+                                "value": 1
                             },
                             {
                                 "type": "predicate",
                                 "subject": "item",
                                 "id": "xuejingqiyuquanpingtianmu",
                                 "op": ">=",
-                                "value": 1,
-                                "actions": null
+                                "value": 1
                             }
                         ]
                     },
@@ -57,8 +53,7 @@
                         "subject": "item",
                         "id": "wuxiang_point",
                         "op": ">=",
-                        "value": 675,
-                        "actions": null
+                        "value": 675
                     }
                 ],
                 "actions": [
@@ -81,7 +76,6 @@
                     }
                 ]
             }
-        ],
-        "actions": null
+        ]
     }
 }
