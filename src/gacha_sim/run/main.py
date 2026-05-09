@@ -1,12 +1,21 @@
 from gacha_sim.core.builder import runtime_builder
 from gacha_sim.core.engine import montecarlo
 import numpy as np
+from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from datetime import datetime
+from multiprocessing import Manager
+from queue import Empty
 from typing import BinaryIO
 from tqdm import tqdm
 
 
-def simulate_until_total_draw(sim: montecarlo, target_total_draw: int):
+def _simulate_until_total_draw_serial(
+    sim: montecarlo,
+    target_total_draw: int,
+    show_progress: bool,
+    progress_queue=None,
+    progress_interval: int = 0,
+):
     """
     持续运行完整模拟，直到累计抽数达到目标值
     """
@@ -17,8 +26,15 @@ def simulate_until_total_draw(sim: montecarlo, target_total_draw: int):
 
     total_draw = 0
     total_runs = 0
+    pending_progress = 0
 
-    with tqdm(total=target_total_draw, desc="Simulating", unit="draw") as pbar:
+    progress = tqdm(
+        total=target_total_draw,
+        desc="Simulating",
+        unit="draw",
+        disable=not show_progress,
+    )
+    with progress as pbar:
 
         while total_draw < target_total_draw:
             state = sim.run_once()
@@ -30,12 +46,22 @@ def simulate_until_total_draw(sim: montecarlo, target_total_draw: int):
             total_draw += state.draw_count
             total_runs += 1
 
-            # 更新进度条（按实际增加的抽数）
-            pbar.update(state.draw_count)
+            if progress_queue is None:
+                # 单进程模式更新进度条
+                pbar.update(state.draw_count)
 
-            # 防止超过总量导致进度条溢出
-            if total_draw > target_total_draw:
-                pbar.update(target_total_draw - pbar.n)
+                # 防止超过总量导致进度条溢出
+                if total_draw > target_total_draw:
+                    pbar.update(target_total_draw - pbar.n)
+            else:
+                # 多进程模式通过队列发送进度更新
+                pending_progress += state.draw_count
+                if pending_progress >= progress_interval:
+                    progress_queue.put(pending_progress)
+                    pending_progress = 0
+
+    if progress_queue is not None and pending_progress:
+        progress_queue.put(pending_progress)
 
     return {
         "seed": sim.seed,
@@ -45,6 +71,113 @@ def simulate_until_total_draw(sim: montecarlo, target_total_draw: int):
         "total_draw": np.int64(total_draw),
         "total_runs": np.int32(total_runs),
     }
+
+
+def _simulate_until_total_draw_chunk(
+    ctx, seed_sequence, target_total_draw: int, progress_queue, progress_interval: int
+):
+    return _simulate_until_total_draw_serial(
+        montecarlo(ctx, seed=seed_sequence),
+        target_total_draw,
+        show_progress=False,
+        progress_queue=progress_queue,
+        progress_interval=progress_interval,
+    )
+
+
+def _split_target_total_draw(target_total_draw: int, chunk_count: int) -> list[int]:
+    base, remainder = divmod(target_total_draw, chunk_count)
+    return [
+        base + (1 if index < remainder else 0)
+        for index in range(chunk_count)
+        if base + (1 if index < remainder else 0) > 0
+    ]
+
+
+def _merge_simulation_results(results: list[dict], seed):
+    return {
+        "seed": seed,
+        "draw_count": np.concatenate([result["draw_count"] for result in results]),
+        "lifetime_acquired": np.vstack(
+            [result["lifetime_acquired"] for result in results]
+        ).astype(np.int32),
+        "terminate_reasons": np.concatenate(
+            [result["terminate_reasons"] for result in results]
+        ),
+        "total_draw": np.int64(sum(int(result["total_draw"]) for result in results)),
+        "total_runs": np.int32(sum(int(result["total_runs"]) for result in results)),
+    }
+
+
+def _update_progress_from_queue(progress_queue, pbar, target_total_draw: int) -> None:
+    while True:
+        try:
+            # 使用非阻塞读取，为空时捕获抛出的异常并退出循环
+            progress_draw = int(progress_queue.get_nowait())
+        except Empty:
+            return
+
+        remaining_draw = target_total_draw - pbar.n
+        if remaining_draw <= 0:
+            continue
+        pbar.update(max(0, min(progress_draw, remaining_draw)))
+
+
+def _simulate_until_total_draw_parallel(
+    sim: montecarlo, target_total_draw: int, workers: int
+):
+    targets = _split_target_total_draw(target_total_draw, workers)
+    seed_sequence = np.random.SeedSequence(sim.seed)
+    child_seed_sequences = seed_sequence.spawn(len(targets))
+    results: list[dict | None] = [None] * len(targets)
+    progress_interval = max(10000, target_total_draw // 1000)
+
+    with tqdm(total=target_total_draw, desc="Simulating", unit="draw") as pbar:
+        with Manager() as manager:
+            # 进程安全的队列
+            progress_queue = manager.Queue()
+            with ProcessPoolExecutor(max_workers=workers) as executor:
+                futures = {
+                    executor.submit(
+                        _simulate_until_total_draw_chunk,
+                        sim.ctx,
+                        child_seed_sequences[index],
+                        target,
+                        progress_queue,
+                        progress_interval,
+                    ): index
+                    for index, target in enumerate(targets)
+                }
+                # 这是一个列表生成式的写法，futures是一个字典
+                # 键是executor.submit(...)返回的future对象，值是对应的index
+                pending_futures = set(futures)
+                while pending_futures:
+                    # 等待任务完成，超时设置为0.1s，从而在子进程运行过程中更新进度条
+                    done_futures, pending_futures = wait(
+                        pending_futures, timeout=0.1, return_when=FIRST_COMPLETED
+                    )
+                    # 根据子进程传回的抽数更新进度条
+                    _update_progress_from_queue(progress_queue, pbar, target_total_draw)
+                    for future in done_futures:
+                        results[futures[future]] = future.result()
+
+                _update_progress_from_queue(progress_queue, pbar, target_total_draw)
+
+    return _merge_simulation_results([result for result in results if result], sim.seed)
+
+
+def simulate_until_total_draw(
+    sim: montecarlo, target_total_draw: int, workers: int | None = 1
+):
+    if workers is None:
+        workers = 1
+    if workers < 1:
+        raise ValueError("workers must be >= 1")
+    if workers == 1 or target_total_draw <= 0:
+        return _simulate_until_total_draw_serial(
+            sim, target_total_draw, show_progress=True
+        )
+    return _simulate_until_total_draw_parallel(sim, target_total_draw, workers)
 
 
 def save_simulation_result(path: str | BinaryIO, result: dict):

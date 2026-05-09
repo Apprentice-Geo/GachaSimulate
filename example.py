@@ -10,7 +10,17 @@ from gacha_sim.run.visualize import Visualizer
 import os
 import numpy as np
 
-def run_save(CONFIG_NAME:str, TERMINATION_NAME:str,TARGET_TOTAL_DRAW:int=100000000,SEED:int=0):
+
+def run_save(
+    CONFIG_NAME: str,
+    TERMINATION_NAME: str,
+    TARGET_TOTAL_DRAW: int = 100000000,
+    SEED: int = 0,
+    WORKERS: int = min(
+        24,
+        os.cpu_count() or 1,
+    ),
+):
     project_root = Path(__file__).resolve().parent
     BASE_PATH = os.path.join(project_root, "configs", CONFIG_NAME)
     CONFIG_JSON_PATH = os.path.join(BASE_PATH, "config.json")
@@ -28,7 +38,7 @@ def run_save(CONFIG_NAME:str, TERMINATION_NAME:str,TARGET_TOTAL_DRAW:int=1000000
     if not Path(RESULT_FILE_PATH).exists():
         simulator = montecarlo(ctx, seed=SEED)
         result = simulate_until_total_draw(
-            simulator, target_total_draw=TARGET_TOTAL_DRAW
+            simulator, target_total_draw=TARGET_TOTAL_DRAW, workers=WORKERS
         )
         data_dir = Path("./data")
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -53,13 +63,14 @@ def run_save(CONFIG_NAME:str, TERMINATION_NAME:str,TARGET_TOTAL_DRAW:int=1000000
     #     save_path=f"./images/{simulate_name}_draw_distribution.svg"
     # )
     viz.plot_cdf(save_path=f"./images/{simulate_name}_cdf.svg")
+
+
 if __name__ == "__main__":
-    BASE_SEED=int("0721")
-    run_save("nezha2_zhenpinchuanshuo", "termination_skin",TARGET_TOTAL_DRAW=100000000,SEED=BASE_SEED+1)
-    run_save("nezha2_zhenpinchuanshuo", "termination_skin_33days",TARGET_TOTAL_DRAW=100000000,SEED=BASE_SEED+1)
-    run_save("nezha2_zhenpinchuanshuo", "termination_skin_all",TARGET_TOTAL_DRAW=100000000,SEED=BASE_SEED+1)
-    run_save("nezha2_zhenpinchuanshuo", "termination_tianmu",TARGET_TOTAL_DRAW=100000000,SEED=BASE_SEED+1)
-    
-
-
-
+    BASE_SEED = int("0721")
+    run_save(
+        "lixin_wenxinjian",
+        "termination_skin",
+        TARGET_TOTAL_DRAW=20000000,
+        SEED=BASE_SEED,
+    )
+    # print(os.cpu_count())

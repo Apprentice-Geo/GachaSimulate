@@ -655,3 +655,46 @@ def test_saves_and_loads_simulation_result(test_ctx: RuntimeContext) -> None:
     assert restored["seed"] == 0
     assert restored["lifetime_acquired"].shape[1] == len(ctx.item_list)
     assert len(restored["terminate_reasons"]) == restored["total_runs"]
+
+
+def test_parallel_simulation_merges_worker_results() -> None:
+    item_list = [Item(id="target", name="Target")]
+    item_id_index = {item.id: i for i, item in enumerate(item_list)}
+
+    ctx = RuntimeContext(
+        begin_pool_index=0,
+        initial_actions=[],
+        item_id_index=item_id_index,
+        item_list=item_list,
+        item_resolve_list=[ItemResolve(retain=0, actions=[])],
+        item_draw_list=[[]],
+        pool_id_index={"begin_pool": 0},
+        pool_list=[
+            Pool(
+                cdf=np.array([1.0], dtype=np.float64),
+                actions=[[AddItem(item_index=item_id_index["target"], amount=1)]],
+            )
+        ],
+        pool_draw_list=[DrawPool(pool_index=0)],
+        draw_stage_id_index={},
+        draw_stage_list=[],
+        retained_items_index=[],
+        termination_tree=CheckNode(
+            subject="draw_count",
+            id=None,
+            op=">=",
+            value=1,
+            actions=[Termination(reason="done")],
+        ),
+    )
+
+    result = simulate_until_total_draw(
+        montecarlo(ctx, seed=123), target_total_draw=8, workers=2
+    )
+
+    assert result["seed"] == 123
+    assert result["total_draw"] == 8
+    assert result["total_runs"] == 8
+    assert result["draw_count"].tolist() == [1] * 8
+    assert result["lifetime_acquired"].shape == (8, 1)
+    assert result["terminate_reasons"].tolist() == ["done"] * 8
