@@ -18,7 +18,7 @@ from gacha_sim.core.runtime import (
 )
 
 
-class montecarlo:
+class MonteCarlo:
     def __init__(self, ctx: RuntimeContext, seed=None):
         self.ctx = ctx
         self.seed = seed

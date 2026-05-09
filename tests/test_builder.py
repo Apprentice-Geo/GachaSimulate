@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from gacha_sim.core.builder import runtime_builder
+from gacha_sim.core.builder import RuntimeBuilder
 from gacha_sim.core.runtime import (
     AddItem,
     CheckNode,
@@ -33,7 +33,7 @@ def test_builds_expected_runtime_structure() -> None:
     config_path = ROOT / "configs" / "test" / "config.json"
     termination_path = ROOT / "configs" / "test" / "termination.json"
 
-    ctx = runtime_builder(str(config_path), str(termination_path)).build()
+    ctx = RuntimeBuilder(str(config_path), str(termination_path)).build()
 
     assert ctx.begin_pool_index == 0
     assert ctx.draw_stage_id_index == {
@@ -113,7 +113,7 @@ def test_builder_compiles_all_wuxiang_terminations(termination_name: str) -> Non
     config_path = ROOT / "configs" / "sunwukong_wuxiang" / "config.json"
     termination_path = ROOT / "configs" / "sunwukong_wuxiang" / termination_name
 
-    ctx = runtime_builder(str(config_path), str(termination_path)).build()
+    ctx = RuntimeBuilder(str(config_path), str(termination_path)).build()
 
     assert isinstance(ctx, RuntimeContext)
     assert ctx.begin_pool_index == ctx.pool_id_index["begin_pool"]
@@ -134,7 +134,7 @@ def test_builder_compiles_all_wuxiang_terminations(termination_name: str) -> Non
 def test_builder_compiles_all_real_config_files(
     config_path: Path, termination_path: Path
 ) -> None:
-    ctx = runtime_builder(str(config_path), str(termination_path)).build()
+    ctx = RuntimeBuilder(str(config_path), str(termination_path)).build()
 
     assert isinstance(ctx, RuntimeContext)
     assert ctx.begin_pool_index >= 0
@@ -173,7 +173,7 @@ def test_builds_without_optional_sections() -> None:
         },
     }
 
-    ctx = runtime_builder.from_config(config, termination).build()
+    ctx = RuntimeBuilder.from_config(config, termination).build()
 
     assert ctx.begin_pool_index == 0
     assert ctx.item_draw_list == [[], []]
@@ -227,7 +227,7 @@ def test_builds_set_item_action() -> None:
         },
     }
 
-    ctx = runtime_builder.from_config(config, termination).build()
+    ctx = RuntimeBuilder.from_config(config, termination).build()
 
     action = ctx.draw_stage_list[0].condition.actions[0]
     assert isinstance(action, SetItem)
@@ -275,7 +275,7 @@ def test_builds_initial_pool_and_actions() -> None:
         },
     }
 
-    ctx = runtime_builder.from_config(config, termination).build()
+    ctx = RuntimeBuilder.from_config(config, termination).build()
 
     assert ctx.begin_pool_index == ctx.pool_id_index["bonus_pool"]
     assert [

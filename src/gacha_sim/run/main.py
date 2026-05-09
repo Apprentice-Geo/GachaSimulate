@@ -1,5 +1,4 @@
-from gacha_sim.core.builder import runtime_builder
-from gacha_sim.core.engine import montecarlo
+from gacha_sim.core.engine import MonteCarlo
 import numpy as np
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from datetime import datetime
@@ -10,7 +9,7 @@ from tqdm import tqdm
 
 
 def _simulate_until_total_draw_serial(
-    sim: montecarlo,
+    sim: MonteCarlo,
     target_total_draw: int,
     show_progress: bool,
     progress_queue=None,
@@ -77,7 +76,7 @@ def _simulate_until_total_draw_chunk(
     ctx, seed_sequence, target_total_draw: int, progress_queue, progress_interval: int
 ):
     return _simulate_until_total_draw_serial(
-        montecarlo(ctx, seed=seed_sequence),
+        MonteCarlo(ctx, seed=seed_sequence),
         target_total_draw,
         show_progress=False,
         progress_queue=progress_queue,
@@ -124,7 +123,7 @@ def _update_progress_from_queue(progress_queue, pbar, target_total_draw: int) ->
 
 
 def _simulate_until_total_draw_parallel(
-    sim: montecarlo, target_total_draw: int, workers: int
+    sim: MonteCarlo, target_total_draw: int, workers: int
 ):
     targets = _split_target_total_draw(target_total_draw, workers)
     seed_sequence = np.random.SeedSequence(sim.seed)
@@ -167,7 +166,7 @@ def _simulate_until_total_draw_parallel(
 
 
 def simulate_until_total_draw(
-    sim: montecarlo, target_total_draw: int, workers: int | None = 1
+    sim: MonteCarlo, target_total_draw: int, workers: int | None = 1
 ):
     if workers is None:
         workers = 1

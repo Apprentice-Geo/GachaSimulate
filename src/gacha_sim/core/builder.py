@@ -24,7 +24,7 @@ from gacha_sim.core.runtime import (
 )
 
 
-class runtime_builder:
+class RuntimeBuilder:
     def __init__(self, config_path: str, termination_path: str):
         validate_files(config_path, termination_path)
         with open(config_path, "r", encoding="utf-8") as f:
@@ -36,7 +36,7 @@ class runtime_builder:
     @classmethod
     def from_config(
         cls, config: dict[str, Any], termination_config: dict[str, Any]
-    ) -> "runtime_builder":
+    ) -> "RuntimeBuilder":
         validate_config(config)
         validate_termination(termination_config, config)
         builder = cls.__new__(cls)

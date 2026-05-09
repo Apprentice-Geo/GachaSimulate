@@ -6,8 +6,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from gacha_sim.core.builder import runtime_builder
-from gacha_sim.core.engine import montecarlo
+from gacha_sim.core.builder import RuntimeBuilder
+from gacha_sim.core.engine import MonteCarlo
 from gacha_sim.core.runtime import (
     AddItem,
     CheckNode,
@@ -32,7 +32,7 @@ from gacha_sim.run.main import (
 ROOT = Path(__file__).resolve().parents[1]
 
 
-class CountingMonteCarlo(montecarlo):
+class CountingMonteCarlo(MonteCarlo):
     def __init__(self, ctx: RuntimeContext, seed=None):
         super().__init__(ctx, seed=seed)
         self.termination_eval_count = 0
@@ -47,7 +47,7 @@ class CountingMonteCarlo(montecarlo):
 def test_ctx() -> RuntimeContext:
     config_path = ROOT / "configs" / "test" / "config.json"
     termination_path = ROOT / "configs" / "test" / "termination.json"
-    return runtime_builder(str(config_path), str(termination_path)).build()
+    return RuntimeBuilder(str(config_path), str(termination_path)).build()
 
 
 def test_runs_with_manual_context() -> None:
@@ -84,7 +84,7 @@ def test_runs_with_manual_context() -> None:
         ),
     )
 
-    state = montecarlo(ctx, seed=0).run_once()
+    state = MonteCarlo(ctx, seed=0).run_once()
 
     assert state.terminate is True
     assert state.terminate_reason == "target reached"
@@ -185,7 +185,7 @@ def test_initial_actions_are_visible_to_first_stage() -> None:
         ),
     )
 
-    state = montecarlo(ctx, seed=0).run_once()
+    state = MonteCarlo(ctx, seed=0).run_once()
 
     assert state.draw_count == 1
     assert int(state.inventory[item_id_index["token"]]) == 1
@@ -237,7 +237,7 @@ def test_once_stage_executes_only_once() -> None:
         ),
     )
 
-    state = montecarlo(ctx, seed=0).run_once()
+    state = MonteCarlo(ctx, seed=0).run_once()
 
     assert state.draw_count == 3
     assert state.stage_execute == [True]
@@ -294,7 +294,7 @@ def test_pool_change_affects_next_draw() -> None:
         ),
     )
 
-    state = montecarlo(ctx, seed=0).run_once()
+    state = MonteCarlo(ctx, seed=0).run_once()
 
     assert state.draw_count == 2
     assert state.main_pool_index == ctx.pool_id_index["second_pool"]
@@ -352,7 +352,7 @@ def test_or_condition_short_circuits_later_branch_actions() -> None:
         ),
     )
 
-    state = montecarlo(ctx, seed=0).run_once()
+    state = MonteCarlo(ctx, seed=0).run_once()
 
     assert state.terminate_reason == "first branch"
     assert int(state.acquired[item_id_index["parent"]]) == 1
@@ -415,7 +415,7 @@ def test_stage_actions_are_visible_to_later_stages_in_same_draw() -> None:
         ),
     )
 
-    state = montecarlo(ctx, seed=0).run_once()
+    state = MonteCarlo(ctx, seed=0).run_once()
 
     assert state.draw_count == 1
     assert int(state.inventory[item_id_index["target"]]) == 1
@@ -459,7 +459,7 @@ def test_triggers_followup_draw_from_item() -> None:
         ),
     )
 
-    state = montecarlo(ctx, seed=0).run_once()
+    state = MonteCarlo(ctx, seed=0).run_once()
 
     assert state.terminate is True
     assert state.terminate_reason == "target reached"
@@ -510,7 +510,7 @@ def test_set_item_only_changes_inventory_without_followup_draw() -> None:
         ),
     )
 
-    state = montecarlo(ctx, seed=0).run_once()
+    state = MonteCarlo(ctx, seed=0).run_once()
 
     assert state.terminate is True
     assert int(state.inventory[item_id_index["ticket"]]) == 1
@@ -560,7 +560,7 @@ def test_item_resolve_retains_configured_inventory() -> None:
         ),
     )
 
-    state = montecarlo(ctx, seed=0).run_once()
+    state = MonteCarlo(ctx, seed=0).run_once()
 
     assert int(state.inventory[item_id_index["skin"]]) == 1
     assert int(state.acquired[item_id_index["skin"]]) == 2
@@ -608,7 +608,7 @@ def test_retained_item_keeps_one_but_resolves_duplicates() -> None:
         ),
     )
 
-    state = montecarlo(ctx, seed=0).run_once()
+    state = MonteCarlo(ctx, seed=0).run_once()
 
     assert int(state.inventory[item_id_index["skin"]]) == 1
     assert int(state.acquired[item_id_index["skin"]]) == 2
@@ -620,8 +620,8 @@ def test_runs_real_config() -> None:
     config_path = ROOT / "configs" / "sunwukong_wuxiang" / "config.json"
     termination_path = ROOT / "configs" / "sunwukong_wuxiang" / "termination_skin.json"
 
-    ctx = runtime_builder(str(config_path), str(termination_path)).build()
-    state = montecarlo(ctx, seed=42).run_once()
+    ctx = RuntimeBuilder(str(config_path), str(termination_path)).build()
+    state = MonteCarlo(ctx, seed=42).run_once()
 
     assert state.terminate is True
     assert state.terminate_reason in {"skin obtained", "point exchange"}
@@ -629,7 +629,7 @@ def test_runs_real_config() -> None:
 
 
 def test_reaches_expected_final_state(test_ctx: RuntimeContext) -> None:
-    state = montecarlo(test_ctx, seed=0).run_once()
+    state = MonteCarlo(test_ctx, seed=0).run_once()
 
     assert state.terminate is True
     assert state.terminate_reason == "all target items obtained"
@@ -644,7 +644,7 @@ def test_reaches_expected_final_state(test_ctx: RuntimeContext) -> None:
 def test_saves_and_loads_simulation_result(test_ctx: RuntimeContext) -> None:
     ctx = test_ctx
 
-    result = simulate_until_total_draw(montecarlo(ctx, seed=0), target_total_draw=100)
+    result = simulate_until_total_draw(MonteCarlo(ctx, seed=0), target_total_draw=100)
     output = BytesIO()
     save_simulation_result(output, result)
     output.seek(0)
@@ -689,7 +689,7 @@ def test_parallel_simulation_merges_worker_results() -> None:
     )
 
     result = simulate_until_total_draw(
-        montecarlo(ctx, seed=123), target_total_draw=8, workers=2
+        MonteCarlo(ctx, seed=123), target_total_draw=8, workers=2
     )
 
     assert result["seed"] == 123

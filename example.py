@@ -4,46 +4,46 @@ from gacha_sim.run.main import (
     save_simulation_result,
     simulate_until_total_draw,
 )
-from gacha_sim.core.builder import runtime_builder
-from gacha_sim.core.engine import montecarlo
+from gacha_sim.core.builder import RuntimeBuilder
+from gacha_sim.core.engine import MonteCarlo
 from gacha_sim.run.visualize import Visualizer
 import os
 import numpy as np
 
 
 def run_save(
-    CONFIG_NAME: str,
-    TERMINATION_NAME: str,
-    TARGET_TOTAL_DRAW: int = 100000000,
-    SEED: int = 0,
-    WORKERS: int = min(
+    config_name: str,
+    termination_name: str,
+    target_total_draw: int = 100000000,
+    seed: int = 0,
+    workers: int = min(
         24,
         os.cpu_count() or 1,
     ),
 ):
     project_root = Path(__file__).resolve().parent
-    BASE_PATH = os.path.join(project_root, "configs", CONFIG_NAME)
-    CONFIG_JSON_PATH = os.path.join(BASE_PATH, "config.json")
-    TERMINATION_JSON_PATH = os.path.join(BASE_PATH, TERMINATION_NAME + ".json")
-    RESULT_FILE_PATH = (
-        f"./data/{CONFIG_NAME}_{TERMINATION_NAME}_{TARGET_TOTAL_DRAW}_seed{SEED}.npz"
+    base_path = os.path.join(project_root, "configs", config_name)
+    config_json_path = os.path.join(base_path, "config.json")
+    termination_json_path = os.path.join(base_path, termination_name + ".json")
+    result_file_path = (
+        f"./data/{config_name}_{termination_name}_{target_total_draw}_seed{seed}.npz"
     )
-    name = os.path.basename(os.path.dirname(CONFIG_JSON_PATH))
-    simulate_name = f"{name}_{Path(TERMINATION_JSON_PATH).stem}"
-    builder = runtime_builder(
-        config_path=CONFIG_JSON_PATH, termination_path=TERMINATION_JSON_PATH
+    name = os.path.basename(os.path.dirname(config_json_path))
+    simulate_name = f"{name}_{Path(termination_json_path).stem}"
+    builder = RuntimeBuilder(
+        config_path=config_json_path, termination_path=termination_json_path
     )
 
     ctx = builder.build()
-    if not Path(RESULT_FILE_PATH).exists():
-        simulator = montecarlo(ctx, seed=SEED)
+    if not Path(result_file_path).exists():
+        simulator = MonteCarlo(ctx, seed=seed)
         result = simulate_until_total_draw(
-            simulator, target_total_draw=TARGET_TOTAL_DRAW, workers=WORKERS
+            simulator, target_total_draw=target_total_draw, workers=workers
         )
         data_dir = Path("./data")
         data_dir.mkdir(parents=True, exist_ok=True)
-        save_simulation_result(RESULT_FILE_PATH, result)
-    result = load_simulation_result(RESULT_FILE_PATH)
+        save_simulation_result(result_file_path, result)
+    result = load_simulation_result(result_file_path)
     print("Total runs:", result["total_runs"])
     print("Total draw:", result["total_draw"])
     print("terminate reasons distribution:")
@@ -66,11 +66,11 @@ def run_save(
 
 
 if __name__ == "__main__":
-    BASE_SEED = int("0721")
+    base_seed = int("0721")
     run_save(
         "lixin_wenxinjian",
         "termination_skin",
-        TARGET_TOTAL_DRAW=20000000,
-        SEED=BASE_SEED,
+        target_total_draw=20000000,
+        seed=base_seed,
     )
     # print(os.cpu_count())

@@ -10,18 +10,18 @@ from matplotlib.patches import FancyBboxPatch
 from matplotlib.ticker import MaxNLocator, PercentFormatter
 
 # 项目根目录
-project_root = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 # 字体路径
-font_path = os.path.join(project_root, "fonts", "SourceHanSansSC-Medium.otf")
+FONT_PATH = os.path.join(PROJECT_ROOT, "fonts", "SourceHanSansSC-Medium.otf")
 
 # 注册字体
-font_manager.fontManager.addfont(font_path)
-prop = font_manager.FontProperties(fname=font_path)
+font_manager.fontManager.addfont(FONT_PATH)
+FONT_PROPERTIES = font_manager.FontProperties(fname=FONT_PATH)
 
 # 强制使用该字体
 rcParams["font.family"] = "sans-serif"
-rcParams["font.sans-serif"] = [prop.get_name()]
+rcParams["font.sans-serif"] = [FONT_PROPERTIES.get_name()]
 rcParams["axes.unicode_minus"] = False
 
 
@@ -50,7 +50,7 @@ class PlotTheme:
 
 
 @dataclass(frozen=True)
-class CdfPercentileMark:
+class CDFPercentileMark:
     label: str
     level: float
     color: str
@@ -67,7 +67,7 @@ class DrawDistributionData:
 
 
 @dataclass(frozen=True)
-class CdfPercentiles:
+class CDFPercentiles:
     p5: int
     p25: int
     p50: int
@@ -79,10 +79,10 @@ class CdfPercentiles:
 
 
 @dataclass(frozen=True)
-class CdfData:
+class CDFData:
     values: np.ndarray
     cumulative: np.ndarray
-    percentiles: CdfPercentiles
+    percentiles: CDFPercentiles
     mean_draw: int
     mean_level: float
     max_draw: int
@@ -120,11 +120,11 @@ class Visualizer:
         spine_color="#D7DDE3",
     )
     CDF_PERCENTILE_MARKS = [
-        CdfPercentileMark("P5", 0.05, "#1a9641", 1.5, 0.85),
-        CdfPercentileMark("P25", 0.25, "#a6d96a", 1.5, 0.85),
-        CdfPercentileMark("P50", 0.5, P50_COLOR, 2.0, 0.95),
-        CdfPercentileMark("P75", 0.75, "#f46d43", 1.5, 0.85),
-        CdfPercentileMark("P95", 0.95, "#d7191c", 2.0, 0.95),
+        CDFPercentileMark("P5", 0.05, "#1a9641", 1.5, 0.85),
+        CDFPercentileMark("P25", 0.25, "#a6d96a", 1.5, 0.85),
+        CDFPercentileMark("P50", 0.5, P50_COLOR, 2.0, 0.95),
+        CDFPercentileMark("P75", 0.75, "#f46d43", 1.5, 0.85),
+        CDFPercentileMark("P95", 0.95, "#d7191c", 2.0, 0.95),
     ]
     CDF_MEAN_COLOR = "#3B82F6"
     CDF_MAX_COLOR = "#8B0000"
@@ -238,19 +238,19 @@ class Visualizer:
 
         return int(nice * magnitude)
 
-    def _prepare_cdf_data(self) -> CdfData:
+    def _prepare_cdf_data(self) -> CDFData:
         values = np.sort(self.draw_count)
         count = len(values)
         cumulative = np.arange(1, count + 1) / count
         mean_draw = int(np.mean(values))
 
-        return CdfData(
+        return CDFData(
             values=values,
             cumulative=cumulative,
             mean_draw=mean_draw,
             mean_level=float(np.searchsorted(values, mean_draw, side="right") / count),
             max_draw=int(np.max(values)),
-            percentiles=CdfPercentiles(
+            percentiles=CDFPercentiles(
                 p5=int(np.percentile(values, 5)),
                 p25=int(np.percentile(values, 25)),
                 p50=int(np.percentile(values, 50)),
@@ -427,7 +427,7 @@ class Visualizer:
             color="#6B747D",
         )
 
-    def _draw_cdf_header(self, ax, plot_data: CdfData) -> None:
+    def _draw_cdf_header(self, ax, plot_data: CDFData) -> None:
         percentile_by_label = dict(
             zip(
                 [mark.label for mark in self.CDF_PERCENTILE_MARKS],
@@ -496,7 +496,7 @@ class Visualizer:
                     color=color,
                 )
 
-    def _draw_cdf(self, ax, plot_data: CdfData) -> None:
+    def _draw_cdf(self, ax, plot_data: CDFData) -> None:
         theme = self.CDF_THEME
 
         ax.step(
@@ -627,7 +627,7 @@ class Visualizer:
             zorder=8,
         )
 
-    def _draw_cdf_footer(self, ax, plot_data: CdfData) -> None:
+    def _draw_cdf_footer(self, ax, plot_data: CDFData) -> None:
         p50 = plot_data.percentiles.p50
         p95 = plot_data.percentiles.p95
         mean_draw = plot_data.mean_draw
