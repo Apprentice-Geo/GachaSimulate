@@ -1,0 +1,128 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Gacha simulation config",
+    "type": "object",
+    "description": "Schema for visualize input json.",
+    "required": [
+        "title",
+        "target",
+        "draw_counts",
+        "note",
+        "statistic",
+        "termination_reason",
+        "timestamp",
+        "draws",
+        "cumulative"
+    ],
+    "properties": {
+        "title": {
+            "type": "string"
+        },
+        "target": {
+            "type": "string"
+        },
+        "draw_counts": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "note": {
+            "type": "string"
+        },
+        "statistic": {
+            "type": "object",
+            "required": [
+                "P5",
+                "P25",
+                "P50",
+                "P75",
+                "P95",
+                "MIN",
+                "MEAN_LEVEL",
+                "MEAN",
+                "MAX",
+                "COST"
+            ],
+            "properties": {
+                "P5": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "P25": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "P50": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "P75": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "P95": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "MIN": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "MEAN": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "MEAN_LEVEL": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                },
+                "MAX": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "COST": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "termination_reason": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": [
+                    "reason",
+                    "proportion"
+                ],
+                "properties": {
+                    "reason": {
+                        "type": "string"
+                    },
+                    "proportion": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100
+                    }
+                }
+            }
+        },
+        "timestamp": {
+            "type": "integer"
+        },
+        "draws": {
+            "type": "array",
+            "items": {
+                "type": "integer",
+                "minimum": 0
+            }
+        },
+        "cumulative": {
+            "type": "array",
+            "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+            }
+        }
+    }
+}

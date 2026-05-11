@@ -1,4 +1,5 @@
-from gacha_sim.core.engine import MonteCarlo
+from simulate.engine import MonteCarlo
+import json
 import numpy as np
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from datetime import datetime
@@ -6,6 +7,11 @@ from multiprocessing import Manager
 from queue import Empty
 from typing import BinaryIO
 from tqdm import tqdm
+
+DEFAULT_VISUALIZE_TITLE = "抽卡模拟 CDF 分析"
+DEFAULT_VISUALIZE_TARGET = "未设置"
+DEFAULT_VISUALIZE_NOTE = ""
+DEFAULT_VISUALIZE_COST = 0
 
 
 def _simulate_until_total_draw_serial(
@@ -96,7 +102,10 @@ def _split_target_total_draw(target_total_draw: int, chunk_count: int) -> list[i
 def _merge_simulation_results(results: list[dict], seed):
     return {
         "seed": seed,
+        # 直接拼接各个结果的数组，draw_count和terminate_reasons是一维的，而lifetime_acquired是二维的
+        # concatenate不指定axis默认是axis=0，即在第0维上拼接
         "draw_count": np.concatenate([result["draw_count"] for result in results]),
+        # vstack是专门用于拼接二维数组的函数，这里的效果和concatenate(..., axis=0)一样
         "lifetime_acquired": np.vstack(
             [result["lifetime_acquired"] for result in results]
         ).astype(np.int32),
@@ -192,6 +201,59 @@ def save_simulation_result(path: str | BinaryIO, result: dict):
         seed=0 if result["seed"] is None else int(result["seed"]),
         timestamp=str(datetime.now()),
     )
+
+
+def _build_visualize_input(result: dict) -> dict:
+    values = np.sort(np.asarray(result["draw_count"]))
+    count = len(values)
+    draws, draw_counts = np.unique(values, return_counts=True)
+    cumulative = np.cumsum(draw_counts) / count
+    mean_draw = int(np.mean(values))
+    unique_reasons, reason_counts = np.unique(
+        np.asarray(result["terminate_reasons"]), return_counts=True
+    )
+
+    return {
+        "title": DEFAULT_VISUALIZE_TITLE,
+        "target": DEFAULT_VISUALIZE_TARGET,
+        "draw_counts": int(result["total_draw"]),
+        "note": DEFAULT_VISUALIZE_NOTE,
+        "statistic": {
+            "P5": int(np.percentile(values, 5)),
+            "P25": int(np.percentile(values, 25)),
+            "P50": int(np.percentile(values, 50)),
+            "P75": int(np.percentile(values, 75)),
+            "P95": int(np.percentile(values, 95)),
+            "MIN": int(np.min(values)),
+            "MEAN_LEVEL": float(
+                np.searchsorted(values, mean_draw, side="right") / count
+            ),
+            "MEAN": mean_draw,
+            "MAX": int(np.max(values)),
+            "COST": DEFAULT_VISUALIZE_COST,
+        },
+        "termination_reason": [
+            {
+                "reason": str(reason),
+                "proportion": int(round(int(reason_count) / count * 100)),
+            }
+            for reason, reason_count in zip(unique_reasons, reason_counts)
+        ],
+        "timestamp": int(datetime.now().timestamp()),
+        "draws": draws.astype(int).tolist(),
+        "cumulative": cumulative.astype(float).tolist(),
+    }
+
+
+def save_visualize_input(path: str | BinaryIO, result: dict):
+    visualize_input = _build_visualize_input(result)
+    content = json.dumps(visualize_input, ensure_ascii=False, indent=4) + "\n"
+
+    if isinstance(path, str):
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+    else:
+        path.write(content.encode("utf-8"))
 
 
 def load_simulation_result(path: str | BinaryIO):

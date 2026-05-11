@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from gacha_sim.core.builder import RuntimeBuilder
-from gacha_sim.core.runtime import (
+from simulate.builder import RuntimeBuilder
+from simulate.runtime import (
     AddItem,
     CheckNode,
     DrawPool,

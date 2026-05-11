@@ -1,6 +1,5 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/MonteCarlo-GachaSimulate/config.schema.json",
   "title": "Gacha simulation config",
   "type": "object",
   "description": "Schema for config.json. Reference checks between item ids and pool ids, and pool probability sums, are enforced by the Python validator rather than by this schema.",

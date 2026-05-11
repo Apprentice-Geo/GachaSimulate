@@ -10,7 +10,7 @@ from matplotlib.patches import FancyBboxPatch
 from matplotlib.ticker import MaxNLocator, PercentFormatter
 
 # 项目根目录
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 # 字体路径
 FONT_PATH = os.path.join(PROJECT_ROOT, "fonts", "SourceHanSansSC-Medium.otf")

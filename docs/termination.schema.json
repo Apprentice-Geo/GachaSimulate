@@ -1,6 +1,5 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/MonteCarlo-GachaSimulate/termination.schema.json",
   "title": "Gacha simulation termination config",
   "type": "object",
   "description": "Schema for termination*.json. Item id references are checked against config.json by the Python validator.",

@@ -1,12 +1,13 @@
 from pathlib import Path
-from gacha_sim.run.main import (
+from simulate.core import (
     load_simulation_result,
     save_simulation_result,
+    save_visualize_input,
     simulate_until_total_draw,
 )
-from gacha_sim.core.builder import RuntimeBuilder
-from gacha_sim.core.engine import MonteCarlo
-from gacha_sim.run.visualize import Visualizer
+from simulate.builder import RuntimeBuilder
+from simulate.engine import MonteCarlo
+from simulate.visualize import Visualizer
 import os
 import numpy as np
 
@@ -43,7 +44,9 @@ def run_save(
         data_dir = Path("./data")
         data_dir.mkdir(parents=True, exist_ok=True)
         save_simulation_result(result_file_path, result)
+        save_visualize_input(f"./data/{simulate_name}_visualize_input.json", result)
     result = load_simulation_result(result_file_path)
+    save_visualize_input(f"./data/{simulate_name}_visualize_input.json", result)
     print("Total runs:", result["total_runs"])
     print("Total draw:", result["total_draw"])
     print("terminate reasons distribution:")
@@ -71,6 +74,6 @@ if __name__ == "__main__":
         "nezha2_zhenpinchuanshuo",
         "termination_skin",
         target_total_draw=100000000,
-        seed=base_seed+1,
+        seed=base_seed + 1,
     )
     # print(os.cpu_count())
