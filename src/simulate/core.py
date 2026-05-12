@@ -206,7 +206,9 @@ def save_simulation_result(path: str | BinaryIO, result: dict):
 def _build_visualize_input(result: dict) -> dict:
     values = np.sort(np.asarray(result["draw_count"]))
     count = len(values)
+    # 去重，counts是每个唯一值的出现次数，因此下面的前缀和除的是 count
     draws, draw_counts = np.unique(values, return_counts=True)
+    # cumsum: cumulative sum，做前缀和
     cumulative = np.cumsum(draw_counts) / count
     mean_draw = int(np.mean(values))
     unique_reasons, reason_counts = np.unique(

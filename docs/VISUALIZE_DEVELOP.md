@@ -32,15 +32,15 @@ FFmpeg 转 MP4
 
 # CDF曲线
 - 原实现为[模拟项目可视化](/src/simulate/visualize.py)中的CDF曲线，它的审美设计与该项目的需求不一致，因此主要参考其统计意义以及统计量标注方法。
-- X 轴表示抽数。
+- X 轴表示抽数，显示为整数。
 - Y 轴表示累计概率 CDF，显示为百分比。
 - P5/P25/P50/P75/P95/MIN/MAX 使用竖向虚线标记，虚线从 x 轴开始，到对应抽数的 CDF 概率高度结束，即与曲线相交并绘制交点就结束。
-- MEAN同时使用竖向和横向虚线标记，虚线从x和y轴开始，到对应抽数和到对应抽数的 CDF 概率高度结束，即与曲线相交并绘制交点就结束。
+- MEAN同时使用竖向和横向虚线标记，虚线从x和y轴开始，到 MEAN_LEVEL 和到 MEAN 结束，即与曲线相交并绘制交点就结束。
 - MEAN和P50常常会比较接近，文字标注可参考[模拟项目可视化](/src/simulate/visualize.py):385-411行的做法避免重叠
 - CDF 图中的标记虚线视觉权重需要区分，P50 的视觉权重最高，MAX/P95/MEAN 次之，P25/P75 更弱，MIN/P5最弱。
 - 网格线必须低对比，不能干扰主曲线。
 - 坐标轴刻度必须清晰可读。
-- 不允许为了美观改变 CDF 数据。
+- 不允许为了美观改变 CDF 数据，完全按照输入数据绘制即可。
 
 # 布局要求
 
@@ -48,7 +48,8 @@ FFmpeg 转 MP4
 - CDF 主曲线必须是画面中最重要的视觉元素；
 - 顶部显示标题，与 CDF 曲线图应该左对齐，右端为数据导入按钮；
 - 标题下方使用小字号显示模拟目标和实际模拟抽数
-- 右侧显示 P5/P25/P50/P75/P95、最小值、均值、最大值、单抽成本这九个核心统计量，单抽成本单位为RMB，其余均为抽；
+- 右侧从上到下显示 P5/P25/P50/P75/P95、均值、最小值、最大值、单抽成本这九个核心统计量，单抽成本单位为RMB，其余均为抽；
+- 上述九个统计量应该以并列的视觉逻辑展示，例如每一个统计量占据一行布局空间
 - 底部显示模拟目标，终止原因及其比例，终止原因至少有一种，至多有两种，比例使用PK条的形式展示，如果只有一种原因则填满单条即可；
 - 最底部保留可选小字号注释；
 - 不要牺牲数据可读性来追求装饰感；
@@ -108,7 +109,10 @@ FFmpeg 转 MP4
 
 Sentry 作为整体 UI 语言，NVIDIA 只提供科技感细节。
 
-背景、卡片、圆角、阴影、信息层级：Sentry
+- 不使用 Sentry 贴纸/吉祥物/大营销 hero。
+- 不使用 NVIDIA 全黑 hero/footer 结构。
+- 采用 Sentry 的信息层级、卡片密度、字体节奏。
+- 采用 NVIDIA 的绿色语义、细线、角标、技术感点缀。
 
 主曲线：Cyan #22d3ee
 
@@ -123,8 +127,6 @@ MIN，P5 ~ P95，MAX：使用符合改项目模拟语义的颜色
  | P75      |  #ef9100 | NVIDIA warning-bright，偏高抽数            |
  | P95      |  #df6500 | NVIDIA warning，高抽数风险                 |
  | MAX      |  #e52020 | NVIDIA error，最差尾部                     |
-
-少量细线、角标、状态标签：NVIDIA
 
 Sentry风格文档：[Sentry](./Sentry.md)
 
@@ -177,12 +179,96 @@ NVIDIA风格文档：[NVIDIA](./NVIDIA.md)
 - draw_counts：累积实际模拟抽数
 - note：注释
 - statistic：对象，各统计量及其数值
-- termination_reason：数组，终止原因及其比例
+- termination_reason：数组，终止原因及其比例,比例合计为100
 - timestamp：时间戳
 - draws：数组，排序后的抽数，单调不减
-- cumulative：数组，draws中每个抽数对应的分位，单调不减
+- cumulative：数组，排序后draws中每个抽数对应的分位，单调不减
 
 模拟器导出json文件的具体数据类型及范围遵循[schema](./visualize_input.schema.json)
+
+# 项目目录结构
+
+前端可视化子项目使用仓库根目录作为前端包根目录，源码放在 `src/visualize/` 下。这样可以直接复用现有的 `docs/`、`fonts/`、`outputs/` 等目录，避免导出脚本处理复杂的跨目录路径。
+
+推荐目录结构：
+
+```text
+D:\codes\MonteCarlo-GachaSimulate\
+  package.json              # 前端依赖、npm scripts 和项目元数据
+  package-lock.json         # npm 依赖版本锁定文件
+  index.html                # Vite 应用入口 HTML，挂载 React 根节点
+  vite.config.ts            # Vite 配置，定义 React 插件、路径别名和开发服务器选项
+  tsconfig.json             # TypeScript 编译配置
+  playwright.config.ts      # Playwright 测试与导出浏览器环境配置
+
+  src\
+    simulate\
+      ...
+
+    visualize\
+      main.tsx              # React 应用入口，挂载 App 并引入全局样式
+      App.tsx               # 可视化页面根组件，组织加载状态、布局、动画和数据流
+
+      components\
+        TopBar.tsx          # 顶部标题区，显示标题、目标摘要和导入入口
+        CDFChart.tsx        # CDF 主图表，绘制曲线、坐标轴、网格线和统计标记
+        StatisticPanel.tsx  # 右侧统计面板，展示九个核心统计量
+        TerminationBar.tsx  # 底部终止原因 PK 条及比例展示
+        ImportButton.tsx    # JSON 文件选择按钮，触发本地数据导入
+        ReplayButton.tsx    # 重新播放动画按钮，提供 Playwright 使用的稳定选择器
+        EmptyState.tsx      # 未导入数据时的空状态展示
+        LoadingState.tsx    # 数据加载中的状态展示
+        ErrorState.tsx      # 数据加载或校验失败时的错误状态展示
+
+      data\
+        load_input.ts       # 从文件选择或 URL 参数读取 JSON 输入
+        validate_input.ts   # 使用 schema 校验输入 JSON，并输出可读错误
+        normalize_input.ts  # 将合法输入转换为前端组件更易使用的数据结构
+        cdf.ts              # CDF 曲线、标记高度、统计点等辅助计算
+
+      animation\
+        timeline.ts         # 动画总时长、分段时间线和缓冲时间常量
+
+      export\
+        export_cdf.ts       # Playwright 导出入口，生成 PNG、WebM 并触发 MP4 转码
+        ffmpeg.ts           # FFmpeg 调用封装，将 WebM 转为 H.264 MP4
+        paths.ts            # 输入、输出、项目根目录等路径解析工具
+
+      styles\
+        tokens.css          # 颜色、字体、间距、尺寸等设计 token
+        globals.css         # 全局样式、字体加载、基础元素样式
+        layout.css          # 固定 1920x1080 页面布局和主要区域排版
+
+      types\
+        visualize_input.ts  # 输入 JSON 的 TypeScript 类型定义
+
+      test\
+        fixtures\
+          example_input.json # 前端开发、截图和导出测试使用的示例输入
+
+  docs\
+    VISUALIZE_DEVELOP.md
+    visualize_input.schema.json
+    Sentry.md
+    NVIDIA.md
+
+  fonts\
+    SourceHanSansSC-Medium.otf
+
+  outputs\
+    cdf-result.png
+    cdf-animation.webm
+    cdf-animation.mp4
+```
+
+目录职责：
+- `components/`：页面组件，只负责展示和用户操作入口。
+- `data/`：输入文件加载、schema 校验、数据规范化和 CDF 辅助计算。
+- `animation/`：动画时间线与动画总时长常量，供前端和导出脚本共用。
+- `export/`：Playwright 截图、录屏以及 FFmpeg 转码逻辑。
+- `styles/`：设计 token、全局样式和固定 1920x1080 布局样式。
+- `types/`：前端 TypeScript 类型定义，和 `docs/visualize_input.schema.json` 对应。
+- `test/fixtures/`：前端开发和导出测试使用的示例输入数据。
 
 # 粗略开发步骤
 

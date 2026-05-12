@@ -68,7 +68,7 @@
                     "minimum": 0
                 },
                 "MEAN": {
-                    "type": "integer",
+                    "type": "number",
                     "minimum": 0
                 },
                 "MEAN_LEVEL": {
