@@ -242,9 +242,10 @@ D:\codes\MonteCarlo-GachaSimulate\
       types\
         visualize_input.ts  # 输入 JSON 的 TypeScript 类型定义
 
-      test\
-        fixtures\
-          example_input.json # 前端开发、截图和导出测试使用的示例输入
+      fixtures\
+        example_input.json # 前端开发、截图和导出测试使用的示例输入
+
+  e2e\ # 前端端到端测试代码
 
   docs\
     VISUALIZE_DEVELOP.md
@@ -268,7 +269,7 @@ D:\codes\MonteCarlo-GachaSimulate\
 - `export/`：Playwright 截图、录屏以及 FFmpeg 转码逻辑。
 - `styles/`：设计 token、全局样式和固定 1920x1080 布局样式。
 - `types/`：前端 TypeScript 类型定义，和 `docs/visualize_input.schema.json` 对应。
-- `test/fixtures/`：前端开发和导出测试使用的示例输入数据。
+- `fixtures/`：前端开发和导出测试使用的示例输入数据。
 
 # 粗略开发步骤
 
