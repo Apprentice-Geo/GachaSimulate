@@ -3,12 +3,12 @@ __pycache__/
 .vscode/
 .codex
 *.egg-info/
-images/
-data/
-node_modules
+/images/
+/data/
+/node_modules/
 .pytest_cache/
-playwright-report/
-test-results/
+/playwright-report/
+/test-results/
 .coverage
 
 # Playwright
