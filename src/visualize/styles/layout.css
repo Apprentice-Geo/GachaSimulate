@@ -149,6 +149,19 @@
   animation: none;
 }
 
+.cdf-chart-shell .recharts-cartesian-axis-tick text {
+  fill: var(--color-text-muted);
+}
+
+.cdf-chart-shell .recharts-cartesian-axis-line,
+.cdf-chart-shell .recharts-cartesian-axis-tick-line {
+  stroke: var(--color-hairline-strong);
+}
+
+.cdf-chart-shell .recharts-cartesian-grid line {
+  stroke: rgba(247, 243, 255, 0.1);
+}
+
 .cdf-chart-shell[data-animating="true"] .recharts-wrapper {
   animation: page-fade-in 260ms ease-out both;
 }
