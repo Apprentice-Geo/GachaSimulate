@@ -10,7 +10,7 @@ export const MARKER_COLORS: Record<MarkerKey, string> = {
   P5: '#3f8500',
   P25: '#76b900',
   P50: '#bff230',
-  MEAN: '#fa7faa',
+  MEAN: '#952fc6',
   P75: '#ef9100',
   P95: '#df6500',
   MAX: '#e52020',
