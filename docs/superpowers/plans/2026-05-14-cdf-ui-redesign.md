@@ -134,6 +134,7 @@ expect(marker_contract).not.toBeNull();
 expect(marker_contract!.mean_stroke).toBe('#952fc6');
 expect(marker_contract!.marker_dash).not.toBe('none');
 expect(marker_contract!.marker_dash).not.toBe('1px');
+expect(marker_contract!.pk_has_diagonal.trim()).toBe('-45deg');
 ```
 
 - [ ] **Step 3: Run helper test to confirm it fails before implementation**
@@ -547,10 +548,11 @@ Expected: only intentional source/doc changes are present. Do not add `.superpow
 
 - [ ] **Step 6: Commit verification fixes if needed**
 
-If verification required fixes:
+If verification required fixes, inspect `git status --short`, stage only the files changed by those verification fixes with explicit paths, then commit. For example, if the final polish changed chart and layout files:
 
 ```powershell
-git add <changed-files>
+git status --short
+git add -- src/visualize/components/CDFChart.tsx src/visualize/styles/layout.css
 git commit -m "fix: polish cdf redesign verification"
 ```
 
