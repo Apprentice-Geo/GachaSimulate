@@ -525,12 +525,13 @@
 }
 
 .pk-bar {
-  --pk-seam-overlap: 12px;
+  --pk-bar-height: 34px;
+  --pk-seam-width: var(--pk-bar-height);
   background: var(--color-panel-soft);
   border: 1px solid var(--color-hairline);
   border-radius: 4px;
   display: flex;
-  height: 34px;
+  height: var(--pk-bar-height);
   overflow: hidden;
   width: 100%;
 }
@@ -545,9 +546,9 @@
 }
 
 .pk-segment-diagonal {
-  clip-path: polygon(var(--pk-seam-overlap) 0, 100% 0, 100% 100%, 0 100%);
-  margin-left: calc(var(--pk-seam-overlap) * -1);
-  padding-left: var(--pk-seam-overlap);
+  clip-path: polygon(var(--pk-seam-width) 0, 100% 0, 100% 100%, 0 100%);
+  margin-left: calc(var(--pk-seam-width) * -1);
+  padding-left: var(--pk-seam-width);
 }
 
 .visualize-page[data-animation-state="playing"] .pk-segment {
