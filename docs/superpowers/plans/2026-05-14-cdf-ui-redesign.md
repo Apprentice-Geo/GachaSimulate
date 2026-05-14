@@ -36,13 +36,13 @@ Replace both 62% / 38% references with 75% / 25%. The text should say the left C
 Replace the flat nine-row requirement with:
 
 ```markdown
-右侧统计面板将九个核心统计量按语义分为三组展示：
+右侧统计面板将八个分布统计量按语义分为三组展示，并在面板底部显示第九个核心统计量“单抽成本”：
 
 - 较优结果：MIN / P5 / P25
 - 中心位置：P50 / MEAN
 - 尾部风险：P75 / P95 / MAX
 
-每个统计量仍应包含统计量名称、简短说明、统计量数值和单位。右侧面板宽度约为主内容区 25%，因此分组应紧凑，不应抢占 CDF 曲线注意力。
+单抽成本作为紧凑的成本参考行展示，不参与分布风险分组。每个统计量仍应包含统计量名称、简短说明、统计量数值和单位。右侧面板宽度约为主内容区 25%，因此分组应紧凑，不应抢占 CDF 曲线注意力。
 ```
 
 - [ ] **Step 3: Update PK bar requirement**
@@ -50,7 +50,7 @@ Replace the flat nine-row requirement with:
 Add this to the bottom termination section:
 
 ```markdown
-终止原因 PK 条颜色不表达好坏语义。使用语义中性但对比明确的两种颜色，例如 Sentry Violet Link `#6a5fc1` 与 Sentry Hot Pink `#fa7faa`。如果有两种终止原因，两段交界使用左斜 45° 斜线，不使用竖直分割线。
+终止原因 PK 条颜色不表达好坏语义。必须固定使用语义中性但对比明确的两种颜色：Sentry Violet Link `#6a5fc1` 与 Sentry Hot Pink `#fa7faa`。如果只有一种终止原因，使用 `#6a5fc1` 填满单条；如果有两种终止原因，两段交界使用左斜 45° 斜线，不使用竖直分割线。
 ```
 
 - [ ] **Step 4: Verify the requirement text**
@@ -97,6 +97,7 @@ await expect(page.getByText('累计概率 CDF')).toBeVisible();
 await expect(page.getByText('较优结果')).toBeVisible();
 await expect(page.getByText('中心位置')).toBeVisible();
 await expect(page.getByText('尾部风险')).toBeVisible();
+await expect(page.getByTestId('stat-COST')).toBeVisible();
 
 const layout_ratio = await page.evaluate(() => {
   const main = document.querySelector('.main-region') as HTMLElement | null;
@@ -383,7 +384,7 @@ const METRIC_GROUPS = [
 
 - [ ] **Step 2: Render grouped sections**
 
-Replace the flat `.metric-list` mapping with grouped sections. Keep `data-testid={`stat-${metric.key}`}` on each metric row so existing tests continue to work.
+Replace the flat `.metric-list` mapping with grouped sections for MIN through MAX. Render `COST` as a compact `.metric-cost-row` below the three groups. Keep `data-testid={`stat-${metric.key}`}` on each metric row, including `data-testid="stat-COST"`, so existing and new tests can address every metric.
 
 - [ ] **Step 3: Add short metric explanations**
 
@@ -403,11 +404,11 @@ const METRIC_DESCRIPTIONS: Record<string, string> = {
 };
 ```
 
-If the normalized metrics include a cost metric key different from `COST`, use the actual key from the data model.
+The normalized data model already uses `COST`; do not invent another key.
 
 - [ ] **Step 4: Style grouped panel**
 
-Add `.metric-group`, `.metric-group-heading`, `.metric-description`, and compact `.metric-row` styles. Keep row heights stable so all groups fit within 760px.
+Add `.metric-group`, `.metric-group-heading`, `.metric-description`, compact `.metric-row`, and `.metric-cost-row` styles. Keep row heights stable so all three groups plus the cost row fit within 760px.
 
 - [ ] **Step 5: Run e2e**
 

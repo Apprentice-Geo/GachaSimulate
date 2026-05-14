@@ -89,12 +89,16 @@ Marker labels:
 
 ## Statistic Panel
 
-The statistic panel changes from nine equal rows to three grouped sections.
+The statistic panel changes from nine equal rows to three distribution groups plus one compact cost reference row.
 
 Groups:
 - `较优结果`: MIN, P5, P25.
 - `中心位置`: P50, MEAN.
 - `尾部风险`: P75, P95, MAX.
+
+Cost reference:
+- COST / 单抽成本 renders as the ninth metric in a compact row below the distribution groups.
+- COST is not part of the risk distribution groups because it is a price reference, not a draw-count statistic.
 
 Each metric still shows:
 - Name.
@@ -112,7 +116,7 @@ Use two neutral but distinct Sentry-compatible accent colors:
 - Segment A: Violet Link `#6a5fc1`.
 - Segment B: Hot Pink `#fa7faa`.
 
-If only one termination reason exists, it fills the full bar.
+If only one termination reason exists, it fills the full bar with Segment A `#6a5fc1`.
 
 If two reasons exist:
 - Render both proportions directly from input.
