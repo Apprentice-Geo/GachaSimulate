@@ -26,6 +26,48 @@ test('loads fixture from url input and exposes export selectors', async ({ page 
   await expect(page.getByTestId('cdf-chart')).toBeVisible();
   await expect(page.locator('.recharts-surface')).toBeVisible();
   await expect(page.getByTestId('cdf-curve-path')).toHaveAttribute('d', /M/);
+  await expect(page.getByText('累计概率 CDF')).toBeVisible();
+  await expect(page.getByText('较优结果')).toBeVisible();
+  await expect(page.getByText('中心位置')).toBeVisible();
+  await expect(page.getByText('尾部风险')).toBeVisible();
+  await expect(page.getByTestId('stat-COST')).toBeVisible();
+
+  const layout_ratio = await page.evaluate(() => {
+    const chart = document.querySelector('.chart-region') as HTMLElement | null;
+    const stats = document.querySelector('.statistic-panel') as HTMLElement | null;
+    if (!chart || !stats) {
+      return null;
+    }
+    return {
+      chart_width: chart.getBoundingClientRect().width,
+      stats_width: stats.getBoundingClientRect().width,
+    };
+  });
+  expect(layout_ratio).not.toBeNull();
+  expect(layout_ratio!.chart_width).toBeGreaterThan(
+    layout_ratio!.stats_width * 2.6,
+  );
+
+  const marker_contract = await page.evaluate(() => {
+    const mean = document.querySelector('[data-marker-key="MEAN"] .marker-line');
+    const first_marker = document.querySelector('.marker-line');
+    const pk = document.querySelector('.pk-bar[data-segment-count="2"]');
+    if (!mean || !first_marker) {
+      return null;
+    }
+    const marker_style = window.getComputedStyle(first_marker);
+    const pk_style = pk ? window.getComputedStyle(pk) : null;
+    return {
+      mean_stroke: mean.getAttribute('stroke'),
+      marker_dash: marker_style.strokeDasharray,
+      pk_has_diagonal: pk_style?.getPropertyValue('--pk-seam-angle') ?? '',
+    };
+  });
+  expect(marker_contract).not.toBeNull();
+  expect(marker_contract!.mean_stroke).toBe('#952fc6');
+  expect(marker_contract!.marker_dash).not.toBe('none');
+  expect(marker_contract!.marker_dash).not.toBe('1px');
+  expect(marker_contract!.pk_has_diagonal.trim()).toBe('-45deg');
   await expect(page.getByTestId('stat-P50')).toContainText('39');
   await expect(page.getByTestId('termination-bar')).toContainText('exchange');
   await expect(page.getByTestId('replay-animation')).toBeEnabled();
