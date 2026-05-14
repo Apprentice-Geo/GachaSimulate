@@ -278,7 +278,7 @@
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
-  padding: 28px 30px;
+  padding: 22px 20px;
   position: relative;
 }
 
@@ -300,13 +300,46 @@
   font-weight: 700;
   justify-content: space-between;
   letter-spacing: 0.2px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
   text-transform: uppercase;
 }
 
 .metric-list {
   display: grid;
-  gap: 10px;
+  gap: 12px;
+}
+
+.metric-group {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.metric-group-heading {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  height: 20px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.metric-group-heading h2 {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0;
+}
+
+.metric-group-heading span {
+  color: var(--color-text-faint);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .metric-row {
@@ -317,9 +350,15 @@
   border-left: 5px solid var(--metric-color);
   border-radius: 4px;
   display: flex;
-  height: 66px;
+  height: 48px;
   justify-content: space-between;
-  padding: 0 18px;
+  min-width: 0;
+  padding: 0 12px;
+}
+
+.metric-cost-row {
+  height: 42px;
+  margin-top: 2px;
 }
 
 .visualize-page[data-animation-state="primed"] .metric-row {
@@ -333,19 +372,34 @@
 
 .metric-label {
   color: var(--color-text-muted);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
+  line-height: 1;
+}
+
+.metric-copy {
+  min-width: 0;
+}
+
+.metric-description {
+  color: var(--color-text-faint);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  margin-top: 6px;
 }
 
 .metric-value {
   align-items: baseline;
   color: var(--color-text-primary);
   display: flex;
-  gap: 8px;
+  flex: 0 0 auto;
+  gap: 5px;
+  margin-left: 8px;
 }
 
 .metric-value span {
-  font-size: 30px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1;
 }
