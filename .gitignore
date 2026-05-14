@@ -6,6 +6,8 @@ __pycache__/
 /images/
 /data/
 /node_modules/
+/dist/
+/outputs/
 .pytest_cache/
 /playwright-report/
 /test-results/

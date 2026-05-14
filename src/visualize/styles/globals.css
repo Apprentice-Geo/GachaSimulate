@@ -1,0 +1,56 @@
+@font-face {
+  font-family: SourceHanSansSC;
+  font-style: normal;
+  font-weight: 500;
+  src: url("/fonts/SourceHanSansSC-Medium.otf") format("opentype");
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    linear-gradient(90deg, rgba(21, 15, 35, 0.05) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(21, 15, 35, 0.05) 1px, transparent 1px),
+    #e9ebef;
+  background-size: 32px 32px;
+  color: var(--color-sentry-ink);
+  font-family: var(--font-ui);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+#root {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+}
+
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}

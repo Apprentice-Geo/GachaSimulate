@@ -7,7 +7,15 @@
     "doc": "docs",
     "test": "tests"
   },
-  "scripts": {},
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test:visualize:cdf": "tsx src/visualize/test/cdf.test.ts",
+    "test:e2e": "tsx src/visualize/test/run_e2e.ts",
+    "export:cdf": "tsx src/visualize/export/export_cdf.ts"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Apprentice-Geo/MonteCarlo-GachaSimulate.git"

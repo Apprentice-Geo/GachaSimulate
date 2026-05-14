@@ -1,0 +1,88 @@
+import { build_chart_points, build_markers, MARKER_COLORS } from './cdf';
+import type {
+  NormalizedVisualizeData,
+  StatisticKey,
+  StatisticMetric,
+  VisualizeInput,
+} from '../types/visualize_input';
+
+const METRIC_LABELS: Record<StatisticKey, string> = {
+  P5: 'P5',
+  P25: 'P25',
+  P50: 'P50',
+  P75: 'P75',
+  P95: 'P95',
+  MEAN: '均值',
+  MIN: '最小值',
+  MAX: '最大值',
+  COST: '单抽成本',
+};
+
+const METRIC_COLORS: Record<StatisticKey, string> = {
+  P5: MARKER_COLORS.P5,
+  P25: MARKER_COLORS.P25,
+  P50: MARKER_COLORS.P50,
+  P75: MARKER_COLORS.P75,
+  P95: MARKER_COLORS.P95,
+  MEAN: MARKER_COLORS.MEAN,
+  MIN: MARKER_COLORS.MIN,
+  MAX: MARKER_COLORS.MAX,
+  COST: '#150f23',
+};
+
+const METRIC_ORDER: StatisticKey[] = [
+  'P5',
+  'P25',
+  'P50',
+  'P75',
+  'P95',
+  'MEAN',
+  'MIN',
+  'MAX',
+  'COST',
+];
+
+function format_number(value: number, fraction_digits = 0): string {
+  return new Intl.NumberFormat('zh-CN', {
+    maximumFractionDigits: fraction_digits,
+  }).format(value);
+}
+
+function format_metric_value(key: StatisticKey, value: number): string {
+  if (key === 'MEAN') {
+    return format_number(value, Number.isInteger(value) ? 0 : 1);
+  }
+  return format_number(value);
+}
+
+function build_metrics(input: VisualizeInput): StatisticMetric[] {
+  return METRIC_ORDER.map((key) => ({
+    key,
+    label: METRIC_LABELS[key],
+    value: input.statistic[key],
+    display_value: format_metric_value(key, input.statistic[key]),
+    unit: key === 'COST' ? 'RMB' : '抽',
+    color: METRIC_COLORS[key],
+  }));
+}
+
+export function normalize_input(input: VisualizeInput): NormalizedVisualizeData {
+  const chart_points = build_chart_points(input);
+  const max_draw = Math.max(...input.draws, input.statistic.MAX);
+  const x_domain_max = Math.max(1, Math.ceil(max_draw * 1.04));
+
+  return {
+    title: input.title,
+    target: input.target,
+    draw_counts: input.draw_counts,
+    draw_counts_display: format_number(input.draw_counts),
+    note: input.note,
+    timestamp: input.timestamp,
+    chart_points,
+    statistic: input.statistic,
+    metrics: build_metrics(input),
+    markers: build_markers(input),
+    termination_reason: input.termination_reason,
+    x_domain_max,
+  };
+}

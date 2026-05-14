@@ -1,0 +1,26 @@
+:root {
+  --canvas-width: 1920px;
+  --canvas-height: 1080px;
+  --page-margin: 64px;
+  --top-height: 96px;
+  --main-height: 760px;
+  --footer-height: 140px;
+
+  --color-sentry-primary: #150f23;
+  --color-sentry-ink: #1f1633;
+  --color-sentry-muted: #6b6578;
+  --color-sentry-pink: #fa7faa;
+  --color-nvidia-green: #76b900;
+  --color-nvidia-green-dark: #3f8500;
+  --color-cyan: #22d3ee;
+  --color-canvas: #f5f6f8;
+  --color-panel: #ffffff;
+  --color-panel-soft: #f0f2f5;
+  --color-hairline: #d9dce3;
+  --color-hairline-strong: #b8bdc8;
+  --color-danger: #e52020;
+
+  --font-ui: SourceHanSansSC, Rubik, "Segoe UI", sans-serif;
+  --radius-card: 6px;
+  --radius-button: 4px;
+}
