@@ -27,9 +27,9 @@ test('loads fixture from url input and exposes export selectors', async ({ page 
   await expect(page.locator('.recharts-surface')).toBeVisible();
   await expect(page.getByTestId('cdf-curve-path')).toHaveAttribute('d', /M/);
   await expect(page.getByText('累计概率 CDF')).toBeVisible();
-  await expect(page.getByText('较优结果')).toBeVisible();
-  await expect(page.getByText('中心位置')).toBeVisible();
-  await expect(page.getByText('尾部风险')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '较优结果' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '中心位置' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '尾部风险' })).toBeVisible();
   await expect(page.getByTestId('stat-COST')).toBeVisible();
 
   const layout_ratio = await page.evaluate(() => {
