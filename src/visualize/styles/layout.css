@@ -149,8 +149,8 @@
   animation: none;
 }
 
-.cdf-chart-shell .recharts-cartesian-axis-tick text {
-  fill: var(--color-text-muted);
+.cdf-chart-shell .recharts-cartesian-axis-tick-value {
+  fill: var(--color-text-muted) !important;
 }
 
 .cdf-chart-shell .recharts-cartesian-axis-line,
