@@ -13,11 +13,16 @@
   --color-nvidia-green: #76b900;
   --color-nvidia-green-dark: #3f8500;
   --color-cyan: #22d3ee;
-  --color-canvas: #f5f6f8;
-  --color-panel: #ffffff;
-  --color-panel-soft: #f0f2f5;
-  --color-hairline: #d9dce3;
-  --color-hairline-strong: #b8bdc8;
+  --color-canvas: #120d1f;
+  --color-panel: #1b142b;
+  --color-panel-soft: #211936;
+  --color-hairline: #362d59;
+  --color-hairline-strong: #51436f;
+  --color-text-primary: #f7f3ff;
+  --color-text-muted: rgba(247, 243, 255, 0.68);
+  --color-text-faint: rgba(247, 243, 255, 0.42);
+  --color-pk-a: #6a5fc1;
+  --color-pk-b: #fa7faa;
   --color-danger: #e52020;
 
   --font-ui: SourceHanSansSC, Rubik, "Segoe UI", sans-serif;
