@@ -75,6 +75,10 @@ Marker visual weight:
 - P25 and P75 are medium.
 - MIN and P5 are faint.
 
+Marker colors:
+- MEAN uses NVIDIA Accent Purple `#952fc6`.
+- MEAN must not reuse the termination PK bar colors, so the average marker does not appear related to a termination category.
+
 Marker labels:
 - Label placement should follow the intent of `src/simulate/visualize.py:593`: percentile labels sit near the point, to the left and above where possible.
 - MEAN follows the opposite placement: right and below where possible.
