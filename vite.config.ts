@@ -1,10 +1,11 @@
 import react from '@vitejs/plugin-react';
-import { promises as fs } from 'node:fs';
+import { promises as fs, realpathSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 
-const PROJECT_ROOT = process.cwd();
+const PROJECT_ROOT = realpathSync(path.dirname(fileURLToPath(import.meta.url)));
 const INPUT_ENDPOINT = '/__visualize_input';
 
 function is_path_inside(child_path: string, parent_path: string): boolean {
@@ -83,6 +84,7 @@ function visualize_input_plugin(): Plugin {
 }
 
 export default defineConfig({
+  root: PROJECT_ROOT,
   plugins: [react(), visualize_input_plugin()],
   server: {
     host: '127.0.0.1',
