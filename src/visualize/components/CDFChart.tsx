@@ -47,6 +47,7 @@ interface PlotBox {
   top: number;
   width: number;
   height: number;
+  right: number;
   bottom: number;
 }
 
@@ -97,6 +98,30 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+function estimate_label_width(label: string): number {
+  return label.length * 7.2;
+}
+
+function clamp_label_x(
+  x: number,
+  text_anchor: MarkerView['text_anchor'],
+  label_text: string,
+  plot_box: PlotBox,
+): number {
+  const label_width = estimate_label_width(label_text);
+  if (text_anchor === 'end') {
+    return clamp(x, plot_box.left + label_width, plot_box.right - 4);
+  }
+  if (text_anchor === 'start') {
+    return clamp(x, plot_box.left + 4, plot_box.right - label_width);
+  }
+  return clamp(
+    x,
+    plot_box.left + label_width / 2,
+    plot_box.right - label_width / 2,
+  );
+}
+
 function build_marker_views(
   markers: CDFMarker[],
   plot_box: PlotBox | null,
@@ -118,13 +143,28 @@ function build_marker_views(
     p50_x !== null && mean_x !== null && Math.abs(p50_x - mean_x) < 64;
   const mean_is_left = (mean?.draw ?? 0) <= (p50?.draw ?? 0);
 
-  return markers.map((marker) => {
+  const views = markers.map((marker) => {
     const x = plot_box.left + (marker.draw / x_domain_max) * plot_box.width;
     const y =
       plot_box.top + (1 - clamp(marker.level, 0, 1)) * plot_box.height;
-    let label_x = x;
-    let text_anchor: MarkerView['text_anchor'] = 'middle';
+    let label_x = x - 8;
+    let label_y = y - 10;
+    let text_anchor: MarkerView['text_anchor'] = 'end';
     let label_text = marker.label;
+
+    if (marker.key === 'MEAN') {
+      label_x = x + 10;
+      label_y = y + 16;
+      text_anchor = 'start';
+      label_text = ' MEAN';
+    }
+
+    if (marker.key === 'MAX') {
+      label_x = x - 8;
+      label_y = y - 10;
+      text_anchor = 'end';
+      label_text = 'MAX ';
+    }
 
     if (p50_mean_close && marker.key === 'MEAN') {
       label_x = x + (mean_is_left ? -10 : 10);
@@ -143,11 +183,37 @@ function build_marker_views(
       x,
       y,
       label_x,
-      label_y: clamp(y - 12, plot_box.top + 18, plot_box.bottom - 12),
+      label_y,
       text_anchor,
       label_text,
     };
   });
+
+  const sorted_views = [...views].sort((a, b) => a.label_y - b.label_y);
+  sorted_views.forEach((view, index) => {
+    if (index === 0) {
+      return;
+    }
+
+    const previous_view = sorted_views[index - 1];
+    const is_neighboring =
+      Math.abs(view.x - previous_view.x) < 76 &&
+      Math.abs(view.label_y - previous_view.label_y) < 16;
+    if (is_neighboring) {
+      view.label_y += index % 2 === 0 ? 12 : -12;
+    }
+  });
+
+  return views.map((view) => ({
+    ...view,
+    label_x: clamp_label_x(
+      view.label_x,
+      view.text_anchor,
+      view.label_text,
+      plot_box,
+    ),
+    label_y: clamp(view.label_y, plot_box.top + 16, plot_box.bottom - 8),
+  }));
 }
 
 function get_plot_box(size: ElementSize): PlotBox | null {
@@ -168,6 +234,7 @@ function get_plot_box(size: ElementSize): PlotBox | null {
     top,
     width,
     height,
+    right: CHART_MARGIN.left + Y_AXIS_WIDTH + width,
     bottom: top + height,
   };
 }
@@ -229,6 +296,7 @@ export function CDFChart({
         <span>Cumulative Distribution Function</span>
         <span>draws → probability</span>
       </div>
+      <div className="y-axis-title">累计概率 CDF</div>
       {chart_size.width > 0 && chart_size.height > 0 && (
         <LineChart
           data={data.chart_points}
@@ -238,7 +306,11 @@ export function CDFChart({
           syncId="cdf-chart"
           width={chart_size.width}
         >
-          <CartesianGrid stroke="rgba(31, 22, 51, 0.08)" strokeDasharray="1 10" />
+          <CartesianGrid
+            stroke="rgba(247, 243, 255, 0.12)"
+            strokeDasharray="4 10"
+            vertical
+          />
           <XAxis
             allowDecimals={false}
             dataKey="draw"
@@ -283,10 +355,8 @@ export function CDFChart({
           {mean_marker && (
             <line
               className="mean-horizontal-line"
-              pathLength={1}
               stroke={mean_marker.marker.color}
-              strokeDasharray="1"
-              strokeDashoffset="1"
+              strokeDasharray="7 9"
               strokeWidth={get_marker_stroke_width(mean_marker.marker.weight)}
               x1={plot_box.left}
               x2={mean_marker.x}
@@ -298,6 +368,7 @@ export function CDFChart({
           {marker_views.map((view, index) => (
             <g
               className={`marker-group marker-${view.marker.weight}`}
+              data-marker-key={view.marker.key}
               key={view.marker.key}
               style={
                 {
@@ -308,10 +379,8 @@ export function CDFChart({
             >
               <line
                 className="marker-line"
-                pathLength={1}
                 stroke={view.marker.color}
-                strokeDasharray="1"
-                strokeDashoffset="1"
+                strokeDasharray="7 9"
                 strokeWidth={get_marker_stroke_width(view.marker.weight)}
                 x1={view.x}
                 x2={view.x}

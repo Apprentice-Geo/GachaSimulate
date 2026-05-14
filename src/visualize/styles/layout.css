@@ -145,6 +145,20 @@
   z-index: 2;
 }
 
+.y-axis-title {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  left: 24px;
+  letter-spacing: 0.2px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+  transform-origin: center;
+  white-space: nowrap;
+  z-index: 2;
+}
+
 .cdf-chart-shell .recharts-wrapper {
   animation: none;
 }
@@ -159,7 +173,7 @@
 }
 
 .cdf-chart-shell .recharts-cartesian-grid line {
-  stroke: rgba(247, 243, 255, 0.1);
+  stroke: rgba(247, 243, 255, 0.12);
 }
 
 .cdf-chart-shell[data-animating="true"] .recharts-wrapper {
@@ -194,16 +208,19 @@
 
 .marker-line,
 .mean-horizontal-line {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
+  stroke-dasharray: 7 9;
 }
 
 .marker-line {
   animation: none;
+  transform-box: fill-box;
+  transform-origin: bottom center;
 }
 
 .mean-horizontal-line {
   opacity: 0.85;
+  transform-box: fill-box;
+  transform-origin: left center;
 }
 
 .marker-point,
@@ -219,12 +236,10 @@
 .cdf-chart-shell[data-animating="true"] .marker-line {
   animation: marker-line-in 360ms ease-out both;
   animation-delay: calc(1700ms + var(--marker-index) * 42ms);
-  stroke-dashoffset: 1;
 }
 
 .cdf-chart-shell[data-animating="true"] .mean-horizontal-line {
-  animation: marker-line-in 360ms ease-out 1880ms both;
-  stroke-dashoffset: 1;
+  animation: mean-line-in 360ms ease-out 1880ms both;
 }
 
 .cdf-chart-shell[data-animating="true"] .marker-point,
@@ -525,11 +540,22 @@
 @keyframes marker-line-in {
   from {
     opacity: 0;
-    stroke-dashoffset: 1;
+    transform: scaleY(0.35);
   }
   to {
     opacity: 1;
-    stroke-dashoffset: 0;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes mean-line-in {
+  from {
+    opacity: 0;
+    transform: scaleX(0.35);
+  }
+  to {
+    opacity: 0.85;
+    transform: scaleX(1);
   }
 }
 
