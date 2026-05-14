@@ -525,6 +525,7 @@
 }
 
 .pk-bar {
+  --pk-seam-overlap: 12px;
   background: var(--color-panel-soft);
   border: 1px solid var(--color-hairline);
   border-radius: 4px;
@@ -534,9 +535,19 @@
   width: 100%;
 }
 
+.pk-bar[data-segment-count="2"] {
+  --pk-seam-angle: -45deg;
+}
+
 .pk-segment {
   background: var(--segment-color);
   transform-origin: left center;
+}
+
+.pk-segment-diagonal {
+  clip-path: polygon(var(--pk-seam-overlap) 0, 100% 0, 100% 100%, 0 100%);
+  margin-left: calc(var(--pk-seam-overlap) * -1);
+  padding-left: var(--pk-seam-overlap);
 }
 
 .visualize-page[data-animation-state="playing"] .pk-segment {

@@ -8,7 +8,7 @@ interface TerminationBarProps {
 }
 
 function get_segment_color(index: number): string {
-  return index === 0 ? '#76b900' : '#fa7faa';
+  return index === 0 ? '#6a5fc1' : '#fa7faa';
 }
 
 export function TerminationBar({
@@ -35,10 +35,18 @@ export function TerminationBar({
       <div className="termination-bars" data-testid="termination-bar">
         {data ? (
           <>
-            <div className="pk-bar" aria-label="终止原因比例">
+            <div
+              className="pk-bar"
+              data-segment-count={data.termination_reason.length}
+              aria-label="终止原因比例"
+            >
               {data.termination_reason.map((item, index) => (
                 <div
-                  className="pk-segment"
+                  className={
+                    data.termination_reason.length === 2 && index === 1
+                      ? 'pk-segment pk-segment-diagonal'
+                      : 'pk-segment'
+                  }
                   key={item.reason}
                   style={
                     {
