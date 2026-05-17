@@ -1,4 +1,4 @@
-import { chromium } from 'playwright';
+import { chromium, type Browser, type BrowserContext } from 'playwright';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import net from 'node:net';
@@ -180,8 +180,25 @@ async function stop_preview_server(server: ChildProcess) {
     return;
   }
 
-  server.kill();
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  if (process.platform === 'win32' && server.pid) {
+    await new Promise<void>((resolve, reject) => {
+      const taskkill = spawn('taskkill', ['/pid', String(server.pid), '/t', '/f'], {
+        stdio: 'ignore',
+      });
+      taskkill.on('error', reject);
+      taskkill.on('close', () => resolve());
+    });
+  } else {
+    server.kill();
+  }
+
+  await new Promise<void>((resolve) => {
+    const timeout_id = setTimeout(resolve, 1_000);
+    server.once('exit', () => {
+      clearTimeout(timeout_id);
+      resolve();
+    });
+  });
 }
 
 async function export_cdf(input_path: string) {
@@ -202,12 +219,14 @@ async function export_cdf(input_path: string) {
 
   const server = start_preview_server();
   let raw_video_path: string | null = null;
+  let browser: Browser | null = null;
+  let context: BrowserContext | null = null;
 
   try {
     await wait_for_preview_server(server);
 
-    const browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext({
+    browser = await chromium.launch({ headless: true });
+    context = await browser.newContext({
       viewport: VIEWPORT,
       deviceScaleFactor: 1,
       recordVideo: {
@@ -234,7 +253,9 @@ async function export_cdf(input_path: string) {
 
     const video = page.video();
     await context.close();
+    context = null;
     await browser.close();
+    browser = null;
 
     if (!video) {
       throw new Error('Playwright 未生成录屏文件。');
@@ -258,6 +279,12 @@ async function export_cdf(input_path: string) {
   } catch (error) {
     throw error;
   } finally {
+    if (context) {
+      await context.close();
+    }
+    if (browser) {
+      await browser.close();
+    }
     await stop_preview_server(server);
     if (raw_video_path) {
       await rm(raw_video_path, { force: true });
@@ -275,8 +302,12 @@ async function main() {
   await export_cdf(args.input);
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(message);
-  process.exitCode = 1;
-});
+main()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(message);
+    process.exit(1);
+  });

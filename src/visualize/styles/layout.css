@@ -145,11 +145,18 @@
   z-index: 2;
 }
 
+/* 轴标题样式 */
+.axis-title {
+  color: var(--color-text-muted);
+  fill: var(--color-text-muted);
+  font-size: 16px;
+  font-weight: 700;
+}
+
 .y-axis-title {
   color: var(--color-text-muted);
-  font-size: 12px;
-  font-weight: 700;
-  left: 24px;
+  fill: var(--color-text-muted);
+  left: 10px;
   letter-spacing: 0.2px;
   position: absolute;
   top: 50%;
@@ -196,14 +203,11 @@
 }
 
 .marker-overlay {
-  inset: 0;
   pointer-events: none;
-  position: absolute;
-  z-index: 3;
 }
 
 .marker-group {
-  opacity: 1;
+  opacity: var(--marker-opacity);
 }
 
 .marker-line,
@@ -242,30 +246,18 @@
   animation: mean-line-in 360ms ease-out 1880ms both;
 }
 
-.cdf-chart-shell[data-animating="true"] .marker-point,
-.cdf-chart-shell[data-animating="true"] .marker-label,
 .cdf-chart-shell[data-animating="true"] .marker-group {
   animation: marker-fade-in 300ms ease-out both;
   animation-delay: calc(1800ms + var(--marker-index) * 42ms);
 }
 
 .marker-label {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--marker-label-font-size);
+  font-weight: var(--marker-label-font-weight);
   letter-spacing: 0.2px;
-}
-
-.marker-faint {
-  opacity: 0.68;
-}
-
-.marker-normal {
-  opacity: 0.78;
-}
-
-.marker-strong,
-.marker-primary {
-  opacity: 0.94;
+  paint-order: stroke;
+  stroke: rgba(10, 12, 16, 0.72);
+  stroke-width: var(--marker-label-stroke-width);
 }
 
 .visualize-page[data-animation-state="primed"] .marker-group,
@@ -591,8 +583,9 @@
     opacity: 0;
     transform: translateY(6px);
   }
+
   to {
-    opacity: 1;
+    opacity: var(--marker-opacity);
     transform: translateY(0);
   }
 }
@@ -608,6 +601,7 @@
     opacity: 0;
     transform: scaleY(0.35);
   }
+
   to {
     opacity: 1;
     transform: scaleY(1);
@@ -619,6 +613,7 @@
     opacity: 0;
     transform: scaleX(0.35);
   }
+
   to {
     opacity: 0.85;
     transform: scaleX(1);
@@ -630,6 +625,7 @@
     opacity: 0;
     transform: translateY(3px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -641,6 +637,7 @@
     opacity: 0;
     transform: translateX(16px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -652,6 +649,7 @@
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -662,6 +660,7 @@
   from {
     transform: scaleX(0);
   }
+
   to {
     transform: scaleX(1);
   }

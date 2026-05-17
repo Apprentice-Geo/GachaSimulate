@@ -3,10 +3,14 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   CartesianGrid,
   LineChart,
+  usePlotArea,
+  useXAxisScale,
+  useYAxisScale,
   XAxis,
   YAxis,
 } from 'recharts';
-import { get_marker_stroke_width } from '../data/cdf';
+import type { ScaleFunction } from 'recharts';
+import { get_marker_visual } from './cdf_marker_visuals';
 import type {
   CDFMarker,
   NormalizedVisualizeData,
@@ -15,11 +19,19 @@ import type {
 const CHART_MARGIN = {
   top: 58,
   right: 36,
-  bottom: 72,
-  left: 76,
-};
-const Y_AXIS_WIDTH = 60;
-const X_AXIS_HEIGHT = 40;
+  bottom: 34,
+  left: 48,
+};// 控制 Recharts 图表内容相对外层 SVG 的留白
+const Y_AXIS_WIDTH = 54; //  Y 轴宽度
+const X_AXIS_HEIGHT = 52;//  X 轴高度
+const Y_CDF_AXIS_TICKS = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1];
+const QUANTILE_MARKER_LEVELS: Partial<Record<CDFMarker['key'], number>> = {
+  P5: 0.05,
+  P25: 0.25,
+  P50: 0.5,
+  P75: 0.75,
+  P95: 0.95,
+};// 控制分位数 marker 在 Y 轴上的理论位置，确保对齐刻度
 
 interface CDFChartProps {
   data: NormalizedVisualizeData;
@@ -27,10 +39,15 @@ interface CDFChartProps {
   is_animating: boolean;
 }
 
+interface CDFOverlayProps {
+  data: NormalizedVisualizeData;
+  animation_key: number;
+}
+
 interface ElementSize {
   width: number;
   height: number;
-}
+}// 图表容器实际尺寸
 
 interface MarkerView {
   marker: CDFMarker;
@@ -38,7 +55,10 @@ interface MarkerView {
   y: number;
   label_x: number;
   label_y: number;
+  // 文字横向对齐方式
   text_anchor: 'start' | 'middle' | 'end';
+  // 文字纵向对齐方式
+  dominant_baseline: 'auto' | 'hanging' | 'middle' | 'text-after-edge';
   label_text: string;
 }
 
@@ -49,6 +69,13 @@ interface PlotBox {
   height: number;
   right: number;
   bottom: number;
+}
+
+interface ChartPlotArea {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 function use_element_size<T extends HTMLElement>() {
@@ -99,7 +126,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function estimate_label_width(label: string): number {
-  return label.length * 7.2;
+  return label.length * 9.6;
 }
 
 function clamp_label_x(
@@ -124,58 +151,66 @@ function clamp_label_x(
 
 function build_marker_views(
   markers: CDFMarker[],
-  plot_box: PlotBox | null,
-  x_domain_max: number,
+  plot_area: ChartPlotArea | undefined,
+  x_scale: ScaleFunction | undefined,
+  y_scale: ScaleFunction | undefined,
 ): MarkerView[] {
-  if (!plot_box) {
+  if (!plot_area || !x_scale || !y_scale) {
     return [];
   }
 
+  const plot_box: PlotBox = {
+    left: plot_area.x,
+    top: plot_area.y,
+    width: plot_area.width,
+    height: plot_area.height,
+    right: plot_area.x + plot_area.width,
+    bottom: plot_area.y + plot_area.height,
+  };
   const p50 = markers.find((marker) => marker.key === 'P50');
   const mean = markers.find((marker) => marker.key === 'MEAN');
-  const p50_x = p50
-    ? plot_box.left + (p50.draw / x_domain_max) * plot_box.width
-    : null;
-  const mean_x = mean
-    ? plot_box.left + (mean.draw / x_domain_max) * plot_box.width
-    : null;
-  const p50_mean_close =
-    p50_x !== null && mean_x !== null && Math.abs(p50_x - mean_x) < 64;
-  const mean_is_left = (mean?.draw ?? 0) <= (p50?.draw ?? 0);
+  const p50_is_greater_than_mean = (p50?.draw ?? 0) > (mean?.draw ?? 0);
 
-  const views = markers.map((marker) => {
-    const x = plot_box.left + (marker.draw / x_domain_max) * plot_box.width;
-    const y =
-      plot_box.top + (1 - clamp(marker.level, 0, 1)) * plot_box.height;
+  const views = markers.flatMap((marker) => {
+    const x = x_scale(marker.draw);
+    const marker_level = QUANTILE_MARKER_LEVELS[marker.key] ?? marker.level;
+    const y = y_scale(clamp(marker_level, 0, 1));
+    if (x === undefined || y === undefined) {
+      return [];
+    }
+
     let label_x = x - 8;
     let label_y = y - 10;
     let text_anchor: MarkerView['text_anchor'] = 'end';
+    let dominant_baseline: MarkerView['dominant_baseline'] = 'auto';
     let label_text = marker.label;
 
     if (marker.key === 'MEAN') {
-      label_x = x + 10;
-      label_y = y + 16;
-      text_anchor = 'start';
-      label_text = ' MEAN';
+      label_x = x - 14;
+      label_y = y;
+      text_anchor = 'end';
+      dominant_baseline = p50_is_greater_than_mean
+        ? 'hanging'
+        : 'text-after-edge';
+      label_text = 'MEAN ';
     }
 
     if (marker.key === 'MAX') {
-      label_x = x - 8;
-      label_y = y - 10;
+      label_x = x - 12;
+      label_y = y;
       text_anchor = 'end';
+      dominant_baseline = 'text-after-edge';
       label_text = 'MAX ';
     }
 
-    if (p50_mean_close && marker.key === 'MEAN') {
-      label_x = x + (mean_is_left ? -10 : 10);
-      text_anchor = mean_is_left ? 'end' : 'start';
-      label_text = mean_is_left ? 'MEAN ' : ' MEAN';
-    }
-
-    if (p50_mean_close && marker.key === 'P50') {
-      label_x = x + (mean_is_left ? 10 : -10);
-      text_anchor = mean_is_left ? 'start' : 'end';
-      label_text = mean_is_left ? ' P50' : 'P50 ';
+    if (marker.key === 'P50') {
+      label_x = x - 14;
+      label_y = y;
+      text_anchor = 'end';
+      dominant_baseline = p50_is_greater_than_mean
+        ? 'text-after-edge'
+        : 'hanging';
+      label_text = 'P50 ';
     }
 
     return {
@@ -185,6 +220,7 @@ function build_marker_views(
       label_x,
       label_y,
       text_anchor,
+      dominant_baseline,
       label_text,
     };
   });
@@ -212,38 +248,16 @@ function build_marker_views(
       view.label_text,
       plot_box,
     ),
-    label_y: clamp(view.label_y, plot_box.top + 16, plot_box.bottom - 8),
+    label_y: clamp(view.label_y, 24, plot_box.bottom - 8),
   }));
-}
-
-function get_plot_box(size: ElementSize): PlotBox | null {
-  if (size.width <= 0 || size.height <= 0) {
-    return null;
-  }
-
-  const width = size.width - CHART_MARGIN.left - CHART_MARGIN.right - Y_AXIS_WIDTH;
-  const height =
-    size.height - CHART_MARGIN.top - CHART_MARGIN.bottom - X_AXIS_HEIGHT;
-  if (width <= 0 || height <= 0) {
-    return null;
-  }
-
-  const top = CHART_MARGIN.top;
-  return {
-    left: CHART_MARGIN.left + Y_AXIS_WIDTH,
-    top,
-    width,
-    height,
-    right: CHART_MARGIN.left + Y_AXIS_WIDTH + width,
-    bottom: top + height,
-  };
 }
 
 function build_curve_path(
   data: NormalizedVisualizeData,
-  plot_box: PlotBox | null,
+  x_scale: ScaleFunction | undefined,
+  y_scale: ScaleFunction | undefined,
 ): string {
-  if (!plot_box || data.chart_points.length === 0) {
+  if (!x_scale || !y_scale || data.chart_points.length === 0) {
     return '';
   }
 
@@ -251,11 +265,13 @@ function build_curve_path(
   let previous_y = 0;
 
   data.chart_points.forEach((point, index) => {
-    const x = plot_box.left + (point.draw / data.x_domain_max) * plot_box.width;
-    const y =
-      plot_box.top + (1 - clamp(point.cumulative, 0, 1)) * plot_box.height;
+    const x = x_scale(point.draw);
+    const y = y_scale(clamp(point.cumulative, 0, 1));
+    if (x === undefined || y === undefined) {
+      return;
+    }
 
-    if (index === 0) {
+    if (path_segments.length === 0) {
       path_segments.push(`M ${x.toFixed(2)} ${y.toFixed(2)}`);
     } else {
       path_segments.push(`L ${x.toFixed(2)} ${previous_y.toFixed(2)}`);
@@ -268,22 +284,115 @@ function build_curve_path(
   return path_segments.join(' ');
 }
 
+function CDFOverlay({ data, animation_key }: CDFOverlayProps) {
+  const plot_area = usePlotArea();
+  const x_scale = useXAxisScale();
+  const y_scale = useYAxisScale();
+  const marker_views = useMemo(
+    () => build_marker_views(data.markers, plot_area, x_scale, y_scale),
+    [plot_area, x_scale, y_scale, data.markers],
+  );
+  const curve_path = useMemo(
+    () => build_curve_path(data, x_scale, y_scale),
+    [data, x_scale, y_scale],
+  );
+  const mean_marker = marker_views.find((view) => view.marker.key === 'MEAN');
+  const mean_marker_visual = mean_marker
+    ? get_marker_visual(mean_marker.marker.weight)
+    : null;
+
+  if (!plot_area) {
+    return null;
+  }
+
+  return (
+    <g
+      aria-hidden="true"
+      className="marker-overlay"
+      key={`cdf-markers-${animation_key}`}
+    >
+      <path
+        className="cdf-curve-path"
+        d={curve_path}
+        data-testid="cdf-curve-path"
+        fill="none"
+        pathLength={1}
+        stroke="#22d3ee"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={4}
+      />
+      {mean_marker && (
+        <line
+          className="mean-horizontal-line"
+          stroke={mean_marker.marker.color}
+          strokeDasharray="7 9"
+          strokeWidth={mean_marker_visual?.stroke_width}
+          x1={plot_area.x}
+          x2={mean_marker.x}
+          y1={mean_marker.y}
+          y2={mean_marker.y}
+        />
+      )}
+
+      {marker_views.map((view, index) => {
+        const marker_visual = get_marker_visual(view.marker.weight);
+
+        return (
+          <g
+            className="marker-group"
+            data-marker-key={view.marker.key}
+            key={view.marker.key}
+            style={
+              {
+                '--marker-index': index,
+                '--marker-label-font-size': `${marker_visual.label_font_size}px`,
+                '--marker-label-font-weight': marker_visual.label_font_weight,
+                '--marker-label-stroke-width': `${marker_visual.label_stroke_width}px`,
+                '--marker-opacity': marker_visual.opacity,
+              } as CSSProperties
+            }
+          >
+            <line
+              className="marker-line"
+              stroke={view.marker.color}
+              strokeDasharray="7 9"
+              strokeWidth={marker_visual.stroke_width}
+              x1={view.x}
+              x2={view.x}
+              y1={plot_area.y + plot_area.height}
+              y2={view.y}
+            />
+            <circle
+              className="marker-point"
+              cx={view.x}
+              cy={view.y}
+              fill={view.marker.color}
+              r={marker_visual.point_radius}
+            />
+            <text
+              className="marker-label"
+              dominantBaseline={view.dominant_baseline}
+              fill={view.marker.color}
+              textAnchor={view.text_anchor}
+              x={view.label_x}
+              y={view.label_y}
+            >
+              {view.label_text}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 export function CDFChart({
   data,
   animation_key,
   is_animating,
 }: CDFChartProps) {
   const [chart_ref, chart_size] = use_element_size<HTMLDivElement>();
-  const plot_box = useMemo(() => get_plot_box(chart_size), [chart_size]);
-  const marker_views = useMemo(
-    () => build_marker_views(data.markers, plot_box, data.x_domain_max),
-    [plot_box, data.markers, data.x_domain_max],
-  );
-  const curve_path = useMemo(
-    () => build_curve_path(data, plot_box),
-    [data, plot_box],
-  );
-  const mean_marker = marker_views.find((view) => view.marker.key === 'MEAN');
 
   return (
     <div
@@ -292,11 +401,8 @@ export function CDFChart({
       data-testid="cdf-chart"
       data-animating={is_animating}
     >
-      <div className="chart-frame-label">
-        <span>Cumulative Distribution Function</span>
-        <span>draws → probability</span>
-      </div>
-      <div className="y-axis-title">累计概率 CDF</div>
+      {/* Keep the Y-axis title outside Recharts so its rotated position stays stable in the responsive shell. */}
+      <div className="y-axis-title">成功概率</div>
       {chart_size.width > 0 && chart_size.height > 0 && (
         <LineChart
           data={data.chart_points}
@@ -316,96 +422,32 @@ export function CDFChart({
             dataKey="draw"
             domain={[0, data.x_domain_max]}
             stroke="#4c4658"
-            tick={{ fill: '#4c4658', fontSize: 14 }}
+            tick={{ fill: '#4c4658', fontSize: 16 }}
             tickFormatter={format_draw}
             height={X_AXIS_HEIGHT}
+            label={{
+              value: '累计抽数',
+              position: 'insideBottom',
+              offset: -5,
+              className: 'axis-title',
+            }}
             tickLine={{ stroke: '#c9cbd2' }}
             type="number"
           />
           <YAxis
+            dataKey="cumulative"
             domain={[0, 1]}
             stroke="#4c4658"
-            tick={{ fill: '#4c4658', fontSize: 14 }}
+            tick={{ fill: '#b8bcc6', fontSize: 14 }}
             tickFormatter={format_percent}
+            ticks={Y_CDF_AXIS_TICKS}
+            tickMargin={10}
             tickLine={{ stroke: '#c9cbd2' }}
+            type="number"
             width={Y_AXIS_WIDTH}
           />
+          <CDFOverlay data={data} animation_key={animation_key} />
         </LineChart>
-      )}
-
-      {chart_size.width > 0 && chart_size.height > 0 && plot_box && (
-        <svg
-          aria-hidden="true"
-          className="marker-overlay"
-          height={chart_size.height}
-          key={`cdf-markers-${animation_key}`}
-          width={chart_size.width}
-        >
-          <path
-            className="cdf-curve-path"
-            d={curve_path}
-            data-testid="cdf-curve-path"
-            fill="none"
-            pathLength={1}
-            stroke="#22d3ee"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={4}
-          />
-          {mean_marker && (
-            <line
-              className="mean-horizontal-line"
-              stroke={mean_marker.marker.color}
-              strokeDasharray="7 9"
-              strokeWidth={get_marker_stroke_width(mean_marker.marker.weight)}
-              x1={plot_box.left}
-              x2={mean_marker.x}
-              y1={mean_marker.y}
-              y2={mean_marker.y}
-            />
-          )}
-
-          {marker_views.map((view, index) => (
-            <g
-              className={`marker-group marker-${view.marker.weight}`}
-              data-marker-key={view.marker.key}
-              key={view.marker.key}
-              style={
-                {
-                  '--marker-color': view.marker.color,
-                  '--marker-index': index,
-                } as CSSProperties
-              }
-            >
-              <line
-                className="marker-line"
-                stroke={view.marker.color}
-                strokeDasharray="7 9"
-                strokeWidth={get_marker_stroke_width(view.marker.weight)}
-                x1={view.x}
-                x2={view.x}
-                y1={plot_box.bottom}
-                y2={view.y}
-              />
-              <circle
-                className="marker-point"
-                cx={view.x}
-                cy={view.y}
-                fill={view.marker.color}
-                r={view.marker.weight === 'primary' ? 5 : 3.8}
-              />
-              <text
-                className="marker-label"
-                fill={view.marker.color}
-                textAnchor={view.text_anchor}
-                x={view.label_x}
-                y={view.label_y}
-              >
-                {view.label_text}
-              </text>
-            </g>
-          ))}
-        </svg>
       )}
     </div>
   );

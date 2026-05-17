@@ -16,17 +16,6 @@ export const MARKER_COLORS: Record<MarkerKey, string> = {
   MAX: '#e52020',
 };
 
-const MARKER_WEIGHTS: Record<CDFMarker['weight'], number> = {
-  faint: 1,
-  normal: 1.25,
-  strong: 1.6,
-  primary: 2,
-};
-
-export function get_marker_stroke_width(weight: CDFMarker['weight']): number {
-  return MARKER_WEIGHTS[weight];
-}
-
 export function get_cdf_level_at_draw(points: CDFPoint[], draw: number): number {
   if (points.length === 0) {
     return 0;

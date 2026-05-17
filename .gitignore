@@ -13,6 +13,7 @@ __pycache__/
 /test-results/
 .worktrees/
 .coverage
+.superpowers/
 
 # Playwright
 /playwright-report/
