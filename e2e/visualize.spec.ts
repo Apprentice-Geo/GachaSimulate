@@ -14,6 +14,17 @@ test('shows empty state before data import', async ({ page }) => {
 });
 
 test('loads fixture from url input and exposes export selectors', async ({ page }) => {
+  await page.route('**/__visualize_input?**', async (route) => {
+    const response = await route.fetch();
+    const input = await response.json();
+    await route.fulfill({
+      json: {
+        ...input,
+        note: '测试用底部说明',
+      },
+    });
+  });
+
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
     waitUntil: 'networkidle',
   });
@@ -26,8 +37,8 @@ test('loads fixture from url input and exposes export selectors', async ({ page 
   await expect(page.getByTestId('cdf-chart')).toBeVisible();
   await expect(page.locator('.recharts-surface')).toBeVisible();
   await expect(page.getByTestId('cdf-curve-path')).toHaveAttribute('d', /M/);
-  await expect(page.getByText('累计概率 CDF')).toBeVisible();
-  await expect(page.getByText('抽数', { exact: true })).toBeVisible();
+  await expect(page.getByText('成功概率')).toBeVisible();
+  await expect(page.getByText('累计抽数')).toBeVisible();
   const y_axis_ticks = await page
     .locator('.recharts-cartesian-axis-tick-value')
     .evaluateAll((ticks) =>
@@ -40,21 +51,84 @@ test('loads fixture from url input and exposes export selectors', async ({ page 
   await expect(page.getByRole('heading', { name: '中心位置' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '尾部风险' })).toBeVisible();
   await expect(page.getByTestId('stat-COST')).toBeVisible();
+  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
+    'data-animation-state',
+    'idle',
+    { timeout: 5000 },
+  );
 
-  const layout_ratio = await page.evaluate(() => {
+  const layout_contract = await page.evaluate(() => {
     const chart = document.querySelector('.chart-region') as HTMLElement | null;
     const stats = document.querySelector('.statistic-panel') as HTMLElement | null;
-    if (!chart || !stats) {
+    const pk = document.querySelector('.pk-bar') as HTMLElement | null;
+    const termination = document.querySelector(
+      '.termination-region',
+    ) as HTMLElement | null;
+    const page = document.querySelector('.visualize-page') as HTMLElement | null;
+    const main = document.querySelector('.main-region') as HTMLElement | null;
+    const note = document.querySelector('.page-note') as HTMLElement | null;
+    if (!chart || !stats || !pk || !termination || !page || !main || !note) {
       return null;
     }
+    const page_rect = page.getBoundingClientRect();
+    const main_rect = main.getBoundingClientRect();
+    const chart_rect = chart.getBoundingClientRect();
+    const stats_rect = stats.getBoundingClientRect();
+    const termination_rect = termination.getBoundingClientRect();
+    const pk_rect = pk.getBoundingClientRect();
+    const note_rect = note.getBoundingClientRect();
     return {
-      chart_width: chart.getBoundingClientRect().width,
-      stats_width: stats.getBoundingClientRect().width,
+      chart_width: chart_rect.width,
+      stats_width: stats_rect.width,
+      chart_left: chart_rect.left,
+      chart_right: chart_rect.right,
+      main_bottom: main_rect.bottom,
+      note_center_x: note_rect.left + note_rect.width / 2,
+      note_top: note_rect.top,
+      page_center_x: page_rect.left + page_rect.width / 2,
+      page_bottom: page_rect.bottom,
+      pk_width: pk_rect.width,
+      termination_left: termination_rect.left,
+      termination_right: termination_rect.right,
+      termination_width: termination_rect.width,
+      stats_top: stats_rect.top,
+      stats_bottom: stats_rect.bottom,
+      chart_top: chart_rect.top,
+      termination_bottom: termination_rect.bottom,
     };
   });
-  expect(layout_ratio).not.toBeNull();
-  expect(layout_ratio!.chart_width).toBeGreaterThan(
-    layout_ratio!.stats_width * 2.6,
+  expect(layout_contract).not.toBeNull();
+  expect(layout_contract!.chart_width).toBeGreaterThan(
+    layout_contract!.stats_width * 2.6,
+  );
+  expect(layout_contract!.termination_left).toBeCloseTo(
+    layout_contract!.chart_left,
+    1,
+  );
+  expect(layout_contract!.termination_right).toBeCloseTo(
+    layout_contract!.chart_right,
+    1,
+  );
+  expect(layout_contract!.stats_top).toBeCloseTo(layout_contract!.chart_top, 1);
+  expect(layout_contract!.stats_bottom).toBeCloseTo(
+    layout_contract!.termination_bottom,
+    1,
+  );
+  expect(layout_contract!.note_top).toBeGreaterThan(
+    layout_contract!.main_bottom,
+  );
+  expect(layout_contract!.page_bottom).toBeGreaterThan(
+    layout_contract!.note_top,
+  );
+  expect(layout_contract!.page_bottom - layout_contract!.main_bottom).toBeGreaterThan(
+    32,
+  );
+  expect(layout_contract!.note_center_x).toBeCloseTo(
+    layout_contract!.page_center_x,
+    1,
+  );
+  expect(layout_contract!.pk_width).toBeGreaterThan(
+    layout_contract!.termination_width * 0.85,
   );
 
   const marker_contract = await page.evaluate(() => {
@@ -78,7 +152,10 @@ test('loads fixture from url input and exposes export selectors', async ({ page 
   expect(marker_contract!.marker_dash).not.toBe('1px');
   expect(marker_contract!.pk_has_diagonal.trim()).toBe('-45deg');
   await expect(page.getByTestId('stat-P50')).toContainText('39');
+  await expect(page.getByTestId('termination-bar')).toBeVisible();
   await expect(page.getByTestId('termination-bar')).toContainText('exchange');
+  await expect(page.getByTestId('termination-bar')).toContainText('96%');
+  await expect(page.getByText('测试用底部说明')).toBeVisible();
   await expect(page.getByTestId('replay-animation')).toBeEnabled();
 });
 

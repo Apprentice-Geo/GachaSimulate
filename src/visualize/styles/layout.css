@@ -8,7 +8,7 @@
   color: var(--color-text-primary);
   height: var(--canvas-height);
   overflow: hidden;
-  padding: var(--page-margin) var(--page-margin) 20px;
+  padding: var(--page-margin) var(--page-margin) 28px;
   position: relative;
   box-shadow: inset 0 1px 0 rgba(247, 243, 255, 0.04);
   width: var(--canvas-width);
@@ -104,10 +104,21 @@
   display: grid;
   gap: 32px;
   grid-template-columns: minmax(0, 75fr) minmax(0, 25fr);
-  height: var(--main-height);
+  height: calc(var(--main-height) + 20px + var(--footer-height) - 60px);
+}
+
+.primary-region {
+  display: grid;
+  gap: 20px;
+  grid-template-rows: minmax(0, 1fr) var(--footer-height);
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
 }
 
 .chart-region {
+  height: 100%;
+  min-height: 0;
   min-width: 0;
   position: relative;
 }
@@ -268,6 +279,7 @@
 .statistic-panel {
   display: flex;
   flex-direction: column;
+  height: 100%;
   min-width: 0;
   overflow: hidden;
   padding: 22px 20px;
@@ -485,7 +497,6 @@
   gap: 34px;
   grid-template-columns: 36fr 64fr;
   height: var(--footer-height);
-  margin-top: 20px;
   padding: 24px 28px;
 }
 
@@ -505,15 +516,20 @@
 }
 
 .termination-copy p,
-.chart-note {
+.page-note {
   color: var(--color-text-muted);
   font-size: 12px;
   line-height: 1.45;
+}
+
+.termination-copy p {
   margin: 8px 0 0;
 }
 
 .termination-bars {
+  grid-column: 1 / -1;
   min-width: 0;
+  width: 100%;
 }
 
 .pk-bar {
@@ -576,6 +592,12 @@
   display: inline-block;
   height: 10px;
   width: 10px;
+}
+
+.page-note {
+  margin: 14px auto 0;
+  max-width: 960px;
+  text-align: center;
 }
 
 @keyframes page-fade-in {

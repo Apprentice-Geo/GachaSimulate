@@ -2,7 +2,7 @@
     "title": "抽卡模拟 CDF 分析",
     "target": "未设置",
     "draw_counts": 100000001,
-    "note": "",
+    "note": "note example",
     "statistic": {
         "P5": 27,
         "P25": 35,

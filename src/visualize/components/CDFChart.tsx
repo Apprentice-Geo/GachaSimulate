@@ -179,8 +179,8 @@ function build_marker_views(
       return [];
     }
 
-    let label_x = x - 8;
-    let label_y = y - 10;
+    // 默认标签位置在标注点的左上方
+    let label_x = x - 8, label_y = y - 10;
     let text_anchor: MarkerView['text_anchor'] = 'end';
     let dominant_baseline: MarkerView['dominant_baseline'] = 'auto';
     let label_text = marker.label;
@@ -197,7 +197,7 @@ function build_marker_views(
 
     if (marker.key === 'MAX') {
       label_x = x - 12;
-      label_y = y;
+      label_y = y - 10;
       text_anchor = 'end';
       dominant_baseline = 'text-after-edge';
       label_text = 'MAX ';

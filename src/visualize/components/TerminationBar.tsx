@@ -22,15 +22,6 @@ export function TerminationBar({
       data-ready={is_ready}
       key={`termination-${animation_key}`}
     >
-      <div className="termination-copy">
-        <div className="section-kicker">TERMINATION</div>
-        <h2>{data ? data.target : '模拟目标'}</h2>
-        <p>
-          {data
-            ? '终止原因比例根据模拟器输出直接呈现。'
-            : '导入数据后显示终止原因和比例。'}
-        </p>
-      </div>
 
       <div className="termination-bars" data-testid="termination-bar">
         {data ? (
@@ -69,7 +60,6 @@ export function TerminationBar({
                 </div>
               ))}
             </div>
-            {data.note && <p className="chart-note">{data.note}</p>}
           </>
         ) : (
           <div className="pk-bar pk-bar-empty" aria-hidden="true" />

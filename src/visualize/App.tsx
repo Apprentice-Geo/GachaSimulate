@@ -129,19 +129,26 @@ export default function App() {
       />
 
       <section className="main-region" aria-label="CDF 可视化主体">
-        <div className="chart-region">
-          {state.status === 'idle' && <EmptyState />}
-          {state.status === 'loading' && <LoadingState />}
-          {state.status === 'error' && (
-            <ErrorState message={state.message} on_file_import={handle_file_import} />
-          )}
-          {state.status === 'ready' && (
-            <CDFChart
-              data={state.data}
-              animation_key={animation_key}
-              is_animating={is_animating}
-            />
-          )}
+        <div className="primary-region">
+          <div className="chart-region">
+            {state.status === 'idle' && <EmptyState />}
+            {state.status === 'loading' && <LoadingState />}
+            {state.status === 'error' && (
+              <ErrorState message={state.message} on_file_import={handle_file_import} />
+            )}
+            {state.status === 'ready' && (
+              <CDFChart
+                data={state.data}
+                animation_key={animation_key}
+                is_animating={is_animating}
+              />
+            )}
+          </div>
+          <TerminationBar
+            data={data}
+            animation_key={animation_key}
+            is_ready={state.status === 'ready'}
+          />
         </div>
         <StatisticPanel
           data={data}
@@ -150,11 +157,7 @@ export default function App() {
         />
       </section>
 
-      <TerminationBar
-        data={data}
-        animation_key={animation_key}
-        is_ready={state.status === 'ready'}
-      />
+      {data?.note && <p className="page-note">{data.note}</p>}
     </main>
   );
 }
