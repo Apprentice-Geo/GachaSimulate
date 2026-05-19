@@ -15,6 +15,10 @@ import type {
   CDFMarker,
   NormalizedVisualizeData,
 } from '../types/visualize_input';
+import {
+  CDF_CHART_VIEW_CONFIG,
+  CDF_MARKER_VIEW_CONFIG,
+} from '../view/cdf_view_config';
 
 const CHART_MARGIN = {
   top: 58,
@@ -25,14 +29,6 @@ const CHART_MARGIN = {
 const Y_AXIS_WIDTH = 54; //  Y 轴宽度
 const X_AXIS_HEIGHT = 52;//  X 轴高度
 const Y_CDF_AXIS_TICKS = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1];
-const QUANTILE_MARKER_LEVELS: Partial<Record<CDFMarker['key'], number>> = {
-  P5: 0.05,
-  P25: 0.25,
-  P50: 0.5,
-  P75: 0.75,
-  P95: 0.95,
-};// 控制分位数 marker 在 Y 轴上的理论位置，确保对齐刻度
-
 interface CDFChartProps {
   data: NormalizedVisualizeData;
   animation_key: number;
@@ -173,7 +169,8 @@ function build_marker_views(
 
   const views = markers.flatMap((marker) => {
     const x = x_scale(marker.draw);
-    const marker_level = QUANTILE_MARKER_LEVELS[marker.key] ?? marker.level;
+    const marker_level =
+      CDF_MARKER_VIEW_CONFIG[marker.key].quantile_level ?? marker.level;
     const y = y_scale(clamp(marker_level, 0, 1));
     if (x === undefined || y === undefined) {
       return [];
@@ -317,7 +314,7 @@ function CDFOverlay({ data, animation_key }: CDFOverlayProps) {
         data-testid="cdf-curve-path"
         fill="none"
         pathLength={1}
-        stroke="#22d3ee"
+        stroke={CDF_CHART_VIEW_CONFIG.curve_color}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={4}
@@ -413,7 +410,7 @@ export function CDFChart({
           width={chart_size.width}
         >
           <CartesianGrid
-            stroke="rgba(247, 243, 255, 0.12)"
+            stroke={CDF_CHART_VIEW_CONFIG.grid_color}
             strokeDasharray="4 10"
             vertical
           />
@@ -421,8 +418,8 @@ export function CDFChart({
             allowDecimals={false}
             dataKey="draw"
             domain={[0, data.x_domain_max]}
-            stroke="#4c4658"
-            tick={{ fill: '#4c4658', fontSize: 16 }}
+            stroke={CDF_CHART_VIEW_CONFIG.axis_color}
+            tick={{ fill: CDF_CHART_VIEW_CONFIG.x_tick_color, fontSize: 16 }}
             tickFormatter={format_draw}
             height={X_AXIS_HEIGHT}
             label={{
@@ -431,18 +428,18 @@ export function CDFChart({
               offset: -5,
               className: 'axis-title',
             }}
-            tickLine={{ stroke: '#c9cbd2' }}
+            tickLine={{ stroke: CDF_CHART_VIEW_CONFIG.axis_tick_color }}
             type="number"
           />
           <YAxis
             dataKey="cumulative"
             domain={[0, 1]}
-            stroke="#4c4658"
-            tick={{ fill: '#b8bcc6', fontSize: 14 }}
+            stroke={CDF_CHART_VIEW_CONFIG.axis_color}
+            tick={{ fill: CDF_CHART_VIEW_CONFIG.y_tick_color, fontSize: 14 }}
             tickFormatter={format_percent}
             ticks={Y_CDF_AXIS_TICKS}
             tickMargin={10}
-            tickLine={{ stroke: '#c9cbd2' }}
+            tickLine={{ stroke: CDF_CHART_VIEW_CONFIG.axis_tick_color }}
             type="number"
             width={Y_AXIS_WIDTH}
           />

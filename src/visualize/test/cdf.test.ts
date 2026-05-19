@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { MARKER_COLORS, get_cdf_level_at_draw } from '../data/cdf';
+import { get_cdf_level_at_draw } from '../data/cdf';
 import { MARKER_VISUALS } from '../components/cdf_marker_visuals';
+import { CDF_MARKER_VIEW_CONFIG } from '../view/cdf_view_config';
 
 const sparse_points = [
   { draw: 1, cumulative: 0.2 },
@@ -11,7 +12,8 @@ assert.equal(get_cdf_level_at_draw(sparse_points, 1), 0.2);
 assert.equal(get_cdf_level_at_draw(sparse_points, 50), 0.2);
 assert.equal(get_cdf_level_at_draw(sparse_points, 100), 0.8);
 assert.equal(get_cdf_level_at_draw(sparse_points, 101), 0.8);
-assert.equal(MARKER_COLORS.MEAN, '#952fc6');
+assert.equal(CDF_MARKER_VIEW_CONFIG.MEAN.color, 'var(--color-cdf-marker-mean)');
+assert.equal(CDF_MARKER_VIEW_CONFIG.P50.weight, 'primary');
 assert.ok(MARKER_VISUALS.primary.opacity > MARKER_VISUALS.faint.opacity);
 assert.ok(
   MARKER_VISUALS.primary.stroke_width > MARKER_VISUALS.faint.stroke_width,

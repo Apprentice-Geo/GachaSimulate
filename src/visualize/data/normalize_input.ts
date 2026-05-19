@@ -1,10 +1,11 @@
-import { build_chart_points, build_markers, MARKER_COLORS } from './cdf';
+import { build_chart_points } from './cdf';
 import type {
   NormalizedVisualizeData,
   StatisticKey,
   StatisticMetric,
   VisualizeInput,
 } from '../types/visualize_input';
+import { build_markers, get_metric_color } from '../view/cdf_view_model';
 
 // 这里控制核心统计量区域实际显示的文字
 const METRIC_LABELS: Record<StatisticKey, string> = {
@@ -17,18 +18,6 @@ const METRIC_LABELS: Record<StatisticKey, string> = {
   MIN: 'MIN',
   MAX: 'MAX',
   COST: 'COST',
-};
-
-const METRIC_COLORS: Record<StatisticKey, string> = {
-  P5: MARKER_COLORS.P5,
-  P25: MARKER_COLORS.P25,
-  P50: MARKER_COLORS.P50,
-  P75: MARKER_COLORS.P75,
-  P95: MARKER_COLORS.P95,
-  MEAN: MARKER_COLORS.MEAN,
-  MIN: MARKER_COLORS.MIN,
-  MAX: MARKER_COLORS.MAX,
-  COST: '#150f23',
 };
 
 const METRIC_ORDER: StatisticKey[] = [
@@ -63,7 +52,7 @@ function build_metrics(input: VisualizeInput): StatisticMetric[] {
     value: input.statistic[key],
     display_value: format_metric_value(key, input.statistic[key]),
     unit: key === 'COST' ? 'RMB' : '抽',
-    color: METRIC_COLORS[key],
+    color: get_metric_color(key),
   }));
 }
 

@@ -72,6 +72,12 @@ export interface CDFMarker {
   weight: 'faint' | 'normal' | 'strong' | 'primary';
 }
 
+export interface CDFMarkerDatum {
+  key: MarkerKey;
+  draw: number;
+  level: number;
+}
+
 export interface NormalizedVisualizeData {
   title: string;
   target: string;

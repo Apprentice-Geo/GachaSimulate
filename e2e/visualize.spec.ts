@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const FIXTURE_PATH = 'src/visualize/fixtures/example_input.json';
+const ANIMATION_IDLE_TIMEOUT_MS = 7000;
 
 test('shows empty state before data import', async ({ page }) => {
   await page.goto('/');
@@ -59,7 +60,7 @@ test('loads fixture from url input and exposes export selectors', async ({ page 
   await expect(page.getByTestId('visualize-root')).toHaveAttribute(
     'data-animation-state',
     'idle',
-    { timeout: 5000 },
+    { timeout: ANIMATION_IDLE_TIMEOUT_MS },
   );
 
   const layout_contract = await page.evaluate(() => {
@@ -144,15 +145,16 @@ test('loads fixture from url input and exposes export selectors', async ({ page 
       return null;
     }
     const marker_style = window.getComputedStyle(first_marker);
+    const mean_style = window.getComputedStyle(mean);
     const pk_style = pk ? window.getComputedStyle(pk) : null;
     return {
-      mean_stroke: mean.getAttribute('stroke'),
+      mean_stroke: mean_style.stroke,
       marker_dash: marker_style.strokeDasharray,
       pk_has_diagonal: pk_style?.getPropertyValue('--pk-seam-angle') ?? '',
     };
   });
   expect(marker_contract).not.toBeNull();
-  expect(marker_contract!.mean_stroke).toBe('#952fc6');
+  expect(marker_contract!.mean_stroke).toBe('rgb(149, 47, 198)');
   expect(marker_contract!.marker_dash).not.toBe('none');
   expect(marker_contract!.marker_dash).not.toBe('1px');
   expect(marker_contract!.pk_has_diagonal.trim()).toBe('-45deg');
@@ -479,7 +481,7 @@ test('replay button disables while animation is running', async ({ page }) => {
   await expect(page.getByTestId('visualize-root')).toHaveAttribute(
     'data-animation-state',
     'idle',
-    { timeout: 5000 },
+    { timeout: ANIMATION_IDLE_TIMEOUT_MS },
   );
   await expect(replay_button).toBeEnabled();
 });

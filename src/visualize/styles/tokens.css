@@ -24,6 +24,19 @@
   --color-pk-a: #6a5fc1;
   --color-pk-b: #fa7faa;
   --color-danger: #e52020;
+  --color-cdf-line: var(--color-cyan);
+  --color-cdf-grid: rgba(247, 243, 255, 0.12);
+  --color-cdf-axis: #4c4658;
+  --color-cdf-axis-muted: #b8bcc6;
+  --color-cdf-axis-tick: #c9cbd2;
+  --color-cdf-marker-min: var(--color-nvidia-green-dark);
+  --color-cdf-marker-p5: var(--color-nvidia-green-dark);
+  --color-cdf-marker-p25: var(--color-nvidia-green);
+  --color-cdf-marker-p50: #bff230;
+  --color-cdf-marker-mean: #952fc6;
+  --color-cdf-marker-p75: #ef9100;
+  --color-cdf-marker-p95: #df6500;
+  --color-cdf-marker-max: var(--color-danger);
 
   --font-ui: SourceHanSansSC, Rubik, "Segoe UI", sans-serif;
   --radius-card: 6px;
