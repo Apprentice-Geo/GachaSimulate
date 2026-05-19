@@ -15,16 +15,12 @@ export function TopBar({
   on_file_import,
   on_replay,
 }: TopBarProps) {
-  const cost_metric = data?.metrics.find((metric) => metric.key === 'COST');
   const metadata = data
     ? [
         `模拟目标：${data.target}`,
         `实际模拟抽数：${data.draw_counts_display}`,
-        cost_metric
-          ? `单抽成本: ${cost_metric.display_value} ${cost_metric.unit}`
-          : null,
+        `单抽成本: ${data.cost.display_value} ${data.cost.unit}`,
       ]
-        .filter(Boolean)
         .join(' · ')
     : '导入模拟器输出 JSON 后生成结果页面';
 

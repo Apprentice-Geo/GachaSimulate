@@ -3,51 +3,17 @@ import type {
   NormalizedVisualizeData,
   StatisticMetric,
 } from '../types/visualize_input';
+import {
+  DISTRIBUTION_STATISTIC_GROUPS,
+  STATISTIC_VIEW_CONFIG,
+} from '../view/statistic_view_config';
+import type { DistributionStatisticKey } from '../view/statistic_view_config';
 
 interface StatisticPanelProps {
   data: NormalizedVisualizeData | null;
   animation_key: number;
   is_ready: boolean;
 }
-
-type DistributionStatisticKey =
-  | 'MIN'
-  | 'P5'
-  | 'P25'
-  | 'P50'
-  | 'MEAN'
-  | 'P75'
-  | 'P95'
-  | 'MAX';
-
-const METRIC_GROUPS = [
-  {
-    title: '低抽数区间',
-    keys: ['MIN', 'P5', 'P25'],
-  },
-  {
-    title: '中抽数区间',
-    keys: ['P50', 'MEAN'],
-  },
-  {
-    title: '高抽数区间',
-    keys: ['P75', 'P95', 'MAX'],
-  },
-] as const satisfies readonly {
-  title: string;
-  keys: readonly DistributionStatisticKey[];
-}[];
-
-const METRIC_DESCRIPTIONS: Record<DistributionStatisticKey, string> = {
-  MIN: '本次模拟达成抽数最小值',
-  P5: '5% 模拟在此抽数内达成',
-  P25: '25% 模拟在此抽数内达成',
-  P50: '50% 模拟在此抽数内达成',
-  MEAN: '所有模拟结果的平均抽数',
-  P75: '75% 模拟在此抽数内达成',
-  P95: '95% 模拟在此抽数内达成',
-  MAX: '本次模拟达成抽数最大值',
-};
 
 function order_metric_keys(
   keys: readonly DistributionStatisticKey[],
@@ -119,7 +85,7 @@ export function StatisticPanel({
   const metrics_by_key = new Map(
     data?.metrics.map((metric) => [metric.key, metric]),
   );
-  const visible_metric_groups = METRIC_GROUPS.map((group) => ({
+  const visible_metric_groups = DISTRIBUTION_STATISTIC_GROUPS.map((group) => ({
     ...group,
     keys: order_metric_keys(group.keys, metrics_by_key).filter((key) =>
       metrics_by_key.has(key),
@@ -167,7 +133,7 @@ export function StatisticPanel({
                 }
                 return (
                   <MetricRow
-                    description={METRIC_DESCRIPTIONS[key]}
+                    description={STATISTIC_VIEW_CONFIG[key].description}
                     index={display_index_by_key.get(key) ?? 0}
                     key={metric.key}
                     metric={metric}
@@ -179,8 +145,13 @@ export function StatisticPanel({
         </div>
       ) : (
         <div className="metric-placeholder" aria-hidden="true">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <div className="placeholder-line" key={index} />
+          {DISTRIBUTION_STATISTIC_GROUPS.map((group) => (
+            <div className="metric-placeholder-group" key={group.title}>
+              <div className="placeholder-heading" />
+              {group.keys.map((key) => (
+                <div className="placeholder-line" key={key} />
+              ))}
+            </div>
           ))}
         </div>
       )}

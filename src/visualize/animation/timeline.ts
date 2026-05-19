@@ -10,7 +10,7 @@ export const ANIMATION_TIMELINE = {
   CHART_SURFACE_DURATION_MS: 200, // Recharts 坐标轴、网格和刻度浮现持续时间
   CURVE_DELAY_MS: 900, // CDF 阶梯曲线开始绘制的时间
   CURVE_DURATION_MS: 800, // CDF 阶梯曲线绘制持续时间
-  MARKER_LINE_DELAY_MS: 1600, // 分位数竖向标注线开始出现的时间
+  MARKER_LINE_DELAY_MS: 1700, // 分位数竖向标注线开始出现的时间
   MARKER_LINE_DURATION_MS: 300, // 分位数竖向标注线伸展持续时间
   MARKER_GROUP_DELAY_MS: 1900, // 分位数标注点和文字开始浮现的时间
   MARKER_GROUP_DURATION_MS: 200, // 分位数标注点和文字浮现持续时间
@@ -28,6 +28,6 @@ export const ANIMATION_TIMELINE = {
   STAT_CONTENT_DELAY_MS: 3300, // 核心统计量列表内容开始自上而下浮现的时间
   STAT_CONTENT_DURATION_MS: 200, // 单个统计量卡片浮现持续时间
   STAT_CONTENT_STAGGER_MS: 50, // 核心统计量列表内容之间的错峰间隔
-  NOTE_DELAY_MS: 3700, // 底部注释在其它组件浮现完成后开始浮现的时间
-  NOTE_DURATION_MS: 300, // 底部注释浮现持续时间
+  NOTE_DELAY_MS: 4000, // 底部注释在其它组件浮现完成后开始浮现的时间
+  NOTE_DURATION_MS: 200, // 底部注释浮现持续时间
 } as const;

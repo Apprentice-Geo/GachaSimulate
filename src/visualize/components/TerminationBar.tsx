@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { NormalizedVisualizeData } from '../types/visualize_input';
+import { TERMINATION_REASON_VIEW_CONFIG } from '../view/statistic_view_config';
 
 interface TerminationBarProps {
   data: NormalizedVisualizeData | null;
@@ -8,7 +9,10 @@ interface TerminationBarProps {
 }
 
 function get_segment_color(index: number): string {
-  return index === 0 ? '#6a5fc1' : '#fa7faa';
+  return (
+    TERMINATION_REASON_VIEW_CONFIG.segment_colors[index] ??
+    TERMINATION_REASON_VIEW_CONFIG.segment_colors[0]
+  );
 }
 
 export function TerminationBar({
@@ -25,7 +29,7 @@ export function TerminationBar({
 
       <div className="termination-bars" data-testid="termination-bar">
         <div className="metric-group-heading termination-heading">
-          <h2>达成情况分布</h2>
+          <h2>达成路径分布</h2>
         </div>
         {data ? (
           <>

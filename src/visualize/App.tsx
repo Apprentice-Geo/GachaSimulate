@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ANIMATION_TIMELINE, ANIMATION_TOTAL_MS } from './animation/timeline';
 import { CDFChart } from './components/CDFChart';
 import { EmptyState } from './components/EmptyState';
@@ -13,13 +13,14 @@ import {
   load_input_from_file,
   load_input_from_project_path,
 } from './data/load_input';
-import type { NormalizedVisualizeData } from './types/visualize_input';
+import type { NormalizedVisualizeInputData } from './types/visualize_input';
+import { build_visualize_view_model } from './view/cdf_view_model';
 
 type AppState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; data: NormalizedVisualizeData };
+  | { status: 'ready'; data: NormalizedVisualizeInputData };
 
 function get_error_message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -142,7 +143,13 @@ export default function App() {
     };
   }, []);
 
-  const data = state.status === 'ready' ? state.data : null;
+  const data = useMemo(
+    () =>
+      state.status === 'ready'
+        ? build_visualize_view_model(state.data)
+        : null,
+    [state],
+  );
 
   return (
     <main
@@ -169,9 +176,9 @@ export default function App() {
             {state.status === 'error' && (
               <ErrorState message={state.message} on_file_import={handle_file_import} />
             )}
-            {state.status === 'ready' && (
+            {state.status === 'ready' && data && (
               <CDFChart
-                data={state.data}
+                data={data}
                 animation_key={animation_key}
                 is_animating={is_animating}
               />

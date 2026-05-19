@@ -1,6 +1,7 @@
 import type {
   CDFMarkerDatum,
   CDFPoint,
+  VisualizeStatisticInput,
   VisualizeInput,
 } from '../types/visualize_input';
 
@@ -37,10 +38,10 @@ export function build_chart_points(input: VisualizeInput): CDFPoint[] {
   }));
 }
 
-export function build_marker_data(input: VisualizeInput): CDFMarkerDatum[] {
-  const points = build_chart_points(input);
-  const stat = input.statistic;
-
+export function build_marker_data_from_points(
+  points: CDFPoint[],
+  stat: VisualizeStatisticInput,
+): CDFMarkerDatum[] {
   return [
     {
       key: 'MIN',
@@ -83,4 +84,11 @@ export function build_marker_data(input: VisualizeInput): CDFMarkerDatum[] {
       level: get_cdf_level_at_draw(points, stat.MAX),
     },
   ];
+}
+
+export function build_marker_data(input: VisualizeInput): CDFMarkerDatum[] {
+  return build_marker_data_from_points(
+    build_chart_points(input),
+    input.statistic,
+  );
 }

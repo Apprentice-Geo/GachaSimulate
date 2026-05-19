@@ -1,12 +1,12 @@
 import { normalize_input } from './normalize_input';
 import { validate_input } from './validate_input';
-import type { NormalizedVisualizeData } from '../types/visualize_input';
+import type { NormalizedVisualizeInputData } from '../types/visualize_input';
 
 const INPUT_ENDPOINT = '/__visualize_input';
 
 export async function load_input_from_value(
   value: unknown,
-): Promise<NormalizedVisualizeData> {
+): Promise<NormalizedVisualizeInputData> {
   const validation_result = validate_input(value);
   if (!validation_result.valid || !validation_result.data) {
     throw new Error(validation_result.errors.join('\n'));
@@ -17,7 +17,7 @@ export async function load_input_from_value(
 
 export async function load_input_from_file(
   file: File,
-): Promise<NormalizedVisualizeData> {
+): Promise<NormalizedVisualizeInputData> {
   const text = await file.text();
   const parsed = JSON.parse(text) as unknown;
   return load_input_from_value(parsed);
@@ -25,7 +25,7 @@ export async function load_input_from_file(
 
 export async function load_input_from_project_path(
   input_path: string,
-): Promise<NormalizedVisualizeData> {
+): Promise<NormalizedVisualizeInputData> {
   const response = await fetch(
     `${INPUT_ENDPOINT}?path=${encodeURIComponent(input_path)}`,
   );

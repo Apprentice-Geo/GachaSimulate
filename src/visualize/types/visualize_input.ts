@@ -36,8 +36,7 @@ export type StatisticKey =
   | 'P95'
   | 'MEAN'
   | 'MIN'
-  | 'MAX'
-  | 'COST';
+  | 'MAX';
 
 export type MarkerKey =
   | 'MIN'
@@ -59,8 +58,13 @@ export interface StatisticMetric {
   label: string;
   value: number;
   display_value: string;
-  unit: '抽' | 'RMB';
   color: string;
+}
+
+export interface CostMetric {
+  value: number;
+  display_value: string;
+  unit: 'RMB';
 }
 
 export interface CDFMarker {
@@ -78,7 +82,7 @@ export interface CDFMarkerDatum {
   level: number;
 }
 
-export interface NormalizedVisualizeData {
+export interface NormalizedVisualizeInputData {
   title: string;
   target: string;
   draw_counts: number;
@@ -87,8 +91,12 @@ export interface NormalizedVisualizeData {
   timestamp: number;
   chart_points: CDFPoint[];
   statistic: VisualizeStatisticInput;
-  metrics: StatisticMetric[];
-  markers: CDFMarker[];
   termination_reason: TerminationReasonInput[];
   x_domain_max: number;
+}
+
+export interface NormalizedVisualizeData extends NormalizedVisualizeInputData {
+  metrics: StatisticMetric[];
+  markers: CDFMarker[];
+  cost: CostMetric;
 }

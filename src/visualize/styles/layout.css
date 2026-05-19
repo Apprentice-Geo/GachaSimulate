@@ -452,14 +452,24 @@
 
 .metric-placeholder {
   display: grid;
-  gap: 10px;
+  gap: 12px;
+}
+
+.metric-placeholder-group {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.placeholder-heading {
+  height: 20px;
 }
 
 .placeholder-line {
   background: var(--color-panel-soft);
   border: 1px solid var(--color-hairline);
   border-radius: 4px;
-  height: 66px;
+  height: 84px;
 }
 
 .state-panel {

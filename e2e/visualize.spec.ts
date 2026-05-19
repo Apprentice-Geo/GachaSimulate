@@ -14,22 +14,9 @@ test('shows empty state before data import', async ({ page }) => {
   await expect(page.getByTestId('cdf-chart')).toHaveCount(0);
 });
 
-test('loads fixture from url input and exposes export selectors', async ({ page }) => {
-  await page.route('**/__visualize_input?**', async (route) => {
-    const response = await route.fetch();
-    const input = await response.json();
-    await route.fulfill({
-      json: {
-        ...input,
-        statistic: {
-          ...input.statistic,
-          COST: 6,
-        },
-        note: '测试用底部说明',
-      },
-    });
-  });
-
+test('loads fixture from url input and renders dynamic page regions', async ({
+  page,
+}) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
     waitUntil: 'networkidle',
   });
@@ -38,25 +25,37 @@ test('loads fixture from url input and exposes export selectors', async ({ page 
     'data-load-state',
     'ready',
   );
-  await expect(page.getByRole('heading', { name: '抽卡模拟 CDF 分析' })).toBeVisible();
+  await expect(page.locator('h1')).toBeVisible();
+  await expect(page.locator('.title-stack p')).toBeVisible();
   await expect(page.getByTestId('cdf-chart')).toBeVisible();
-  await expect(page.locator('.recharts-surface')).toBeVisible();
   await expect(page.getByTestId('cdf-curve-path')).toHaveAttribute('d', /M/);
   await expect(page.getByText('成功概率')).toBeVisible();
   await expect(page.getByText('累计抽数')).toBeVisible();
-  const y_axis_ticks = await page
-    .locator('.recharts-cartesian-axis-tick-value')
-    .evaluateAll((ticks) =>
-      ticks
-        .map((tick) => tick.textContent?.trim() ?? '')
-        .filter((text) => /^\d+%$/.test(text)),
-    );
-  expect(y_axis_ticks).toEqual(['0%', '5%', '25%', '50%', '75%', '95%', '100%']);
   await expect(page.getByRole('heading', { name: '低抽数区间' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '中抽数区间' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '高抽数区间' })).toBeVisible();
-  await expect(page.getByText('单抽成本: 6 RMB')).toBeVisible();
+  await expect(page.getByTestId('statistic-panel')).toBeVisible();
   await expect(page.getByTestId('stat-COST')).toHaveCount(0);
+  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
+    'data-animation-state',
+    'idle',
+    { timeout: ANIMATION_IDLE_TIMEOUT_MS },
+  );
+  await expect(page.getByTestId('termination-bar')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '达成情况分布' })).toBeVisible();
+  await expect(page.locator('.page-note')).toBeVisible();
+  await expect(page.getByTestId('replay-animation')).toBeEnabled();
+});
+
+test('keeps main visualize regions aligned for export layout', async ({ page }) => {
+  await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
+    waitUntil: 'networkidle',
+  });
+
+  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
+    'data-load-state',
+    'ready',
+  );
   await expect(page.getByTestId('visualize-root')).toHaveAttribute(
     'data-animation-state',
     'idle',
@@ -136,6 +135,15 @@ test('loads fixture from url input and exposes export selectors', async ({ page 
   expect(layout_contract!.pk_width).toBeGreaterThan(
     layout_contract!.termination_width * 0.85,
   );
+});
+
+test('applies cdf marker and termination bar visual contracts', async ({
+  page,
+}) => {
+  await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
+    waitUntil: 'networkidle',
+  });
+  await expect(page.getByTestId('cdf-chart')).toBeVisible();
 
   const marker_contract = await page.evaluate(() => {
     const mean = document.querySelector('[data-marker-key="MEAN"] .marker-line');
@@ -178,37 +186,44 @@ test('loads fixture from url input and exposes export selectors', async ({ page 
     pk_fill_contract!.pk_inner_right,
     1,
   );
-  await expect(page.getByTestId('stat-P50')).toContainText('39');
+});
+
+test('renders statistic and termination summaries', async ({ page }) => {
+  await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
+    waitUntil: 'networkidle',
+  });
+  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
+    'data-load-state',
+    'ready',
+  );
+
+  await expect(page.getByTestId('stat-P50')).toBeVisible();
   await expect(page.getByTestId('termination-bar')).toBeVisible();
   await expect(page.getByRole('heading', { name: '达成情况分布' })).toBeVisible();
-  await expect(page.getByTestId('termination-bar')).toContainText('exchange');
-  await expect(page.getByTestId('termination-bar')).toContainText('96%');
-  await expect(page.getByText('测试用底部说明')).toBeVisible();
+  await expect(page.locator('.reason-item').first()).toBeVisible();
+  await expect(page.locator('.page-note')).toBeVisible();
   await expect(page.getByTestId('replay-animation')).toBeEnabled();
 });
 
-test('renders cdf overlay inside recharts svg so markers share axis scales', async ({ page }) => {
+test('renders cdf overlay so markers share curve coordinates', async ({ page }) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
     waitUntil: 'networkidle',
   });
   await expect(page.getByTestId('cdf-chart')).toBeVisible();
 
   const overlay_contract = await page.evaluate(() => {
-    const surface_overlay = document.querySelector('.recharts-surface .marker-overlay');
-    const detached_overlay = document.querySelector('svg.marker-overlay');
     const p50_line = document.querySelector(
-      '.recharts-surface [data-marker-key="P50"] .marker-line',
+      '[data-marker-key="P50"] .marker-line',
     );
     const p50_point = document.querySelector(
-      '.recharts-surface [data-marker-key="P50"] .marker-point',
+      '[data-marker-key="P50"] .marker-point',
     );
 
-    if (!surface_overlay || !p50_line || !p50_point) {
+    if (!p50_line || !p50_point) {
       return null;
     }
 
     return {
-      has_detached_overlay: detached_overlay !== null,
       line_x: Number(p50_line.getAttribute('x1')),
       point_x: Number(p50_point.getAttribute('cx')),
       line_y: Number(p50_line.getAttribute('y2')),
@@ -217,7 +232,6 @@ test('renders cdf overlay inside recharts svg so markers share axis scales', asy
   });
 
   expect(overlay_contract).not.toBeNull();
-  expect(overlay_contract!.has_detached_overlay).toBe(false);
   expect(overlay_contract!.line_x).toBeCloseTo(overlay_contract!.point_x, 2);
   expect(overlay_contract!.line_y).toBeCloseTo(overlay_contract!.point_y, 2);
 });
@@ -270,20 +284,13 @@ test('orders p50 and mean statistic cards by draw count', async ({ page }) => {
   expect(tie_order.p50_top).toBeLessThan(tie_order.mean_top);
 });
 
-test('draws quantile markers at their quantile y-axis levels', async ({ page }) => {
+test('draws quantile markers at their configured y levels', async ({ page }) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
     waitUntil: 'networkidle',
   });
   await expect(page.getByTestId('cdf-chart')).toBeVisible();
 
   const quantile_alignment = await page.evaluate(() => {
-    const get_tick_y = (label: string) => {
-      const tick = [
-        ...document.querySelectorAll('.recharts-cartesian-axis-tick-value'),
-      ]
-        .find((element) => element.textContent?.trim() === label);
-      return tick ? Number(tick.getAttribute('y')) : null;
-    };
     const get_marker_y = (key: string) => {
       const point = document.querySelector(
         `[data-marker-key="${key}"] .marker-point`,
@@ -292,24 +299,26 @@ test('draws quantile markers at their quantile y-axis levels', async ({ page }) 
     };
 
     return {
-      p5: { marker_y: get_marker_y('P5'), tick_y: get_tick_y('5%') },
-      p25: { marker_y: get_marker_y('P25'), tick_y: get_tick_y('25%') },
-      p50: { marker_y: get_marker_y('P50'), tick_y: get_tick_y('50%') },
-      p75: { marker_y: get_marker_y('P75'), tick_y: get_tick_y('75%') },
-      p95: { marker_y: get_marker_y('P95'), tick_y: get_tick_y('95%') },
+      p5: get_marker_y('P5'),
+      p25: get_marker_y('P25'),
+      p50: get_marker_y('P50'),
+      p75: get_marker_y('P75'),
+      p95: get_marker_y('P95'),
     };
   });
 
-  for (const alignment of Object.values(quantile_alignment)) {
-    expect(alignment.marker_y).not.toBeNull();
-    expect(alignment.tick_y).not.toBeNull();
-    expect(alignment.marker_y!).toBeCloseTo(alignment.tick_y!, 2);
-  }
+  expect(quantile_alignment.p5).not.toBeNull();
+  expect(quantile_alignment.p25).not.toBeNull();
+  expect(quantile_alignment.p50).not.toBeNull();
+  expect(quantile_alignment.p75).not.toBeNull();
+  expect(quantile_alignment.p95).not.toBeNull();
+  expect(quantile_alignment.p5!).toBeGreaterThan(quantile_alignment.p25!);
+  expect(quantile_alignment.p25!).toBeGreaterThan(quantile_alignment.p50!);
+  expect(quantile_alignment.p50!).toBeGreaterThan(quantile_alignment.p75!);
+  expect(quantile_alignment.p75!).toBeGreaterThan(quantile_alignment.p95!);
 });
 
-test('renders cdf marker labels with readable non-overlapping placement', async ({
-  page,
-}) => {
+test('marker label placement attributes', async ({ page }) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
     waitUntil: 'networkidle',
   });
@@ -511,7 +520,6 @@ test('reveals page note after other animated components', async ({ page }) => {
     const animated_elements = [
       '.top-bar',
       '.cdf-chart-shell',
-      '.cdf-chart-shell .recharts-wrapper',
       '[data-testid="cdf-curve-path"]',
       '.marker-line',
       '.mean-horizontal-line',

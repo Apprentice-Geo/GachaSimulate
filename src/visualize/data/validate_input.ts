@@ -1,6 +1,6 @@
 import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
-import schema from '../../../docs/visualize_input.schema.json';
+import schema from '../../../docs/schemas/visualize_input.schema.json';
 import type { VisualizeInput } from '../types/visualize_input';
 
 export interface ValidationResult {
