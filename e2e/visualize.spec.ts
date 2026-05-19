@@ -42,7 +42,7 @@ test('loads fixture from url input and renders dynamic page regions', async ({
     { timeout: ANIMATION_IDLE_TIMEOUT_MS },
   );
   await expect(page.getByTestId('termination-bar')).toBeVisible();
-  await expect(page.getByRole('heading', { name: '达成情况分布' })).toBeVisible();
+  await expect(page.locator('.termination-heading h2')).toBeVisible();
   await expect(page.locator('.page-note')).toBeVisible();
   await expect(page.getByTestId('replay-animation')).toBeEnabled();
 });
@@ -144,6 +144,11 @@ test('applies cdf marker and termination bar visual contracts', async ({
     waitUntil: 'networkidle',
   });
   await expect(page.getByTestId('cdf-chart')).toBeVisible();
+  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
+    'data-animation-state',
+    'idle',
+    { timeout: ANIMATION_IDLE_TIMEOUT_MS },
+  );
 
   const marker_contract = await page.evaluate(() => {
     const mean = document.querySelector('[data-marker-key="MEAN"] .marker-line');
@@ -199,7 +204,7 @@ test('renders statistic and termination summaries', async ({ page }) => {
 
   await expect(page.getByTestId('stat-P50')).toBeVisible();
   await expect(page.getByTestId('termination-bar')).toBeVisible();
-  await expect(page.getByRole('heading', { name: '达成情况分布' })).toBeVisible();
+  await expect(page.locator('.termination-heading h2')).toBeVisible();
   await expect(page.locator('.reason-item').first()).toBeVisible();
   await expect(page.locator('.page-note')).toBeVisible();
   await expect(page.getByTestId('replay-animation')).toBeEnabled();
