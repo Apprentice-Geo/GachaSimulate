@@ -15,16 +15,25 @@ export function TopBar({
   on_file_import,
   on_replay,
 }: TopBarProps) {
+  const cost_metric = data?.metrics.find((metric) => metric.key === 'COST');
+  const metadata = data
+    ? [
+        `模拟目标：${data.target}`,
+        `实际模拟抽数：${data.draw_counts_display}`,
+        cost_metric
+          ? `单抽成本: ${cost_metric.display_value} ${cost_metric.unit}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : '导入模拟器输出 JSON 后生成结果页面';
+
   return (
     <header className="top-bar">
       <div className="title-stack">
         <div className="section-kicker">CDF ANALYSIS</div>
         <h1>{data?.title ?? '抽卡模拟 CDF 分析'}</h1>
-        <p>
-          {data
-            ? `模拟目标：${data.target} · 实际模拟抽数：${data.draw_counts_display}`
-            : '导入模拟器输出 JSON 后生成结果页面'}
-        </p>
+        <p>{metadata}</p>
       </div>
       <div className="top-actions" aria-label="数据操作">
         <ReplayButton

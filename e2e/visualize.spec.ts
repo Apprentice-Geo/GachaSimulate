@@ -20,6 +20,10 @@ test('loads fixture from url input and exposes export selectors', async ({ page 
     await route.fulfill({
       json: {
         ...input,
+        statistic: {
+          ...input.statistic,
+          COST: 6,
+        },
         note: '测试用底部说明',
       },
     });
@@ -47,10 +51,11 @@ test('loads fixture from url input and exposes export selectors', async ({ page 
         .filter((text) => /^\d+%$/.test(text)),
     );
   expect(y_axis_ticks).toEqual(['0%', '5%', '25%', '50%', '75%', '95%', '100%']);
-  await expect(page.getByRole('heading', { name: '较优结果' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '中心位置' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '尾部风险' })).toBeVisible();
-  await expect(page.getByTestId('stat-COST')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '低抽数区间' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '中抽数区间' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '高抽数区间' })).toBeVisible();
+  await expect(page.getByText('单抽成本: 6 RMB')).toBeVisible();
+  await expect(page.getByTestId('stat-COST')).toHaveCount(0);
   await expect(page.getByTestId('visualize-root')).toHaveAttribute(
     'data-animation-state',
     'idle',
@@ -151,8 +156,29 @@ test('loads fixture from url input and exposes export selectors', async ({ page 
   expect(marker_contract!.marker_dash).not.toBe('none');
   expect(marker_contract!.marker_dash).not.toBe('1px');
   expect(marker_contract!.pk_has_diagonal.trim()).toBe('-45deg');
+  const pk_fill_contract = await page.evaluate(() => {
+    const pk = document.querySelector('.pk-bar[data-segment-count="2"]');
+    const segments = [...document.querySelectorAll('.pk-segment')];
+    if (!pk || segments.length !== 2) {
+      return null;
+    }
+    const pk_style = window.getComputedStyle(pk);
+    const pk_rect = pk.getBoundingClientRect();
+    const last_segment_rect = segments[1].getBoundingClientRect();
+    return {
+      pk_inner_right:
+        pk_rect.right - Number.parseFloat(pk_style.borderRightWidth),
+      last_segment_right: last_segment_rect.right,
+    };
+  });
+  expect(pk_fill_contract).not.toBeNull();
+  expect(pk_fill_contract!.last_segment_right).toBeCloseTo(
+    pk_fill_contract!.pk_inner_right,
+    1,
+  );
   await expect(page.getByTestId('stat-P50')).toContainText('39');
   await expect(page.getByTestId('termination-bar')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '达成情况分布' })).toBeVisible();
   await expect(page.getByTestId('termination-bar')).toContainText('exchange');
   await expect(page.getByTestId('termination-bar')).toContainText('96%');
   await expect(page.getByText('测试用底部说明')).toBeVisible();
@@ -192,6 +218,54 @@ test('renders cdf overlay inside recharts svg so markers share axis scales', asy
   expect(overlay_contract!.has_detached_overlay).toBe(false);
   expect(overlay_contract!.line_x).toBeCloseTo(overlay_contract!.point_x, 2);
   expect(overlay_contract!.line_y).toBeCloseTo(overlay_contract!.point_y, 2);
+});
+
+test('orders p50 and mean statistic cards by draw count', async ({ page }) => {
+  await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
+    waitUntil: 'networkidle',
+  });
+  await expect(page.getByTestId('stat-P50')).toBeVisible();
+  await expect(page.getByTestId('stat-MEAN')).toBeVisible();
+
+  const default_order = await page.evaluate(() => {
+    const p50 = document.querySelector('[data-testid="stat-P50"]');
+    const mean = document.querySelector('[data-testid="stat-MEAN"]');
+    return {
+      mean_top: mean?.getBoundingClientRect().top ?? 0,
+      p50_top: p50?.getBoundingClientRect().top ?? 0,
+    };
+  });
+  expect(default_order.mean_top).toBeLessThan(default_order.p50_top);
+
+  await page.route('**/__visualize_input?**', async (route) => {
+    const response = await route.fetch();
+    const input = await response.json();
+    await route.fulfill({
+      json: {
+        ...input,
+        statistic: {
+          ...input.statistic,
+          MEAN: input.statistic.P50,
+        },
+      },
+    });
+  });
+
+  await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}&tie=1`, {
+    waitUntil: 'networkidle',
+  });
+  await expect(page.getByTestId('stat-P50')).toBeVisible();
+  await expect(page.getByTestId('stat-MEAN')).toBeVisible();
+
+  const tie_order = await page.evaluate(() => {
+    const p50 = document.querySelector('[data-testid="stat-P50"]');
+    const mean = document.querySelector('[data-testid="stat-MEAN"]');
+    return {
+      p50_top: p50?.getBoundingClientRect().top ?? 0,
+      mean_top: mean?.getBoundingClientRect().top ?? 0,
+    };
+  });
+  expect(tie_order.p50_top).toBeLessThan(tie_order.mean_top);
 });
 
 test('draws quantile markers at their quantile y-axis levels', async ({ page }) => {

@@ -1,5 +1,6 @@
+import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ANIMATION_TOTAL_MS } from './animation/timeline';
+import { ANIMATION_TIMELINE, ANIMATION_TOTAL_MS } from './animation/timeline';
 import { CDFChart } from './components/CDFChart';
 import { EmptyState } from './components/EmptyState';
 import { ErrorState } from './components/ErrorState';
@@ -23,6 +24,35 @@ type AppState =
 function get_error_message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
+
+const ANIMATION_TIMELINE_STYLE = {
+  '--animation-top-bar-delay': `${ANIMATION_TIMELINE.TOP_BAR_DELAY_MS}ms`,
+  '--animation-top-bar-duration': `${ANIMATION_TIMELINE.TOP_BAR_DURATION_MS}ms`,
+  '--animation-chart-shell-delay': `${ANIMATION_TIMELINE.CHART_SHELL_DELAY_MS}ms`,
+  '--animation-chart-shell-duration': `${ANIMATION_TIMELINE.CHART_SHELL_DURATION_MS}ms`,
+  '--animation-chart-surface-delay': `${ANIMATION_TIMELINE.CHART_SURFACE_DELAY_MS}ms`,
+  '--animation-chart-surface-duration': `${ANIMATION_TIMELINE.CHART_SURFACE_DURATION_MS}ms`,
+  '--animation-curve-delay': `${ANIMATION_TIMELINE.CURVE_DELAY_MS}ms`,
+  '--animation-curve-duration': `${ANIMATION_TIMELINE.CURVE_DURATION_MS}ms`,
+  '--animation-marker-line-delay': `${ANIMATION_TIMELINE.MARKER_LINE_DELAY_MS}ms`,
+  '--animation-marker-line-duration': `${ANIMATION_TIMELINE.MARKER_LINE_DURATION_MS}ms`,
+  '--animation-marker-group-delay': `${ANIMATION_TIMELINE.MARKER_GROUP_DELAY_MS}ms`,
+  '--animation-marker-group-duration': `${ANIMATION_TIMELINE.MARKER_GROUP_DURATION_MS}ms`,
+  '--animation-marker-stagger': `${ANIMATION_TIMELINE.MARKER_STAGGER_MS}ms`,
+  '--animation-mean-line-delay': `${ANIMATION_TIMELINE.MEAN_LINE_DELAY_MS}ms`,
+  '--animation-mean-line-duration': `${ANIMATION_TIMELINE.MEAN_LINE_DURATION_MS}ms`,
+  '--animation-termination-panel-delay': `${ANIMATION_TIMELINE.TERMINATION_PANEL_DELAY_MS}ms`,
+  '--animation-termination-panel-duration': `${ANIMATION_TIMELINE.TERMINATION_PANEL_DURATION_MS}ms`,
+  '--animation-pk-fill-delay': `${ANIMATION_TIMELINE.PK_FILL_DELAY_MS}ms`,
+  '--animation-pk-fill-duration': `${ANIMATION_TIMELINE.PK_FILL_DURATION_MS}ms`,
+  '--animation-termination-detail-delay': `${ANIMATION_TIMELINE.TERMINATION_DETAIL_DELAY_MS}ms`,
+  '--animation-termination-detail-duration': `${ANIMATION_TIMELINE.TERMINATION_DETAIL_DURATION_MS}ms`,
+  '--animation-stat-panel-delay': `${ANIMATION_TIMELINE.STAT_PANEL_DELAY_MS}ms`,
+  '--animation-stat-panel-duration': `${ANIMATION_TIMELINE.STAT_PANEL_DURATION_MS}ms`,
+  '--animation-stat-content-delay': `${ANIMATION_TIMELINE.STAT_CONTENT_DELAY_MS}ms`,
+  '--animation-stat-content-duration': `${ANIMATION_TIMELINE.STAT_CONTENT_DURATION_MS}ms`,
+  '--animation-stat-content-stagger': `${ANIMATION_TIMELINE.STAT_CONTENT_STAGGER_MS}ms`,
+} as CSSProperties;
 
 export default function App() {
   const [state, set_state] = useState<AppState>({ status: 'idle' });
@@ -120,6 +150,7 @@ export default function App() {
       data-animation-state={
         is_animating ? 'playing' : is_animation_primed ? 'primed' : 'idle'
       }
+      style={ANIMATION_TIMELINE_STYLE}
     >
       <TopBar
         data={data}

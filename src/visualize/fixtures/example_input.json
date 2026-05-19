@@ -2,7 +2,7 @@
     "title": "抽卡模拟 CDF 分析",
     "target": "未设置",
     "draw_counts": 100000001,
-    "note": "note example",
+    "note": "P50 更接近典型抽取体验，P95 更适合衡量高风险预算。",
     "statistic": {
         "P5": 27,
         "P25": 35,

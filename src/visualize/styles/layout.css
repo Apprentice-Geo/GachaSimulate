@@ -26,9 +26,23 @@
 
 .top-bar {
   align-items: start;
+  animation: none;
   display: flex;
   height: var(--top-height);
   justify-content: space-between;
+}
+
+.visualize-page[data-animation-state="primed"] .top-bar,
+.visualize-page[data-animation-state="primed"] .page-note {
+  opacity: 0;
+}
+
+.visualize-page[data-animation-state="playing"] .top-bar {
+  animation: page-fade-in var(--animation-top-bar-duration) ease-out var(--animation-top-bar-delay) both;
+}
+
+.visualize-page[data-animation-state="playing"] .page-note {
+  animation: page-fade-in var(--animation-stat-content-duration) ease-out var(--animation-stat-content-delay) both;
 }
 
 .title-stack {
@@ -103,7 +117,8 @@
 .main-region {
   display: grid;
   gap: 32px;
-  grid-template-columns: minmax(0, 75fr) minmax(0, 25fr);
+  /* CDF区域宽度:核心统计量区域宽度 */
+  grid-template-columns: minmax(0, 80fr) minmax(0, 20fr);
   height: calc(var(--main-height) + 20px + var(--footer-height) - 60px);
 }
 
@@ -136,6 +151,7 @@
 }
 
 .cdf-chart-shell {
+  animation: none;
   height: 100%;
   overflow: hidden;
   position: relative;
@@ -194,8 +210,16 @@
   stroke: rgba(247, 243, 255, 0.12);
 }
 
+.visualize-page[data-animation-state="primed"] .cdf-chart-shell {
+  opacity: 0;
+}
+
+.visualize-page[data-animation-state="playing"] .cdf-chart-shell {
+  animation: page-fade-in var(--animation-chart-shell-duration) ease-out var(--animation-chart-shell-delay) both;
+}
+
 .cdf-chart-shell[data-animating="true"] .recharts-wrapper {
-  animation: page-fade-in 260ms ease-out both;
+  animation: page-fade-in var(--animation-chart-surface-duration) ease-out var(--animation-chart-surface-delay) both;
 }
 
 .cdf-curve-path {
@@ -209,7 +233,7 @@
 }
 
 .cdf-chart-shell[data-animating="true"] .cdf-curve-path {
-  animation: cdf-line-draw 1400ms cubic-bezier(0.22, 0.61, 0.36, 1) 250ms both;
+  animation: cdf-line-draw var(--animation-curve-duration) cubic-bezier(0.22, 0.61, 0.36, 1) var(--animation-curve-delay) both;
   stroke-dashoffset: 1;
 }
 
@@ -249,17 +273,17 @@
 }
 
 .cdf-chart-shell[data-animating="true"] .marker-line {
-  animation: marker-line-in 360ms ease-out both;
-  animation-delay: calc(1700ms + var(--marker-index) * 42ms);
+  animation: marker-line-in var(--animation-marker-line-duration) ease-out both;
+  animation-delay: calc(var(--animation-marker-line-delay) + var(--marker-index) * var(--animation-marker-stagger));
 }
 
 .cdf-chart-shell[data-animating="true"] .mean-horizontal-line {
-  animation: mean-line-in 360ms ease-out 1880ms both;
+  animation: mean-line-in var(--animation-mean-line-duration) ease-out var(--animation-mean-line-delay) both;
 }
 
 .cdf-chart-shell[data-animating="true"] .marker-group {
-  animation: marker-fade-in 300ms ease-out both;
-  animation-delay: calc(1800ms + var(--marker-index) * 42ms);
+  animation: marker-fade-in var(--animation-marker-group-duration) ease-out both;
+  animation-delay: calc(var(--animation-marker-group-delay) + var(--marker-index) * var(--animation-marker-stagger));
 }
 
 .marker-label {
@@ -277,6 +301,7 @@
 }
 
 .statistic-panel {
+  animation: none;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -310,17 +335,19 @@
 
 .metric-list {
   display: grid;
+  /* 核心统计量卡片的垂直间距 */
   gap: 12px;
 }
 
 .metric-group {
   display: grid;
-  gap: 6px;
+  gap: 7px;
   min-width: 0;
 }
 
 .metric-group-heading {
   align-items: baseline;
+  animation: none;
   display: flex;
   gap: 8px;
   height: 20px;
@@ -330,8 +357,8 @@
 
 .metric-group-heading h2 {
   color: var(--color-text-primary);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 500;
   line-height: 1;
   margin: 0;
 }
@@ -354,31 +381,38 @@
   border-left: 5px solid var(--metric-color);
   border-radius: 4px;
   display: flex;
-  height: 48px;
+  /*统计量卡片高度*/
+  height: 84px;
   justify-content: space-between;
   min-width: 0;
-  padding: 0 12px;
+  padding: 0 10px;
 }
 
-.metric-cost-row {
-  height: 42px;
-  margin-top: 2px;
-}
-
+.visualize-page[data-animation-state="primed"] .statistic-panel,
+.visualize-page[data-animation-state="primed"] .metric-group-heading,
 .visualize-page[data-animation-state="primed"] .metric-row {
   opacity: 0;
 }
 
+.visualize-page[data-animation-state="playing"] .statistic-panel {
+  animation: page-fade-in var(--animation-stat-panel-duration) ease-out var(--animation-stat-panel-delay) both;
+}
+
+.visualize-page[data-animation-state="playing"] .metric-group-heading,
 .visualize-page[data-animation-state="playing"] .metric-row {
-  animation: metric-in 360ms ease-out both;
-  animation-delay: calc(2140ms + var(--metric-index) * 38ms);
+  animation: metric-in var(--animation-stat-content-duration) ease-out both;
+  animation-delay: calc(var(--animation-stat-content-delay) + var(--stat-content-index) * var(--animation-stat-content-stagger));
 }
 
 .metric-label {
   color: var(--color-text-muted);
-  font-size: 13px;
-  font-weight: 700;
+  /* 核心统计量名称的字体大小和粗细 */
+  font-size: 32px;
+  font-weight: 550;
   line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .metric-copy {
@@ -387,8 +421,9 @@
 
 .metric-description {
   color: var(--color-text-faint);
-  font-size: 11px;
-  font-weight: 700;
+  /* 核心统计量说明的字体大小和粗细 */
+  font-size: 16px;
+  font-weight: 400;
   line-height: 1;
   margin-top: 6px;
 }
@@ -398,12 +433,13 @@
   color: var(--color-text-primary);
   display: flex;
   flex: 0 0 auto;
-  gap: 5px;
-  margin-left: 8px;
+  gap: 4px;
+  margin-left: 6px;
 }
 
 .metric-value span {
-  font-size: 22px;
+  /* 核心统计量数值的字体大小和粗细 */
+  font-size: 48px;
   font-weight: 700;
   line-height: 1;
 }
@@ -505,7 +541,7 @@
 }
 
 .visualize-page[data-animation-state="playing"] .termination-region {
-  animation: footer-in 420ms ease-out 2550ms both;
+  animation: footer-in var(--animation-termination-panel-duration) ease-out var(--animation-termination-panel-delay) both;
 }
 
 .termination-copy h2 {
@@ -518,7 +554,7 @@
 .termination-copy p,
 .page-note {
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.45;
 }
 
@@ -532,15 +568,20 @@
   width: 100%;
 }
 
+.termination-heading {
+  margin-bottom: 10px;
+}
+
 .pk-bar {
   --pk-bar-height: 34px;
   --pk-seam-width: var(--pk-bar-height);
+  animation: none;
   background: var(--color-panel-soft);
   border: 1px solid var(--color-hairline);
   border-radius: 4px;
-  display: flex;
   height: var(--pk-bar-height);
   overflow: hidden;
+  position: relative;
   width: 100%;
 }
 
@@ -550,17 +591,31 @@
 
 .pk-segment {
   background: var(--segment-color);
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  top: 0;
   transform-origin: left center;
 }
 
 .pk-segment-diagonal {
   clip-path: polygon(var(--pk-seam-width) 0, 100% 0, 100% 100%, 0 100%);
-  margin-left: calc(var(--pk-seam-width) * -1);
-  padding-left: var(--pk-seam-width);
+  left: calc(var(--first-segment-width) - var(--pk-seam-width));
+  right: 0;
+  width: auto;
 }
 
 .visualize-page[data-animation-state="playing"] .pk-segment {
-  animation: pk-fill 420ms ease-out 2580ms both;
+  animation: pk-fill var(--animation-pk-fill-duration) ease-out var(--animation-pk-fill-delay) both;
+}
+
+.visualize-page[data-animation-state="primed"] .pk-bar,
+.visualize-page[data-animation-state="primed"] .reason-list {
+  opacity: 0;
+}
+
+.visualize-page[data-animation-state="playing"] .pk-bar {
+  animation: page-fade-in var(--animation-termination-detail-duration) ease-out var(--animation-pk-fill-delay) both;
 }
 
 .pk-bar-empty {
@@ -569,29 +624,34 @@
 
 .reason-list {
   align-items: center;
+  animation: none;
   display: flex;
   gap: 18px;
   margin-top: 12px;
+}
+
+.visualize-page[data-animation-state="playing"] .reason-list {
+  animation: page-fade-in var(--animation-termination-detail-duration) ease-out var(--animation-termination-detail-delay) both;
 }
 
 .reason-item {
   align-items: center;
   color: var(--color-text-muted);
   display: inline-flex;
-  font-size: 13px;
+  font-size: 20px;
   gap: 8px;
 }
 
 .reason-item strong {
   color: var(--color-text-primary);
-  font-size: 14px;
+  font-size: 20px;
 }
 
 .reason-swatch {
   border-radius: 2px;
   display: inline-block;
-  height: 10px;
-  width: 10px;
+  height: 15px;
+  width: 15px;
 }
 
 .page-note {
@@ -607,7 +667,7 @@
   }
 
   to {
-    opacity: var(--marker-opacity);
+    opacity: 1;
     transform: translateY(0);
   }
 }

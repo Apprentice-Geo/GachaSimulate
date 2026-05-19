@@ -1,7 +1,6 @@
 import type { CSSProperties } from 'react';
 import type {
   NormalizedVisualizeData,
-  StatisticKey,
   StatisticMetric,
 } from '../types/visualize_input';
 
@@ -11,70 +10,102 @@ interface StatisticPanelProps {
   is_ready: boolean;
 }
 
+type DistributionStatisticKey =
+  | 'MIN'
+  | 'P5'
+  | 'P25'
+  | 'P50'
+  | 'MEAN'
+  | 'P75'
+  | 'P95'
+  | 'MAX';
+
 const METRIC_GROUPS = [
   {
-    title: '较优结果',
-    subtitle: '低抽数区间',
+    title: '低抽数区间',
     keys: ['MIN', 'P5', 'P25'],
   },
   {
-    title: '中心位置',
-    subtitle: '典型结果',
+    title: '中抽数区间',
     keys: ['P50', 'MEAN'],
   },
   {
-    title: '尾部风险',
-    subtitle: '高抽数区间',
+    title: '高抽数区间',
     keys: ['P75', 'P95', 'MAX'],
   },
 ] as const satisfies readonly {
   title: string;
-  subtitle: string;
-  keys: readonly StatisticKey[];
+  keys: readonly DistributionStatisticKey[];
 }[];
 
-const METRIC_DESCRIPTIONS: Record<StatisticKey, string> = {
-  MIN: '最优样本',
-  P5: '5% 分位',
-  P25: '25% 分位',
-  P50: '中位抽数',
-  MEAN: '平均抽数',
-  P75: '75% 分位',
-  P95: '95% 分位',
-  MAX: '最差尾部',
-  COST: '单抽成本',
+const METRIC_DESCRIPTIONS: Record<DistributionStatisticKey, string> = {
+  MIN: '本次模拟达成抽数最小值',
+  P5: '5% 模拟在此抽数内达成',
+  P25: '25% 模拟在此抽数内达成',
+  P50: '50% 模拟在此抽数内达成',
+  MEAN: '所有模拟结果的平均抽数',
+  P75: '75% 模拟在此抽数内达成',
+  P95: '95% 模拟在此抽数内达成',
+  MAX: '本次模拟达成抽数最大值',
 };
+
+function order_metric_keys(
+  keys: readonly DistributionStatisticKey[],
+  metrics_by_key: Map<string, StatisticMetric>,
+): DistributionStatisticKey[] {
+  if (!keys.includes('P50') || !keys.includes('MEAN')) {
+    return [...keys];
+  }
+
+  return [...keys].sort((left, right) => {
+    const left_metric = metrics_by_key.get(left);
+    const right_metric = metrics_by_key.get(right);
+    if (!left_metric || !right_metric) {
+      return 0;
+    }
+
+    const value_order = left_metric.value - right_metric.value;
+    if (value_order !== 0) {
+      return value_order;
+    }
+
+    if (left === 'P50' && right === 'MEAN') {
+      return -1;
+    }
+    if (left === 'MEAN' && right === 'P50') {
+      return 1;
+    }
+    return 0;
+  });
+}
 
 function MetricRow({
   metric,
   index,
-  className = '',
+  description,
 }: {
   metric: StatisticMetric;
   index: number;
-  className?: string;
+  description: string;
 }) {
   return (
     <div
-      className={`metric-row${className ? ` ${className}` : ''}`}
+      className="metric-row"
       data-testid={`stat-${metric.key}`}
       key={metric.key}
       style={
         {
           '--metric-color': metric.color,
-          '--metric-index': index,
+          '--stat-content-index': index,
         } as CSSProperties
       }
     >
       <div className="metric-copy">
         <div className="metric-label">{metric.label}</div>
-        <div className="metric-description">
-          {METRIC_DESCRIPTIONS[metric.key]}
-        </div>
+        <div className="metric-description">{description}</div>
       </div>
       <div className="metric-value">
         <span>{metric.display_value}</span>
-        <small>{metric.unit}</small>
       </div>
     </div>
   );
@@ -88,7 +119,23 @@ export function StatisticPanel({
   const metrics_by_key = new Map(
     data?.metrics.map((metric) => [metric.key, metric]),
   );
-  const cost_metric = metrics_by_key.get('COST');
+  const visible_metric_groups = METRIC_GROUPS.map((group) => ({
+    ...group,
+    keys: order_metric_keys(group.keys, metrics_by_key).filter((key) =>
+      metrics_by_key.has(key),
+    ),
+  })).filter((group) => group.keys.length > 0);
+  let stat_content_index = 0;
+  const stat_group_index_by_title = new Map<string, number>();
+  const display_index_by_key = new Map<DistributionStatisticKey, number>();
+  visible_metric_groups.forEach((group) => {
+    stat_group_index_by_title.set(group.title, stat_content_index);
+    stat_content_index += 1;
+    group.keys.forEach((key) => {
+      display_index_by_key.set(key, stat_content_index);
+      stat_content_index += 1;
+    });
+  });
 
   return (
     <aside
@@ -97,18 +144,21 @@ export function StatisticPanel({
       data-ready={is_ready}
       key={`stat-panel-${animation_key}`}
     >
-      <div className="panel-heading">
-        <span>核心统计量</span>
-        <span>{data ? '9 metrics' : 'pending'}</span>
-      </div>
 
       {data ? (
         <div className="metric-list">
-          {METRIC_GROUPS.map((group) => (
+          {visible_metric_groups.map((group) => (
             <section className="metric-group" key={group.title}>
-              <div className="metric-group-heading">
+              <div
+                className="metric-group-heading"
+                style={
+                  {
+                    '--stat-content-index':
+                      stat_group_index_by_title.get(group.title) ?? 0,
+                  } as CSSProperties
+                }
+              >
                 <h2>{group.title}</h2>
-                <span>{group.subtitle}</span>
               </div>
               {group.keys.map((key) => {
                 const metric = metrics_by_key.get(key);
@@ -117,7 +167,8 @@ export function StatisticPanel({
                 }
                 return (
                   <MetricRow
-                    index={data.metrics.indexOf(metric)}
+                    description={METRIC_DESCRIPTIONS[key]}
+                    index={display_index_by_key.get(key) ?? 0}
                     key={metric.key}
                     metric={metric}
                   />
@@ -125,17 +176,10 @@ export function StatisticPanel({
               })}
             </section>
           ))}
-          {cost_metric ? (
-            <MetricRow
-              className="metric-cost-row"
-              index={data.metrics.indexOf(cost_metric)}
-              metric={cost_metric}
-            />
-          ) : null}
         </div>
       ) : (
         <div className="metric-placeholder" aria-hidden="true">
-          {Array.from({ length: 9 }).map((_, index) => (
+          {Array.from({ length: 8 }).map((_, index) => (
             <div className="placeholder-line" key={index} />
           ))}
         </div>

@@ -24,12 +24,20 @@ export function TerminationBar({
     >
 
       <div className="termination-bars" data-testid="termination-bar">
+        <div className="metric-group-heading termination-heading">
+          <h2>达成情况分布</h2>
+        </div>
         {data ? (
           <>
             <div
               className="pk-bar"
               data-segment-count={data.termination_reason.length}
               aria-label="终止原因比例"
+              style={
+                {
+                  '--first-segment-width': `${data.termination_reason[0].proportion}%`,
+                } as CSSProperties
+              }
             >
               {data.termination_reason.map((item, index) => (
                 <div
@@ -42,7 +50,10 @@ export function TerminationBar({
                   style={
                     {
                       '--segment-color': get_segment_color(index),
-                      width: `${item.proportion}%`,
+                      width:
+                        data.termination_reason.length === 2 && index === 1
+                          ? undefined
+                          : `${item.proportion}%`,
                     } as CSSProperties
                   }
                 />

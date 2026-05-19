@@ -6,16 +6,17 @@ import type {
   VisualizeInput,
 } from '../types/visualize_input';
 
+// 这里控制核心统计量区域实际显示的文字
 const METRIC_LABELS: Record<StatisticKey, string> = {
   P5: 'P5',
   P25: 'P25',
   P50: 'P50',
   P75: 'P75',
   P95: 'P95',
-  MEAN: '均值',
-  MIN: '最小值',
-  MAX: '最大值',
-  COST: '单抽成本',
+  MEAN: 'MEAN',
+  MIN: 'MIN',
+  MAX: 'MAX',
+  COST: 'COST',
 };
 
 const METRIC_COLORS: Record<StatisticKey, string> = {
