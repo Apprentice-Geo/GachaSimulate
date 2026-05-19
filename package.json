@@ -1,0 +1,55 @@
+{
+  "name": "montecarlo-gachasimulate",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test:visualize:cdf": "tsx src/visualize/test/cdf.test.ts",
+    "test:e2e": "tsx src/visualize/test/run_e2e.ts",
+    "export:cdf": "tsx src/visualize/export/export_cdf.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Apprentice-Geo/MonteCarlo-GachaSimulate.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Apprentice-Geo/MonteCarlo-GachaSimulate/issues"
+  },
+  "homepage": "https://github.com/Apprentice-Geo/MonteCarlo-GachaSimulate#readme",
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.14.0",
+    "motion": "^12.38.0",
+    "playwright": "^1.60.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-is": "^19.2.6",
+    "recharts": "^3.8.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^25.7.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^10.3.0",
+    "prettier": "^3.8.3",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.12"
+  }
+}

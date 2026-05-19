@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import json
 from io import BytesIO
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-from gacha_sim.core.builder import RuntimeBuilder
-from gacha_sim.core.engine import MonteCarlo
-from gacha_sim.core.runtime import (
+from simulate.builder import RuntimeBuilder
+from simulate.engine import MonteCarlo
+from simulate.runtime import (
     AddItem,
     CheckNode,
     DrawPool,
@@ -23,9 +24,10 @@ from gacha_sim.core.runtime import (
     Stage,
     Termination,
 )
-from gacha_sim.run.main import (
+from simulate.core import (
     load_simulation_result,
     save_simulation_result,
+    save_visualize_input,
     simulate_until_total_draw,
 )
 
@@ -655,6 +657,45 @@ def test_saves_and_loads_simulation_result(test_ctx: RuntimeContext) -> None:
     assert restored["seed"] == 0
     assert restored["lifetime_acquired"].shape[1] == len(ctx.item_list)
     assert len(restored["terminate_reasons"]) == restored["total_runs"]
+
+
+def test_saves_visualize_input_json() -> None:
+    result = {
+        "seed": 0,
+        "draw_count": np.array([4, 1, 4, 2], dtype=np.int32),
+        "lifetime_acquired": np.zeros((4, 1), dtype=np.int32),
+        "terminate_reasons": np.array(["skin", "exchange", "skin", "skin"], dtype="U32"),
+        "total_draw": np.int64(11),
+        "total_runs": np.int32(4),
+    }
+    output = BytesIO()
+
+    save_visualize_input(output, result)
+    data = json.loads(output.getvalue().decode("utf-8"))
+
+    assert data["title"] == "抽卡模拟 CDF 分析"
+    assert data["target"] == "未设置"
+    assert data["note"] == ""
+    assert data["draws"] == [1, 2, 4]
+    assert data["cumulative"] == [0.25, 0.5, 1.0]
+    assert len(data["draws"]) == len(data["cumulative"])
+    assert data["statistic"] == {
+        "P5": 1,
+        "P25": 1,
+        "P50": 3,
+        "P75": 4,
+        "P95": 4,
+        "MIN": 1,
+        "MEAN_LEVEL": 0.5,
+        "MEAN": 2,
+        "MAX": 4,
+        "COST": 0,
+    }
+    assert data["termination_reason"] == [
+        {"reason": "exchange", "proportion": 25},
+        {"reason": "skin", "proportion": 75},
+    ]
+    assert isinstance(data["timestamp"], int)
 
 
 def test_parallel_simulation_merges_worker_results() -> None:

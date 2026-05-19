@@ -3,5 +3,21 @@ __pycache__/
 .vscode/
 .codex
 *.egg-info/
-images/
-data/
+/images/
+/data/
+/node_modules/
+/dist/
+/outputs/
+.pytest_cache/
+/playwright-report/
+/test-results/
+.worktrees/
+.coverage
+.superpowers/
+.docs/superpowers/
+
+# Playwright
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
-from gacha_sim.core.validator import (
+from simulate.validator import (
     ValidationError,
     validate_config,
     validate_files,
@@ -15,8 +15,8 @@ from gacha_sim.core.validator import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFIG_SCHEMA_PATH = ROOT / "docs" / "config.schema.json"
-TERMINATION_SCHEMA_PATH = ROOT / "docs" / "termination.schema.json"
+CONFIG_SCHEMA_PATH = ROOT / "docs" / "schemas" / "config.schema.json"
+TERMINATION_SCHEMA_PATH = ROOT / "docs" / "schemas" / "termination.schema.json"
 
 
 def _config_termination_pairs() -> list[tuple[Path, Path]]:

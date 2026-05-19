@@ -1,9 +1,3 @@
-# AGENTS.md
-
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
-
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
-
 ## 1. Think Before Coding
 
 **Don't assume. Don't hide confusion. Surface tradeoffs.**
@@ -64,8 +58,6 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 - Constants use `UPPER_CASE_WITH_UNDERSCORES`.
 - Classes use `PascalCase`; acronyms stay uppercase, e.g. `HTTPClient` and `CDFData`.
-- Functions, methods, variables, and modules use `snake_case`.
+- Functions, methods, variables, and modules use `snake_case`.  
 
 ---
-
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

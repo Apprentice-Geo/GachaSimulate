@@ -1,0 +1,765 @@
+.visualize-page {
+  background:
+    linear-gradient(90deg, rgba(118, 185, 0, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(247, 243, 255, 0.035) 1px, transparent 1px),
+    var(--color-canvas);
+  background-size: 48px 48px;
+  border: 1px solid var(--color-hairline);
+  color: var(--color-text-primary);
+  height: var(--canvas-height);
+  overflow: hidden;
+  padding: var(--page-margin) var(--page-margin) 28px;
+  position: relative;
+  box-shadow: inset 0 1px 0 rgba(247, 243, 255, 0.04);
+  width: var(--canvas-width);
+}
+
+.visualize-page::before {
+  background: var(--color-nvidia-green);
+  content: "";
+  height: 12px;
+  left: var(--page-margin);
+  position: absolute;
+  top: var(--page-margin);
+  width: 12px;
+}
+
+.top-bar {
+  align-items: start;
+  animation: none;
+  display: flex;
+  height: var(--top-height);
+  justify-content: space-between;
+}
+
+.visualize-page[data-animation-state="primed"] .top-bar,
+.visualize-page[data-animation-state="primed"] .page-note {
+  opacity: 0;
+}
+
+.visualize-page[data-animation-state="playing"] .top-bar {
+  animation: page-fade-in var(--animation-top-bar-duration) ease-out var(--animation-top-bar-delay) both;
+}
+
+.visualize-page[data-animation-state="playing"] .page-note {
+  animation: page-fade-in var(--animation-note-duration) ease-out var(--animation-note-delay) both;
+}
+
+.title-stack {
+  padding-left: 28px;
+}
+
+.section-kicker {
+  color: var(--color-nvidia-green);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  line-height: 1;
+  margin-bottom: 9px;
+  text-transform: uppercase;
+}
+
+.title-stack h1 {
+  color: var(--color-text-primary);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.12;
+  margin: 0;
+}
+
+.title-stack p {
+  color: var(--color-text-muted);
+  font-size: 15px;
+  line-height: 1.45;
+  margin: 10px 0 0;
+}
+
+.top-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.command-button,
+.icon-button {
+  align-items: center;
+  background: var(--color-panel-soft);
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: var(--radius-button);
+  color: var(--color-text-primary);
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 700;
+  gap: 8px;
+  height: 44px;
+  justify-content: center;
+  letter-spacing: 0.2px;
+  padding: 0 16px;
+  text-transform: uppercase;
+}
+
+.icon-button {
+  background: var(--color-panel);
+  border-color: var(--color-hairline);
+  color: var(--color-text-primary);
+  padding: 0;
+  width: 44px;
+}
+
+.command-button:disabled,
+.icon-button:disabled {
+  background: var(--color-panel-soft);
+  border-color: var(--color-hairline);
+  color: var(--color-text-faint);
+}
+
+.main-region {
+  display: grid;
+  gap: 32px;
+  /* CDF区域宽度:核心统计量区域宽度 */
+  grid-template-columns: minmax(0, 80fr) minmax(0, 20fr);
+  height: calc(var(--main-height) + 20px + var(--footer-height) - 60px);
+}
+
+.primary-region {
+  display: grid;
+  gap: 20px;
+  grid-template-rows: minmax(0, 1fr) var(--footer-height);
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.chart-region {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+}
+
+.cdf-chart-shell,
+.statistic-panel,
+.state-panel,
+.termination-region {
+  background: var(--color-panel);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-card);
+  box-shadow:
+    0 16px 44px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(247, 243, 255, 0.035);
+}
+
+.cdf-chart-shell {
+  animation: none;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.chart-frame-label {
+  align-items: center;
+  color: var(--color-text-faint);
+  display: flex;
+  font-size: 12px;
+  justify-content: space-between;
+  left: 76px;
+  letter-spacing: 0.2px;
+  position: absolute;
+  right: 36px;
+  text-transform: uppercase;
+  top: 24px;
+  z-index: 2;
+}
+
+/* 轴标题样式 */
+.axis-title {
+  color: var(--color-text-muted);
+  fill: var(--color-text-muted);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.y-axis-title {
+  color: var(--color-text-muted);
+  fill: var(--color-text-muted);
+  left: 10px;
+  letter-spacing: 0.2px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+  transform-origin: center;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.cdf-chart-shell .recharts-wrapper {
+  animation: none;
+}
+
+.cdf-chart-shell .recharts-cartesian-axis-tick-value {
+  fill: var(--color-text-muted) !important;
+}
+
+.cdf-chart-shell .recharts-cartesian-axis-line,
+.cdf-chart-shell .recharts-cartesian-axis-tick-line {
+  stroke: var(--color-hairline-strong);
+}
+
+.cdf-chart-shell .recharts-cartesian-grid line {
+  stroke: rgba(247, 243, 255, 0.12);
+}
+
+.visualize-page[data-animation-state="primed"] .cdf-chart-shell {
+  opacity: 0;
+}
+
+.visualize-page[data-animation-state="playing"] .cdf-chart-shell {
+  animation: page-fade-in var(--animation-chart-shell-duration) ease-out var(--animation-chart-shell-delay) both;
+}
+
+.cdf-chart-shell[data-animating="true"] .recharts-wrapper {
+  animation: page-fade-in var(--animation-chart-surface-duration) ease-out var(--animation-chart-surface-delay) both;
+}
+
+.cdf-curve-path {
+  filter: drop-shadow(0 0 5px rgba(34, 211, 238, 0.36));
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+.visualize-page[data-animation-state="primed"] .cdf-curve-path {
+  stroke-dashoffset: 1;
+}
+
+.cdf-chart-shell[data-animating="true"] .cdf-curve-path {
+  animation: cdf-line-draw var(--animation-curve-duration) cubic-bezier(0.22, 0.61, 0.36, 1) var(--animation-curve-delay) both;
+  stroke-dashoffset: 1;
+}
+
+.marker-overlay {
+  pointer-events: none;
+}
+
+.marker-group {
+  opacity: var(--marker-opacity);
+}
+
+.marker-line,
+.mean-horizontal-line {
+  stroke-dasharray: 7 9;
+}
+
+.marker-line {
+  animation: none;
+  transform-box: fill-box;
+  transform-origin: bottom center;
+}
+
+.mean-horizontal-line {
+  opacity: 0.85;
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+
+.marker-point,
+.marker-label,
+.marker-group {
+  animation: none;
+}
+
+.cdf-chart-shell[data-animating="true"] .marker-group {
+  opacity: 0;
+}
+
+.cdf-chart-shell[data-animating="true"] .marker-line {
+  animation: marker-line-in var(--animation-marker-line-duration) ease-out both;
+  animation-delay: calc(var(--animation-marker-line-delay) + var(--marker-index) * var(--animation-marker-stagger));
+}
+
+.cdf-chart-shell[data-animating="true"] .mean-horizontal-line {
+  animation: mean-line-in var(--animation-mean-line-duration) ease-out var(--animation-mean-line-delay) both;
+}
+
+.cdf-chart-shell[data-animating="true"] .marker-group {
+  animation: marker-fade-in var(--animation-marker-group-duration) ease-out both;
+  animation-delay: calc(var(--animation-marker-group-delay) + var(--marker-index) * var(--animation-marker-stagger));
+}
+
+.marker-label {
+  font-size: var(--marker-label-font-size);
+  font-weight: var(--marker-label-font-weight);
+  letter-spacing: 0.2px;
+  paint-order: stroke;
+  stroke: rgba(10, 12, 16, 0.72);
+  stroke-width: var(--marker-label-stroke-width);
+}
+
+.visualize-page[data-animation-state="primed"] .marker-group,
+.visualize-page[data-animation-state="primed"] .mean-horizontal-line {
+  opacity: 0;
+}
+
+.statistic-panel {
+  animation: none;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  padding: 22px 20px;
+  position: relative;
+}
+
+.statistic-panel::before {
+  background: var(--color-nvidia-green);
+  content: "";
+  height: 12px;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 12px;
+}
+
+.panel-heading {
+  align-items: center;
+  color: var(--color-text-muted);
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  justify-content: space-between;
+  letter-spacing: 0.2px;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+
+.metric-list {
+  display: grid;
+  /* 核心统计量卡片的垂直间距 */
+  gap: 12px;
+}
+
+.metric-group {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.metric-group-heading {
+  align-items: baseline;
+  animation: none;
+  display: flex;
+  gap: 8px;
+  height: 20px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.metric-group-heading h2 {
+  color: var(--color-text-primary);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
+  margin: 0;
+}
+
+.metric-group-heading span {
+  color: var(--color-text-faint);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-row {
+  align-items: center;
+  animation: none;
+  background: var(--color-panel-soft);
+  border: 1px solid var(--color-hairline);
+  border-left: 5px solid var(--metric-color);
+  border-radius: 4px;
+  display: flex;
+  /*统计量卡片高度*/
+  height: 84px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.visualize-page[data-animation-state="primed"] .statistic-panel,
+.visualize-page[data-animation-state="primed"] .metric-group-heading,
+.visualize-page[data-animation-state="primed"] .metric-row {
+  opacity: 0;
+}
+
+.visualize-page[data-animation-state="playing"] .statistic-panel {
+  animation: page-fade-in var(--animation-stat-panel-duration) ease-out var(--animation-stat-panel-delay) both;
+}
+
+.visualize-page[data-animation-state="playing"] .metric-group-heading,
+.visualize-page[data-animation-state="playing"] .metric-row {
+  animation: metric-in var(--animation-stat-content-duration) ease-out both;
+  animation-delay: calc(var(--animation-stat-content-delay) + var(--stat-content-index) * var(--animation-stat-content-stagger));
+}
+
+.metric-label {
+  color: var(--color-text-muted);
+  /* 核心统计量名称的字体大小和粗细 */
+  font-size: 32px;
+  font-weight: 550;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-copy {
+  min-width: 0;
+}
+
+.metric-description {
+  color: var(--color-text-faint);
+  /* 核心统计量说明的字体大小和粗细 */
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1;
+  margin-top: 6px;
+}
+
+.metric-value {
+  align-items: baseline;
+  color: var(--color-text-primary);
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+.metric-value span {
+  /* 核心统计量数值的字体大小和粗细 */
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.metric-value small {
+  color: var(--color-text-faint);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.metric-placeholder {
+  display: grid;
+  gap: 12px;
+}
+
+.metric-placeholder-group {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.placeholder-heading {
+  height: 20px;
+}
+
+.placeholder-line {
+  background: var(--color-panel-soft);
+  border: 1px solid var(--color-hairline);
+  border-radius: 4px;
+  height: 84px;
+}
+
+.state-panel {
+  align-items: center;
+  color: var(--color-text-primary);
+  display: flex;
+  gap: 22px;
+  height: 100%;
+  justify-content: center;
+  padding: 48px;
+}
+
+.state-panel svg {
+  color: var(--color-nvidia-green);
+  flex: 0 0 auto;
+}
+
+.state-panel h2 {
+  font-size: 28px;
+  line-height: 1.2;
+  margin: 0 0 10px;
+}
+
+.state-panel p {
+  color: var(--color-text-muted);
+  font-size: 16px;
+  line-height: 1.55;
+  margin: 0;
+  max-width: 560px;
+}
+
+.error-panel {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.error-panel svg {
+  color: var(--color-danger);
+  margin-top: 4px;
+}
+
+.error-panel pre {
+  background: rgba(229, 32, 32, 0.1);
+  border: 1px solid rgba(229, 32, 32, 0.34);
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  font-family: Monaco, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 14px 0 20px;
+  max-height: 360px;
+  overflow: auto;
+  padding: 14px;
+  white-space: pre-wrap;
+  width: 760px;
+}
+
+.loading-mark {
+  border: 2px solid rgba(118, 185, 0, 0.16);
+  border-left-color: var(--color-nvidia-green);
+  border-radius: 50%;
+  height: 34px;
+  width: 34px;
+  animation: spin 800ms linear infinite;
+}
+
+.termination-region {
+  align-items: center;
+  animation: none;
+  display: grid;
+  gap: 34px;
+  grid-template-columns: 36fr 64fr;
+  height: var(--footer-height);
+  padding: 24px 28px;
+}
+
+.visualize-page[data-animation-state="primed"] .termination-region {
+  opacity: 0;
+}
+
+.visualize-page[data-animation-state="playing"] .termination-region {
+  animation: footer-in var(--animation-termination-panel-duration) ease-out var(--animation-termination-panel-delay) both;
+}
+
+.termination-copy h2 {
+  color: var(--color-text-primary);
+  font-size: 24px;
+  line-height: 1.18;
+  margin: 0;
+}
+
+.termination-copy p,
+.page-note {
+  color: var(--color-text-muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.termination-copy p {
+  margin: 8px 0 0;
+}
+
+.termination-bars {
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+}
+
+.termination-heading {
+  margin-bottom: 10px;
+}
+
+.pk-bar {
+  --pk-bar-height: 34px;
+  --pk-seam-width: var(--pk-bar-height);
+  animation: none;
+  background: var(--color-panel-soft);
+  border: 1px solid var(--color-hairline);
+  border-radius: 4px;
+  height: var(--pk-bar-height);
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.pk-bar[data-segment-count="2"] {
+  --pk-seam-angle: -45deg;
+}
+
+.pk-segment {
+  background: var(--segment-color);
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  top: 0;
+  transform-origin: left center;
+}
+
+.pk-segment-diagonal {
+  clip-path: polygon(var(--pk-seam-width) 0, 100% 0, 100% 100%, 0 100%);
+  left: calc(var(--first-segment-width) - var(--pk-seam-width));
+  right: 0;
+  width: auto;
+}
+
+.visualize-page[data-animation-state="playing"] .pk-segment {
+  animation: pk-fill var(--animation-pk-fill-duration) ease-out var(--animation-pk-fill-delay) both;
+}
+
+.visualize-page[data-animation-state="primed"] .pk-bar,
+.visualize-page[data-animation-state="primed"] .reason-list {
+  opacity: 0;
+}
+
+.visualize-page[data-animation-state="playing"] .pk-bar {
+  animation: page-fade-in var(--animation-termination-detail-duration) ease-out var(--animation-pk-fill-delay) both;
+}
+
+.pk-bar-empty {
+  background: var(--color-panel-soft);
+}
+
+.reason-list {
+  align-items: center;
+  animation: none;
+  display: flex;
+  gap: 18px;
+  margin-top: 12px;
+}
+
+.visualize-page[data-animation-state="playing"] .reason-list {
+  animation: page-fade-in var(--animation-termination-detail-duration) ease-out var(--animation-termination-detail-delay) both;
+}
+
+.reason-item {
+  align-items: center;
+  color: var(--color-text-muted);
+  display: inline-flex;
+  font-size: 20px;
+  gap: 8px;
+}
+
+.reason-item strong {
+  color: var(--color-text-primary);
+  font-size: 20px;
+}
+
+.reason-swatch {
+  border-radius: 2px;
+  display: inline-block;
+  height: 15px;
+  width: 15px;
+}
+
+.page-note {
+  margin: 14px auto 0;
+  max-width: 960px;
+  text-align: center;
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cdf-line-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes marker-line-in {
+  from {
+    opacity: 0;
+    transform: scaleY(0.35);
+  }
+
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes mean-line-in {
+  from {
+    opacity: 0;
+    transform: scaleX(0.35);
+  }
+
+  to {
+    opacity: 0.85;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes marker-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes metric-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes footer-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pk-fill {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
