@@ -52,6 +52,8 @@ const ANIMATION_TIMELINE_STYLE = {
   '--animation-stat-content-delay': `${ANIMATION_TIMELINE.STAT_CONTENT_DELAY_MS}ms`,
   '--animation-stat-content-duration': `${ANIMATION_TIMELINE.STAT_CONTENT_DURATION_MS}ms`,
   '--animation-stat-content-stagger': `${ANIMATION_TIMELINE.STAT_CONTENT_STAGGER_MS}ms`,
+  '--animation-note-delay': `${ANIMATION_TIMELINE.NOTE_DELAY_MS}ms`,
+  '--animation-note-duration': `${ANIMATION_TIMELINE.NOTE_DURATION_MS}ms`,
 } as CSSProperties;
 
 export default function App() {

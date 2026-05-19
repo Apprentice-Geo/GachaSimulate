@@ -42,7 +42,7 @@
 }
 
 .visualize-page[data-animation-state="playing"] .page-note {
-  animation: page-fade-in var(--animation-stat-content-duration) ease-out var(--animation-stat-content-delay) both;
+  animation: page-fade-in var(--animation-note-duration) ease-out var(--animation-note-delay) both;
 }
 
 .title-stack {

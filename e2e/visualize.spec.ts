@@ -486,6 +486,65 @@ test('replay button disables while animation is running', async ({ page }) => {
   await expect(replay_button).toBeEnabled();
 });
 
+test('reveals page note after other animated components', async ({ page }) => {
+  await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}&autoplay=0`, {
+    waitUntil: 'networkidle',
+  });
+  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
+    'data-load-state',
+    'ready',
+  );
+
+  await page.getByTestId('replay-animation').click();
+  const animation_order = await page.evaluate(() => {
+    const to_ms = (value: string) => {
+      const first_value = value.split(',')[0]?.trim() ?? '0s';
+      return first_value.endsWith('ms')
+        ? Number.parseFloat(first_value)
+        : Number.parseFloat(first_value) * 1000;
+    };
+    const note = document.querySelector('.page-note');
+    if (!note) {
+      return null;
+    }
+
+    const animated_elements = [
+      '.top-bar',
+      '.cdf-chart-shell',
+      '.cdf-chart-shell .recharts-wrapper',
+      '[data-testid="cdf-curve-path"]',
+      '.marker-line',
+      '.mean-horizontal-line',
+      '.marker-group',
+      '.termination-region',
+      '.pk-bar',
+      '.pk-segment',
+      '.reason-list',
+      '.statistic-panel',
+      '.metric-group-heading',
+      '.metric-row',
+    ].flatMap((selector) => [...document.querySelectorAll(selector)]);
+    const latest_component_end = Math.max(
+      ...animated_elements.map((element) => {
+        const style = window.getComputedStyle(element);
+        return to_ms(style.animationDelay) + to_ms(style.animationDuration);
+      }),
+    );
+    const note_style = window.getComputedStyle(note);
+    return {
+      latest_component_end,
+      note_delay: to_ms(note_style.animationDelay),
+      note_duration: to_ms(note_style.animationDuration),
+    };
+  });
+
+  expect(animation_order).not.toBeNull();
+  expect(animation_order!.note_delay).toBeGreaterThanOrEqual(
+    animation_order!.latest_component_end,
+  );
+  expect(animation_order!.note_duration).toBe(200);
+});
+
 test('autoplay off keeps export page primed before replay', async ({ page }) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}&autoplay=0`, {
     waitUntil: 'networkidle',
