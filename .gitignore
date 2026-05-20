@@ -4,7 +4,7 @@ __pycache__/
 .codex
 *.egg-info/
 /images/
-/data/
+data/
 /node_modules/
 /dist/
 /outputs/

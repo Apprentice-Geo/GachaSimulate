@@ -1,0 +1,18 @@
+{
+    "retained_items": [
+        "sanliouduihuanbi"
+    ],
+    "termination_condition": {
+        "type": "predicate",
+        "subject": "item",
+        "id": "sanliouduihuanbi",
+        "op": ">=",
+        "value": 428,
+        "actions": [
+            {
+                "type": "termination",
+                "reason": "兑换币兑换"
+            }
+        ]
+    }
+}

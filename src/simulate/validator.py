@@ -1,10 +1,9 @@
 from __future__ import annotations
-
+from jsonschema import Draft202012Validator
 import json
 import math
 from pathlib import Path
 from typing import Any
-
 
 class ValidationError(ValueError):
     pass
@@ -335,8 +334,12 @@ def validate_termination(termination: dict[str, Any], config: dict[str, Any]) ->
     )
 
 
-def validate_files(config_path: str, termination_path: str) -> None:
+def validate_files(config_path: str, termination_path: str, config_schema_path: str, termination_schema_path: str) -> None:
     config = json.loads(Path(config_path).read_text(encoding="utf-8"))
     termination = json.loads(Path(termination_path).read_text(encoding="utf-8"))
+    config_schema = json.loads(Path(config_schema_path).read_text(encoding="utf-8"))
+    termination_schema = json.loads(Path(termination_schema_path).read_text(encoding="utf-8"))
+    Draft202012Validator(config_schema).validate(config)
+    Draft202012Validator(termination_schema).validate(termination)  
     validate_config(config)
     validate_termination(termination, config)

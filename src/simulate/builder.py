@@ -9,7 +9,6 @@ from simulate.runtime import (
     Action,
     AddItem,
     CheckNode,
-    ConditionNode,
     DrawPool,
     Item,
     ItemResolve,
@@ -25,8 +24,8 @@ from simulate.runtime import (
 
 
 class RuntimeBuilder:
-    def __init__(self, config_path: str, termination_path: str):
-        validate_files(config_path, termination_path)
+    def __init__(self, config_path: str, termination_path: str,  config_schema_path: str, termination_schema_path: str):
+        validate_files(config_path, termination_path, config_schema_path, termination_schema_path)
         with open(config_path, "r", encoding="utf-8") as f:
             self.config = json.load(f)
         with open(termination_path, "r", encoding="utf-8") as f:

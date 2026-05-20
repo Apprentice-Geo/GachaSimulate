@@ -18,7 +18,7 @@ export function TopBar({
   const metadata = data
     ? [
         `模拟目标：${data.target}`,
-        `实际模拟抽数：${data.draw_counts_display}`,
+        `本轮模拟抽数：${data.draw_counts_display}`,
         `单抽成本: ${data.cost.display_value} ${data.cost.unit}`,
       ]
         .join(' · ')

@@ -1,0 +1,782 @@
+{
+    "meta": {
+        "name": "sanliou_zhenpinchuanshuo",
+        "source": "https://pvp.qq.com/web201706/newsdetail.shtml?tid=801291",
+        "game": "王者荣耀",
+        "time": "2026_5_20",
+        "cost_id": "sanliouqiyuanbi",
+        "cost_name": "三丽鸥祈愿币",
+        "amount": 6,
+        "per_cost_to_rmb": 1
+    },
+    "initial": {
+        "begin_pool": "begin_pool"
+    },
+    "items": {
+        "sanliouduihuanbi": {
+            "name": "三丽鸥兑换币"
+        },
+        "teshuhuizhangbaodijishu": {
+            "name": "特殊徽章保底计数"
+        },
+        "teshuhuizhang1": {
+            "name": "特殊徽章1"
+        },
+        "teshuhuizhang2": {
+            "name": "特殊徽章2"
+        },
+        "teshuhuizhang3": {
+            "name": "特殊徽章3"
+        },
+        "teshuhuizhang4": {
+            "name": "特殊徽章4"
+        },
+        "yao_daergouzhimeng": {
+            "name": "瑶_大耳狗之梦",
+            "resolve": {
+                "retain": 1,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "yao_daergouzhimeng",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "sanliouduihuanbi",
+                        "amount": 198
+                    }
+                ]
+            }
+        },
+        "anqila_kuluomizhixin": {
+            "name": "安琪拉_酷洛米之心",
+            "resolve": {
+                "retain": 1,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "anqila_kuluomizhixin",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "sanliouduihuanbi",
+                        "amount": 198
+                    }
+                ]
+            }
+        },
+        "mianhuatangjuhuitianmu": {
+            "name": "棉花糖聚会天幕",
+            "resolve": {
+                "retain": 1,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "mianhuatangjuhuitianmu",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "sanliouduihuanbi",
+                        "amount": 168
+                    }
+                ]
+            }
+        },
+        "lingbaozhuangban_kaidimaodetongqu":{
+            "name":"灵宝装扮_凯蒂猫的童趣",
+            "resolve": {
+                "retain": 1,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "lingbaozhuangban_kaidimaodetongqu",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "sanliouduihuanbi",
+                        "amount": 98
+                    }
+                ]
+            }
+        },
+        "lingbaozhuangban_kuluomidewanpi":{
+            "name":"灵宝装扮_酷洛米的顽皮",
+            "resolve": {
+                "retain": 1,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "lingbaozhuangban_kuluomidewanpi",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "sanliouduihuanbi",
+                        "amount": 98
+                    }
+                ]
+            }
+        },
+        "lingbaozhuangban_meiledidelingli":{
+            "name":"灵宝装扮_美乐蒂的伶俐",
+            "resolve": {
+                "retain": 1,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "lingbaozhuangban_meiledidelingli",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "sanliouduihuanbi",
+                        "amount": 98
+                    }
+                ]
+            }
+        },
+        "lingbaozhuangban_daergoudenuannuan":{
+            "name":"灵宝装扮_大耳狗的温暖",
+            "resolve": {
+                "retain": 1,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "lingbaozhuangban_daergoudenuannuan",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "sanliouduihuanbi",
+                        "amount": 98
+                    }
+                ]
+            }
+        },
+        "lingbaozhuangban_budinggoudeyouxian":{
+            "name":"灵宝装扮_布丁狗的悠闲",
+            "resolve": {
+                "retain": 1,
+                "actions": [
+                    {
+                        "type": "reduce_item",
+                        "id": "lingbaozhuangban_budinggoudeyouxian",
+                        "amount": 1
+                    },
+                    {
+                        "type": "add_item",
+                        "id": "sanliouduihuanbi",
+                        "amount": 98
+                    }
+                ]
+            }
+        },
+        "jifenduobaodiyongquan": {
+            "name": "积分夺宝抵用券"
+        },
+        "pifusuipian": {
+            "name": "皮肤碎片"
+        },
+        "dianbotonpinqinmidudaoju": {
+            "name": "电波同频亲密度道具"
+        },
+        "gexingchuochuodaergouzhimeng": {
+            "name": "个性戳戳大耳狗之梦"
+        }
+    },
+    "pools": {
+        "begin_pool": {
+            "entries": [
+                {
+                    "probability": 0.001,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "yao_daergouzhimeng",
+                            "amount": 1
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.001,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "anqila_kuluomizhixin",
+                            "amount": 1
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.001,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "mianhuatangjuhuitianmu",
+                            "amount": 1
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.368,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "sanliouduihuanbi",
+                            "amount": 6
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.19,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "sanliouduihuanbi",
+                            "amount": 16
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.074,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "sanliouduihuanbi",
+                            "amount": 26
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.002,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "sanliouduihuanbi",
+                            "amount": 66
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.08,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "jifenduobaodiyongquan",
+                            "amount": 1
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.08,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "pifusuipian",
+                            "amount": 6
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.1,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "dianbotonpinqinmidudaoju",
+                            "amount": 2
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.1,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "gexingchuochuodaergouzhimeng",
+                            "amount": 4
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.0006,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "lingbaozhuangban_kaidimaodetongqu",
+                            "amount": 1
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.0006,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "lingbaozhuangban_kuluomidewanpi",
+                            "amount": 1
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.0006,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "lingbaozhuangban_meiledidelingli",
+                            "amount": 1
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.0006,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "lingbaozhuangban_daergoudenuannuan",
+                            "amount": 1
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.0006,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "lingbaozhuangban_budinggoudeyouxian",
+                            "amount": 1
+                        }
+                    ]
+                }
+            ]
+        },
+        "teshuhuizhang1_pool": {
+            "entries": [
+                {
+                    "probability": 1,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "teshuhuizhang1",
+                            "amount": 1
+                        }
+                    ]
+                }
+            ]
+        },
+        "teshuhuizhang2_pool": {
+            "entries": [
+                {
+                    "probability": 0.5,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "teshuhuizhang2",
+                            "amount": 1
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.5
+                }
+            ]
+        },
+        "teshuhuizhang3_pool": {
+            "entries": [
+                {
+                    "probability": 0.25,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "teshuhuizhang3",
+                            "amount": 1
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.75
+                }
+            ]
+        },
+        "teshuhuizhang4_pool": {
+            "entries": [
+                {
+                    "probability": 0.1,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "teshuhuizhang4",
+                            "amount": 1
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.9
+                }
+            ]
+        },
+        "teshuhuizhang_pool": {
+            "entries": [
+                {
+                    "probability": 0.32,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "sanliouduihuanbi",
+                            "amount": 28
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.3,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "sanliouduihuanbi",
+                            "amount": 48
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.34,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "sanliouduihuanbi",
+                            "amount": 88
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.035,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "sanliouduihuanbi",
+                            "amount": 168
+                        }
+                    ]
+                },
+                {
+                    "probability": 0.005,
+                    "actions": [
+                        {
+                            "type": "add_item",
+                            "id": "sanliouduihuanbi",
+                            "amount": 198
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "stages": {
+        "teshuhuizhangbaodi": {
+            "once": false,
+            "condition": {
+                "type": "predicate",
+                "subject": "draw_count",
+                "id": null,
+                "op": ">=",
+                "value": 1,
+                "actions": [
+                    {
+                        "type": "add_item",
+                        "id": "teshuhuizhangbaodijishu",
+                        "amount": 1
+                    }
+                ]
+            }
+        },
+        "teshuhuizhang_gain": {
+            "once": false,
+            "condition": {
+                "type": "logic",
+                "op": "AND",
+                "conditions": [
+                    {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "teshuhuizhangbaodijishu",
+                        "op": "<",
+                        "value": 10
+                    },
+                    {
+                        "type": "logic",
+                        "op": "OR",
+                        "conditions": [
+                            {
+                                "type": "logic",
+                                "op": "AND",
+                                "conditions": [
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang1",
+                                        "op": "==",
+                                        "value": 0
+                                    },
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang2",
+                                        "op": "==",
+                                        "value": 0
+                                    },
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang3",
+                                        "op": "==",
+                                        "value": 0
+                                    },
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang4",
+                                        "op": "==",
+                                        "value": 0
+                                    }
+                                ],
+                                "actions": [
+                                    {
+                                        "type": "draw_pool",
+                                        "id": "teshuhuizhang1_pool"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "logic",
+                                "op": "AND",
+                                "conditions": [
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang1",
+                                        "op": "==",
+                                        "value": 1
+                                    },
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang2",
+                                        "op": "==",
+                                        "value": 0
+                                    },
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang3",
+                                        "op": "==",
+                                        "value": 0
+                                    },
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang4",
+                                        "op": "==",
+                                        "value": 0
+                                    }
+                                ],
+                                "actions": [
+                                    {
+                                        "type": "draw_pool",
+                                        "id": "teshuhuizhang2_pool"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "logic",
+                                "op": "AND",
+                                "conditions": [
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang1",
+                                        "op": "==",
+                                        "value": 1
+                                    },
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang2",
+                                        "op": "==",
+                                        "value": 1
+                                    },
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang3",
+                                        "op": "==",
+                                        "value": 0
+                                    },
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang4",
+                                        "op": "==",
+                                        "value": 0
+                                    }
+                                ],
+                                "actions": [
+                                    {
+                                        "type": "draw_pool",
+                                        "id": "teshuhuizhang3_pool"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "logic",
+                                "op": "AND",
+                                "conditions": [
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang1",
+                                        "op": "==",
+                                        "value": 1
+                                    },
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang2",
+                                        "op": "==",
+                                        "value": 1
+                                    },
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang3",
+                                        "op": "==",
+                                        "value": 1
+                                    },
+                                    {
+                                        "type": "predicate",
+                                        "subject": "item",
+                                        "id": "teshuhuizhang4",
+                                        "op": "==",
+                                        "value": 0
+                                    }
+                                ],
+                                "actions": [
+                                    {
+                                        "type": "draw_pool",
+                                        "id": "teshuhuizhang4_pool"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "teshuhuizhangbaodi_execute": {
+            "once": false,
+            "condition": {
+                "type": "predicate",
+                "subject": "item",
+                "id": "teshuhuizhangbaodijishu",
+                "op": "==",
+                "value": 10,
+                "actions": [
+                    {
+                        "type": "set_item",
+                        "id": "teshuhuizhang1",
+                        "amount": 1
+                    },
+                    {
+                        "type": "set_item",
+                        "id": "teshuhuizhang2",
+                        "amount": 1
+                    },
+                    {
+                        "type": "set_item",
+                        "id": "teshuhuizhang3",
+                        "amount": 1
+                    },
+                    {
+                        "type": "set_item",
+                        "id": "teshuhuizhang4",
+                        "amount": 1
+                    },
+                    {
+                        "type": "set_item",
+                        "id": "teshuhuizhangbaodijishu",
+                        "amount": 0
+                    }
+                ]
+            }
+        },
+        "teshuhuizhang_execute": {
+            "once": false,
+            "condition": {
+                "type": "logic",
+                "op": "AND",
+                "conditions": [
+                    {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "teshuhuizhang1",
+                        "op": "==",
+                        "value": 1
+                    },
+                    {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "teshuhuizhang2",
+                        "op": "==",
+                        "value": 1
+                    },
+                    {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "teshuhuizhang3",
+                        "op": "==",
+                        "value": 1
+                    },
+                    {
+                        "type": "predicate",
+                        "subject": "item",
+                        "id": "teshuhuizhang4",
+                        "op": "==",
+                        "value": 1
+                    }
+                ],
+                "actions": [
+                    {
+                        "type": "set_item",
+                        "id": "teshuhuizhang1",
+                        "amount": 0
+                    },
+                    {
+                        "type": "set_item",
+                        "id": "teshuhuizhang2",
+                        "amount": 0
+                    },
+                    {
+                        "type": "set_item",
+                        "id": "teshuhuizhang3",
+                        "amount": 0
+                    },
+                    {
+                        "type": "set_item",
+                        "id": "teshuhuizhang4",
+                        "amount": 0
+                    },
+                    {
+                        "type": "set_item",
+                        "id": "teshuhuizhangbaodijishu",
+                        "amount": 0
+                    },
+                    {
+                        "type": "draw_pool",
+                        "id": "teshuhuizhang_pool"
+                    }
+                ]
+            }
+        }
+    }
+}

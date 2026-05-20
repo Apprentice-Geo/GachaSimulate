@@ -1,0 +1,38 @@
+{
+    "retained_items": [
+        "yao_daergouzhimeng",
+        "sanliouduihuanbi"
+    ],
+    "termination_condition": {
+        "type": "logic",
+        "op": "OR",
+        "conditions": [
+            {
+                "type": "predicate",
+                "subject": "item",
+                "id": "yao_daergouzhimeng",
+                "op": ">=",
+                "value": 1,
+                "actions": [
+                    {
+                        "type": "termination",
+                        "reason": "抽中皮肤"
+                    }
+                ]
+            },
+            {
+                "type": "predicate",
+                "subject": "item",
+                "id": "sanliouduihuanbi",
+                "op": ">=",
+                "value": 465,
+                "actions": [
+                    {
+                        "type": "termination",
+                        "reason": "兑换币兑换"
+                    }
+                ]
+            }
+        ]
+    }
+}

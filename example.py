@@ -11,6 +11,9 @@ from simulate.visualize import Visualizer
 import os
 import numpy as np
 
+PROJECT_ROOT = Path(__file__).resolve().parent
+CONFIG_SCHEMA_PATH = os.path.join(PROJECT_ROOT,"docs","schemas", "config.schema.json")
+TERMINATION_SCHEMA_PATH = os.path.join(PROJECT_ROOT,"docs","schemas", "termination.schema.json")
 
 def run_save(
     config_name: str,
@@ -22,8 +25,8 @@ def run_save(
         os.cpu_count() or 1,
     ),
 ):
-    project_root = Path(__file__).resolve().parent
-    base_path = os.path.join(project_root, "configs", config_name)
+
+    base_path = os.path.join(PROJECT_ROOT, "configs", config_name)
     config_json_path = os.path.join(base_path, "config.json")
     termination_json_path = os.path.join(base_path, termination_name + ".json")
     result_file_path = (
@@ -32,7 +35,7 @@ def run_save(
     name = os.path.basename(os.path.dirname(config_json_path))
     simulate_name = f"{name}_{Path(termination_json_path).stem}"
     builder = RuntimeBuilder(
-        config_path=config_json_path, termination_path=termination_json_path
+        config_path=config_json_path, termination_path=termination_json_path, config_schema_path=CONFIG_SCHEMA_PATH, termination_schema_path=TERMINATION_SCHEMA_PATH
     )
 
     ctx = builder.build()
@@ -45,8 +48,9 @@ def run_save(
         data_dir.mkdir(parents=True, exist_ok=True)
         save_simulation_result(result_file_path, result)
         save_visualize_input(f"./data/{simulate_name}_visualize_input.json", result)
-    result = load_simulation_result(result_file_path)
-    save_visualize_input(f"./data/{simulate_name}_visualize_input.json", result)
+    else:
+        result = load_simulation_result(result_file_path)
+
     print("Total runs:", result["total_runs"])
     print("Total draw:", result["total_draw"])
     print("terminate reasons distribution:")
@@ -69,11 +73,11 @@ def run_save(
 
 
 if __name__ == "__main__":
-    base_seed = int("0721")
+    base_seed = int("0520")
     run_save(
-        "nezha2_zhenpinchuanshuo",
+        "sanliou_zhenpinchuanshuo",
         "termination_skin",
-        target_total_draw=100000000,
-        seed=base_seed + 1,
+        target_total_draw=10000000,
+        seed=base_seed,
     )
     # print(os.cpu_count())

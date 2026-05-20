@@ -41,12 +41,12 @@ export const STATISTIC_VIEW_CONFIG: Record<StatisticKey, StatisticViewConfig> = 
   },
   MIN: {
     label: 'MIN',
-    description: '本次模拟达成抽数最小值',
+    description: '本轮模拟达成抽数最小值',
 
   },
   MAX: {
     label: 'MAX',
-    description: '本次模拟达成抽数最大值',
+    description: '本轮模拟达成抽数最大值',
 
   },
 };
