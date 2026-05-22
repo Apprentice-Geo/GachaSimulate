@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 DEFAULT_VISUALIZE_TITLE = "核心模拟结果"
 DEFAULT_VISUALIZE_TARGET = "未设置"
-DEFAULT_VISUALIZE_NOTE = "MEAN 受极端高抽数影响，P50 更接近“典型体验”，P95 更适合衡量高风险预算。MIN、MAX 受模拟次数影响，不代表理论极限抽数。"
+DEFAULT_VISUALIZE_NOTE = "MEAN 受极端抽数影响，P50 更接近“典型体验”，P95 更适合衡量高风险预算。MIN、MAX 受模拟次数影响，不代表理论极限抽数。"
 DEFAULT_VISUALIZE_COST = 0
 
 

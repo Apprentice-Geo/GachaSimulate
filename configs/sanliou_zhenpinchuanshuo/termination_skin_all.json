@@ -23,13 +23,13 @@
                         "subject": "item",
                         "id": "sanliouduihuanbi",
                         "op": ">=",
-                        "value": 168
+                        "value": 454
                     }
                 ],
                 "actions": [
                     {
                         "type": "termination",
-                        "reason": "抽中皮肤，兑换个性资源礼包"
+                        "reason": "抽中皮肤并兑换其余礼包"
                     }
                 ]
             },
@@ -38,7 +38,7 @@
                 "subject": "item",
                 "id": "sanliouduihuanbi",
                 "op": ">=",
-                "value": 666,
+                "value": 952,
                 "actions": [
                     {
                         "type": "termination",

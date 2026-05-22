@@ -54,10 +54,4 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
-## 5. Project Naming
-
-- Constants use `UPPER_CASE_WITH_UNDERSCORES`.
-- Classes use `PascalCase`; acronyms stay uppercase, e.g. `HTTPClient` and `CDFData`.
-- Functions, methods, variables, and modules use `snake_case`.  
-
 ---

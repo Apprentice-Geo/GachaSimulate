@@ -73,11 +73,11 @@ def run_save(
 
 
 if __name__ == "__main__":
-    base_seed = int("0520")
+    base_seed = int("666")
     run_save(
         "sanliou_zhenpinchuanshuo",
-        "termination_skin",
-        target_total_draw=10000000,
+        "termination_skin_all",
+        target_total_draw=100000000,
         seed=base_seed,
     )
     # print(os.cpu_count())
