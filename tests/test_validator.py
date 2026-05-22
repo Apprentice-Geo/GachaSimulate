@@ -66,6 +66,8 @@ def test_validates_real_config_files() -> None:
     validate_files(
         str(ROOT / "configs" / "sunwukong_wuxiang" / "config.json"),
         str(ROOT / "configs" / "sunwukong_wuxiang" / "termination_skin.json"),
+        str(CONFIG_SCHEMA_PATH),
+        str(TERMINATION_SCHEMA_PATH),
     )
 
 
@@ -104,7 +106,12 @@ def test_config_directory_has_termination_files(config_path: Path) -> None:
 def test_validates_all_real_config_files(
     config_path: Path, termination_path: Path
 ) -> None:
-    validate_files(str(config_path), str(termination_path))
+    validate_files(
+        str(config_path),
+        str(termination_path),
+        str(CONFIG_SCHEMA_PATH),
+        str(TERMINATION_SCHEMA_PATH),
+    )
 
 
 def test_initial_begin_pool_may_reference_any_pool_order(test_config: dict) -> None:

@@ -19,6 +19,8 @@ from simulate.runtime import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+CONFIG_SCHEMA_PATH = ROOT / "docs" / "schemas" / "config.schema.json"
+TERMINATION_SCHEMA_PATH = ROOT / "docs" / "schemas" / "termination.schema.json"
 
 
 def _config_termination_pairs() -> list[tuple[Path, Path]]:
@@ -33,7 +35,12 @@ def test_builds_expected_runtime_structure() -> None:
     config_path = ROOT / "configs" / "test" / "config.json"
     termination_path = ROOT / "configs" / "test" / "termination.json"
 
-    ctx = RuntimeBuilder(str(config_path), str(termination_path)).build()
+    ctx = RuntimeBuilder(
+        str(config_path),
+        str(termination_path),
+        str(CONFIG_SCHEMA_PATH),
+        str(TERMINATION_SCHEMA_PATH),
+    ).build()
 
     assert ctx.begin_pool_index == 0
     assert ctx.draw_stage_id_index == {
@@ -113,7 +120,12 @@ def test_builder_compiles_all_wuxiang_terminations(termination_name: str) -> Non
     config_path = ROOT / "configs" / "sunwukong_wuxiang" / "config.json"
     termination_path = ROOT / "configs" / "sunwukong_wuxiang" / termination_name
 
-    ctx = RuntimeBuilder(str(config_path), str(termination_path)).build()
+    ctx = RuntimeBuilder(
+        str(config_path),
+        str(termination_path),
+        str(CONFIG_SCHEMA_PATH),
+        str(TERMINATION_SCHEMA_PATH),
+    ).build()
 
     assert isinstance(ctx, RuntimeContext)
     assert ctx.begin_pool_index == ctx.pool_id_index["begin_pool"]
@@ -134,7 +146,12 @@ def test_builder_compiles_all_wuxiang_terminations(termination_name: str) -> Non
 def test_builder_compiles_all_real_config_files(
     config_path: Path, termination_path: Path
 ) -> None:
-    ctx = RuntimeBuilder(str(config_path), str(termination_path)).build()
+    ctx = RuntimeBuilder(
+        str(config_path),
+        str(termination_path),
+        str(CONFIG_SCHEMA_PATH),
+        str(TERMINATION_SCHEMA_PATH),
+    ).build()
 
     assert isinstance(ctx, RuntimeContext)
     assert ctx.begin_pool_index >= 0
