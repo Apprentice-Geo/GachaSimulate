@@ -1,13 +1,13 @@
-import type { CSSProperties } from 'react';
-import { useMemo } from 'react';
-import { usePlotArea, useXAxisScale, useYAxisScale } from 'recharts';
-import { get_marker_visual } from './cdf_marker_visuals';
-import type { NormalizedVisualizeData } from '../types/visualize_input';
-import { CDF_CHART_VIEW_CONFIG } from '../view/cdf_view_config';
+import type { CSSProperties } from "react";
+import { useMemo } from "react";
+import { usePlotArea, useXAxisScale, useYAxisScale } from "recharts";
+import { get_marker_visual } from "./cdf_marker_visuals";
+import type { NormalizedVisualizeData } from "../types/visualize_input";
+import { CDF_CHART_VIEW_CONFIG } from "../view/cdf_view_config";
 import {
   build_curve_path,
   build_marker_views,
-} from '../view/cdf_overlay_layout';
+} from "../view/cdf_overlay_layout";
 
 interface CDFOverlayProps {
   data: NormalizedVisualizeData;
@@ -26,7 +26,7 @@ export function CDFOverlay({ data, animation_key }: CDFOverlayProps) {
     () => build_curve_path(data.chart_points, x_scale, y_scale),
     [data.chart_points, x_scale, y_scale],
   );
-  const mean_marker = marker_views.find((view) => view.marker.key === 'MEAN');
+  const mean_marker = marker_views.find((view) => view.marker.key === "MEAN");
   const mean_marker_visual = mean_marker
     ? get_marker_visual(mean_marker.marker.weight)
     : null;
@@ -75,11 +75,11 @@ export function CDFOverlay({ data, animation_key }: CDFOverlayProps) {
             key={view.marker.key}
             style={
               {
-                '--marker-index': index,
-                '--marker-label-font-size': `${marker_visual.label_font_size}px`,
-                '--marker-label-font-weight': marker_visual.label_font_weight,
-                '--marker-label-stroke-width': `${marker_visual.label_stroke_width}px`,
-                '--marker-opacity': marker_visual.opacity,
+                "--marker-index": index,
+                "--marker-label-font-size": `${marker_visual.label_font_size}px`,
+                "--marker-label-font-weight": marker_visual.label_font_weight,
+                "--marker-label-stroke-width": `${marker_visual.label_stroke_width}px`,
+                "--marker-opacity": marker_visual.opacity,
               } as CSSProperties
             }
           >

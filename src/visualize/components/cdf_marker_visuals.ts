@@ -1,4 +1,4 @@
-import type { CDFMarker } from '../types/visualize_input';
+import type { CDFMarker } from "../types/visualize_input";
 
 interface CDFMarkerVisual {
   opacity: number;
@@ -10,8 +10,9 @@ interface CDFMarkerVisual {
 }
 
 // 集中控制CDF标注的样式
-export const MARKER_VISUALS: Record<CDFMarker['weight'], CDFMarkerVisual> = {
-  faint: { // MIN P5
+export const MARKER_VISUALS: Record<CDFMarker["weight"], CDFMarkerVisual> = {
+  faint: {
+    // MIN P5
     opacity: 0.85, // 不透明度
     stroke_width: 2, // 线条宽度
     point_radius: 5.5, // 标注点的半径
@@ -19,7 +20,8 @@ export const MARKER_VISUALS: Record<CDFMarker['weight'], CDFMarkerVisual> = {
     label_font_weight: 700, // 标签字体粗细
     label_stroke_width: 2.5, // 标签描边宽度
   },
-  normal: {// P25 P75
+  normal: {
+    // P25 P75
     opacity: 0.9,
     stroke_width: 2.33,
     point_radius: 5.5,
@@ -27,7 +29,8 @@ export const MARKER_VISUALS: Record<CDFMarker['weight'], CDFMarkerVisual> = {
     label_font_weight: 700,
     label_stroke_width: 2.75,
   },
-  strong: { // MEAN P95 MAX
+  strong: {
+    // MEAN P95 MAX
     opacity: 0.95,
     stroke_width: 2.66,
     point_radius: 6.5,
@@ -35,7 +38,8 @@ export const MARKER_VISUALS: Record<CDFMarker['weight'], CDFMarkerVisual> = {
     label_font_weight: 700,
     label_stroke_width: 3,
   },
-  primary: { // P50
+  primary: {
+    // P50
     opacity: 0.95,
     stroke_width: 3,
     point_radius: 8,
@@ -46,7 +50,7 @@ export const MARKER_VISUALS: Record<CDFMarker['weight'], CDFMarkerVisual> = {
 };
 
 export function get_marker_visual(
-  weight: CDFMarker['weight'],
+  weight: CDFMarker["weight"],
 ): CDFMarkerVisual {
   return MARKER_VISUALS[weight];
 }

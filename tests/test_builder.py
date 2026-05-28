@@ -52,27 +52,21 @@ def test_builds_expected_runtime_structure() -> None:
 
     precious_trigger = ctx.item_draw_list[ctx.item_id_index["random_precious_item"]]
     ordinary_trigger = ctx.item_draw_list[ctx.item_id_index["random_ordinary_item"]]
-    assert [(type(action), action.pool_index) for action in precious_trigger] == [
-        (DrawPool, 3)
-    ]
-    assert [(type(action), action.pool_index) for action in ordinary_trigger] == [
-        (DrawPool, 4)
-    ]
+    assert [(type(action), action.pool_index) for action in precious_trigger] == [(DrawPool, 3)]
+    assert [(type(action), action.pool_index) for action in ordinary_trigger] == [(DrawPool, 4)]
 
     precious_resolve = ctx.item_resolve_list[ctx.item_id_index["precious_item_1"]]
     ordinary_resolve = ctx.item_resolve_list[ctx.item_id_index["ordinary_item_2"]]
     assert precious_resolve.retain == 0
     assert ordinary_resolve.retain == 0
     assert [
-        (type(action), action.item_index, action.amount)
-        for action in precious_resolve.actions
+        (type(action), action.item_index, action.amount) for action in precious_resolve.actions
     ] == [
         (AddItem, 11, 120),
         (ReduceItem, 5, 1),
     ]
     assert [
-        (type(action), action.item_index, action.amount)
-        for action in ordinary_resolve.actions
+        (type(action), action.item_index, action.amount) for action in ordinary_resolve.actions
     ] == [
         (AddItem, 11, 30),
         (ReduceItem, 9, 1),
@@ -143,9 +137,7 @@ def test_builder_compiles_all_wuxiang_terminations(termination_name: str) -> Non
     _config_termination_pairs(),
     ids=lambda value: value.parent.name if value.name == "config.json" else value.name,
 )
-def test_builder_compiles_all_real_config_files(
-    config_path: Path, termination_path: Path
-) -> None:
+def test_builder_compiles_all_real_config_files(config_path: Path, termination_path: Path) -> None:
     ctx = RuntimeBuilder(
         str(config_path),
         str(termination_path),
@@ -295,7 +287,6 @@ def test_builds_initial_pool_and_actions() -> None:
     ctx = RuntimeBuilder.from_config(config, termination).build()
 
     assert ctx.begin_pool_index == ctx.pool_id_index["bonus_pool"]
-    assert [
-        (type(action), action.item_index, action.amount)
-        for action in ctx.initial_actions
-    ] == [(AddItem, ctx.item_id_index["token"], 2)]
+    assert [(type(action), action.item_index, action.amount) for action in ctx.initial_actions] == [
+        (AddItem, ctx.item_id_index["token"], 2)
+    ]

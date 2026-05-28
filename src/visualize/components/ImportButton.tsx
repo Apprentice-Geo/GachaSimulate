@@ -1,5 +1,5 @@
-import { Upload } from 'lucide-react';
-import { useRef } from 'react';
+import { Upload } from "lucide-react";
+import { useRef } from "react";
 
 interface ImportButtonProps {
   compact?: boolean;
@@ -17,7 +17,7 @@ export function ImportButton({
   return (
     <>
       <button
-        className={compact ? 'icon-button' : 'command-button'}
+        className={compact ? "icon-button" : "command-button"}
         disabled={disabled}
         title="导入 JSON 数据"
         type="button"
@@ -35,7 +35,7 @@ export function ImportButton({
           const file = event.target.files?.[0];
           if (file) {
             on_file_import(file);
-            event.target.value = '';
+            event.target.value = "";
           }
         }}
       />

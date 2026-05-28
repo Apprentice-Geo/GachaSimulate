@@ -103,9 +103,7 @@ def test_config_directory_has_termination_files(config_path: Path) -> None:
     _config_termination_pairs(),
     ids=lambda value: value.parent.name if value.name == "config.json" else value.name,
 )
-def test_validates_all_real_config_files(
-    config_path: Path, termination_path: Path
-) -> None:
+def test_validates_all_real_config_files(config_path: Path, termination_path: Path) -> None:
     validate_files(
         str(config_path),
         str(termination_path),
@@ -118,9 +116,7 @@ def test_initial_begin_pool_may_reference_any_pool_order(test_config: dict) -> N
     config = deepcopy(test_config)
     pools = config["pools"]
     config["pools"] = {"pool_1": pools["pool_1"]}
-    config["pools"].update(
-        {key: value for key, value in pools.items() if key != "pool_1"}
-    )
+    config["pools"].update({key: value for key, value in pools.items() if key != "pool_1"})
     config["initial"]["begin_pool"] = "begin_pool"
 
     validate_config(config)
@@ -333,9 +329,7 @@ def test_rejects_unknown_predicate_subject(test_config: dict) -> None:
     config = deepcopy(test_config)
     config["stages"]["per_draw"]["condition"]["subject"] = "currency"
 
-    with pytest.raises(
-        ValidationError, match="unsupported predicate subject: currency"
-    ):
+    with pytest.raises(ValidationError, match="unsupported predicate subject: currency"):
         validate_config(config)
 
 
@@ -358,13 +352,9 @@ def test_rejects_non_null_draw_count_predicate_id(test_config: dict) -> None:
         validate_config(config)
 
 
-def test_rejects_unknown_item_predicate_id(
-    test_termination: dict, test_config: dict
-) -> None:
+def test_rejects_unknown_item_predicate_id(test_termination: dict, test_config: dict) -> None:
     termination = deepcopy(test_termination)
-    termination["termination_condition"]["conditions"][0]["conditions"][0][
-        "id"
-    ] = "missing_item"
+    termination["termination_condition"]["conditions"][0]["conditions"][0]["id"] = "missing_item"
 
     with pytest.raises(ValidationError, match="unknown item id: missing_item"):
         validate_termination(termination, test_config)
@@ -378,9 +368,7 @@ def test_rejects_unknown_logic_op(test_termination: dict, test_config: dict) -> 
         validate_termination(termination, test_config)
 
 
-def test_requires_non_empty_logic_conditions(
-    test_termination: dict, test_config: dict
-) -> None:
+def test_requires_non_empty_logic_conditions(test_termination: dict, test_config: dict) -> None:
     termination = deepcopy(test_termination)
     termination["termination_condition"]["conditions"] = []
 
@@ -388,9 +376,7 @@ def test_requires_non_empty_logic_conditions(
         validate_termination(termination, test_config)
 
 
-def test_rejects_unknown_retained_item(
-    test_termination: dict, test_config: dict
-) -> None:
+def test_rejects_unknown_retained_item(test_termination: dict, test_config: dict) -> None:
     termination = deepcopy(test_termination)
     termination["retained_items"].append("missing_item")
 

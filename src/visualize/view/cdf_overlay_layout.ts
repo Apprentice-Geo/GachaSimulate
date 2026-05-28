@@ -1,6 +1,6 @@
-import type { ScaleFunction } from 'recharts';
-import type { CDFMarker, CDFPoint } from '../types/visualize_input';
-import { CDF_MARKER_VIEW_CONFIG } from './cdf_view_config';
+import type { ScaleFunction } from "recharts";
+import type { CDFMarker, CDFPoint } from "../types/visualize_input";
+import { CDF_MARKER_VIEW_CONFIG } from "./cdf_view_config";
 
 export interface MarkerView {
   marker: CDFMarker;
@@ -8,8 +8,8 @@ export interface MarkerView {
   y: number;
   label_x: number;
   label_y: number;
-  text_anchor: 'start' | 'middle' | 'end';
-  dominant_baseline: 'auto' | 'hanging' | 'middle' | 'text-after-edge';
+  text_anchor: "start" | "middle" | "end";
+  dominant_baseline: "auto" | "hanging" | "middle" | "text-after-edge";
   label_text: string;
 }
 
@@ -39,15 +39,15 @@ function estimate_label_width(label: string): number {
 
 function clamp_label_x(
   x: number,
-  text_anchor: MarkerView['text_anchor'],
+  text_anchor: MarkerView["text_anchor"],
   label_text: string,
   plot_box: PlotBox,
 ): number {
   const label_width = estimate_label_width(label_text);
-  if (text_anchor === 'end') {
+  if (text_anchor === "end") {
     return clamp(x, plot_box.left + label_width, plot_box.right - 4);
   }
-  if (text_anchor === 'start') {
+  if (text_anchor === "start") {
     return clamp(x, plot_box.left + 4, plot_box.right - label_width);
   }
   return clamp(
@@ -75,8 +75,8 @@ export function build_marker_views(
     right: plot_area.x + plot_area.width,
     bottom: plot_area.y + plot_area.height,
   };
-  const p50 = markers.find((marker) => marker.key === 'P50');
-  const mean = markers.find((marker) => marker.key === 'MEAN');
+  const p50 = markers.find((marker) => marker.key === "P50");
+  const mean = markers.find((marker) => marker.key === "MEAN");
   const p50_is_greater_than_mean = (p50?.draw ?? 0) > (mean?.draw ?? 0);
 
   const views = markers.flatMap((marker) => {
@@ -90,36 +90,36 @@ export function build_marker_views(
 
     let label_x = x - 8;
     let label_y = y - 10;
-    let text_anchor: MarkerView['text_anchor'] = 'end';
-    let dominant_baseline: MarkerView['dominant_baseline'] = 'auto';
+    let text_anchor: MarkerView["text_anchor"] = "end";
+    let dominant_baseline: MarkerView["dominant_baseline"] = "auto";
     let label_text = marker.label;
 
-    if (marker.key === 'MEAN') {
+    if (marker.key === "MEAN") {
       label_x = x - 14;
       label_y = y;
-      text_anchor = 'end';
+      text_anchor = "end";
       dominant_baseline = p50_is_greater_than_mean
-        ? 'hanging'
-        : 'text-after-edge';
-      label_text = 'MEAN ';
+        ? "hanging"
+        : "text-after-edge";
+      label_text = "MEAN ";
     }
 
-    if (marker.key === 'MAX') {
+    if (marker.key === "MAX") {
       label_x = x - 12;
       label_y = y - 10;
-      text_anchor = 'end';
-      dominant_baseline = 'text-after-edge';
-      label_text = 'MAX ';
+      text_anchor = "end";
+      dominant_baseline = "text-after-edge";
+      label_text = "MAX ";
     }
 
-    if (marker.key === 'P50') {
+    if (marker.key === "P50") {
       label_x = x - 14;
       label_y = y;
-      text_anchor = 'end';
+      text_anchor = "end";
       dominant_baseline = p50_is_greater_than_mean
-        ? 'text-after-edge'
-        : 'hanging';
-      label_text = 'P50 ';
+        ? "text-after-edge"
+        : "hanging";
+      label_text = "P50 ";
     }
 
     return {
@@ -167,7 +167,7 @@ export function build_curve_path(
   y_scale: ScaleFunction | undefined,
 ): string {
   if (!x_scale || !y_scale || chart_points.length === 0) {
-    return '';
+    return "";
   }
 
   const path_segments: string[] = [];
@@ -190,5 +190,5 @@ export function build_curve_path(
     previous_y = y;
   });
 
-  return path_segments.join(' ');
+  return path_segments.join(" ");
 }

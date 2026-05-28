@@ -28,9 +28,9 @@ rcParams["axes.unicode_minus"] = False
 @dataclass(frozen=True)
 class PlotTheme:
     primary: str
-    figure_background: str = "#FAFAF7" # 整张图背景
-    card_background: str = "#FFFFFF"   # 卡片背景
-    axis_background: str = "#F3F4F2"   # 坐标区背景
+    figure_background: str = "#FAFAF7"  # 整张图背景
+    card_background: str = "#FFFFFF"  # 卡片背景
+    axis_background: str = "#F3F4F2"  # 坐标区背景
     # 坐标轴边框
     spine_color: str = "#AEB6BF"
     spine_width: float = 1.2
@@ -314,9 +314,9 @@ class Visualizer:
 
         chip_width = self.DASHBOARD_CHIP_WIDTH
         chip_gap = self.DASHBOARD_CHIP_GAP
-        chip_start_x = 0.5 - (
-            len(metric_items) * chip_width + (len(metric_items) - 1) * chip_gap
-        ) / 2
+        chip_start_x = (
+            0.5 - (len(metric_items) * chip_width + (len(metric_items) - 1) * chip_gap) / 2
+        )
         chip_y = self.DASHBOARD_CHIP_Y
         for idx, (label, value, color) in enumerate(metric_items):
             x = chip_start_x + idx * (chip_width + chip_gap)
@@ -468,9 +468,7 @@ class Visualizer:
         for row, chip_y, chip_width, chip_gap in zip(
             metric_rows, row_y_positions, row_widths, row_gaps
         ):
-            chip_start_x = (
-                0.5 - (len(row) * chip_width + (len(row) - 1) * chip_gap) / 2
-            )
+            chip_start_x = 0.5 - (len(row) * chip_width + (len(row) - 1) * chip_gap) / 2
             for idx, (label, value, color, is_emphasis) in enumerate(row):
                 x = chip_start_x + idx * (chip_width + chip_gap)
                 chip = FancyBboxPatch(
@@ -508,7 +506,7 @@ class Visualizer:
         )
 
         self._apply_grid(ax, theme, axis="y")
-        
+
         self._apply_axis_style(ax, theme, hide_top_right=True)
         ax.set_xlim(left=0)
         ax.set_ylim(bottom=0)
@@ -599,9 +597,7 @@ class Visualizer:
                 ha="right",
                 va="bottom",
                 fontsize=10,
-                fontweight=(
-                    "bold" if mark.label in self.CDF_EMPHASIS_LABELS else "normal"
-                ),
+                fontweight=("bold" if mark.label in self.CDF_EMPHASIS_LABELS else "normal"),
                 zorder=8,
             )
         ax.text(

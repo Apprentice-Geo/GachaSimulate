@@ -1,22 +1,22 @@
-import { chromium, type Browser, type BrowserContext } from 'playwright';
-import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
-import net from 'node:net';
-import os from 'node:os';
-import path from 'node:path';
-import { ANIMATION_TOTAL_MS, EXPORT_BUFFER_MS } from '../animation/timeline';
+import { chromium, type Browser, type BrowserContext } from "playwright";
+import { spawn, type ChildProcess } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import net from "node:net";
+import os from "node:os";
+import path from "node:path";
+import { ANIMATION_TOTAL_MS, EXPORT_BUFFER_MS } from "../animation/timeline";
 import {
   probe_video_duration_seconds,
   transcode_webm_to_mp4,
   trim_video_to_webm,
-} from './ffmpeg';
+} from "./ffmpeg";
 import {
   DEFAULT_OUTPUT_DIR,
   ensure_output_dir,
   PROJECT_ROOT,
   remove_existing_final_outputs,
   resolve_project_relative_path,
-} from './paths';
+} from "./paths";
 
 const PREVIEW_PORT = 4173;
 const PREVIEW_URL = `http://127.0.0.1:${PREVIEW_PORT}`;
@@ -28,7 +28,7 @@ interface CliArgs {
 }
 
 function parse_args(argv: string[]): CliArgs {
-  const input_index = argv.indexOf('--input');
+  const input_index = argv.indexOf("--input");
   return {
     input:
       input_index >= 0 && argv[input_index + 1] ? argv[input_index + 1] : null,
@@ -36,17 +36,17 @@ function parse_args(argv: string[]): CliArgs {
 }
 
 function npm_command(): string {
-  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  return process.platform === "win32" ? "npm.cmd" : "npm";
 }
 
 function platform_command(command: string, args: string[]) {
-  if (process.platform !== 'win32') {
+  if (process.platform !== "win32") {
     return { command, args };
   }
 
   return {
-    command: 'cmd.exe',
-    args: ['/d', '/s', '/c', [command, ...args].join(' ')],
+    command: "cmd.exe",
+    args: ["/d", "/s", "/c", [command, ...args].join(" ")],
   };
 }
 
@@ -56,64 +56,65 @@ function run_command(command: string, args: string[]): Promise<void> {
     const child = spawn(platform.command, platform.args, {
       cwd: PROJECT_ROOT,
       shell: false,
-      stdio: 'inherit',
+      stdio: "inherit",
     });
 
-    child.on('error', reject);
-    child.on('close', (code) => {
+    child.on("error", reject);
+    child.on("close", (code) => {
       if (code === 0) {
         resolve();
         return;
       }
-      reject(new Error(`${command} ${args.join(' ')} exited with code ${code}`));
+      reject(
+        new Error(`${command} ${args.join(" ")} exited with code ${code}`),
+      );
     });
   });
 }
 
 function start_preview_server(): ChildProcess {
   const platform = platform_command(npm_command(), [
-    'run',
-    'preview',
-    '--',
-    '--host',
-    '127.0.0.1',
-    '--port',
+    "run",
+    "preview",
+    "--",
+    "--host",
+    "127.0.0.1",
+    "--port",
     String(PREVIEW_PORT),
-    '--strictPort',
+    "--strictPort",
   ]);
 
-  return spawn(
-    platform.command,
-    platform.args,
-    {
-      cwd: PROJECT_ROOT,
-      shell: false,
-      stdio: 'inherit',
-    },
-  );
+  return spawn(platform.command, platform.args, {
+    cwd: PROJECT_ROOT,
+    shell: false,
+    stdio: "inherit",
+  });
 }
 
 function assert_preview_port_available(): Promise<void> {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
 
-    server.once('error', (error: NodeJS.ErrnoException) => {
-      if (error.code === 'EADDRINUSE') {
+    server.once("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "EADDRINUSE") {
         reject(new Error(`预览端口 ${PREVIEW_PORT} 已被占用。`));
         return;
       }
 
       reject(error);
     });
-    server.once('listening', () => {
+    server.once("listening", () => {
       server.close(() => resolve());
     });
-    server.listen(PREVIEW_PORT, '127.0.0.1');
+    server.listen(PREVIEW_PORT, "127.0.0.1");
   });
 }
 
-function create_preview_exit_error(code: number | null, signal: NodeJS.Signals | null) {
-  const status = signal ? `signal ${signal}` : `code ${code ?? 'unknown'}`;
+function create_preview_exit_error(
+  code: number | null,
+  signal: NodeJS.Signals | null,
+) {
+  const status = signal ? `signal ${signal}` : `code ${code ?? "unknown"}`;
   return new Error(`vite preview 在就绪前退出（${status}）。`);
 }
 
@@ -129,8 +130,8 @@ async function wait_for_preview_server(server: ChildProcess) {
       if (timeout_id) {
         clearTimeout(timeout_id);
       }
-      server.off('error', on_error);
-      server.off('exit', on_exit);
+      server.off("error", on_error);
+      server.off("exit", on_exit);
     };
     const settle = (callback: () => void) => {
       if (settled) {
@@ -152,13 +153,17 @@ async function wait_for_preview_server(server: ChildProcess) {
       }
 
       if (Date.now() >= deadline) {
-        settle(() => reject(new Error('vite preview 启动超时。')));
+        settle(() => reject(new Error("vite preview 启动超时。")));
         return;
       }
 
       try {
         const response = await fetch(PREVIEW_URL);
-        if (response.ok && server.exitCode === null && server.signalCode === null) {
+        if (
+          response.ok &&
+          server.exitCode === null &&
+          server.signalCode === null
+        ) {
           settle(resolve);
           return;
         }
@@ -169,8 +174,8 @@ async function wait_for_preview_server(server: ChildProcess) {
       timeout_id = setTimeout(poll, 250);
     };
 
-    server.once('error', on_error);
-    server.once('exit', on_exit);
+    server.once("error", on_error);
+    server.once("exit", on_exit);
     poll();
   });
 }
@@ -180,13 +185,17 @@ async function stop_preview_server(server: ChildProcess) {
     return;
   }
 
-  if (process.platform === 'win32' && server.pid) {
+  if (process.platform === "win32" && server.pid) {
     await new Promise<void>((resolve, reject) => {
-      const taskkill = spawn('taskkill', ['/pid', String(server.pid), '/t', '/f'], {
-        stdio: 'ignore',
-      });
-      taskkill.on('error', reject);
-      taskkill.on('close', () => resolve());
+      const taskkill = spawn(
+        "taskkill",
+        ["/pid", String(server.pid), "/t", "/f"],
+        {
+          stdio: "ignore",
+        },
+      );
+      taskkill.on("error", reject);
+      taskkill.on("close", () => resolve());
     });
   } else {
     server.kill();
@@ -194,7 +203,7 @@ async function stop_preview_server(server: ChildProcess) {
 
   await new Promise<void>((resolve) => {
     const timeout_id = setTimeout(resolve, 1_000);
-    server.once('exit', () => {
+    server.once("exit", () => {
       clearTimeout(timeout_id);
       resolve();
     });
@@ -205,16 +214,16 @@ async function export_cdf(input_path: string) {
   const resolved_input_path = resolve_project_relative_path(input_path);
   const normalized_input_path = path
     .relative(PROJECT_ROOT, resolved_input_path)
-    .replaceAll(path.sep, '/');
+    .replaceAll(path.sep, "/");
   const output_dir = DEFAULT_OUTPUT_DIR;
-  const png_path = path.join(output_dir, 'cdf-result.png');
-  const webm_path = path.join(output_dir, 'cdf-animation.webm');
-  const mp4_path = path.join(output_dir, 'cdf-animation.mp4');
-  const temp_dir = await mkdtemp(path.join(os.tmpdir(), 'cdf-export-'));
+  const png_path = path.join(output_dir, "cdf-result.png");
+  const webm_path = path.join(output_dir, "cdf-animation.webm");
+  const mp4_path = path.join(output_dir, "cdf-animation.mp4");
+  const temp_dir = await mkdtemp(path.join(os.tmpdir(), "cdf-export-"));
 
   await ensure_output_dir(output_dir);
   await remove_existing_final_outputs(output_dir);
-  await run_command(npm_command(), ['run', 'build']);
+  await run_command(npm_command(), ["run", "build"]);
   await assert_preview_port_available();
 
   const server = start_preview_server();
@@ -237,14 +246,16 @@ async function export_cdf(input_path: string) {
 
     const page = await context.newPage();
     const url = `${PREVIEW_URL}/?input=${encodeURIComponent(normalized_input_path)}&autoplay=0`;
-    await page.goto(url, { waitUntil: 'networkidle' });
-    await page.locator('[data-testid="visualize-root"][data-load-state="ready"]').waitFor({
-      timeout: 15_000,
-    });
+    await page.goto(url, { waitUntil: "networkidle" });
+    await page
+      .locator('[data-testid="visualize-root"][data-load-state="ready"]')
+      .waitFor({
+        timeout: 15_000,
+      });
     await page.evaluate(() => document.fonts.ready);
 
     const replay_button = page.locator('[data-testid="replay-animation"]');
-    await replay_button.waitFor({ state: 'visible' });
+    await replay_button.waitFor({ state: "visible" });
     await replay_button.click();
     const replay_started_at = Date.now();
     await page.waitForTimeout(ANIMATION_TOTAL_MS + EXPORT_BUFFER_MS);
@@ -258,11 +269,12 @@ async function export_cdf(input_path: string) {
     browser = null;
 
     if (!video) {
-      throw new Error('Playwright 未生成录屏文件。');
+      throw new Error("Playwright 未生成录屏文件。");
     }
     raw_video_path = await video.path();
 
-    const raw_duration_seconds = await probe_video_duration_seconds(raw_video_path);
+    const raw_duration_seconds =
+      await probe_video_duration_seconds(raw_video_path);
     const replay_recording_seconds =
       (recording_finished_at - replay_started_at) / 1000;
     const trim_start_seconds = Math.max(
@@ -276,8 +288,6 @@ async function export_cdf(input_path: string) {
       (ANIMATION_TOTAL_MS + 200) / 1000,
     );
     await transcode_webm_to_mp4(webm_path, mp4_path);
-  } catch (error) {
-    throw error;
   } finally {
     if (context) {
       await context.close();
@@ -296,7 +306,9 @@ async function export_cdf(input_path: string) {
 async function main() {
   const args = parse_args(process.argv.slice(2));
   if (!args.input) {
-    throw new Error('缺少 --input 参数。用法：npm run export:cdf -- --input <json文件路径>');
+    throw new Error(
+      "缺少 --input 参数。用法：npm run export:cdf -- --input <json文件路径>",
+    );
   }
 
   await export_cdf(args.input);

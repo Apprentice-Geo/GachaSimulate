@@ -38,11 +38,13 @@
 }
 
 .visualize-page[data-animation-state="playing"] .top-bar {
-  animation: page-fade-in var(--animation-top-bar-duration) ease-out var(--animation-top-bar-delay) both;
+  animation: page-fade-in var(--animation-top-bar-duration) ease-out
+    var(--animation-top-bar-delay) both;
 }
 
 .visualize-page[data-animation-state="playing"] .page-note {
-  animation: page-fade-in var(--animation-note-duration) ease-out var(--animation-note-delay) both;
+  animation: page-fade-in var(--animation-note-duration) ease-out
+    var(--animation-note-delay) both;
 }
 
 .title-stack {
@@ -215,11 +217,13 @@
 }
 
 .visualize-page[data-animation-state="playing"] .cdf-chart-shell {
-  animation: page-fade-in var(--animation-chart-shell-duration) ease-out var(--animation-chart-shell-delay) both;
+  animation: page-fade-in var(--animation-chart-shell-duration) ease-out
+    var(--animation-chart-shell-delay) both;
 }
 
 .cdf-chart-shell[data-animating="true"] .recharts-wrapper {
-  animation: page-fade-in var(--animation-chart-surface-duration) ease-out var(--animation-chart-surface-delay) both;
+  animation: page-fade-in var(--animation-chart-surface-duration) ease-out
+    var(--animation-chart-surface-delay) both;
 }
 
 .cdf-curve-path {
@@ -233,7 +237,8 @@
 }
 
 .cdf-chart-shell[data-animating="true"] .cdf-curve-path {
-  animation: cdf-line-draw var(--animation-curve-duration) cubic-bezier(0.22, 0.61, 0.36, 1) var(--animation-curve-delay) both;
+  animation: cdf-line-draw var(--animation-curve-duration)
+    cubic-bezier(0.22, 0.61, 0.36, 1) var(--animation-curve-delay) both;
   stroke-dashoffset: 1;
 }
 
@@ -274,16 +279,23 @@
 
 .cdf-chart-shell[data-animating="true"] .marker-line {
   animation: marker-line-in var(--animation-marker-line-duration) ease-out both;
-  animation-delay: calc(var(--animation-marker-line-delay) + var(--marker-index) * var(--animation-marker-stagger));
+  animation-delay: calc(
+    var(--animation-marker-line-delay) + var(--marker-index) *
+      var(--animation-marker-stagger)
+  );
 }
 
 .cdf-chart-shell[data-animating="true"] .mean-horizontal-line {
-  animation: mean-line-in var(--animation-mean-line-duration) ease-out var(--animation-mean-line-delay) both;
+  animation: mean-line-in var(--animation-mean-line-duration) ease-out
+    var(--animation-mean-line-delay) both;
 }
 
 .cdf-chart-shell[data-animating="true"] .marker-group {
   animation: marker-fade-in var(--animation-marker-group-duration) ease-out both;
-  animation-delay: calc(var(--animation-marker-group-delay) + var(--marker-index) * var(--animation-marker-stagger));
+  animation-delay: calc(
+    var(--animation-marker-group-delay) + var(--marker-index) *
+      var(--animation-marker-stagger)
+  );
 }
 
 .marker-label {
@@ -395,13 +407,17 @@
 }
 
 .visualize-page[data-animation-state="playing"] .statistic-panel {
-  animation: page-fade-in var(--animation-stat-panel-duration) ease-out var(--animation-stat-panel-delay) both;
+  animation: page-fade-in var(--animation-stat-panel-duration) ease-out
+    var(--animation-stat-panel-delay) both;
 }
 
 .visualize-page[data-animation-state="playing"] .metric-group-heading,
 .visualize-page[data-animation-state="playing"] .metric-row {
   animation: metric-in var(--animation-stat-content-duration) ease-out both;
-  animation-delay: calc(var(--animation-stat-content-delay) + var(--stat-content-index) * var(--animation-stat-content-stagger));
+  animation-delay: calc(
+    var(--animation-stat-content-delay) + var(--stat-content-index) *
+      var(--animation-stat-content-stagger)
+  );
 }
 
 .metric-label {
@@ -551,7 +567,8 @@
 }
 
 .visualize-page[data-animation-state="playing"] .termination-region {
-  animation: footer-in var(--animation-termination-panel-duration) ease-out var(--animation-termination-panel-delay) both;
+  animation: footer-in var(--animation-termination-panel-duration) ease-out
+    var(--animation-termination-panel-delay) both;
 }
 
 .termination-copy h2 {
@@ -616,7 +633,8 @@
 }
 
 .visualize-page[data-animation-state="playing"] .pk-segment {
-  animation: pk-fill var(--animation-pk-fill-duration) ease-out var(--animation-pk-fill-delay) both;
+  animation: pk-fill var(--animation-pk-fill-duration) ease-out
+    var(--animation-pk-fill-delay) both;
 }
 
 .visualize-page[data-animation-state="primed"] .pk-bar,
@@ -625,7 +643,8 @@
 }
 
 .visualize-page[data-animation-state="playing"] .pk-bar {
-  animation: page-fade-in var(--animation-termination-detail-duration) ease-out var(--animation-pk-fill-delay) both;
+  animation: page-fade-in var(--animation-termination-detail-duration) ease-out
+    var(--animation-pk-fill-delay) both;
 }
 
 .pk-bar-empty {
@@ -641,7 +660,8 @@
 }
 
 .visualize-page[data-animation-state="playing"] .reason-list {
-  animation: page-fade-in var(--animation-termination-detail-duration) ease-out var(--animation-termination-detail-delay) both;
+  animation: page-fade-in var(--animation-termination-detail-duration) ease-out
+    var(--animation-termination-detail-delay) both;
 }
 
 .reason-item {

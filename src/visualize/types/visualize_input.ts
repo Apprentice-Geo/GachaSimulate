@@ -29,24 +29,24 @@ export interface VisualizeInput {
 }
 
 export type StatisticKey =
-  | 'P5'
-  | 'P25'
-  | 'P50'
-  | 'P75'
-  | 'P95'
-  | 'MEAN'
-  | 'MIN'
-  | 'MAX';
+  | "P5"
+  | "P25"
+  | "P50"
+  | "P75"
+  | "P95"
+  | "MEAN"
+  | "MIN"
+  | "MAX";
 
 export type MarkerKey =
-  | 'MIN'
-  | 'P5'
-  | 'P25'
-  | 'P50'
-  | 'MEAN'
-  | 'P75'
-  | 'P95'
-  | 'MAX';
+  | "MIN"
+  | "P5"
+  | "P25"
+  | "P50"
+  | "MEAN"
+  | "P75"
+  | "P95"
+  | "MAX";
 
 export interface CDFPoint {
   draw: number;
@@ -64,7 +64,7 @@ export interface StatisticMetric {
 export interface CostMetric {
   value: number;
   display_value: string;
-  unit: 'RMB';
+  unit: "RMB";
 }
 
 export interface CDFMarker {
@@ -73,7 +73,7 @@ export interface CDFMarker {
   draw: number;
   level: number;
   color: string;
-  weight: 'faint' | 'normal' | 'strong' | 'primary';
+  weight: "faint" | "normal" | "strong" | "primary";
 }
 
 export interface CDFMarkerDatum {

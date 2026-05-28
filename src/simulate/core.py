@@ -40,7 +40,6 @@ def _simulate_until_total_draw_serial(
         disable=not show_progress,
     )
     with progress as pbar:
-
         while total_draw < target_total_draw:
             state = sim.run_once()
 
@@ -106,12 +105,10 @@ def _merge_simulation_results(results: list[dict], seed):
         # concatenate不指定axis默认是axis=0，即在第0维上拼接
         "draw_count": np.concatenate([result["draw_count"] for result in results]),
         # vstack是专门用于拼接二维数组的函数，这里的效果和concatenate(..., axis=0)一样
-        "lifetime_acquired": np.vstack(
-            [result["lifetime_acquired"] for result in results]
-        ).astype(np.int32),
-        "terminate_reasons": np.concatenate(
-            [result["terminate_reasons"] for result in results]
+        "lifetime_acquired": np.vstack([result["lifetime_acquired"] for result in results]).astype(
+            np.int32
         ),
+        "terminate_reasons": np.concatenate([result["terminate_reasons"] for result in results]),
         "total_draw": np.int64(sum(int(result["total_draw"]) for result in results)),
         "total_runs": np.int32(sum(int(result["total_runs"]) for result in results)),
     }
@@ -131,9 +128,7 @@ def _update_progress_from_queue(progress_queue, pbar, target_total_draw: int) ->
         pbar.update(max(0, min(progress_draw, remaining_draw)))
 
 
-def _simulate_until_total_draw_parallel(
-    sim: MonteCarlo, target_total_draw: int, workers: int
-):
+def _simulate_until_total_draw_parallel(sim: MonteCarlo, target_total_draw: int, workers: int):
     targets = _split_target_total_draw(target_total_draw, workers)
     seed_sequence = np.random.SeedSequence(sim.seed)
     child_seed_sequences = seed_sequence.spawn(len(targets))
@@ -142,7 +137,8 @@ def _simulate_until_total_draw_parallel(
 
     with tqdm(total=target_total_draw, desc="Simulating", unit="draw") as pbar:
         with Manager() as manager:
-            # 进程安全的队列
+            # 进程安全的队列,使用方式简单,能在多个进程之间安全传递 Python 对象
+            # 缺点是它依赖 Manager 进程做代理，序列化和通信开销比较大，不适合特别高频、大数据量传输
             progress_queue = manager.Queue()
             with ProcessPoolExecutor(max_workers=workers) as executor:
                 futures = {
@@ -174,17 +170,13 @@ def _simulate_until_total_draw_parallel(
     return _merge_simulation_results([result for result in results if result], sim.seed)
 
 
-def simulate_until_total_draw(
-    sim: MonteCarlo, target_total_draw: int, workers: int | None = 1
-):
+def simulate_until_total_draw(sim: MonteCarlo, target_total_draw: int, workers: int | None = 1):
     if workers is None:
         workers = 1
     if workers < 1:
         raise ValueError("workers must be >= 1")
     if workers == 1 or target_total_draw <= 0:
-        return _simulate_until_total_draw_serial(
-            sim, target_total_draw, show_progress=True
-        )
+        return _simulate_until_total_draw_serial(sim, target_total_draw, show_progress=True)
     return _simulate_until_total_draw_parallel(sim, target_total_draw, workers)
 
 
@@ -227,9 +219,7 @@ def _build_visualize_input(result: dict) -> dict:
             "P75": int(np.percentile(values, 75)),
             "P95": int(np.percentile(values, 95)),
             "MIN": int(np.min(values)),
-            "MEAN_LEVEL": float(
-                np.searchsorted(values, mean_draw, side="right") / count
-            ),
+            "MEAN_LEVEL": float(np.searchsorted(values, mean_draw, side="right") / count),
             "MEAN": mean_draw,
             "MAX": int(np.max(values)),
             "COST": DEFAULT_VISUALIZE_COST,

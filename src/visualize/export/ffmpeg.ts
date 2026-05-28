@@ -1,21 +1,21 @@
-import { spawn } from 'node:child_process';
+import { spawn } from "node:child_process";
 
 function run_ffmpeg(args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    const process = spawn('ffmpeg', args, {
-      stdio: ['ignore', 'pipe', 'pipe'],
+    const process = spawn("ffmpeg", args, {
+      stdio: ["ignore", "pipe", "pipe"],
     });
 
-    let stderr = '';
-    process.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString('utf8');
+    let stderr = "";
+    process.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString("utf8");
     });
 
-    process.on('error', (error) => {
+    process.on("error", (error) => {
       reject(error);
     });
 
-    process.on('close', (code) => {
+    process.on("close", (code) => {
       if (code === 0) {
         resolve();
         return;
@@ -33,19 +33,19 @@ export async function trim_video_to_webm(
   duration_seconds: number,
 ) {
   await run_ffmpeg([
-    '-y',
-    '-ss',
+    "-y",
+    "-ss",
     start_seconds.toFixed(3),
-    '-i',
+    "-i",
     raw_video_path,
-    '-t',
+    "-t",
     duration_seconds.toFixed(3),
-    '-r',
-    '60',
-    '-c:v',
-    'libvpx-vp9',
-    '-pix_fmt',
-    'yuv420p',
+    "-r",
+    "60",
+    "-c:v",
+    "libvpx-vp9",
+    "-pix_fmt",
+    "yuv420p",
     output_webm_path,
   ]);
 }
@@ -55,49 +55,51 @@ export async function transcode_webm_to_mp4(
   output_mp4_path: string,
 ) {
   await run_ffmpeg([
-    '-y',
-    '-i',
+    "-y",
+    "-i",
     input_webm_path,
-    '-r',
-    '60',
-    '-c:v',
-    'libx264',
-    '-pix_fmt',
-    'yuv420p',
-    '-movflags',
-    '+faststart',
+    "-r",
+    "60",
+    "-c:v",
+    "libx264",
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
     output_mp4_path,
   ]);
 }
 
-export function probe_video_duration_seconds(video_path: string): Promise<number> {
+export function probe_video_duration_seconds(
+  video_path: string,
+): Promise<number> {
   return new Promise((resolve, reject) => {
     const process = spawn(
-      'ffprobe',
+      "ffprobe",
       [
-        '-v',
-        'error',
-        '-show_entries',
-        'format=duration',
-        '-of',
-        'default=noprint_wrappers=1:nokey=1',
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
         video_path,
       ],
       {
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: ["ignore", "pipe", "pipe"],
       },
     );
 
-    let stdout = '';
-    let stderr = '';
-    process.stdout.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString('utf8');
+    let stdout = "";
+    let stderr = "";
+    process.stdout.on("data", (chunk: Buffer) => {
+      stdout += chunk.toString("utf8");
     });
-    process.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString('utf8');
+    process.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString("utf8");
     });
-    process.on('error', reject);
-    process.on('close', (code) => {
+    process.on("error", reject);
+    process.on("close", (code) => {
       if (code !== 0) {
         reject(new Error(stderr.trim() || `ffprobe exited with code ${code}`));
         return;
@@ -105,7 +107,7 @@ export function probe_video_duration_seconds(video_path: string): Promise<number
 
       const duration = Number.parseFloat(stdout.trim());
       if (!Number.isFinite(duration)) {
-        reject(new Error('ffprobe 未返回有效视频时长。'));
+        reject(new Error("ffprobe 未返回有效视频时长。"));
         return;
       }
 

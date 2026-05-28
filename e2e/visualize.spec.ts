@@ -1,77 +1,83 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from "@playwright/test";
 
-const FIXTURE_PATH = 'src/visualize/fixtures/example_input.json';
+const FIXTURE_PATH = "src/visualize/fixtures/example_input.json";
 const ANIMATION_IDLE_TIMEOUT_MS = 7000;
 
-test('shows empty state before data import', async ({ page }) => {
-  await page.goto('/');
+test("shows empty state before data import", async ({ page }) => {
+  await page.goto("/");
 
-  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
-    'data-load-state',
-    'idle',
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-load-state",
+    "idle",
   );
-  await expect(page.getByTestId('empty-state')).toBeVisible();
-  await expect(page.getByTestId('cdf-chart')).toHaveCount(0);
+  await expect(page.getByTestId("empty-state")).toBeVisible();
+  await expect(page.getByTestId("cdf-chart")).toHaveCount(0);
 });
 
-test('loads fixture from url input and renders dynamic page regions', async ({
+test("loads fixture from url input and renders dynamic page regions", async ({
   page,
 }) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
-    waitUntil: 'networkidle',
+    waitUntil: "networkidle",
   });
 
-  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
-    'data-load-state',
-    'ready',
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-load-state",
+    "ready",
   );
-  await expect(page.locator('h1')).toBeVisible();
-  await expect(page.locator('.title-stack p')).toBeVisible();
-  await expect(page.getByTestId('cdf-chart')).toBeVisible();
-  await expect(page.getByTestId('cdf-curve-path')).toHaveAttribute('d', /M/);
-  await expect(page.getByText('成功概率')).toBeVisible();
-  await expect(page.getByText('累计抽数')).toBeVisible();
-  await expect(page.getByRole('heading', { name: '低抽数区间' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '中抽数区间' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '高抽数区间' })).toBeVisible();
-  await expect(page.getByTestId('statistic-panel')).toBeVisible();
-  await expect(page.getByTestId('stat-COST')).toHaveCount(0);
-  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
-    'data-animation-state',
-    'idle',
+  await expect(page.locator("h1")).toBeVisible();
+  await expect(page.locator(".title-stack p")).toBeVisible();
+  await expect(page.getByTestId("cdf-chart")).toBeVisible();
+  await expect(page.getByTestId("cdf-curve-path")).toHaveAttribute("d", /M/);
+  await expect(page.getByText("成功概率")).toBeVisible();
+  await expect(page.getByText("累计抽数")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "低抽数区间" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "中抽数区间" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "高抽数区间" })).toBeVisible();
+  await expect(page.getByTestId("statistic-panel")).toBeVisible();
+  await expect(page.getByTestId("stat-COST")).toHaveCount(0);
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-animation-state",
+    "idle",
     { timeout: ANIMATION_IDLE_TIMEOUT_MS },
   );
-  await expect(page.getByTestId('termination-bar')).toBeVisible();
-  await expect(page.locator('.termination-heading h2')).toBeVisible();
-  await expect(page.locator('.page-note')).toBeVisible();
-  await expect(page.getByTestId('replay-animation')).toBeEnabled();
+  await expect(page.getByTestId("termination-bar")).toBeVisible();
+  await expect(page.locator(".termination-heading h2")).toBeVisible();
+  await expect(page.locator(".page-note")).toBeVisible();
+  await expect(page.getByTestId("replay-animation")).toBeEnabled();
 });
 
-test('keeps main visualize regions aligned for export layout', async ({ page }) => {
+test("keeps main visualize regions aligned for export layout", async ({
+  page,
+}) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
-    waitUntil: 'networkidle',
+    waitUntil: "networkidle",
   });
 
-  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
-    'data-load-state',
-    'ready',
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-load-state",
+    "ready",
   );
-  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
-    'data-animation-state',
-    'idle',
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-animation-state",
+    "idle",
     { timeout: ANIMATION_IDLE_TIMEOUT_MS },
   );
 
   const layout_contract = await page.evaluate(() => {
-    const chart = document.querySelector('.chart-region') as HTMLElement | null;
-    const stats = document.querySelector('.statistic-panel') as HTMLElement | null;
-    const pk = document.querySelector('.pk-bar') as HTMLElement | null;
-    const termination = document.querySelector(
-      '.termination-region',
+    const chart = document.querySelector(".chart-region") as HTMLElement | null;
+    const stats = document.querySelector(
+      ".statistic-panel",
     ) as HTMLElement | null;
-    const page = document.querySelector('.visualize-page') as HTMLElement | null;
-    const main = document.querySelector('.main-region') as HTMLElement | null;
-    const note = document.querySelector('.page-note') as HTMLElement | null;
+    const pk = document.querySelector(".pk-bar") as HTMLElement | null;
+    const termination = document.querySelector(
+      ".termination-region",
+    ) as HTMLElement | null;
+    const page = document.querySelector(
+      ".visualize-page",
+    ) as HTMLElement | null;
+    const main = document.querySelector(".main-region") as HTMLElement | null;
+    const note = document.querySelector(".page-note") as HTMLElement | null;
     if (!chart || !stats || !pk || !termination || !page || !main || !note) {
       return null;
     }
@@ -125,9 +131,9 @@ test('keeps main visualize regions aligned for export layout', async ({ page }) 
   expect(layout_contract!.page_bottom).toBeGreaterThan(
     layout_contract!.note_top,
   );
-  expect(layout_contract!.page_bottom - layout_contract!.main_bottom).toBeGreaterThan(
-    32,
-  );
+  expect(
+    layout_contract!.page_bottom - layout_contract!.main_bottom,
+  ).toBeGreaterThan(32);
   expect(layout_contract!.note_center_x).toBeCloseTo(
     layout_contract!.page_center_x,
     1,
@@ -137,22 +143,24 @@ test('keeps main visualize regions aligned for export layout', async ({ page }) 
   );
 });
 
-test('applies cdf marker and termination bar visual contracts', async ({
+test("applies cdf marker and termination bar visual contracts", async ({
   page,
 }) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
-    waitUntil: 'networkidle',
+    waitUntil: "networkidle",
   });
-  await expect(page.getByTestId('cdf-chart')).toBeVisible();
-  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
-    'data-animation-state',
-    'idle',
+  await expect(page.getByTestId("cdf-chart")).toBeVisible();
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-animation-state",
+    "idle",
     { timeout: ANIMATION_IDLE_TIMEOUT_MS },
   );
 
   const marker_contract = await page.evaluate(() => {
-    const mean = document.querySelector('[data-marker-key="MEAN"] .marker-line');
-    const first_marker = document.querySelector('.marker-line');
+    const mean = document.querySelector(
+      '[data-marker-key="MEAN"] .marker-line',
+    );
+    const first_marker = document.querySelector(".marker-line");
     const pk = document.querySelector('.pk-bar[data-segment-count="2"]');
     if (!mean || !first_marker) {
       return null;
@@ -163,17 +171,17 @@ test('applies cdf marker and termination bar visual contracts', async ({
     return {
       mean_stroke: mean_style.stroke,
       marker_dash: marker_style.strokeDasharray,
-      pk_has_diagonal: pk_style?.getPropertyValue('--pk-seam-angle') ?? '',
+      pk_has_diagonal: pk_style?.getPropertyValue("--pk-seam-angle") ?? "",
     };
   });
   expect(marker_contract).not.toBeNull();
-  expect(marker_contract!.mean_stroke).toBe('rgb(149, 47, 198)');
-  expect(marker_contract!.marker_dash).not.toBe('none');
-  expect(marker_contract!.marker_dash).not.toBe('1px');
-  expect(marker_contract!.pk_has_diagonal.trim()).toBe('-45deg');
+  expect(marker_contract!.mean_stroke).toBe("rgb(149, 47, 198)");
+  expect(marker_contract!.marker_dash).not.toBe("none");
+  expect(marker_contract!.marker_dash).not.toBe("1px");
+  expect(marker_contract!.pk_has_diagonal.trim()).toBe("-45deg");
   const pk_fill_contract = await page.evaluate(() => {
     const pk = document.querySelector('.pk-bar[data-segment-count="2"]');
-    const segments = [...document.querySelectorAll('.pk-segment')];
+    const segments = [...document.querySelectorAll(".pk-segment")];
     if (!pk || segments.length !== 2) {
       return null;
     }
@@ -193,28 +201,30 @@ test('applies cdf marker and termination bar visual contracts', async ({
   );
 });
 
-test('renders statistic and termination summaries', async ({ page }) => {
+test("renders statistic and termination summaries", async ({ page }) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
-    waitUntil: 'networkidle',
+    waitUntil: "networkidle",
   });
-  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
-    'data-load-state',
-    'ready',
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-load-state",
+    "ready",
   );
 
-  await expect(page.getByTestId('stat-P50')).toBeVisible();
-  await expect(page.getByTestId('termination-bar')).toBeVisible();
-  await expect(page.locator('.termination-heading h2')).toBeVisible();
-  await expect(page.locator('.reason-item').first()).toBeVisible();
-  await expect(page.locator('.page-note')).toBeVisible();
-  await expect(page.getByTestId('replay-animation')).toBeEnabled();
+  await expect(page.getByTestId("stat-P50")).toBeVisible();
+  await expect(page.getByTestId("termination-bar")).toBeVisible();
+  await expect(page.locator(".termination-heading h2")).toBeVisible();
+  await expect(page.locator(".reason-item").first()).toBeVisible();
+  await expect(page.locator(".page-note")).toBeVisible();
+  await expect(page.getByTestId("replay-animation")).toBeEnabled();
 });
 
-test('renders cdf overlay so markers share curve coordinates', async ({ page }) => {
+test("renders cdf overlay so markers share curve coordinates", async ({
+  page,
+}) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
-    waitUntil: 'networkidle',
+    waitUntil: "networkidle",
   });
-  await expect(page.getByTestId('cdf-chart')).toBeVisible();
+  await expect(page.getByTestId("cdf-chart")).toBeVisible();
 
   const overlay_contract = await page.evaluate(() => {
     const p50_line = document.querySelector(
@@ -229,10 +239,10 @@ test('renders cdf overlay so markers share curve coordinates', async ({ page }) 
     }
 
     return {
-      line_x: Number(p50_line.getAttribute('x1')),
-      point_x: Number(p50_point.getAttribute('cx')),
-      line_y: Number(p50_line.getAttribute('y2')),
-      point_y: Number(p50_point.getAttribute('cy')),
+      line_x: Number(p50_line.getAttribute("x1")),
+      point_x: Number(p50_point.getAttribute("cx")),
+      line_y: Number(p50_line.getAttribute("y2")),
+      point_y: Number(p50_point.getAttribute("cy")),
     };
   });
 
@@ -241,12 +251,12 @@ test('renders cdf overlay so markers share curve coordinates', async ({ page }) 
   expect(overlay_contract!.line_y).toBeCloseTo(overlay_contract!.point_y, 2);
 });
 
-test('orders p50 and mean statistic cards by draw count', async ({ page }) => {
+test("orders p50 and mean statistic cards by draw count", async ({ page }) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
-    waitUntil: 'networkidle',
+    waitUntil: "networkidle",
   });
-  await expect(page.getByTestId('stat-P50')).toBeVisible();
-  await expect(page.getByTestId('stat-MEAN')).toBeVisible();
+  await expect(page.getByTestId("stat-P50")).toBeVisible();
+  await expect(page.getByTestId("stat-MEAN")).toBeVisible();
 
   const default_order = await page.evaluate(() => {
     const p50 = document.querySelector('[data-testid="stat-P50"]');
@@ -258,7 +268,7 @@ test('orders p50 and mean statistic cards by draw count', async ({ page }) => {
   });
   expect(default_order.mean_top).toBeLessThan(default_order.p50_top);
 
-  await page.route('**/__visualize_input?**', async (route) => {
+  await page.route("**/__visualize_input?**", async (route) => {
     const response = await route.fetch();
     const input = await response.json();
     await route.fulfill({
@@ -273,10 +283,10 @@ test('orders p50 and mean statistic cards by draw count', async ({ page }) => {
   });
 
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}&tie=1`, {
-    waitUntil: 'networkidle',
+    waitUntil: "networkidle",
   });
-  await expect(page.getByTestId('stat-P50')).toBeVisible();
-  await expect(page.getByTestId('stat-MEAN')).toBeVisible();
+  await expect(page.getByTestId("stat-P50")).toBeVisible();
+  await expect(page.getByTestId("stat-MEAN")).toBeVisible();
 
   const tie_order = await page.evaluate(() => {
     const p50 = document.querySelector('[data-testid="stat-P50"]');
@@ -289,26 +299,28 @@ test('orders p50 and mean statistic cards by draw count', async ({ page }) => {
   expect(tie_order.p50_top).toBeLessThan(tie_order.mean_top);
 });
 
-test('draws quantile markers at their configured y levels', async ({ page }) => {
+test("draws quantile markers at their configured y levels", async ({
+  page,
+}) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
-    waitUntil: 'networkidle',
+    waitUntil: "networkidle",
   });
-  await expect(page.getByTestId('cdf-chart')).toBeVisible();
+  await expect(page.getByTestId("cdf-chart")).toBeVisible();
 
   const quantile_alignment = await page.evaluate(() => {
     const get_marker_y = (key: string) => {
       const point = document.querySelector(
         `[data-marker-key="${key}"] .marker-point`,
       );
-      return point ? Number(point.getAttribute('cy')) : null;
+      return point ? Number(point.getAttribute("cy")) : null;
     };
 
     return {
-      p5: get_marker_y('P5'),
-      p25: get_marker_y('P25'),
-      p50: get_marker_y('P50'),
-      p75: get_marker_y('P75'),
-      p95: get_marker_y('P95'),
+      p5: get_marker_y("P5"),
+      p25: get_marker_y("P25"),
+      p50: get_marker_y("P50"),
+      p75: get_marker_y("P75"),
+      p95: get_marker_y("P95"),
     };
   });
 
@@ -323,38 +335,38 @@ test('draws quantile markers at their configured y levels', async ({ page }) => 
   expect(quantile_alignment.p75!).toBeGreaterThan(quantile_alignment.p95!);
 });
 
-test('marker label placement attributes', async ({ page }) => {
+test("marker label placement attributes", async ({ page }) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
-    waitUntil: 'networkidle',
+    waitUntil: "networkidle",
   });
-  await expect(page.getByTestId('cdf-chart')).toBeVisible();
+  await expect(page.getByTestId("cdf-chart")).toBeVisible();
 
   const marker_layout = await page.evaluate(() => {
     const read_marker = (key: string) => {
       const group = document.querySelector(`[data-marker-key="${key}"]`);
-      const point = group?.querySelector('.marker-point');
-      const label = group?.querySelector('.marker-label');
+      const point = group?.querySelector(".marker-point");
+      const label = group?.querySelector(".marker-label");
       if (!group || !point || !label) {
         return null;
       }
 
       const label_style = window.getComputedStyle(label);
       return {
-        point_x: Number(point.getAttribute('cx')),
-        point_y: Number(point.getAttribute('cy')),
-        radius: Number(point.getAttribute('r')),
-        label_x: Number(label.getAttribute('x')),
-        label_y: Number(label.getAttribute('y')),
-        anchor: label.getAttribute('text-anchor'),
-        baseline: label.getAttribute('dominant-baseline'),
+        point_x: Number(point.getAttribute("cx")),
+        point_y: Number(point.getAttribute("cy")),
+        radius: Number(point.getAttribute("r")),
+        label_x: Number(label.getAttribute("x")),
+        label_y: Number(label.getAttribute("y")),
+        anchor: label.getAttribute("text-anchor"),
+        baseline: label.getAttribute("dominant-baseline"),
         font_size: Number.parseFloat(label_style.fontSize),
       };
     };
 
     return {
-      p50: read_marker('P50'),
-      mean: read_marker('MEAN'),
-      max: read_marker('MAX'),
+      p50: read_marker("P50"),
+      mean: read_marker("MEAN"),
+      max: read_marker("MAX"),
     };
   });
 
@@ -364,10 +376,10 @@ test('marker label placement attributes', async ({ page }) => {
 
   expect(marker_layout.mean!.label_x).toBeLessThan(marker_layout.mean!.point_x);
   expect(marker_layout.p50!.label_x).toBeLessThan(marker_layout.p50!.point_x);
-  expect(marker_layout.mean!.anchor).toBe('end');
-  expect(marker_layout.p50!.anchor).toBe('end');
-  expect(marker_layout.mean!.baseline).toBe('hanging');
-  expect(marker_layout.p50!.baseline).toBe('text-after-edge');
+  expect(marker_layout.mean!.anchor).toBe("end");
+  expect(marker_layout.p50!.anchor).toBe("end");
+  expect(marker_layout.mean!.baseline).toBe("hanging");
+  expect(marker_layout.p50!.baseline).toBe("text-after-edge");
   expect(marker_layout.max!.label_y).toBeLessThan(marker_layout.max!.point_y);
   expect(marker_layout.p50!.radius).toBeGreaterThanOrEqual(6);
   expect(marker_layout.mean!.radius).toBeGreaterThanOrEqual(5.5);
@@ -377,10 +389,10 @@ test('marker label placement attributes', async ({ page }) => {
   expect(marker_layout.max!.font_size).toBeGreaterThanOrEqual(16);
 });
 
-test('keeps p50 and mean labels on the left with vertical order from statistic values', async ({
+test("keeps p50 and mean labels on the left with vertical order from statistic values", async ({
   page,
 }) => {
-  await page.route('**/__visualize_input?**', async (route) => {
+  await page.route("**/__visualize_input?**", async (route) => {
     const response = await route.fetch();
     const input = await response.json();
     await route.fulfill({
@@ -396,30 +408,30 @@ test('keeps p50 and mean labels on the left with vertical order from statistic v
   });
 
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
-    waitUntil: 'networkidle',
+    waitUntil: "networkidle",
   });
-  await expect(page.getByTestId('cdf-chart')).toBeVisible();
+  await expect(page.getByTestId("cdf-chart")).toBeVisible();
 
   const marker_layout = await page.evaluate(() => {
     const read_marker = (key: string) => {
       const group = document.querySelector(`[data-marker-key="${key}"]`);
-      const point = group?.querySelector('.marker-point');
-      const label = group?.querySelector('.marker-label');
+      const point = group?.querySelector(".marker-point");
+      const label = group?.querySelector(".marker-label");
       if (!group || !point || !label) {
         return null;
       }
 
       return {
-        point_x: Number(point.getAttribute('cx')),
-        label_x: Number(label.getAttribute('x')),
-        anchor: label.getAttribute('text-anchor'),
-        baseline: label.getAttribute('dominant-baseline'),
+        point_x: Number(point.getAttribute("cx")),
+        label_x: Number(label.getAttribute("x")),
+        anchor: label.getAttribute("text-anchor"),
+        baseline: label.getAttribute("dominant-baseline"),
       };
     };
 
     return {
-      p50: read_marker('P50'),
-      mean: read_marker('MEAN'),
+      p50: read_marker("P50"),
+      mean: read_marker("MEAN"),
     };
   });
 
@@ -428,48 +440,50 @@ test('keeps p50 and mean labels on the left with vertical order from statistic v
 
   expect(marker_layout.p50!.label_x).toBeLessThan(marker_layout.p50!.point_x);
   expect(marker_layout.mean!.label_x).toBeLessThan(marker_layout.mean!.point_x);
-  expect(marker_layout.p50!.anchor).toBe('end');
-  expect(marker_layout.mean!.anchor).toBe('end');
-  expect(marker_layout.p50!.baseline).toBe('hanging');
-  expect(marker_layout.mean!.baseline).toBe('text-after-edge');
+  expect(marker_layout.p50!.anchor).toBe("end");
+  expect(marker_layout.mean!.anchor).toBe("end");
+  expect(marker_layout.p50!.baseline).toBe("hanging");
+  expect(marker_layout.mean!.baseline).toBe("text-after-edge");
 });
 
-test('shows clear error state for failed url input', async ({ page }) => {
-  await page.goto('/?input=src/visualize/fixtures/missing.json', {
-    waitUntil: 'networkidle',
+test("shows clear error state for failed url input", async ({ page }) => {
+  await page.goto("/?input=src/visualize/fixtures/missing.json", {
+    waitUntil: "networkidle",
   });
 
-  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
-    'data-load-state',
-    'error',
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-load-state",
+    "error",
   );
-  await expect(page.getByTestId('error-state')).toBeVisible();
-  await expect(page.getByTestId('error-state')).toContainText('无法读取 input 文件');
+  await expect(page.getByTestId("error-state")).toBeVisible();
+  await expect(page.getByTestId("error-state")).toContainText(
+    "无法读取 input 文件",
+  );
 });
 
-test('replay button disables while animation is running', async ({ page }) => {
+test("replay button disables while animation is running", async ({ page }) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}`, {
-    waitUntil: 'networkidle',
+    waitUntil: "networkidle",
   });
-  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
-    'data-load-state',
-    'ready',
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-load-state",
+    "ready",
   );
 
-  const replay_button = page.getByTestId('replay-animation');
+  const replay_button = page.getByTestId("replay-animation");
   await expect(replay_button).toBeEnabled({ timeout: 5000 });
   await replay_button.click();
   await expect(replay_button).toBeDisabled();
   const animation_order = await page.evaluate(() => {
     const to_ms = (value: string) => {
-      const first_value = value.split(',')[0]?.trim() ?? '0s';
-      return first_value.endsWith('ms')
+      const first_value = value.split(",")[0]?.trim() ?? "0s";
+      return first_value.endsWith("ms")
         ? Number.parseFloat(first_value)
         : Number.parseFloat(first_value) * 1000;
     };
     const curve = document.querySelector('[data-testid="cdf-curve-path"]');
-    const marker = document.querySelector('.marker-line');
-    const metric = document.querySelector('.metric-row');
+    const marker = document.querySelector(".marker-line");
+    const metric = document.querySelector(".metric-row");
     if (!curve || !marker || !metric) {
       return null;
     }
@@ -492,50 +506,50 @@ test('replay button disables while animation is running', async ({ page }) => {
   expect(animation_order!.metric_delay).toBeGreaterThanOrEqual(
     animation_order!.curve_ends_at,
   );
-  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
-    'data-animation-state',
-    'idle',
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-animation-state",
+    "idle",
     { timeout: ANIMATION_IDLE_TIMEOUT_MS },
   );
   await expect(replay_button).toBeEnabled();
 });
 
-test('reveals page note after other animated components', async ({ page }) => {
+test("reveals page note after other animated components", async ({ page }) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}&autoplay=0`, {
-    waitUntil: 'networkidle',
+    waitUntil: "networkidle",
   });
-  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
-    'data-load-state',
-    'ready',
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-load-state",
+    "ready",
   );
 
-  await page.getByTestId('replay-animation').click();
+  await page.getByTestId("replay-animation").click();
   const animation_order = await page.evaluate(() => {
     const to_ms = (value: string) => {
-      const first_value = value.split(',')[0]?.trim() ?? '0s';
-      return first_value.endsWith('ms')
+      const first_value = value.split(",")[0]?.trim() ?? "0s";
+      return first_value.endsWith("ms")
         ? Number.parseFloat(first_value)
         : Number.parseFloat(first_value) * 1000;
     };
-    const note = document.querySelector('.page-note');
+    const note = document.querySelector(".page-note");
     if (!note) {
       return null;
     }
 
     const animated_elements = [
-      '.top-bar',
-      '.cdf-chart-shell',
+      ".top-bar",
+      ".cdf-chart-shell",
       '[data-testid="cdf-curve-path"]',
-      '.marker-line',
-      '.mean-horizontal-line',
-      '.marker-group',
-      '.termination-region',
-      '.pk-bar',
-      '.pk-segment',
-      '.reason-list',
-      '.statistic-panel',
-      '.metric-group-heading',
-      '.metric-row',
+      ".marker-line",
+      ".mean-horizontal-line",
+      ".marker-group",
+      ".termination-region",
+      ".pk-bar",
+      ".pk-segment",
+      ".reason-list",
+      ".statistic-panel",
+      ".metric-group-heading",
+      ".metric-row",
     ].flatMap((selector) => [...document.querySelectorAll(selector)]);
     const latest_component_end = Math.max(
       ...animated_elements.map((element) => {
@@ -558,21 +572,23 @@ test('reveals page note after other animated components', async ({ page }) => {
   expect(animation_order!.note_duration).toBe(200);
 });
 
-test('autoplay off keeps export page primed before replay', async ({ page }) => {
+test("autoplay off keeps export page primed before replay", async ({
+  page,
+}) => {
   await page.goto(`/?input=${encodeURIComponent(FIXTURE_PATH)}&autoplay=0`, {
-    waitUntil: 'networkidle',
+    waitUntil: "networkidle",
   });
-  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
-    'data-load-state',
-    'ready',
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-load-state",
+    "ready",
   );
-  await expect(page.getByTestId('visualize-root')).toHaveAttribute(
-    'data-animation-state',
-    'primed',
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-animation-state",
+    "primed",
   );
 
   const curve_dashoffset = await page
-    .getByTestId('cdf-curve-path')
+    .getByTestId("cdf-curve-path")
     .evaluate((element) => window.getComputedStyle(element).strokeDashoffset);
-  expect(curve_dashoffset).toBe('1px');
+  expect(curve_dashoffset).toBe("1px");
 });

@@ -3,11 +3,7 @@
   "title": "Gacha simulation config",
   "type": "object",
   "description": "Schema for config.json. Reference checks between item ids and pool ids, and pool probability sums, are enforced by the Python validator rather than by this schema.",
-  "required": [
-    "initial",
-    "items",
-    "pools"
-  ],
+  "required": ["initial", "items", "pools"],
   "properties": {
     "meta": {
       "type": "object",
@@ -16,9 +12,7 @@
     "initial": {
       "type": "object",
       "description": "Initial runtime state. begin_pool must name an existing pool.",
-      "required": [
-        "begin_pool"
-      ],
+      "required": ["begin_pool"],
       "properties": {
         "begin_pool": {
           "type": "string",
@@ -70,10 +64,7 @@
     },
     "resolve": {
       "type": "object",
-      "required": [
-        "retain",
-        "actions"
-      ],
+      "required": ["retain", "actions"],
       "properties": {
         "retain": {
           "type": "integer",
@@ -87,9 +78,7 @@
     },
     "pool": {
       "type": "object",
-      "required": [
-        "entries"
-      ],
+      "required": ["entries"],
       "properties": {
         "entries": {
           "type": "array",
@@ -102,9 +91,7 @@
     },
     "poolEntry": {
       "type": "object",
-      "required": [
-        "probability"
-      ],
+      "required": ["probability"],
       "properties": {
         "probability": {
           "type": "number",
@@ -117,9 +104,7 @@
     },
     "stage": {
       "type": "object",
-      "required": [
-        "condition"
-      ],
+      "required": ["condition"],
       "properties": {
         "once": {
           "type": "boolean",
@@ -152,17 +137,10 @@
     },
     "itemAction": {
       "type": "object",
-      "required": [
-        "type",
-        "id"
-      ],
+      "required": ["type", "id"],
       "properties": {
         "type": {
-          "enum": [
-            "add_item",
-            "reduce_item",
-            "set_item"
-          ]
+          "enum": ["add_item", "reduce_item", "set_item"]
         },
         "id": {
           "type": "string",
@@ -180,9 +158,7 @@
                 "const": "set_item"
               }
             },
-            "required": [
-              "type"
-            ]
+            "required": ["type"]
           },
           "then": {
             "properties": {
@@ -203,16 +179,10 @@
     },
     "poolAction": {
       "type": "object",
-      "required": [
-        "type",
-        "id"
-      ],
+      "required": ["type", "id"],
       "properties": {
         "type": {
-          "enum": [
-            "draw_pool",
-            "pool_change"
-          ]
+          "enum": ["draw_pool", "pool_change"]
         },
         "id": {
           "type": "string",
@@ -226,9 +196,7 @@
     },
     "terminationAction": {
       "type": "object",
-      "required": [
-        "type"
-      ],
+      "required": ["type"],
       "properties": {
         "type": {
           "const": "termination"
@@ -254,35 +222,19 @@
     },
     "predicateCondition": {
       "type": "object",
-      "required": [
-        "type",
-        "subject",
-        "id",
-        "op",
-        "value"
-      ],
+      "required": ["type", "subject", "id", "op", "value"],
       "properties": {
         "type": {
           "const": "predicate"
         },
         "subject": {
-          "enum": [
-            "item",
-            "draw_count"
-          ]
+          "enum": ["item", "draw_count"]
         },
         "id": {
           "description": "Item id when subject is item; null when subject is draw_count."
         },
         "op": {
-          "enum": [
-            ">=",
-            ">",
-            "==",
-            "<=",
-            "<",
-            "!="
-          ]
+          "enum": [">=", ">", "==", "<=", "<", "!="]
         },
         "value": {
           "type": "integer"
@@ -299,9 +251,7 @@
                 "const": "item"
               }
             },
-            "required": [
-              "subject"
-            ]
+            "required": ["subject"]
           },
           "then": {
             "properties": {
@@ -322,20 +272,13 @@
     },
     "logicCondition": {
       "type": "object",
-      "required": [
-        "type",
-        "op",
-        "conditions"
-      ],
+      "required": ["type", "op", "conditions"],
       "properties": {
         "type": {
           "const": "logic"
         },
         "op": {
-          "enum": [
-            "AND",
-            "OR"
-          ]
+          "enum": ["AND", "OR"]
         },
         "conditions": {
           "type": "array",

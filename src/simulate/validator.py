@@ -5,6 +5,7 @@ import math
 from pathlib import Path
 from typing import Any
 
+
 class ValidationError(ValueError):
     pass
 
@@ -153,9 +154,7 @@ def _validate_condition(
 
         if "value" not in condition:
             _fail(path + ".value", "is required")
-        if not isinstance(condition["value"], int) or isinstance(
-            condition["value"], bool
-        ):
+        if not isinstance(condition["value"], int) or isinstance(condition["value"], bool):
             _fail(path + ".value", "must be an integer")
 
         if "id" not in condition:
@@ -259,9 +258,7 @@ def validate_config(config: dict[str, Any]) -> None:
 
     for pool_id, pool_config in pools.items():
         pool_config = _require_mapping(pool_config, f"config.pools.{pool_id}")
-        entries = _require_list(
-            pool_config.get("entries"), f"config.pools.{pool_id}.entries"
-        )
+        entries = _require_list(pool_config.get("entries"), f"config.pools.{pool_id}.entries")
         if not entries:
             _fail(f"config.pools.{pool_id}.entries", "must be non-empty")
 
@@ -334,12 +331,14 @@ def validate_termination(termination: dict[str, Any], config: dict[str, Any]) ->
     )
 
 
-def validate_files(config_path: str, termination_path: str, config_schema_path: str, termination_schema_path: str) -> None:
+def validate_files(
+    config_path: str, termination_path: str, config_schema_path: str, termination_schema_path: str
+) -> None:
     config = json.loads(Path(config_path).read_text(encoding="utf-8"))
     termination = json.loads(Path(termination_path).read_text(encoding="utf-8"))
     config_schema = json.loads(Path(config_schema_path).read_text(encoding="utf-8"))
     termination_schema = json.loads(Path(termination_schema_path).read_text(encoding="utf-8"))
     Draft202012Validator(config_schema).validate(config)
-    Draft202012Validator(termination_schema).validate(termination)  
+    Draft202012Validator(termination_schema).validate(termination)
     validate_config(config)
     validate_termination(termination, config)

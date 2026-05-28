@@ -1,22 +1,17 @@
-import {
-  CartesianGrid,
-  LineChart,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import { CDFOverlay } from './CDFOverlay';
-import type { NormalizedVisualizeData } from '../types/visualize_input';
-import { CDF_CHART_VIEW_CONFIG } from '../view/cdf_view_config';
-import { use_element_size } from '../hooks/use_element_size';
+import { CartesianGrid, LineChart, XAxis, YAxis } from "recharts";
+import { CDFOverlay } from "./CDFOverlay";
+import type { NormalizedVisualizeData } from "../types/visualize_input";
+import { CDF_CHART_VIEW_CONFIG } from "../view/cdf_view_config";
+import { use_element_size } from "../hooks/use_element_size";
 
 const CHART_MARGIN = {
   top: 58,
   right: 36,
   bottom: 34,
   left: 48,
-};// 控制 Recharts 图表内容相对外层 SVG 的留白
+}; // 控制 Recharts 图表内容相对外层 SVG 的留白
 const Y_AXIS_WIDTH = 54; //  Y 轴宽度
-const X_AXIS_HEIGHT = 52;//  X 轴高度
+const X_AXIS_HEIGHT = 52; //  X 轴高度
 const Y_CDF_AXIS_TICKS = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1];
 interface CDFChartProps {
   data: NormalizedVisualizeData;
@@ -29,16 +24,12 @@ function format_percent(value: number): string {
 }
 
 function format_draw(value: number): string {
-  return new Intl.NumberFormat('zh-CN', {
+  return new Intl.NumberFormat("zh-CN", {
     maximumFractionDigits: 0,
   }).format(value);
 }
 
-export function CDFChart({
-  data,
-  animation_key,
-  is_animating,
-}: CDFChartProps) {
+export function CDFChart({ data, animation_key, is_animating }: CDFChartProps) {
   const [chart_ref, chart_size] = use_element_size<HTMLDivElement>();
 
   return (
@@ -73,10 +64,10 @@ export function CDFChart({
             tickFormatter={format_draw}
             height={X_AXIS_HEIGHT}
             label={{
-              value: '累计抽数',
-              position: 'insideBottom',
+              value: "累计抽数",
+              position: "insideBottom",
               offset: -5,
-              className: 'axis-title',
+              className: "axis-title",
             }}
             tickLine={{ stroke: CDF_CHART_VIEW_CONFIG.axis_tick_color }}
             type="number"

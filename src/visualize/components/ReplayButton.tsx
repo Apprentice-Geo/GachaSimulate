@@ -1,4 +1,4 @@
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw } from "lucide-react";
 
 interface ReplayButtonProps {
   disabled: boolean;

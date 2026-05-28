@@ -3,9 +3,7 @@
   "title": "Gacha simulation termination config",
   "type": "object",
   "description": "Schema for termination*.json. Item id references are checked against config.json by the Python validator.",
-  "required": [
-    "termination_condition"
-  ],
+  "required": ["termination_condition"],
   "properties": {
     "retained_items": {
       "type": "array",
@@ -29,9 +27,7 @@
     },
     "terminationAction": {
       "type": "object",
-      "required": [
-        "type"
-      ],
+      "required": ["type"],
       "properties": {
         "type": {
           "const": "termination"
@@ -57,35 +53,19 @@
     },
     "predicateCondition": {
       "type": "object",
-      "required": [
-        "type",
-        "subject",
-        "id",
-        "op",
-        "value"
-      ],
+      "required": ["type", "subject", "id", "op", "value"],
       "properties": {
         "type": {
           "const": "predicate"
         },
         "subject": {
-          "enum": [
-            "item",
-            "draw_count"
-          ]
+          "enum": ["item", "draw_count"]
         },
         "id": {
           "description": "Item id when subject is item; null when subject is draw_count."
         },
         "op": {
-          "enum": [
-            ">=",
-            ">",
-            "==",
-            "<=",
-            "<",
-            "!="
-          ]
+          "enum": [">=", ">", "==", "<=", "<", "!="]
         },
         "value": {
           "type": "integer"
@@ -102,9 +82,7 @@
                 "const": "item"
               }
             },
-            "required": [
-              "subject"
-            ]
+            "required": ["subject"]
           },
           "then": {
             "properties": {
@@ -125,20 +103,13 @@
     },
     "logicCondition": {
       "type": "object",
-      "required": [
-        "type",
-        "op",
-        "conditions"
-      ],
+      "required": ["type", "op", "conditions"],
       "properties": {
         "type": {
           "const": "logic"
         },
         "op": {
-          "enum": [
-            "AND",
-            "OR"
-          ]
+          "enum": ["AND", "OR"]
         },
         "conditions": {
           "type": "array",

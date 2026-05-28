@@ -685,9 +685,9 @@ def test_saves_visualize_input_json() -> None:
     save_visualize_input(output, result)
     data = json.loads(output.getvalue().decode("utf-8"))
 
-    assert data["title"] != None
-    assert data["target"] != None
-    assert data["note"] != None
+    assert data["title"] is not None
+    assert data["target"] is not None
+    assert data["note"] is not None
     assert data["draws"] == [1, 2, 4]
     assert data["cumulative"] == [0.25, 0.5, 1.0]
     assert len(data["draws"]) == len(data["cumulative"])
@@ -741,9 +741,7 @@ def test_parallel_simulation_merges_worker_results() -> None:
         ),
     )
 
-    result = simulate_until_total_draw(
-        MonteCarlo(ctx, seed=123), target_total_draw=8, workers=2
-    )
+    result = simulate_until_total_draw(MonteCarlo(ctx, seed=123), target_total_draw=8, workers=2)
 
     assert result["seed"] == 123
     assert result["total_draw"] == 8

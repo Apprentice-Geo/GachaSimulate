@@ -1,13 +1,13 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties } from "react";
 import type {
   NormalizedVisualizeData,
   StatisticMetric,
-} from '../types/visualize_input';
+} from "../types/visualize_input";
 import {
   DISTRIBUTION_STATISTIC_GROUPS,
   STATISTIC_VIEW_CONFIG,
-} from '../view/statistic_view_config';
-import type { DistributionStatisticKey } from '../view/statistic_view_config';
+} from "../view/statistic_view_config";
+import type { DistributionStatisticKey } from "../view/statistic_view_config";
 
 interface StatisticPanelProps {
   data: NormalizedVisualizeData | null;
@@ -19,7 +19,7 @@ function order_metric_keys(
   keys: readonly DistributionStatisticKey[],
   metrics_by_key: Map<string, StatisticMetric>,
 ): DistributionStatisticKey[] {
-  if (!keys.includes('P50') || !keys.includes('MEAN')) {
+  if (!keys.includes("P50") || !keys.includes("MEAN")) {
     return [...keys];
   }
 
@@ -35,10 +35,10 @@ function order_metric_keys(
       return value_order;
     }
 
-    if (left === 'P50' && right === 'MEAN') {
+    if (left === "P50" && right === "MEAN") {
       return -1;
     }
-    if (left === 'MEAN' && right === 'P50') {
+    if (left === "MEAN" && right === "P50") {
       return 1;
     }
     return 0;
@@ -61,8 +61,8 @@ function MetricRow({
       key={metric.key}
       style={
         {
-          '--metric-color': metric.color,
-          '--stat-content-index': index,
+          "--metric-color": metric.color,
+          "--stat-content-index": index,
         } as CSSProperties
       }
     >
@@ -110,7 +110,6 @@ export function StatisticPanel({
       data-ready={is_ready}
       key={`stat-panel-${animation_key}`}
     >
-
       {data ? (
         <div className="metric-list">
           {visible_metric_groups.map((group) => (
@@ -119,7 +118,7 @@ export function StatisticPanel({
                 className="metric-group-heading"
                 style={
                   {
-                    '--stat-content-index':
+                    "--stat-content-index":
                       stat_group_index_by_title.get(group.title) ?? 0,
                   } as CSSProperties
                 }

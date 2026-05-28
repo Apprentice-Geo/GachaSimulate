@@ -90,9 +90,7 @@ class MonteCarlo:
             for _ in range(resolve_count):
                 self._execute_actions(state, item_resolve.actions)
 
-    def _execute_actions(
-        self, state: RuntimeState, actions: Iterable[Action] | None
-    ) -> None:
+    def _execute_actions(self, state: RuntimeState, actions: Iterable[Action] | None) -> None:
         for action in actions or []:
             if state.terminate:
                 return
@@ -157,9 +155,7 @@ class MonteCarlo:
 
         raise TypeError(f"unsupported condition node type: {type(node).__name__}")
 
-    def _get_subject_value(
-        self, subject: str, subject_id: str | None, state: RuntimeState
-    ) -> int:
+    def _get_subject_value(self, subject: str, subject_id: str | None, state: RuntimeState) -> int:
         if subject == "draw_count":
             return state.draw_count
         if subject == "item":

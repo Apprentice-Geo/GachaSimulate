@@ -24,7 +24,13 @@ from simulate.runtime import (
 
 
 class RuntimeBuilder:
-    def __init__(self, config_path: str, termination_path: str,  config_schema_path: str, termination_schema_path: str):
+    def __init__(
+        self,
+        config_path: str,
+        termination_path: str,
+        config_schema_path: str,
+        termination_schema_path: str,
+    ):
         validate_files(config_path, termination_path, config_schema_path, termination_schema_path)
         with open(config_path, "r", encoding="utf-8") as f:
             self.config = json.load(f)
@@ -104,9 +110,7 @@ class RuntimeBuilder:
         else:
             raise ValueError(f"unsupported action type: {action_type}")
 
-    def _build_actions(
-        self, action_configs: list[dict[str, Any]] | None
-    ) -> list[Action]:
+    def _build_actions(self, action_configs: list[dict[str, Any]] | None) -> list[Action]:
         actions: list[Action] = []
         for action_config in action_configs or []:
             actions.append(self._build_action(action_config))
@@ -118,9 +122,7 @@ class RuntimeBuilder:
         self.item_resolve_list.clear()
         self.item_draw_list.clear()
 
-        for index, (item_id, item_config) in enumerate(
-            self.config.get("items", {}).items()
-        ):
+        for index, (item_id, item_config) in enumerate(self.config.get("items", {}).items()):
             self.item_id_index[item_id] = index
             self.item_list.append(
                 Item(
@@ -212,9 +214,7 @@ class RuntimeBuilder:
 
         condition_type = condition_config.get("type")
         actions_config = condition_config.get("actions")
-        actions = (
-            self._build_actions(actions_config) if actions_config is not None else None
-        )
+        actions = self._build_actions(actions_config) if actions_config is not None else None
 
         if condition_type == "logic":
             conditions = [

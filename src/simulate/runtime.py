@@ -93,7 +93,7 @@ class DrawPool(Action):
 
     def execute(
         self, runtime_state: RuntimeState, runtime_context: RuntimeContext
-    ) -> Action:
+    ) -> List[Action]:
         r = runtime_state.rng.random()
         idx = np.searchsorted(runtime_context.pool_list[self.pool_index].cdf, r)
         actions = runtime_context.pool_list[self.pool_index].actions[idx]

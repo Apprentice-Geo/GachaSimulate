@@ -1,4 +1,4 @@
-import { FileJson } from 'lucide-react';
+import { FileJson } from "lucide-react";
 
 export function EmptyState() {
   return (
