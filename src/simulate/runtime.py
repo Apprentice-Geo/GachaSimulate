@@ -1,7 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Sequence
 
 import numpy as np
 
@@ -49,7 +49,7 @@ class RuntimeState:
         self.reduced = np.zeros(item_count, dtype=np.int32)
         self.draw_count = 0
         self.terminate = False
-        self.terminate_reason = None
+        self.terminate_reason: str | None = None
 
 
 class Action(ABC):
@@ -123,14 +123,14 @@ class ConditionNode(ABC): ...
 @dataclass(frozen=True, slots=True)
 class LogicNode(ConditionNode):
     op: str
-    conditions: List[ConditionNode]
+    conditions: Sequence[ConditionNode]
     actions: List[Action] | None
 
 
 @dataclass(frozen=True, slots=True)
 class CheckNode(ConditionNode):
     subject: str
-    id: str
+    id: str | None
     op: str
     value: int
     actions: List[Action] | None

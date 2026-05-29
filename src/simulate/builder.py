@@ -9,6 +9,7 @@ from simulate.runtime import (
     Action,
     AddItem,
     CheckNode,
+    ConditionNode,
     DrawPool,
     Item,
     ItemResolve,
@@ -198,6 +199,8 @@ class RuntimeBuilder:
         for stage_id, stage_config in stage_sources.items():
             condition_config = stage_config["condition"]
             condition = self._build_termination_tree(condition_config)
+            if condition is None:
+                raise ValueError("stage condition cannot be None")
             stage_once = bool(stage_config.get("once", False))
 
             self.draw_stage_id_index[stage_id] = len(self.draw_stage_list)
@@ -208,7 +211,9 @@ class RuntimeBuilder:
                 )
             )
 
-    def _build_termination_tree(self, condition_config: dict[str, Any] | None):
+    def _build_termination_tree(
+        self, condition_config: dict[str, Any] | None
+    ) -> ConditionNode | None:
         if condition_config is None:
             return None
 
@@ -217,10 +222,12 @@ class RuntimeBuilder:
         actions = self._build_actions(actions_config) if actions_config is not None else None
 
         if condition_type == "logic":
-            conditions = [
-                self._build_termination_tree(child)
-                for child in condition_config.get("conditions", [])
-            ]
+            conditions: list[ConditionNode] = []
+            for child in condition_config.get("conditions", []):
+                child_condition = self._build_termination_tree(child)
+                if child_condition is None:
+                    raise ValueError("logic condition child cannot be None")
+                conditions.append(child_condition)
             return LogicNode(
                 op=condition_config.get("op", "OR"),
                 conditions=conditions,
@@ -249,6 +256,8 @@ class RuntimeBuilder:
         self.termination_tree = self._build_termination_tree(
             self.termination_config["termination_condition"]
         )
+        if self.termination_tree is None:
+            raise ValueError("termination condition cannot be None")
         self.retained_items_index = [
             self._resolve_item_index(item_id)
             for item_id in self.termination_config.get("retained_items", [])

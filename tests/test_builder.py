@@ -6,6 +6,7 @@ import pytest
 
 from simulate.builder import RuntimeBuilder
 from simulate.runtime import (
+    Action,
     AddItem,
     CheckNode,
     DrawPool,
@@ -21,6 +22,22 @@ from simulate.runtime import (
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_SCHEMA_PATH = ROOT / "docs" / "schemas" / "config.schema.json"
 TERMINATION_SCHEMA_PATH = ROOT / "docs" / "schemas" / "termination.schema.json"
+
+
+def _pool_action_details(actions: list[Action]):
+    details = []
+    for action in actions:
+        assert isinstance(action, DrawPool)
+        details.append((type(action), action.pool_index))
+    return details
+
+
+def _item_amount_action_details(actions: list[Action]):
+    details = []
+    for action in actions:
+        assert isinstance(action, (AddItem, ReduceItem, SetItem))
+        details.append((type(action), action.item_index, action.amount))
+    return details
 
 
 def _config_termination_pairs() -> list[tuple[Path, Path]]:
@@ -52,22 +69,18 @@ def test_builds_expected_runtime_structure() -> None:
 
     precious_trigger = ctx.item_draw_list[ctx.item_id_index["random_precious_item"]]
     ordinary_trigger = ctx.item_draw_list[ctx.item_id_index["random_ordinary_item"]]
-    assert [(type(action), action.pool_index) for action in precious_trigger] == [(DrawPool, 3)]
-    assert [(type(action), action.pool_index) for action in ordinary_trigger] == [(DrawPool, 4)]
+    assert _pool_action_details(precious_trigger) == [(DrawPool, 3)]
+    assert _pool_action_details(ordinary_trigger) == [(DrawPool, 4)]
 
     precious_resolve = ctx.item_resolve_list[ctx.item_id_index["precious_item_1"]]
     ordinary_resolve = ctx.item_resolve_list[ctx.item_id_index["ordinary_item_2"]]
     assert precious_resolve.retain == 0
     assert ordinary_resolve.retain == 0
-    assert [
-        (type(action), action.item_index, action.amount) for action in precious_resolve.actions
-    ] == [
+    assert _item_amount_action_details(precious_resolve.actions) == [
         (AddItem, 11, 120),
         (ReduceItem, 5, 1),
     ]
-    assert [
-        (type(action), action.item_index, action.amount) for action in ordinary_resolve.actions
-    ] == [
+    assert _item_amount_action_details(ordinary_resolve.actions) == [
         (AddItem, 11, 30),
         (ReduceItem, 9, 1),
     ]
@@ -79,26 +92,46 @@ def test_builds_expected_runtime_structure() -> None:
     assert second_stage.once is True
     assert per_draw_stage.once is False
     assert isinstance(first_stage.condition, CheckNode)
-    assert isinstance(second_stage.condition.actions[0], PoolChange)
-    assert second_stage.condition.actions[0].pool_index == 2
+    assert isinstance(second_stage.condition, CheckNode)
+    assert second_stage.condition.actions is not None
+    second_stage_action = second_stage.condition.actions[0]
+    assert isinstance(second_stage_action, PoolChange)
+    assert second_stage_action.pool_index == 2
+    assert isinstance(per_draw_stage.condition, CheckNode)
     assert per_draw_stage.condition.subject == "draw_count"
-    assert isinstance(per_draw_stage.condition.actions[0], AddItem)
-    assert per_draw_stage.condition.actions[0].item_index == 11
-    assert per_draw_stage.condition.actions[0].amount == 1
+    assert per_draw_stage.condition.actions is not None
+    per_draw_action = per_draw_stage.condition.actions[0]
+    assert isinstance(per_draw_action, AddItem)
+    assert per_draw_action.item_index == 11
+    assert per_draw_action.amount == 1
 
     assert isinstance(ctx.termination_tree, LogicNode)
     assert ctx.termination_tree.op == "OR"
-    assert [child.op for child in ctx.termination_tree.conditions] == ["AND", "AND"]
     first_branch, second_branch = ctx.termination_tree.conditions
-    assert [node.id for node in first_branch.conditions] == [
+    assert isinstance(first_branch, LogicNode)
+    assert isinstance(second_branch, LogicNode)
+    assert [first_branch.op, second_branch.op] == ["AND", "AND"]
+    first_node_1, first_node_2, first_node_3 = first_branch.conditions
+    assert isinstance(first_node_1, CheckNode)
+    assert isinstance(first_node_2, CheckNode)
+    assert isinstance(first_node_3, CheckNode)
+    assert [first_node_1.id, first_node_2.id, first_node_3.id] == [
         "target_item_1",
         "target_item_2",
         "target_item_3",
     ]
+    assert first_branch.actions is not None
     assert [type(action) for action in first_branch.actions] == [Termination]
-    assert first_branch.actions[0].reason == "all target items obtained"
-    assert [node.id for node in second_branch.conditions] == ["general_fragment"]
-    assert second_branch.actions[0].reason == "fragment exchange"
+    first_action = first_branch.actions[0]
+    assert isinstance(first_action, Termination)
+    assert first_action.reason == "all target items obtained"
+    (second_node,) = second_branch.conditions
+    assert isinstance(second_node, CheckNode)
+    assert [second_node.id] == ["general_fragment"]
+    assert second_branch.actions is not None
+    second_action = second_branch.actions[0]
+    assert isinstance(second_action, Termination)
+    assert second_action.reason == "fragment exchange"
 
 
 @pytest.mark.parametrize(
@@ -238,7 +271,10 @@ def test_builds_set_item_action() -> None:
 
     ctx = RuntimeBuilder.from_config(config, termination).build()
 
-    action = ctx.draw_stage_list[0].condition.actions[0]
+    condition = ctx.draw_stage_list[0].condition
+    assert isinstance(condition, CheckNode)
+    assert condition.actions is not None
+    action = condition.actions[0]
     assert isinstance(action, SetItem)
     assert action.item_index == ctx.item_id_index["counter"]
     assert action.amount == 0
@@ -287,6 +323,6 @@ def test_builds_initial_pool_and_actions() -> None:
     ctx = RuntimeBuilder.from_config(config, termination).build()
 
     assert ctx.begin_pool_index == ctx.pool_id_index["bonus_pool"]
-    assert [(type(action), action.item_index, action.amount) for action in ctx.initial_actions] == [
+    assert _item_amount_action_details(ctx.initial_actions) == [
         (AddItem, ctx.item_id_index["token"], 2)
     ]

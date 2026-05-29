@@ -2,10 +2,12 @@
   "include": ["src", "tests", "example.py"],
   "exclude": ["dist", "node_modules", "playwright-report", "test-results"],
   "extraPaths": ["src"],
+  "venvPath": ".",
+  "venv": "venv",
   "pythonVersion": "3.12",
   "typeCheckingMode": "basic",
-  "reportArgumentType": "none",
-  "reportAttributeAccessIssue": "none",
-  "reportMissingImports": "none",
-  "reportMissingModuleSource": "none"
+  "reportMissingImports": "error",
+  "reportMissingModuleSource": "warning",
+  "reportArgumentType": "error",
+  "reportAttributeAccessIssue": "error"
 }
