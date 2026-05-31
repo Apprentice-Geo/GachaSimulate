@@ -7,8 +7,8 @@
 安装 Python 依赖：
 
 ```powershell
-.\venv\Scripts\python.exe -m pip install -r requirements.txt
-.\venv\Scripts\python.exe -m pip install -e .
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -e .
 ```
 
 安装 Node 依赖：
@@ -22,11 +22,11 @@ npm ci
 Python 检查：
 
 ```powershell
-.\venv\Scripts\python.exe -m ruff format --check .
-.\venv\Scripts\python.exe -m ruff check .
-.\venv\Scripts\python.exe -m pyright
-.\venv\Scripts\python.exe -m build --wheel --no-isolation
-.\venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m ruff format --check .
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m pyright
+.\.venv\Scripts\python.exe -m build --wheel --no-isolation
+.\.venv\Scripts\python.exe -m pytest
 ```
 
 前端检查：
@@ -47,13 +47,13 @@ npm run test:e2e
 如果 Python 格式检查失败，执行：
 
 ```powershell
-.\venv\Scripts\python.exe -m ruff format .
+.\.venv\Scripts\python.exe -m ruff format .
 ```
 
 如果 Python lint 失败，先查看 `ruff check` 输出并修复对应文件。部分安全的自动修复可以用：
 
 ```powershell
-.\venv\Scripts\python.exe -m ruff check . --fix
+.\.venv\Scripts\python.exe -m ruff check . --fix
 ```
 
 如果前端格式检查失败，执行：

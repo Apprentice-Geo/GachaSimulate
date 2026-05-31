@@ -46,9 +46,11 @@ class MonteCarlo:
     def _one_draw_cycle(self, state: RuntimeState) -> None:
         state.draw_count += 1
 
+        # 这里所有池子的单次抽取都被构造成了 Action，需要抽取直接调用
         self._execute_action(state, self.ctx.pool_draw_list[state.main_pool_index])
 
         self._stage_phase(state)
+        # 只要 resolve 不会产生还需要 resolve 的物品，就不会出错
         self._resolve_phase(state)
 
         should_terminate, termination_actions = self._eval_condition(
@@ -71,6 +73,7 @@ class MonteCarlo:
                 else:
                     active_stage_pos += 1
                 self._execute_actions(state, stage_actions)
+                # 由于之前已经执行了 pop 或者 +=1，continue 以后不会重复触发同一个 stage
                 continue
 
             active_stage_pos += 1
@@ -87,6 +90,7 @@ class MonteCarlo:
             if resolve_count <= 0:
                 continue
 
+            # 执行 resolve_count 次分解
             for _ in range(resolve_count):
                 self._execute_actions(state, item_resolve.actions)
 
@@ -100,6 +104,7 @@ class MonteCarlo:
         if isinstance(action, AddItem):
             action.execute(state, self.ctx)
 
+            # 直接触发带有二级池子物品的抽取
             draw_actions = self.ctx.item_draw_list[action.item_index]
             if draw_actions:
                 for _ in range(action.amount):
