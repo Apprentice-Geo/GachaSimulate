@@ -26,6 +26,7 @@
     "items": {
       "type": "object",
       "description": "Item definitions keyed by item id.",
+      "required": ["draw_count"],
       "additionalProperties": {
         "$ref": "#/$defs/item"
       }
@@ -228,10 +229,11 @@
           "const": "predicate"
         },
         "subject": {
-          "enum": ["item", "draw_count"]
+          "enum": ["item"]
         },
         "id": {
-          "description": "Item id when subject is item; null when subject is draw_count."
+          "type": "string",
+          "description": "Item id. The validator checks that it exists in items."
         },
         "op": {
           "enum": [">=", ">", "==", "<=", "<", "!="]
@@ -242,33 +244,7 @@
         "actions": {
           "$ref": "#/$defs/actions"
         }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "subject": {
-                "const": "item"
-              }
-            },
-            "required": ["subject"]
-          },
-          "then": {
-            "properties": {
-              "id": {
-                "type": "string"
-              }
-            }
-          },
-          "else": {
-            "properties": {
-              "id": {
-                "type": "null"
-              }
-            }
-          }
-        }
-      ]
+      }
     },
     "logicCondition": {
       "type": "object",

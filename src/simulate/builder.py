@@ -64,6 +64,7 @@ class RuntimeBuilder:
         self.draw_stage_list = []
         self.retained_items_index = []
         self.begin_pool_index = 0
+        self.draw_count_index = 0
         self.initial_actions = []
         self.termination_tree = None
 
@@ -133,6 +134,8 @@ class RuntimeBuilder:
             )
             self.item_resolve_list.append(ItemResolve(retain=0, actions=[]))
             self.item_draw_list.append([])
+
+        self.draw_count_index = self._resolve_item_index("draw_count")
 
     def _build_item_resolves(self):
         for item_id, item_config in self.config.get("items", {}).items():
@@ -236,8 +239,7 @@ class RuntimeBuilder:
 
         if condition_type == "predicate":
             return CheckNode(
-                subject=condition_config["subject"],
-                id=condition_config.get("id"),
+                item_index=self._resolve_item_index(condition_config["id"]),
                 op=condition_config["op"],
                 value=int(condition_config.get("value", 0)),
                 actions=actions,
@@ -267,6 +269,7 @@ class RuntimeBuilder:
             begin_pool_index=self.begin_pool_index,
             initial_actions=self.initial_actions,
             item_id_index=self.item_id_index,
+            draw_count_index=self.draw_count_index,
             item_list=self.item_list,
             item_resolve_list=self.item_resolve_list,
             item_draw_list=self.item_draw_list,

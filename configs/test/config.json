@@ -150,6 +150,9 @@
         },
         "general_fragment": {
             "name": "通用碎片"
+        },
+        "draw_count": {
+            "name": "Draw count"
         }
     },
     "pools": {
@@ -391,8 +394,8 @@
             "once": false,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 1,
                 "actions": [

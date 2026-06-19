@@ -35,17 +35,18 @@ config.json + termination.json
 
 ## RuntimeContext 与 RuntimeState
 
-`RuntimeContext` 是单次或多次模拟共享的只读上下文。它包含编译后的物品、奖池、动作、阶段和终止条件。
+`RuntimeContext` 是单次或多次模拟共享的只读上下文。它包含编译后的物品、奖池、动作、阶段和终止条件。`draw_count_index` 指向配置中显式声明的 `draw_count` item。
 
 `RuntimeState` 是一次模拟 run 的可变状态。它包含：
 
 - `inventory`：规则判断用库存。
 - `acquired`：统计用累计获得数量。
 - `reduced`：统计用累计消耗数量。
-- `draw_count`：当前 run 已执行抽数。
 - `main_pool_index`：当前主奖池。
 - `stage_execute` 和 `active_stage_indices`：stage 执行状态。
 - `terminate` 和 `terminate_reason`：终止状态和原因。
+
+`draw_count` 是普通 item，不是 `RuntimeState` 字段或 property。当前 run 已执行抽数通过 `inventory[ctx.draw_count_index]` 读取。
 
 这种拆分的好处是：配置编译只做一次，Monte Carlo 热路径只创建轻量 `RuntimeState`，并通过整数 index 访问 NumPy 数组。
 
@@ -66,7 +67,7 @@ config.json + termination.json
 - `DrawPool.execute()` 返回后续 actions，由 engine 继续执行。
 - `AddItem` 除了修改状态，还会由 engine 触发该 item 的 `on_acquire` actions。
 
-因此，`Action.execute()` 不是完整的解释器入口；真正的 Action 调度规则在 `MonteCarlo._execute_action()` 中。这个设计足够直接，但新增 Action 类型时要先判断它只是修改状态，还是会产生后续动作。
+因此，`Action.execute()` 不是完整的解释器入口；真正的 Action 调度规则在 `MonteCarlo._execute_action()` 中。engine 通过 Action 的整数 `kind` 标记分派，不在热路径使用 `isinstance` 判断。这个设计足够直接，但新增 Action 类型时要先判断它只是修改状态，还是会产生后续动作。
 
 ## 单次模拟执行流程
 
@@ -74,7 +75,7 @@ config.json + termination.json
 
 单抽周期顺序固定为：
 
-1. `draw_count += 1`。
+1. `inventory[ctx.draw_count_index] += 1`。
 2. 从当前主奖池抽取一次。
 3. 执行 stage phase。
 4. 执行 resolve phase。
@@ -117,8 +118,10 @@ resolve 用于把超出保留数量的物品分解成其他资源。当前实现
 
 condition tree 支持两类节点：
 
-- `predicate`：读取 `draw_count` 或指定 item 库存，与目标值比较。
+- `predicate`：读取指定 item 库存，与目标值比较。`draw_count` 判断也写作普通 item predicate。
 - `logic`：支持 `AND` 和 `OR`。
+
+builder 会把 predicate 的 item id 编译为 item index。engine 执行 condition 时直接读取 `state.inventory[node.item_index]`，不再做 subject 分派。Condition 节点同样通过整数 `kind` 标记分派。
 
 Action 聚合规则：
 
