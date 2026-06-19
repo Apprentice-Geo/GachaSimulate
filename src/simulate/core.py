@@ -22,7 +22,7 @@ def _simulate_until_total_draw_serial(
     progress_interval: int = 0,
 ):
     """
-    持续运行完整模拟，直到累计抽数达到目标值
+    单进程持续运行完整模拟，直到累计抽数达到目标值
     """
 
     draw_count = []
@@ -129,6 +129,10 @@ def _update_progress_from_queue(progress_queue, pbar, target_total_draw: int) ->
 
 
 def _simulate_until_total_draw_parallel(sim: MonteCarlo, target_total_draw: int, workers: int):
+
+    """
+    多进程持续运行完整模拟，直到累计抽数达到目标值
+    """
     targets = _split_target_total_draw(target_total_draw, workers)
     # 生成子进程的随机数种子，保证每个子进程的随机数序列独立且可复现
     seed_sequence = np.random.SeedSequence(sim.seed)

@@ -65,21 +65,22 @@ def run_save(
         total_acquired = np.sum(result["lifetime_acquired"][:, index])
         print(f"  {item_id}: {total_acquired}")
 
-    viz = Visualizer(result)
-    img_dir = Path("./images")
-    img_dir.mkdir(parents=True, exist_ok=True)
+    # viz = Visualizer(result)
+    # img_dir = Path("./images")
+    # img_dir.mkdir(parents=True, exist_ok=True)
     # viz.plot_draw_distribution(
     #     save_path=f"./images/{simulate_name}_draw_distribution.svg"
     # )
-    viz.plot_cdf(save_path=f"./images/{simulate_name}_cdf.svg")
+    # viz.plot_cdf(save_path=f"./images/{simulate_name}_cdf.svg")
 
 
 if __name__ == "__main__":
     base_seed = int("666")
     run_save(
         "sanliou_zhenpinchuanshuo",
-        "termination_skin_all",
-        target_total_draw=100000000,
+        "termination_skin",
+        target_total_draw=1010000,
         seed=base_seed,
+        workers=1
     )
     # print(os.cpu_count())

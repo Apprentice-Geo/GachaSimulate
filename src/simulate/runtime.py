@@ -10,14 +10,14 @@ import numpy as np
 class RuntimeContext:
     begin_pool_index: int
     initial_actions: List[Action]
-    item_id_index: Dict[str, int]
+    item_id_index: Dict[str, int] # 对物品进行编号
     item_list: List[Item]
-    item_resolve_list: List[ItemResolve]  # resolve 某个物品时执行的动作
-    item_draw_list: List[List[Action]]
-    pool_id_index: Dict[str, int]
+    item_resolve_list: List[ItemResolve]  # 分解某个物品时执行的动作
+    item_draw_list: List[List[Action]] # 获得物品时执行的动作
+    pool_id_index: Dict[str, int] # 对池子进行编号
     pool_list: List[Pool]
     pool_draw_list: List[Action]  # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
-    draw_stage_id_index: Dict[str, int]
+    draw_stage_id_index: Dict[str, int] # 对阶段进行编号
     draw_stage_list: List[Stage]
     retained_items_index: List[int]
     termination_tree: ConditionNode
