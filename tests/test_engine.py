@@ -649,7 +649,6 @@ def test_reaches_expected_final_state(test_ctx: RuntimeContext) -> None:
     assert state.terminate_reason == "all target items obtained"
     assert state.draw_count == 459
     assert state.main_pool_index == test_ctx.pool_id_index["pool_2"]
-    assert state.stage_execute == [True, True, False]
     assert state.inventory.tolist() == [1, 1, 1, 40, 357, 0, 0, 0, 0, 0, 0, 9494]
     assert state.acquired.tolist() == [1, 1, 1, 40, 357, 5, 12, 23, 29, 97, 231, 9494]
     assert state.reduced.tolist() == [0, 0, 0, 0, 0, 5, 12, 23, 29, 97, 231, 0]

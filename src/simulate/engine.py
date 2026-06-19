@@ -5,16 +5,10 @@ from typing import Iterable
 
 from simulate.runtime import (
     Action,
-    AddItem,
-    CheckNode,
     ConditionNode,
-    DrawPool,
-    LogicNode,
-    ReduceItem,
+    RUNTIME_KIND,
     RuntimeContext,
     RuntimeState,
-    SetItem,
-    Termination,
 )
 
 
@@ -102,7 +96,9 @@ class MonteCarlo:
             self._execute_action(state, action)
 
     def _execute_action(self, state: RuntimeState, action: Action) -> None:
-        if isinstance(action, AddItem):
+        kind = action.kind
+
+        if kind == RUNTIME_KIND.AddItem:
             action.execute(state, self.ctx)
 
             # 直接触发带有二级池子物品的抽取
@@ -112,16 +108,21 @@ class MonteCarlo:
                     self._execute_actions(state, draw_actions)
             return
 
-        if isinstance(action, DrawPool):
+        if kind == RUNTIME_KIND.DrawPool:
             drawn_results = action.execute(state, self.ctx)
             self._execute_actions(state, drawn_results)
             return
 
-        if isinstance(action, (ReduceItem, SetItem, Termination)):
+        if kind in (
+            RUNTIME_KIND.ReduceItem,
+            RUNTIME_KIND.SetItem,
+            RUNTIME_KIND.PoolChange,
+            RUNTIME_KIND.Termination,
+        ):
             action.execute(state, self.ctx)
             return
 
-        action.execute(state, self.ctx)
+        raise TypeError(f"unsupported action kind: {kind}")
 
     def _eval_condition(
         self, node: ConditionNode | None, state: RuntimeState
@@ -129,14 +130,16 @@ class MonteCarlo:
         if node is None:
             return False, []
 
-        if isinstance(node, CheckNode):
+        kind = node.kind
+
+        if kind == RUNTIME_KIND.CheckNode:
             left = self._get_subject_value(node.subject, node.id, state)
             ok = self._compare(left, node.op, node.value)
             if ok:
                 return True, list(node.actions or [])
             return False, []
 
-        if isinstance(node, LogicNode):
+        if kind == RUNTIME_KIND.LogicNode:
             if node.op == "OR":
                 for child in node.conditions:
                     ok, child_actions = self._eval_condition(child, state)
@@ -159,7 +162,7 @@ class MonteCarlo:
 
             raise ValueError(f"unsupported logic op: {node.op}")
 
-        raise TypeError(f"unsupported condition node type: {type(node).__name__}")
+        raise TypeError(f"unsupported condition node kind: {kind}")
 
     def _get_subject_value(self, subject: str, subject_id: str | None, state: RuntimeState) -> int:
         if subject == "draw_count":

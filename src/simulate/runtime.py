@@ -7,6 +7,23 @@ import numpy as np
 
 
 @dataclass(frozen=True, slots=True)
+class RuntimeKind:
+    Action: int = 0
+    AddItem: int = 1
+    ReduceItem: int = 2
+    SetItem: int = 3
+    DrawPool: int = 4
+    PoolChange: int = 5
+    Termination: int = 6
+    ConditionNode: int = 7
+    LogicNode: int = 8
+    CheckNode: int = 9
+
+
+RUNTIME_KIND = RuntimeKind()
+
+
+@dataclass(frozen=True, slots=True)
 class RuntimeContext:
     begin_pool_index: int
     initial_actions: List[Action]
@@ -51,6 +68,8 @@ class RuntimeState:
 
 
 class Action(ABC):
+    kind = RUNTIME_KIND.Action
+
     @abstractmethod
     def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
         pass
@@ -58,6 +77,8 @@ class Action(ABC):
 
 @dataclass(frozen=True, slots=True)
 class AddItem(Action):
+    kind = RUNTIME_KIND.AddItem
+
     item_index: int
     amount: int
 
@@ -68,6 +89,8 @@ class AddItem(Action):
 
 @dataclass(frozen=True, slots=True)
 class ReduceItem(Action):
+    kind = RUNTIME_KIND.ReduceItem
+
     item_index: int
     amount: int
 
@@ -78,6 +101,8 @@ class ReduceItem(Action):
 
 @dataclass(frozen=True, slots=True)
 class SetItem(Action):
+    kind = RUNTIME_KIND.SetItem
+
     item_index: int
     amount: int
 
@@ -87,6 +112,8 @@ class SetItem(Action):
 
 @dataclass(frozen=True, slots=True)
 class DrawPool(Action):
+    kind = RUNTIME_KIND.DrawPool
+
     pool_index: int
 
     def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext) -> List[Action]:
@@ -98,6 +125,8 @@ class DrawPool(Action):
 
 @dataclass(frozen=True, slots=True)
 class PoolChange(Action):
+    kind = RUNTIME_KIND.PoolChange
+
     pool_index: int
 
     def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
@@ -106,6 +135,8 @@ class PoolChange(Action):
 
 @dataclass(frozen=True, slots=True)
 class Termination(Action):
+    kind = RUNTIME_KIND.Termination
+
     reason: str
 
     def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
@@ -113,11 +144,14 @@ class Termination(Action):
         runtime_state.terminate_reason = self.reason
 
 
-class ConditionNode(ABC): ...
+class ConditionNode(ABC):
+    kind = RUNTIME_KIND.ConditionNode
 
 
 @dataclass(frozen=True, slots=True)
 class LogicNode(ConditionNode):
+    kind = RUNTIME_KIND.LogicNode
+
     op: str
     conditions: Sequence[ConditionNode]
     actions: List[Action] | None
@@ -125,6 +159,8 @@ class LogicNode(ConditionNode):
 
 @dataclass(frozen=True, slots=True)
 class CheckNode(ConditionNode):
+    kind = RUNTIME_KIND.CheckNode
+
     subject: str
     id: str | None
     op: str
