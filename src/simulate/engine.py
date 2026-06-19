@@ -24,6 +24,7 @@ class MonteCarlo:
         self.seed = seed
         # 此处定义全局rng,避免多次模拟时重复创建同一个种子的rng,导致每次模拟结果重复
         self.rng = np.random.default_rng(self.seed)
+        # 记录可分解的物品索引
         self.resolvable_item_indices = [
             item_index
             for item_index, item_resolve in enumerate(self.ctx.item_resolve_list)
@@ -67,8 +68,8 @@ class MonteCarlo:
 
             ok, stage_actions = self._eval_condition(stage.condition, state)
             if ok:
+                state.stage_execute[stage_index] = True
                 if stage.once:
-                    state.stage_execute[stage_index] = True
                     state.active_stage_indices.pop(active_stage_pos)
                 else:
                     active_stage_pos += 1
