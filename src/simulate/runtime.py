@@ -27,6 +27,7 @@ RUNTIME_KIND = RuntimeKind()
 class RuntimeContext:
     begin_pool_index: int
     initial_actions: List[Action]
+    every_draw_actions: List[Action]
     item_id_index: Dict[str, int]  # 对物品进行编号
     draw_count_index: int
     item_list: List[Item]

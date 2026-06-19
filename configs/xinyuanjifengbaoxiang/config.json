@@ -114,5 +114,12 @@
                 }
             ]
         }
-    }
+    },
+    "every_draw": [
+        {
+            "type": "add_item",
+            "id": "draw_count",
+            "amount": 1
+        }
+    ]
 }

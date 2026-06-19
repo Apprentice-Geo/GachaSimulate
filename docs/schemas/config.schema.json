@@ -3,7 +3,7 @@
   "title": "Gacha simulation config",
   "type": "object",
   "description": "Schema for config.json. Reference checks between item ids and pool ids, and pool probability sums, are enforced by the Python validator rather than by this schema.",
-  "required": ["initial", "items", "pools"],
+  "required": ["initial", "items", "pools", "every_draw"],
   "properties": {
     "meta": {
       "type": "object",
@@ -38,6 +38,10 @@
       "additionalProperties": {
         "$ref": "#/$defs/pool"
       }
+    },
+    "every_draw": {
+      "$ref": "#/$defs/actions",
+      "description": "Actions executed exactly once at the start of every draw, before drawing from the main pool."
     },
     "stages": {
       "type": "object",

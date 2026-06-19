@@ -35,7 +35,7 @@ config.json + termination.json
 
 ## RuntimeContext 与 RuntimeState
 
-`RuntimeContext` 是单次或多次模拟共享的只读上下文。它包含编译后的物品、奖池、动作、阶段和终止条件。`draw_count_index` 指向配置中显式声明的 `draw_count` item。
+`RuntimeContext` 是单次或多次模拟共享的只读上下文。它包含编译后的物品、奖池、每抽固定动作、阶段和终止条件。`draw_count_index` 指向配置中显式声明的 `draw_count` item。
 
 `RuntimeState` 是一次模拟 run 的可变状态。它包含：
 
@@ -75,17 +75,19 @@ config.json + termination.json
 
 单抽周期顺序固定为：
 
-1. `inventory[ctx.draw_count_index] += 1`。
+1. 执行 `every_draw_actions`。
 2. 从当前主奖池抽取一次。
 3. 执行 stage phase。
 4. 执行 resolve phase。
 5. 检查 termination tree，满足时执行 termination actions。
 
+`every_draw_actions` 来自 config 根级 `every_draw` 字段，用于描述每抽必定执行一次的动作，例如 `draw_count += 1`。它发生在主池抽取前，因此主池抽取和后续 stage 都能看到这些固定动作的结果。
+
 这个顺序是架构契约的一部分。配置中的 stage 和 termination 条件都依赖这个顺序解释。
 
 ## Stage Phase
 
-stage 是每抽后的规则检查点。每个 stage 有一个 condition，condition 满足时执行其 actions。
+stage 是每抽后的规则检查点。每个 stage 有一个 condition，condition 满足时执行其 actions。无条件每抽执行的动作不应写成永真 stage，应放入根级 `every_draw`。
 
 当前规则：
 
