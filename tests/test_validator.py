@@ -130,6 +130,14 @@ def test_requires_initial(test_config: dict) -> None:
         validate_config(config)
 
 
+def test_requires_draw_count_item(test_config: dict) -> None:
+    config = deepcopy(test_config)
+    del config["items"]["draw_count"]
+
+    with pytest.raises(ValidationError, match=r"config\.items\.draw_count: is required"):
+        validate_config(config)
+
+
 def test_requires_known_initial_begin_pool(test_config: dict) -> None:
     config = deepcopy(test_config)
     config["initial"]["begin_pool"] = "missing_pool"
@@ -170,9 +178,7 @@ def test_rejects_action_unknown_pool_reference(test_config: dict) -> None:
         validate_config(config)
 
 
-def test_requires_explicit_null_id_for_non_item_predicate(
-    test_termination: dict, test_config: dict
-) -> None:
+def test_requires_predicate_id(test_termination: dict, test_config: dict) -> None:
     termination = deepcopy(test_termination)
     del termination["termination_condition"]["conditions"][1]["conditions"][0]["id"]
 
@@ -341,13 +347,13 @@ def test_rejects_unknown_predicate_op(test_config: dict) -> None:
         validate_config(config)
 
 
-def test_rejects_non_null_draw_count_predicate_id(test_config: dict) -> None:
+def test_rejects_draw_count_predicate_subject(test_config: dict) -> None:
     config = deepcopy(test_config)
-    config["stages"]["per_draw"]["condition"]["id"] = "draw_count"
+    config["stages"]["per_draw"]["condition"]["subject"] = "draw_count"
 
     with pytest.raises(
         ValidationError,
-        match=r"\.id: must be null when subject is not 'item'",
+        match="unsupported predicate subject: draw_count",
     ):
         validate_config(config)
 

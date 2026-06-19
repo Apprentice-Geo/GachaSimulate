@@ -95,7 +95,7 @@ def test_builds_expected_runtime_structure() -> None:
     assert second_stage_action.kind == RUNTIME_KIND.PoolChange
     assert second_stage_action.pool_index == 2
     assert per_draw_stage.condition.kind == RUNTIME_KIND.CheckNode
-    assert per_draw_stage.condition.subject == "draw_count"
+    assert per_draw_stage.condition.item_index == ctx.draw_count_index
     assert per_draw_stage.condition.actions is not None
     per_draw_action = per_draw_stage.condition.actions[0]
     assert per_draw_action.kind == RUNTIME_KIND.AddItem
@@ -112,10 +112,10 @@ def test_builds_expected_runtime_structure() -> None:
     assert first_node_1.kind == RUNTIME_KIND.CheckNode
     assert first_node_2.kind == RUNTIME_KIND.CheckNode
     assert first_node_3.kind == RUNTIME_KIND.CheckNode
-    assert [first_node_1.id, first_node_2.id, first_node_3.id] == [
-        "target_item_1",
-        "target_item_2",
-        "target_item_3",
+    assert [first_node_1.item_index, first_node_2.item_index, first_node_3.item_index] == [
+        ctx.item_id_index["target_item_1"],
+        ctx.item_id_index["target_item_2"],
+        ctx.item_id_index["target_item_3"],
     ]
     assert first_branch.actions is not None
     assert [action.kind for action in first_branch.actions] == [RUNTIME_KIND.Termination]
@@ -123,7 +123,7 @@ def test_builds_expected_runtime_structure() -> None:
     assert first_action.reason == "all target items obtained"
     (second_node,) = second_branch.conditions
     assert second_node.kind == RUNTIME_KIND.CheckNode
-    assert [second_node.id] == ["general_fragment"]
+    assert second_node.item_index == ctx.item_id_index["general_fragment"]
     assert second_branch.actions is not None
     second_action = second_branch.actions[0]
     assert second_action.kind == RUNTIME_KIND.Termination
@@ -187,6 +187,7 @@ def test_builds_without_optional_sections() -> None:
         "items": {
             "token": {"name": "Token"},
             "target": {"name": "Target"},
+            "draw_count": {"name": "Draw count"},
         },
         "pools": {
             "begin_pool": {
@@ -214,8 +215,9 @@ def test_builds_without_optional_sections() -> None:
     ctx = RuntimeBuilder.from_config(config, termination).build()
 
     assert ctx.begin_pool_index == 0
-    assert ctx.item_draw_list == [[], []]
+    assert ctx.item_draw_list == [[], [], []]
     assert ctx.item_resolve_list == [
+        ItemResolve(retain=0, actions=[]),
         ItemResolve(retain=0, actions=[]),
         ItemResolve(retain=0, actions=[]),
     ]
@@ -228,6 +230,7 @@ def test_builds_set_item_action() -> None:
         "items": {
             "counter": {"name": "Counter"},
             "target": {"name": "Target"},
+            "draw_count": {"name": "Draw count"},
         },
         "pools": {
             "begin_pool": {
@@ -257,8 +260,8 @@ def test_builds_set_item_action() -> None:
         "retained_items": [],
         "termination_condition": {
             "type": "predicate",
-            "subject": "draw_count",
-            "id": None,
+            "subject": "item",
+            "id": "draw_count",
             "op": ">=",
             "value": 1,
             "actions": [{"type": "termination", "reason": "done"}],
@@ -285,6 +288,7 @@ def test_builds_initial_pool_and_actions() -> None:
         "items": {
             "token": {"name": "Token"},
             "target": {"name": "Target"},
+            "draw_count": {"name": "Draw count"},
         },
         "pools": {
             "begin_pool": {
@@ -308,8 +312,8 @@ def test_builds_initial_pool_and_actions() -> None:
     termination = {
         "termination_condition": {
             "type": "predicate",
-            "subject": "draw_count",
-            "id": None,
+            "subject": "item",
+            "id": "draw_count",
             "op": ">=",
             "value": 1,
             "actions": [{"type": "termination", "reason": "done"}],

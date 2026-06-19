@@ -39,7 +39,8 @@ class MonteCarlo:
         return state
 
     def _one_draw_cycle(self, state: RuntimeState) -> None:
-        state.draw_count += 1
+        state.inventory[self.ctx.draw_count_index] += 1
+        state.acquired[self.ctx.draw_count_index] += 1
 
         # 这里所有池子的单次抽取都被构造成了 Action，需要抽取直接调用
         self._execute_action(state, self.ctx.pool_draw_list[state.main_pool_index])
@@ -133,7 +134,7 @@ class MonteCarlo:
         kind = node.kind
 
         if kind == RUNTIME_KIND.CheckNode:
-            left = self._get_subject_value(node.subject, node.id, state)
+            left = int(state.inventory[node.item_index])
             ok = self._compare(left, node.op, node.value)
             if ok:
                 return True, list(node.actions or [])
@@ -163,16 +164,6 @@ class MonteCarlo:
             raise ValueError(f"unsupported logic op: {node.op}")
 
         raise TypeError(f"unsupported condition node kind: {kind}")
-
-    def _get_subject_value(self, subject: str, subject_id: str | None, state: RuntimeState) -> int:
-        if subject == "draw_count":
-            return state.draw_count
-        if subject == "item":
-            if subject_id is None:
-                raise ValueError("item predicate requires id")
-            return int(state.inventory[self.ctx.item_id_index[subject_id]])
-
-        raise ValueError(f"unsupported predicate subject: {subject}")
 
     def _compare(self, left: int, op: str, right: int) -> bool:
         if op == ">=":

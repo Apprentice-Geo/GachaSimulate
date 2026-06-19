@@ -18,7 +18,7 @@ ACTION_TYPES = {
     "pool_change",
     "termination",
 }
-PREDICATE_SUBJECTS = {"item", "draw_count"}
+PREDICATE_SUBJECTS = {"item"}
 PREDICATE_OPS = {">=", ">", "==", "<=", "<", "!="}
 LOGIC_OPS = {"AND", "OR"}
 
@@ -161,14 +161,10 @@ def _validate_condition(
             _fail(path + ".id", "must be present")
         subject_id = condition["id"]
 
-        if subject == "item":
-            if not isinstance(subject_id, str):
-                _fail(path + ".id", "must be a string item id")
-            if subject_id not in item_ids:
-                _fail(path + ".id", f"unknown item id: {subject_id}")
-        else:
-            if subject_id is not None:
-                _fail(path + ".id", "must be null when subject is not 'item'")
+        if not isinstance(subject_id, str):
+            _fail(path + ".id", "must be a string item id")
+        if subject_id not in item_ids:
+            _fail(path + ".id", f"unknown item id: {subject_id}")
         return
 
     if condition_type == "logic":
@@ -200,6 +196,8 @@ def validate_config(config: dict[str, Any]) -> None:
 
     items = _require_mapping(config.get("items"), "config.items")
     item_ids = set(items.keys())
+    if "draw_count" not in item_ids:
+        _fail("config.items.draw_count", "is required")
 
     pools = _require_mapping(config.get("pools"), "config.pools")
     if not pools:

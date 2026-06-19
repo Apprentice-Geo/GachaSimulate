@@ -186,6 +186,9 @@
         },
         "gexingchuochuodaergouzhimeng": {
             "name": "个性戳戳大耳狗之梦"
+        },
+        "draw_count": {
+            "name": "Draw count"
         }
     },
     "pools": {
@@ -478,8 +481,8 @@
             "once": false,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 1,
                 "actions": [
