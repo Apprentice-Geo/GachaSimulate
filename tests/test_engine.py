@@ -71,6 +71,7 @@ def test_runs_with_manual_context() -> None:
     ctx = RuntimeContext(
         begin_pool_index=0,
         initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
         draw_count_index=item_id_index["draw_count"],
         item_list=item_list,
@@ -78,7 +79,7 @@ def test_runs_with_manual_context() -> None:
             ItemResolve(retain=0, actions=[]),
             ItemResolve(retain=0, actions=[]),
         ],
-        item_draw_list=[[], []],
+        item_draw_list=[[], [], []],
         pool_id_index={"begin_pool": 0},
         pool_list=[
             Pool(
@@ -114,6 +115,7 @@ def test_checks_termination_after_each_draw() -> None:
     ctx = RuntimeContext(
         begin_pool_index=0,
         initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
         draw_count_index=item_id_index["draw_count"],
         item_list=item_list,
@@ -121,7 +123,7 @@ def test_checks_termination_after_each_draw() -> None:
             ItemResolve(retain=0, actions=[]),
             ItemResolve(retain=0, actions=[]),
         ],
-        item_draw_list=[[], []],
+        item_draw_list=[[], [], []],
         pool_id_index={"begin_pool": 0},
         pool_list=[
             Pool(
@@ -159,6 +161,55 @@ def test_checks_termination_after_each_draw() -> None:
     assert sim.termination_eval_count == 3
 
 
+def test_every_draw_runs_before_main_pool_draw() -> None:
+    item_list = [Item(id="first", name="First"), Item(id="second", name="Second")]
+    item_list.append(Item(id="draw_count", name="Draw count"))
+    item_id_index = {item.id: i for i, item in enumerate(item_list)}
+
+    ctx = RuntimeContext(
+        begin_pool_index=0,
+        initial_actions=[],
+        every_draw_actions=[
+            AddItem(item_index=item_id_index["draw_count"], amount=1),
+            PoolChange(pool_index=1),
+        ],
+        item_id_index=item_id_index,
+        draw_count_index=item_id_index["draw_count"],
+        item_list=item_list,
+        item_resolve_list=[
+            ItemResolve(retain=0, actions=[]),
+            ItemResolve(retain=0, actions=[]),
+        ],
+        item_draw_list=[[], [], []],
+        pool_id_index={"begin_pool": 0, "second_pool": 1},
+        pool_list=[
+            Pool(
+                cdf=np.array([1.0], dtype=np.float64),
+                actions=[[AddItem(item_index=item_id_index["first"], amount=1)]],
+            ),
+            Pool(
+                cdf=np.array([1.0], dtype=np.float64),
+                actions=[[AddItem(item_index=item_id_index["second"], amount=1)]],
+            ),
+        ],
+        pool_draw_list=[DrawPool(pool_index=0), DrawPool(pool_index=1)],
+        draw_stage_id_index={},
+        draw_stage_list=[],
+        retained_items_index=[],
+        termination_tree=CheckNode(
+            item_index=item_id_index["draw_count"],
+            op=">=",
+            value=1,
+            actions=[Termination(reason="done")],
+        ),
+    )
+
+    state = MonteCarlo(ctx, seed=0).run_once()
+
+    assert int(state.acquired[item_id_index["first"]]) == 0
+    assert int(state.acquired[item_id_index["second"]]) == 1
+
+
 def test_initial_actions_are_visible_to_first_stage() -> None:
     item_list = [Item(id="token", name="Token"), Item(id="target", name="Target")]
     item_list.append(Item(id="draw_count", name="Draw count"))
@@ -167,6 +218,7 @@ def test_initial_actions_are_visible_to_first_stage() -> None:
     ctx = RuntimeContext(
         begin_pool_index=0,
         initial_actions=[AddItem(item_index=item_id_index["token"], amount=1)],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
         draw_count_index=item_id_index["draw_count"],
         item_list=item_list,
@@ -174,7 +226,7 @@ def test_initial_actions_are_visible_to_first_stage() -> None:
             ItemResolve(retain=0, actions=[]),
             ItemResolve(retain=0, actions=[]),
         ],
-        item_draw_list=[[], []],
+        item_draw_list=[[], [], []],
         pool_id_index={"begin_pool": 0},
         pool_list=[Pool(cdf=np.array([1.0], dtype=np.float64), actions=[[]])],
         pool_draw_list=[DrawPool(pool_index=0)],
@@ -214,6 +266,7 @@ def test_once_stage_executes_only_once() -> None:
     ctx = RuntimeContext(
         begin_pool_index=0,
         initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
         draw_count_index=item_id_index["draw_count"],
         item_list=item_list,
@@ -221,7 +274,7 @@ def test_once_stage_executes_only_once() -> None:
             ItemResolve(retain=0, actions=[]),
             ItemResolve(retain=0, actions=[]),
         ],
-        item_draw_list=[[], []],
+        item_draw_list=[[], [], []],
         pool_id_index={"begin_pool": 0},
         pool_list=[
             Pool(
@@ -267,6 +320,7 @@ def test_pool_change_affects_next_draw() -> None:
     ctx = RuntimeContext(
         begin_pool_index=0,
         initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
         draw_count_index=item_id_index["draw_count"],
         item_list=item_list,
@@ -274,7 +328,7 @@ def test_pool_change_affects_next_draw() -> None:
             ItemResolve(retain=0, actions=[]),
             ItemResolve(retain=0, actions=[]),
         ],
-        item_draw_list=[[], []],
+        item_draw_list=[[], [], []],
         pool_id_index={"begin_pool": 0, "second_pool": 1},
         pool_list=[
             Pool(
@@ -328,6 +382,7 @@ def test_or_condition_short_circuits_later_branch_actions() -> None:
     ctx = RuntimeContext(
         begin_pool_index=0,
         initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
         draw_count_index=item_id_index["draw_count"],
         item_list=item_list,
@@ -336,7 +391,7 @@ def test_or_condition_short_circuits_later_branch_actions() -> None:
             ItemResolve(retain=0, actions=[]),
             ItemResolve(retain=0, actions=[]),
         ],
-        item_draw_list=[[], [], []],
+        item_draw_list=[[], [], [], []],
         pool_id_index={"begin_pool": 0},
         pool_list=[Pool(cdf=np.array([1.0], dtype=np.float64), actions=[[]])],
         pool_draw_list=[DrawPool(pool_index=0)],
@@ -382,6 +437,7 @@ def test_stage_actions_are_visible_to_later_stages_in_same_draw() -> None:
     ctx = RuntimeContext(
         begin_pool_index=0,
         initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
         draw_count_index=item_id_index["draw_count"],
         item_list=item_list,
@@ -389,7 +445,7 @@ def test_stage_actions_are_visible_to_later_stages_in_same_draw() -> None:
             ItemResolve(retain=0, actions=[]),
             ItemResolve(retain=0, actions=[]),
         ],
-        item_draw_list=[[], []],
+        item_draw_list=[[], [], []],
         pool_id_index={"begin_pool": 0},
         pool_list=[
             Pool(
@@ -442,6 +498,7 @@ def test_triggers_followup_draw_from_item() -> None:
     ctx = RuntimeContext(
         begin_pool_index=0,
         initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
         draw_count_index=item_id_index["draw_count"],
         item_list=item_list,
@@ -449,7 +506,7 @@ def test_triggers_followup_draw_from_item() -> None:
             ItemResolve(retain=0, actions=[]),
             ItemResolve(retain=0, actions=[]),
         ],
-        item_draw_list=[[DrawPool(pool_index=1)], []],
+        item_draw_list=[[DrawPool(pool_index=1)], [], []],
         pool_id_index={"begin_pool": 0, "bonus_pool": 1},
         pool_list=[
             Pool(
@@ -489,6 +546,7 @@ def test_set_item_only_changes_inventory_without_followup_draw() -> None:
     ctx = RuntimeContext(
         begin_pool_index=0,
         initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
         draw_count_index=item_id_index["draw_count"],
         item_list=item_list,
@@ -496,7 +554,7 @@ def test_set_item_only_changes_inventory_without_followup_draw() -> None:
             ItemResolve(retain=0, actions=[]),
             ItemResolve(retain=0, actions=[]),
         ],
-        item_draw_list=[[DrawPool(pool_index=1)], []],
+        item_draw_list=[[DrawPool(pool_index=1)], [], []],
         pool_id_index={"begin_pool": 0, "bonus_pool": 1},
         pool_list=[
             Pool(
@@ -543,6 +601,7 @@ def test_item_resolve_retains_configured_inventory() -> None:
     ctx = RuntimeContext(
         begin_pool_index=0,
         initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
         draw_count_index=item_id_index["draw_count"],
         item_list=item_list,
@@ -556,7 +615,7 @@ def test_item_resolve_retains_configured_inventory() -> None:
             ),
             ItemResolve(retain=0, actions=[]),
         ],
-        item_draw_list=[[], []],
+        item_draw_list=[[], [], []],
         pool_id_index={"begin_pool": 0},
         pool_list=[
             Pool(
@@ -592,6 +651,7 @@ def test_retained_item_keeps_one_but_resolves_duplicates() -> None:
     ctx = RuntimeContext(
         begin_pool_index=0,
         initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
         draw_count_index=item_id_index["draw_count"],
         item_list=item_list,
@@ -605,7 +665,7 @@ def test_retained_item_keeps_one_but_resolves_duplicates() -> None:
             ),
             ItemResolve(retain=0, actions=[]),
         ],
-        item_draw_list=[[], []],
+        item_draw_list=[[], [], []],
         pool_id_index={"begin_pool": 0},
         pool_list=[
             Pool(
@@ -725,11 +785,12 @@ def test_parallel_simulation_merges_worker_results() -> None:
     ctx = RuntimeContext(
         begin_pool_index=0,
         initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
         draw_count_index=item_id_index["draw_count"],
         item_list=item_list,
         item_resolve_list=[ItemResolve(retain=0, actions=[])],
-        item_draw_list=[[]],
+        item_draw_list=[[], []],
         pool_id_index={"begin_pool": 0},
         pool_list=[
             Pool(

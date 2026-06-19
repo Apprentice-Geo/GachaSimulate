@@ -38,8 +38,7 @@ class MonteCarlo:
         return state
 
     def _one_draw_cycle(self, state: RuntimeState) -> None:
-        state.inventory[self.ctx.draw_count_index] += 1
-        state.acquired[self.ctx.draw_count_index] += 1
+        self._execute_actions(state, self.ctx.every_draw_actions)
 
         # 这里所有池子的单次抽取都被构造成了 Action，需要抽取直接调用
         self._execute_action(state, self.ctx.pool_draw_list[state.main_pool_index])

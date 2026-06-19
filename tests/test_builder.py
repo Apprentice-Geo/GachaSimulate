@@ -60,9 +60,12 @@ def test_builds_expected_runtime_structure() -> None:
     assert ctx.draw_stage_id_index == {
         "have_target_item_1": 0,
         "have_target_item_2": 1,
-        "per_draw": 2,
     }
     assert ctx.retained_items_index == [0, 1, 2, 11]
+    assert _item_amount_action_details(ctx.every_draw_actions) == [
+        (RUNTIME_KIND.AddItem, ctx.draw_count_index, 1),
+        (RUNTIME_KIND.AddItem, ctx.item_id_index["general_fragment"], 1),
+    ]
 
     precious_trigger = ctx.item_draw_list[ctx.item_id_index["random_precious_item"]]
     ordinary_trigger = ctx.item_draw_list[ctx.item_id_index["random_ordinary_item"]]
@@ -84,23 +87,14 @@ def test_builds_expected_runtime_structure() -> None:
 
     first_stage = ctx.draw_stage_list[0]
     second_stage = ctx.draw_stage_list[1]
-    per_draw_stage = ctx.draw_stage_list[2]
     assert first_stage.once is True
     assert second_stage.once is True
-    assert per_draw_stage.once is False
     assert first_stage.condition.kind == RUNTIME_KIND.CheckNode
     assert second_stage.condition.kind == RUNTIME_KIND.CheckNode
     assert second_stage.condition.actions is not None
     second_stage_action = second_stage.condition.actions[0]
     assert second_stage_action.kind == RUNTIME_KIND.PoolChange
     assert second_stage_action.pool_index == 2
-    assert per_draw_stage.condition.kind == RUNTIME_KIND.CheckNode
-    assert per_draw_stage.condition.item_index == ctx.draw_count_index
-    assert per_draw_stage.condition.actions is not None
-    per_draw_action = per_draw_stage.condition.actions[0]
-    assert per_draw_action.kind == RUNTIME_KIND.AddItem
-    assert per_draw_action.item_index == 11
-    assert per_draw_action.amount == 1
 
     assert ctx.termination_tree.kind == RUNTIME_KIND.LogicNode
     assert ctx.termination_tree.op == "OR"
@@ -199,6 +193,7 @@ def test_builds_without_optional_sections() -> None:
                 ]
             }
         },
+        "every_draw": [{"type": "add_item", "id": "draw_count"}],
     }
     termination = {
         "retained_items": ["target"],
@@ -242,6 +237,7 @@ def test_builds_set_item_action() -> None:
                 ]
             }
         },
+        "every_draw": [{"type": "add_item", "id": "draw_count"}],
         "stages": {
             "reset_counter": {
                 "once": True,
@@ -308,6 +304,7 @@ def test_builds_initial_pool_and_actions() -> None:
                 ]
             },
         },
+        "every_draw": [{"type": "add_item", "id": "draw_count"}],
     }
     termination = {
         "termination_condition": {

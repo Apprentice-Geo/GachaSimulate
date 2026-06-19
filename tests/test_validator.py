@@ -138,6 +138,25 @@ def test_requires_draw_count_item(test_config: dict) -> None:
         validate_config(config)
 
 
+def test_requires_every_draw(test_config: dict) -> None:
+    config = deepcopy(test_config)
+    del config["every_draw"]
+
+    with pytest.raises(ValidationError, match=r"config\.every_draw: must be an array"):
+        validate_config(config)
+
+
+def test_requires_every_draw_to_increment_draw_count(test_config: dict) -> None:
+    config = deepcopy(test_config)
+    config["every_draw"] = [{"type": "add_item", "id": "general_fragment", "amount": 1}]
+
+    with pytest.raises(
+        ValidationError,
+        match="config.every_draw: must include add_item action for draw_count",
+    ):
+        validate_config(config)
+
+
 def test_requires_known_initial_begin_pool(test_config: dict) -> None:
     config = deepcopy(test_config)
     config["initial"]["begin_pool"] = "missing_pool"
@@ -267,8 +286,9 @@ def test_rejects_empty_item_resolve_actions(test_config: dict) -> None:
 
 def test_allows_zero_amount_for_set_item(test_config: dict) -> None:
     config = deepcopy(test_config)
-    config["stages"]["per_draw"]["condition"]["actions"] = [
-        {"type": "set_item", "id": "general_fragment", "amount": 0}
+    config["every_draw"] = [
+        {"type": "add_item", "id": "draw_count", "amount": 1},
+        {"type": "set_item", "id": "general_fragment", "amount": 0},
     ]
 
     validate_config(config)
@@ -276,8 +296,9 @@ def test_allows_zero_amount_for_set_item(test_config: dict) -> None:
 
 def test_rejects_negative_amount_for_set_item(test_config: dict) -> None:
     config = deepcopy(test_config)
-    config["stages"]["per_draw"]["condition"]["actions"] = [
-        {"type": "set_item", "id": "general_fragment", "amount": -1}
+    config["every_draw"] = [
+        {"type": "add_item", "id": "draw_count", "amount": 1},
+        {"type": "set_item", "id": "general_fragment", "amount": -1},
     ]
 
     with pytest.raises(ValidationError, match="must be a non-negative integer"):
@@ -325,7 +346,7 @@ def test_rejects_empty_pool_entry_actions(test_config: dict) -> None:
 
 def test_rejects_empty_condition_actions(test_config: dict) -> None:
     config = deepcopy(test_config)
-    config["stages"]["per_draw"]["condition"]["actions"] = []
+    config["stages"]["have_target_item_1"]["condition"]["actions"] = []
 
     with pytest.raises(ValidationError, match="must be a non-empty array"):
         validate_config(config)
@@ -333,7 +354,7 @@ def test_rejects_empty_condition_actions(test_config: dict) -> None:
 
 def test_rejects_unknown_predicate_subject(test_config: dict) -> None:
     config = deepcopy(test_config)
-    config["stages"]["per_draw"]["condition"]["subject"] = "currency"
+    config["stages"]["have_target_item_1"]["condition"]["subject"] = "currency"
 
     with pytest.raises(ValidationError, match="unsupported predicate subject: currency"):
         validate_config(config)
@@ -341,7 +362,7 @@ def test_rejects_unknown_predicate_subject(test_config: dict) -> None:
 
 def test_rejects_unknown_predicate_op(test_config: dict) -> None:
     config = deepcopy(test_config)
-    config["stages"]["per_draw"]["condition"]["op"] = "contains"
+    config["stages"]["have_target_item_1"]["condition"]["op"] = "contains"
 
     with pytest.raises(ValidationError, match="unsupported predicate op: contains"):
         validate_config(config)
@@ -349,7 +370,7 @@ def test_rejects_unknown_predicate_op(test_config: dict) -> None:
 
 def test_rejects_draw_count_predicate_subject(test_config: dict) -> None:
     config = deepcopy(test_config)
-    config["stages"]["per_draw"]["condition"]["subject"] = "draw_count"
+    config["stages"]["have_target_item_1"]["condition"]["subject"] = "draw_count"
 
     with pytest.raises(
         ValidationError,

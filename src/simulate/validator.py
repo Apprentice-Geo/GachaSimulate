@@ -219,6 +219,22 @@ def validate_config(config: dict[str, Any]) -> None:
             termination_only=False,
         )
 
+    every_draw = config.get("every_draw")
+    _validate_actions(
+        every_draw,
+        "config.every_draw",
+        item_ids=item_ids,
+        pool_ids=pool_ids,
+        termination_only=False,
+    )
+    if not any(
+        isinstance(action, dict)
+        and action.get("type") == "add_item"
+        and action.get("id") == "draw_count"
+        for action in every_draw
+    ):
+        _fail("config.every_draw", "must include add_item action for draw_count")
+
     for item_id, item_config in items.items():
         item_config = _require_mapping(item_config, f"config.items.{item_id}")
 

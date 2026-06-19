@@ -66,6 +66,7 @@ class RuntimeBuilder:
         self.begin_pool_index = 0
         self.draw_count_index = 0
         self.initial_actions = []
+        self.every_draw_actions = []
         self.termination_tree = None
 
     def _resolve_item_index(self, item_id: str) -> int:
@@ -188,6 +189,9 @@ class RuntimeBuilder:
         self.begin_pool_index = self._resolve_pool_index(initial_config["begin_pool"])
         self.initial_actions = self._build_actions(initial_config.get("actions"))
 
+    def _build_every_draw(self):
+        self.every_draw_actions = self._build_actions(self.config["every_draw"])
+
     def _build_pool_draw_list(self):
         self.pool_draw_list.clear()
         for pool_index in range(len(self.pool_list)):
@@ -251,6 +255,7 @@ class RuntimeBuilder:
         self._build_items()
         self._build_pools()
         self._build_initial()
+        self._build_every_draw()
         self._build_pool_draw_list()
         self._build_item_draws()
         self._build_item_resolves()
@@ -268,6 +273,7 @@ class RuntimeBuilder:
         return RuntimeContext(
             begin_pool_index=self.begin_pool_index,
             initial_actions=self.initial_actions,
+            every_draw_actions=self.every_draw_actions,
             item_id_index=self.item_id_index,
             draw_count_index=self.draw_count_index,
             item_list=self.item_list,
