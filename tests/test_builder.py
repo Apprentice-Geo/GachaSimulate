@@ -7,16 +7,9 @@ import pytest
 from simulate.builder import RuntimeBuilder
 from simulate.runtime import (
     Action,
-    AddItem,
-    CheckNode,
-    DrawPool,
     ItemResolve,
-    LogicNode,
-    PoolChange,
-    ReduceItem,
+    RUNTIME_KIND,
     RuntimeContext,
-    SetItem,
-    Termination,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,16 +20,20 @@ TERMINATION_SCHEMA_PATH = ROOT / "docs" / "schemas" / "termination.schema.json"
 def _pool_action_details(actions: list[Action]):
     details = []
     for action in actions:
-        assert isinstance(action, DrawPool)
-        details.append((type(action), action.pool_index))
+        assert action.kind == RUNTIME_KIND.DrawPool
+        details.append((action.kind, action.pool_index))
     return details
 
 
 def _item_amount_action_details(actions: list[Action]):
     details = []
     for action in actions:
-        assert isinstance(action, (AddItem, ReduceItem, SetItem))
-        details.append((type(action), action.item_index, action.amount))
+        assert action.kind in (
+            RUNTIME_KIND.AddItem,
+            RUNTIME_KIND.ReduceItem,
+            RUNTIME_KIND.SetItem,
+        )
+        details.append((action.kind, action.item_index, action.amount))
     return details
 
 
@@ -69,20 +66,20 @@ def test_builds_expected_runtime_structure() -> None:
 
     precious_trigger = ctx.item_draw_list[ctx.item_id_index["random_precious_item"]]
     ordinary_trigger = ctx.item_draw_list[ctx.item_id_index["random_ordinary_item"]]
-    assert _pool_action_details(precious_trigger) == [(DrawPool, 3)]
-    assert _pool_action_details(ordinary_trigger) == [(DrawPool, 4)]
+    assert _pool_action_details(precious_trigger) == [(RUNTIME_KIND.DrawPool, 3)]
+    assert _pool_action_details(ordinary_trigger) == [(RUNTIME_KIND.DrawPool, 4)]
 
     precious_resolve = ctx.item_resolve_list[ctx.item_id_index["precious_item_1"]]
     ordinary_resolve = ctx.item_resolve_list[ctx.item_id_index["ordinary_item_2"]]
     assert precious_resolve.retain == 0
     assert ordinary_resolve.retain == 0
     assert _item_amount_action_details(precious_resolve.actions) == [
-        (AddItem, 11, 120),
-        (ReduceItem, 5, 1),
+        (RUNTIME_KIND.AddItem, 11, 120),
+        (RUNTIME_KIND.ReduceItem, 5, 1),
     ]
     assert _item_amount_action_details(ordinary_resolve.actions) == [
-        (AddItem, 11, 30),
-        (ReduceItem, 9, 1),
+        (RUNTIME_KIND.AddItem, 11, 30),
+        (RUNTIME_KIND.ReduceItem, 9, 1),
     ]
 
     first_stage = ctx.draw_stage_list[0]
@@ -91,46 +88,45 @@ def test_builds_expected_runtime_structure() -> None:
     assert first_stage.once is True
     assert second_stage.once is True
     assert per_draw_stage.once is False
-    assert isinstance(first_stage.condition, CheckNode)
-    assert isinstance(second_stage.condition, CheckNode)
+    assert first_stage.condition.kind == RUNTIME_KIND.CheckNode
+    assert second_stage.condition.kind == RUNTIME_KIND.CheckNode
     assert second_stage.condition.actions is not None
     second_stage_action = second_stage.condition.actions[0]
-    assert isinstance(second_stage_action, PoolChange)
+    assert second_stage_action.kind == RUNTIME_KIND.PoolChange
     assert second_stage_action.pool_index == 2
-    assert isinstance(per_draw_stage.condition, CheckNode)
+    assert per_draw_stage.condition.kind == RUNTIME_KIND.CheckNode
     assert per_draw_stage.condition.subject == "draw_count"
     assert per_draw_stage.condition.actions is not None
     per_draw_action = per_draw_stage.condition.actions[0]
-    assert isinstance(per_draw_action, AddItem)
+    assert per_draw_action.kind == RUNTIME_KIND.AddItem
     assert per_draw_action.item_index == 11
     assert per_draw_action.amount == 1
 
-    assert isinstance(ctx.termination_tree, LogicNode)
+    assert ctx.termination_tree.kind == RUNTIME_KIND.LogicNode
     assert ctx.termination_tree.op == "OR"
     first_branch, second_branch = ctx.termination_tree.conditions
-    assert isinstance(first_branch, LogicNode)
-    assert isinstance(second_branch, LogicNode)
+    assert first_branch.kind == RUNTIME_KIND.LogicNode
+    assert second_branch.kind == RUNTIME_KIND.LogicNode
     assert [first_branch.op, second_branch.op] == ["AND", "AND"]
     first_node_1, first_node_2, first_node_3 = first_branch.conditions
-    assert isinstance(first_node_1, CheckNode)
-    assert isinstance(first_node_2, CheckNode)
-    assert isinstance(first_node_3, CheckNode)
+    assert first_node_1.kind == RUNTIME_KIND.CheckNode
+    assert first_node_2.kind == RUNTIME_KIND.CheckNode
+    assert first_node_3.kind == RUNTIME_KIND.CheckNode
     assert [first_node_1.id, first_node_2.id, first_node_3.id] == [
         "target_item_1",
         "target_item_2",
         "target_item_3",
     ]
     assert first_branch.actions is not None
-    assert [type(action) for action in first_branch.actions] == [Termination]
+    assert [action.kind for action in first_branch.actions] == [RUNTIME_KIND.Termination]
     first_action = first_branch.actions[0]
-    assert isinstance(first_action, Termination)
     assert first_action.reason == "all target items obtained"
     (second_node,) = second_branch.conditions
-    assert isinstance(second_node, CheckNode)
+    assert second_node.kind == RUNTIME_KIND.CheckNode
     assert [second_node.id] == ["general_fragment"]
     assert second_branch.actions is not None
     second_action = second_branch.actions[0]
-    assert isinstance(second_action, Termination)
+    assert second_action.kind == RUNTIME_KIND.Termination
     assert second_action.reason == "fragment exchange"
 
 
@@ -162,7 +158,7 @@ def test_builder_compiles_all_wuxiang_terminations(termination_name: str) -> Non
     assert ctx.termination_tree is not None
     assert "sunwukong_wuxiang" in ctx.item_id_index
     assert "random_skin" in ctx.item_id_index
-    assert isinstance(ctx.item_draw_list[ctx.item_id_index["random_skin"]][0], DrawPool)
+    assert ctx.item_draw_list[ctx.item_id_index["random_skin"]][0].kind == RUNTIME_KIND.DrawPool
 
 
 @pytest.mark.parametrize(
@@ -272,10 +268,10 @@ def test_builds_set_item_action() -> None:
     ctx = RuntimeBuilder.from_config(config, termination).build()
 
     condition = ctx.draw_stage_list[0].condition
-    assert isinstance(condition, CheckNode)
+    assert condition.kind == RUNTIME_KIND.CheckNode
     assert condition.actions is not None
     action = condition.actions[0]
-    assert isinstance(action, SetItem)
+    assert action.kind == RUNTIME_KIND.SetItem
     assert action.item_index == ctx.item_id_index["counter"]
     assert action.amount == 0
 
@@ -324,5 +320,5 @@ def test_builds_initial_pool_and_actions() -> None:
 
     assert ctx.begin_pool_index == ctx.pool_id_index["bonus_pool"]
     assert _item_amount_action_details(ctx.initial_actions) == [
-        (AddItem, ctx.item_id_index["token"], 2)
+        (RUNTIME_KIND.AddItem, ctx.item_id_index["token"], 2)
     ]

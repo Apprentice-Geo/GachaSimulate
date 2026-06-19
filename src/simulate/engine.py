@@ -4,16 +4,10 @@ from typing import Iterable
 
 from simulate.runtime import (
     Action,
-    AddItem,
-    CheckNode,
     ConditionNode,
-    DrawPool,
-    LogicNode,
-    ReduceItem,
+    RUNTIME_KIND,
     RuntimeContext,
     RuntimeState,
-    SetItem,
-    Termination,
 )
 
 
@@ -103,36 +97,51 @@ class MonteCarlo:
             self._execute_action(state, action)
 
     def _execute_action(self, state: RuntimeState, action: Action) -> None:
-        match action:
-            case AddItem():
-                action.execute(state, self.ctx)
-                # 直接触发带有二级池子物品的抽取
-                draw_actions = self.ctx.item_draw_list[action.item_index]
-                if draw_actions:
-                    for _ in range(action.amount):
-                        self._execute_actions(state, draw_actions)
-            case DrawPool():
-                drawn_results = action.execute(state, self.ctx)
-                self._execute_actions(state, drawn_results)
-            # case ReduceItem() | SetItem() | Termination():
-            #     action.execute(state, self.ctx)
-            case _:
-                action.execute(state, self.ctx)
+        kind = action.kind
+
+        if kind == RUNTIME_KIND.AddItem:
+            action.execute(state, self.ctx)
+
+            # 直接触发带有二级池子物品的抽取
+            draw_actions = self.ctx.item_draw_list[action.item_index]
+            if draw_actions:
+                for _ in range(action.amount):
+                    self._execute_actions(state, draw_actions)
+            return
+
+        if kind == RUNTIME_KIND.DrawPool:
+            drawn_results = action.execute(state, self.ctx)
+            self._execute_actions(state, drawn_results)
+            return
+
+        if kind in (
+            RUNTIME_KIND.ReduceItem,
+            RUNTIME_KIND.SetItem,
+            RUNTIME_KIND.PoolChange,
+            RUNTIME_KIND.Termination,
+        ):
+            action.execute(state, self.ctx)
+            return
+
+        raise TypeError(f"unsupported action kind: {kind}")
 
     def _eval_condition(
             self, node: ConditionNode | None, state: RuntimeState
     ) -> tuple[bool, list[Action]]:
-        match node:
-            case None:
-                return False, []
-            case CheckNode():
-                left = self._get_subject_value(node.subject, node.id, state)
-                ok = self._compare(left, node.op, node.value)
-                if ok:
-                    # return a copy or itself?
-                    return True, node.actions[:] if node.actions else []
-                return False, []
-            case LogicNode(op="OR"):
+        if node is None:
+            return False, []
+
+        kind = node.kind
+
+        if kind == RUNTIME_KIND.CheckNode:
+            left = self._get_subject_value(node.subject, node.id, state)
+            ok = self._compare(left, node.op, node.value)
+            if ok:
+                return True, list(node.actions or [])
+            return False, []
+
+        if kind == RUNTIME_KIND.LogicNode:
+            if node.op == "OR":
                 for child in node.conditions:
                     ok, child_actions = self._eval_condition(child, state)
                     if ok:
@@ -147,13 +156,11 @@ class MonteCarlo:
                     if not ok:
                         return False, []
                     aggregated.extend(child_actions)
-                # actions = node.actions if node.actions else []
-                # actions.extend(aggregated)
-                return True, node.actions + aggregated if node.actions else aggregated
-            case LogicNode():
-                raise ValueError(f"unsupported logic op: {node.op}")
-            case _:
-                raise TypeError(f"unsupported condition node type: {type(node).__name__}")
+                return True,  node.actions + aggregated if node.actions else aggregated
+
+            raise ValueError(f"unsupported logic op: {node.op}")
+
+        raise TypeError(f"unsupported condition node type: {type(node).__name__}")
 
     def _get_subject_value(self, subject: str, subject_id: str | None, state: RuntimeState) -> int:
         match subject:
