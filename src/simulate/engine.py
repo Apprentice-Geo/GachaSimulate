@@ -2,7 +2,6 @@ from __future__ import annotations
 import numpy as np
 from typing import Iterable
 
-
 from simulate.runtime import (
     Action,
     AddItem,
@@ -84,7 +83,7 @@ class MonteCarlo:
             count = int(state.inventory[item_index])
             retain = max(
                 item_resolve.retain,
-                1 if item_index in self.retained_items_index_set else 0,
+                int(item_index in self.retained_items_index_set),
             )
             resolve_count = count - retain
             if resolve_count <= 0:
@@ -95,93 +94,90 @@ class MonteCarlo:
                 self._execute_actions(state, item_resolve.actions)
 
     def _execute_actions(self, state: RuntimeState, actions: Iterable[Action] | None) -> None:
-        for action in actions or []:
+        if not actions:
+            return
+        for action in actions:
             if state.terminate:
                 return
             self._execute_action(state, action)
 
     def _execute_action(self, state: RuntimeState, action: Action) -> None:
-        if isinstance(action, AddItem):
-            action.execute(state, self.ctx)
-
-            # 直接触发带有二级池子物品的抽取
-            draw_actions = self.ctx.item_draw_list[action.item_index]
-            if draw_actions:
-                for _ in range(action.amount):
-                    self._execute_actions(state, draw_actions)
-            return
-
-        if isinstance(action, DrawPool):
-            drawn_results = action.execute(state, self.ctx)
-            self._execute_actions(state, drawn_results)
-            return
-
-        if isinstance(action, (ReduceItem, SetItem, Termination)):
-            action.execute(state, self.ctx)
-            return
-
-        action.execute(state, self.ctx)
+        match action:
+            case AddItem():
+                action.execute(state, self.ctx)
+                # 直接触发带有二级池子物品的抽取
+                draw_actions = self.ctx.item_draw_list[action.item_index]
+                if draw_actions:
+                    for _ in range(action.amount):
+                        self._execute_actions(state, draw_actions)
+            case DrawPool():
+                drawn_results = action.execute(state, self.ctx)
+                self._execute_actions(state, drawn_results)
+            # case ReduceItem() | SetItem() | Termination():
+            #     action.execute(state, self.ctx)
+            case _:
+                action.execute(state, self.ctx)
 
     def _eval_condition(
-        self, node: ConditionNode | None, state: RuntimeState
+            self, node: ConditionNode | None, state: RuntimeState
     ) -> tuple[bool, list[Action]]:
-        if node is None:
-            return False, []
-
-        if isinstance(node, CheckNode):
-            left = self._get_subject_value(node.subject, node.id, state)
-            ok = self._compare(left, node.op, node.value)
-            if ok:
-                return True, list(node.actions or [])
-            return False, []
-
-        if isinstance(node, LogicNode):
-            if node.op == "OR":
+        match node:
+            case None:
+                return False, []
+            case CheckNode():
+                left = self._get_subject_value(node.subject, node.id, state)
+                ok = self._compare(left, node.op, node.value)
+                if ok:
+                    # return a copy or itself?
+                    return True, node.actions[:] if node.actions else []
+                return False, []
+            case LogicNode(op="OR"):
                 for child in node.conditions:
                     ok, child_actions = self._eval_condition(child, state)
                     if ok:
-                        actions = list(node.actions or [])
-                        actions.extend(child_actions)
-                        return True, actions
+                        # actions = node.actions if node.actions else []
+                        # actions.extend(child_actions)
+                        return True, node.actions + child_actions if node.actions else child_actions
                 return False, []
-
-            if node.op == "AND":
+            case LogicNode(op="AND"):
                 aggregated: list[Action] = []
                 for child in node.conditions:
                     ok, child_actions = self._eval_condition(child, state)
                     if not ok:
                         return False, []
                     aggregated.extend(child_actions)
-                actions = list(node.actions or [])
-                actions.extend(aggregated)
-                return True, actions
-
-            raise ValueError(f"unsupported logic op: {node.op}")
-
-        raise TypeError(f"unsupported condition node type: {type(node).__name__}")
+                # actions = node.actions if node.actions else []
+                # actions.extend(aggregated)
+                return True, node.actions + aggregated if node.actions else aggregated
+            case LogicNode():
+                raise ValueError(f"unsupported logic op: {node.op}")
+            case _:
+                raise TypeError(f"unsupported condition node type: {type(node).__name__}")
 
     def _get_subject_value(self, subject: str, subject_id: str | None, state: RuntimeState) -> int:
-        if subject == "draw_count":
-            return state.draw_count
-        if subject == "item":
-            if subject_id is None:
-                raise ValueError("item predicate requires id")
-            return int(state.inventory[self.ctx.item_id_index[subject_id]])
-
-        raise ValueError(f"unsupported predicate subject: {subject}")
+        match subject:
+            case "draw_count":
+                return state.draw_count
+            case "item":
+                if subject_id is None:
+                    raise ValueError("item predicate requires id")
+                return int(state.inventory[self.ctx.item_id_index[subject_id]])
+            case _:
+                raise ValueError(f"unsupported predicate subject: {subject}")
 
     def _compare(self, left: int, op: str, right: int) -> bool:
-        if op == ">=":
-            return left >= right
-        if op == ">":
-            return left > right
-        if op == "==":
-            return left == right
-        if op == "<=":
-            return left <= right
-        if op == "<":
-            return left < right
-        if op == "!=":
-            return left != right
-
-        raise ValueError(f"unsupported predicate op: {op}")
+        match op:
+            case ">=":
+                return left >= right
+            case "<=":
+                return left <= right
+            case "!=":
+                return left != right
+            case "==":
+                return left == right
+            case ">":
+                return left > right
+            case "<":
+                return left < right
+            case _:
+                raise ValueError(f"unsupported predicate op: {op}")

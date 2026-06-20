@@ -1,6 +1,8 @@
 venv/
+.venv/
 __pycache__/
 .vscode/
+.idea/
 .codex
 *.egg-info/
 /images/
@@ -9,7 +11,6 @@ data/
 /dist/
 /outputs/
 .pytest_cache/
-/playwright-report/
 /test-results/
 .worktrees/
 .coverage
@@ -23,3 +24,9 @@ data/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+.DS_Store
+.DS_Store?
+.DS_Store/
+
+*.prof
