@@ -1,13 +1,10 @@
 from pathlib import Path
 from simulate.core import (
     load_simulation_result,
-    save_simulation_result,
-    save_visualize_input,
     simulate_until_total_draw,
 )
 from simulate.builder import RuntimeBuilder
 from simulate.engine import MonteCarlo
-from simulate.visualize import Visualizer
 import os
 import numpy as np
 
@@ -81,6 +78,6 @@ if __name__ == "__main__":
         "termination_skin",
         target_total_draw=1010000,
         seed=base_seed,
-        workers=1
+        workers=1,
     )
     # print(os.cpu_count())

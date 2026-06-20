@@ -22,20 +22,21 @@ class RuntimeKind:
 
 RUNTIME_KIND = RuntimeKind()
 
+
 @dataclass(frozen=True, slots=True)
 class RuntimeOpCode:
-    EQ: int = 0   # ==, equal
-    NE: int = 1   # !=, not equal
-    LT: int = 2   # <, less than
-    LE: int = 3   # <=, less than or equal
-    GT: int = 4   # >, greater than
-    GE: int = 5   # >=, greater than or equal
+    EQ: int = 0  # ==, equal
+    NE: int = 1  # !=, not equal
+    LT: int = 2  # <, less than
+    LE: int = 3  # <=, less than or equal
+    GT: int = 4  # >, greater than
+    GE: int = 5  # >=, greater than or equal
     AND: int = 6  # AND
-    OR: int = 7   # OR
-    NOT: int = 8   # NOT
+    OR: int = 7  # OR
+    NOT: int = 8  # NOT
+
 
 RUNTIME_OP_CODE = RuntimeOpCode()
-
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,7 +169,7 @@ class LogicNode(ConditionNode):
     kind = RUNTIME_KIND.LogicNode
 
     op: int
-    conditions: Sequence[LogicNode|CheckNode]
+    conditions: Sequence[LogicNode | CheckNode]
     actions: List[Action] | None
 
 

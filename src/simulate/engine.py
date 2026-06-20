@@ -99,68 +99,68 @@ class MonteCarlo:
             self._execute_action(state, action)
 
     def _execute_action(self, state: RuntimeState, action: Action) -> None:
-        kind = action.kind
+        match action.kind:
+            case RUNTIME_KIND.AddItem:
+                action.execute(state, self.ctx)
 
-        if kind == RUNTIME_KIND.AddItem:
-            action.execute(state, self.ctx)
+                # 直接触发带有二级池子物品的抽取
+                draw_actions = self.ctx.item_draw_list[action.item_index]
+                if draw_actions:
+                    for _ in range(action.amount):
+                        self._execute_actions(state, draw_actions)
+                return
 
-            # 直接触发带有二级池子物品的抽取
-            draw_actions = self.ctx.item_draw_list[action.item_index]
-            if draw_actions:
-                for _ in range(action.amount):
-                    self._execute_actions(state, draw_actions)
-            return
+            case RUNTIME_KIND.DrawPool:
+                drawn_results = action.execute(state, self.ctx)
+                self._execute_actions(state, drawn_results)
+                return
 
-        if kind == RUNTIME_KIND.DrawPool:
-            drawn_results = action.execute(state, self.ctx)
-            self._execute_actions(state, drawn_results)
-            return
+            case (
+                RUNTIME_KIND.ReduceItem
+                | RUNTIME_KIND.SetItem
+                | RUNTIME_KIND.PoolChange
+                | RUNTIME_KIND.Termination
+            ):
+                action.execute(state, self.ctx)
+                return
 
-        if kind in (
-            RUNTIME_KIND.ReduceItem,
-            RUNTIME_KIND.SetItem,
-            RUNTIME_KIND.PoolChange,
-            RUNTIME_KIND.Termination,
-        ):
-            action.execute(state, self.ctx)
-            return
-
-        raise TypeError(f"unsupported action kind: {kind}")
+        raise TypeError(f"unsupported action kind: {action.kind}")
 
     def _eval_condition(
         self, node: LogicNode | CheckNode, state: RuntimeState
-    ) -> tuple[bool, list[Action]|None]:
+    ) -> tuple[bool, list[Action] | None]:
         if node is None:
             return False, None
 
-        kind = node.kind
+        match node.kind:
+            case RUNTIME_KIND.CheckNode:
+                left = int(state.inventory[node.item_index])
+                ok = self._compare(left, node.op, node.value)
+                if ok:
+                    return True, list(node.actions or [])
+                return False, None
 
-        if kind == RUNTIME_KIND.CheckNode:
-            left = int(state.inventory[node.item_index])
-            ok = self._compare(left, node.op, node.value)
-            if ok:
-                return True, list(node.actions or [])
-            return False, None
-
-        if kind == RUNTIME_KIND.LogicNode:
-            if node.op == RUNTIME_OP_CODE.OR:
-                for child in node.conditions:
-                    ok, child_actions = self._eval_condition(child, state)
-                    if ok:
-                        # actions = node.actions if node.actions else []
-                        # actions.extend(child_actions)
-                        return True, node.actions + child_actions if node.actions else child_actions
-                return False, []
-            case LogicNode(op="AND"):
-                aggregated: list[Action] = []
-                for child in node.conditions:
-                    ok, child_actions = self._eval_condition(child, state)
-                    if not ok:
+            case RUNTIME_KIND.LogicNode:
+                match node.op:
+                    case RUNTIME_OP_CODE.OR:
+                        for child in node.conditions:
+                            ok, child_actions = self._eval_condition(child, state)
+                            if ok:
+                                return (
+                                    True,
+                                    node.actions + child_actions if node.actions else child_actions,
+                                )
                         return False, []
-                    aggregated.extend(child_actions)
-                return True,  node.actions + aggregated if node.actions else aggregated
+                    case RUNTIME_OP_CODE.AND:
+                        aggregated: list[Action] = []
+                        for child in node.conditions:
+                            ok, child_actions = self._eval_condition(child, state)
+                            if not ok:
+                                return False, []
+                            aggregated.extend(child_actions)
+                        return True, node.actions + aggregated if node.actions else aggregated
 
-            raise ValueError(f"unsupported logic op: {node.op}")
+                raise ValueError(f"unsupported logic op: {node.op}")
 
         raise TypeError(f"unsupported condition node type: {type(node).__name__}")
 

@@ -9,7 +9,6 @@ from simulate.runtime import (
     Action,
     AddItem,
     CheckNode,
-    ConditionNode,
     RUNTIME_OP_CODE,
     DrawPool,
     Item,
@@ -70,16 +69,16 @@ class RuntimeBuilder:
         self.every_draw_actions = []
         self.termination_tree = None
         self.OP_TO_CODE: dict[str, int] = {
-    "==": RUNTIME_OP_CODE.EQ,
-    "!=": RUNTIME_OP_CODE.NE,
-    "<": RUNTIME_OP_CODE.LT,
-    "<=": RUNTIME_OP_CODE.LE,
-    ">": RUNTIME_OP_CODE.GT,
-    ">=": RUNTIME_OP_CODE.GE,
-    "AND": RUNTIME_OP_CODE.AND,
-    "OR": RUNTIME_OP_CODE.OR,
-    "NOT": RUNTIME_OP_CODE.NOT
-}
+            "==": RUNTIME_OP_CODE.EQ,
+            "!=": RUNTIME_OP_CODE.NE,
+            "<": RUNTIME_OP_CODE.LT,
+            "<=": RUNTIME_OP_CODE.LE,
+            ">": RUNTIME_OP_CODE.GT,
+            ">=": RUNTIME_OP_CODE.GE,
+            "AND": RUNTIME_OP_CODE.AND,
+            "OR": RUNTIME_OP_CODE.OR,
+            "NOT": RUNTIME_OP_CODE.NOT,
+        }
 
     def _resolve_item_index(self, item_id: str) -> int:
         return self.item_id_index[item_id]
