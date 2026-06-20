@@ -5,8 +5,10 @@ from typing import Iterable
 
 from simulate.runtime import (
     Action,
-    ConditionNode,
+    LogicNode,
+    CheckNode,
     RUNTIME_KIND,
+    RUNTIME_OP_CODE,
     RuntimeContext,
     RuntimeState,
 )
@@ -125,10 +127,10 @@ class MonteCarlo:
         raise TypeError(f"unsupported action kind: {kind}")
 
     def _eval_condition(
-        self, node: ConditionNode | None, state: RuntimeState
-    ) -> tuple[bool, list[Action]]:
+        self, node: LogicNode | CheckNode, state: RuntimeState
+    ) -> tuple[bool, list[Action]|None]:
         if node is None:
-            return False, []
+            return False, None
 
         kind = node.kind
 
@@ -137,25 +139,26 @@ class MonteCarlo:
             ok = self._compare(left, node.op, node.value)
             if ok:
                 return True, list(node.actions or [])
-            return False, []
+            return False, None
 
         if kind == RUNTIME_KIND.LogicNode:
-            if node.op == "OR":
+            if node.op == RUNTIME_OP_CODE.OR:
                 for child in node.conditions:
                     ok, child_actions = self._eval_condition(child, state)
                     if ok:
                         actions = list(node.actions or [])
                         actions.extend(child_actions)
                         return True, actions
-                return False, []
+                return False, None
 
-            if node.op == "AND":
+            if node.op == RUNTIME_OP_CODE.AND:
                 aggregated: list[Action] = []
                 for child in node.conditions:
                     ok, child_actions = self._eval_condition(child, state)
                     if not ok:
                         return False, []
                     aggregated.extend(child_actions)
+                # 后续需要extend，直接返回 node.actions 会导致条件树被修改
                 actions = list(node.actions or [])
                 actions.extend(aggregated)
                 return True, actions
@@ -164,18 +167,17 @@ class MonteCarlo:
 
         raise TypeError(f"unsupported condition node kind: {kind}")
 
-    def _compare(self, left: int, op: str, right: int) -> bool:
-        if op == ">=":
-            return left >= right
-        if op == ">":
-            return left > right
-        if op == "==":
+    def _compare(self, left: int, op_code: str, right: int) -> bool:
+        if op_code == RUNTIME_OP_CODE.EQ:
             return left == right
-        if op == "<=":
-            return left <= right
-        if op == "<":
-            return left < right
-        if op == "!=":
+        if op_code == RUNTIME_OP_CODE.NE:
             return left != right
-
-        raise ValueError(f"unsupported predicate op: {op}")
+        if op_code == RUNTIME_OP_CODE.LT:
+            return left < right
+        if op_code == RUNTIME_OP_CODE.LE:
+            return left <= right
+        if op_code == RUNTIME_OP_CODE.GT:
+            return left > right
+        if op_code == RUNTIME_OP_CODE.GE:
+            return left >= right
+        raise RuntimeError(f"Unknown op_code: {op_code}")

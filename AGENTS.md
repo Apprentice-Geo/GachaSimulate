@@ -54,4 +54,14 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
----
+## 5. Test quality
+
+**Tests must protect behavior, not implementation.**
+
+Prefer testing public APIs, user-visible outcomes, business rules, error paths, and regressions. Avoid tests for mutable text, documentation wording, styling, snapshots, internal calls, mock interactions, default preferences, temporary files, logs, caches, and incidental filesystem side effects.
+
+A test is acceptable only if breaking it usually indicates a real product or contract regression.
+
+## 6. Commit Message Rule
+
+**Allow the [Conventional Commits Rules](https://www.conventionalcommits.org/en/v1.0.0/) when writing commit messages.**

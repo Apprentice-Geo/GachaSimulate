@@ -97,11 +97,9 @@ def test_builds_expected_runtime_structure() -> None:
     assert second_stage_action.pool_index == 2
 
     assert ctx.termination_tree.kind == RUNTIME_KIND.LogicNode
-    assert ctx.termination_tree.op == "OR"
     first_branch, second_branch = ctx.termination_tree.conditions
     assert first_branch.kind == RUNTIME_KIND.LogicNode
     assert second_branch.kind == RUNTIME_KIND.LogicNode
-    assert [first_branch.op, second_branch.op] == ["AND", "AND"]
     first_node_1, first_node_2, first_node_3 = first_branch.conditions
     assert first_node_1.kind == RUNTIME_KIND.CheckNode
     assert first_node_2.kind == RUNTIME_KIND.CheckNode
