@@ -65,7 +65,9 @@ class RuntimeBuilder:
         self.retained_items_index = []
         self.begin_pool_index = 0
         self.draw_count_index = 0
+        self.draw_count_index = 0
         self.initial_actions = []
+        self.every_draw_actions = []
         self.every_draw_actions = []
         self.termination_tree = None
         self.OP_TO_CODE: dict[str, int] = {
@@ -149,6 +151,8 @@ class RuntimeBuilder:
 
         self.draw_count_index = self._resolve_item_index("draw_count")
 
+        self.draw_count_index = self._resolve_item_index("draw_count")
+
     def _build_item_resolves(self):
         for item_id, item_config in self.config.get("items", {}).items():
             resolve_config = item_config.get("resolve")
@@ -203,6 +207,9 @@ class RuntimeBuilder:
     def _build_every_draw(self):
         self.every_draw_actions = self._build_actions(self.config["every_draw"])
 
+    def _build_every_draw(self):
+        self.every_draw_actions = self._build_actions(self.config["every_draw"])
+
     def _build_pool_draw_list(self):
         self.pool_draw_list.clear()
         for pool_index in range(len(self.pool_list)):
@@ -217,6 +224,7 @@ class RuntimeBuilder:
         for stage_id, stage_config in stage_sources.items():
             condition_config = stage_config["condition"]
             condition = self._build_condition_tree(condition_config)
+            condition = self._build_condition_tree(condition_config)
             if condition is None:
                 raise ValueError("stage condition cannot be None")
             stage_once = bool(stage_config.get("once", False))
@@ -230,7 +238,9 @@ class RuntimeBuilder:
             )
 
     def _build_condition_tree(
+    def _build_condition_tree(
         self, condition_config: dict[str, Any] | None
+    ) -> LogicNode | CheckNode | None:
     ) -> LogicNode | CheckNode | None:
         if condition_config is None:
             return None
@@ -238,15 +248,19 @@ class RuntimeBuilder:
         condition_type = condition_config.get("type")
         actions_config = condition_config.get("actions")
         actions = self._build_actions(actions_config) if actions_config is not None else []
+        actions = self._build_actions(actions_config) if actions_config is not None else []
 
         if condition_type == "logic":
             conditions: list[LogicNode | CheckNode] = []
+            conditions: list[LogicNode | CheckNode] = []
             for child in condition_config.get("conditions", []):
+                child_condition = self._build_condition_tree(child)
                 child_condition = self._build_condition_tree(child)
                 if child_condition is None:
                     raise ValueError("logic condition child cannot be None")
                 conditions.append(child_condition)
             return LogicNode(
+                op=self.OP_TO_CODE[condition_config["op"]],
                 op=self.OP_TO_CODE[condition_config["op"]],
                 conditions=conditions,
                 actions=actions,
@@ -254,6 +268,8 @@ class RuntimeBuilder:
 
         if condition_type == "predicate":
             return CheckNode(
+                item_index=self._resolve_item_index(condition_config["id"]),
+                op=self.OP_TO_CODE[condition_config["op"]],
                 item_index=self._resolve_item_index(condition_config["id"]),
                 op=self.OP_TO_CODE[condition_config["op"]],
                 value=int(condition_config.get("value", 0)),
@@ -267,10 +283,12 @@ class RuntimeBuilder:
         self._build_pools()
         self._build_initial()
         self._build_every_draw()
+        self._build_every_draw()
         self._build_pool_draw_list()
         self._build_item_draws()
         self._build_item_resolves()
         self._build_stages()
+        self.termination_tree = self._build_condition_tree(
         self.termination_tree = self._build_condition_tree(
             self.termination_config["termination_condition"]
         )
@@ -285,7 +303,9 @@ class RuntimeBuilder:
             begin_pool_index=self.begin_pool_index,
             initial_actions=self.initial_actions,
             every_draw_actions=self.every_draw_actions,
+            every_draw_actions=self.every_draw_actions,
             item_id_index=self.item_id_index,
+            draw_count_index=self.draw_count_index,
             draw_count_index=self.draw_count_index,
             item_list=self.item_list,
             item_resolve_list=self.item_resolve_list,

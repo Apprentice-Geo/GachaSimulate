@@ -5,7 +5,10 @@ from typing import Iterable
 from simulate.runtime import (
     Action,
     LogicNode,
+    LogicNode,
     CheckNode,
+    RUNTIME_KIND,
+    RUNTIME_OP_CODE,
     RUNTIME_KIND,
     RUNTIME_OP_CODE,
     RuntimeContext,
@@ -19,6 +22,7 @@ class MonteCarlo:
         self.seed = seed
         # 此处定义全局rng,避免多次模拟时重复创建同一个种子的rng,导致每次模拟结果重复
         self.rng = np.random.default_rng(self.seed)
+        # 记录可分解的物品索引
         # 记录可分解的物品索引
         self.resolvable_item_indices = [
             item_index
@@ -40,6 +44,7 @@ class MonteCarlo:
         return state
 
     def _one_draw_cycle(self, state: RuntimeState) -> None:
+        self._execute_actions(state, self.ctx.every_draw_actions)
         self._execute_actions(state, self.ctx.every_draw_actions)
 
         # 这里所有池子的单次抽取都被构造成了 Action，需要抽取直接调用
@@ -63,6 +68,7 @@ class MonteCarlo:
 
             ok, stage_actions = self._eval_condition(stage.condition, state)
             if ok:
+                state.stage_execute[stage_index] = True
                 state.stage_execute[stage_index] = True
                 if stage.once:
                     state.active_stage_indices.pop(active_stage_pos)
@@ -172,7 +178,17 @@ class MonteCarlo:
         if op_code == RUNTIME_OP_CODE.LT:
             return left < right
         if op_code == RUNTIME_OP_CODE.LE:
+        if op_code == RUNTIME_OP_CODE.NE:
+            return left != right
+        if op_code == RUNTIME_OP_CODE.LT:
+            return left < right
+        if op_code == RUNTIME_OP_CODE.LE:
             return left <= right
+        if op_code == RUNTIME_OP_CODE.GT:
+            return left > right
+        if op_code == RUNTIME_OP_CODE.GE:
+            return left >= right
+        raise RuntimeError(f"Unknown op_code: {op_code}")
         if op_code == RUNTIME_OP_CODE.GT:
             return left > right
         if op_code == RUNTIME_OP_CODE.GE:

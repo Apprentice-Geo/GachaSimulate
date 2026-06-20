@@ -47,6 +47,8 @@ def run_save(
         data_dir.mkdir(parents=True, exist_ok=True)
         # save_simulation_result(result_file_path, result)
         # save_visualize_input(f"./data/{simulate_name}_visualize_input.json", result)
+        # save_simulation_result(result_file_path, result)
+        # save_visualize_input(f"./data/{simulate_name}_visualize_input.json", result)
     else:
         result = load_simulation_result(result_file_path)
 
@@ -65,9 +67,13 @@ def run_save(
     # viz = Visualizer(result)
     # img_dir = Path("./images")
     # img_dir.mkdir(parents=True, exist_ok=True)
+    # viz = Visualizer(result)
+    # img_dir = Path("./images")
+    # img_dir.mkdir(parents=True, exist_ok=True)
     # viz.plot_draw_distribution(
     #     save_path=f"./images/{simulate_name}_draw_distribution.svg"
     # )
+    # viz.plot_cdf(save_path=f"./images/{simulate_name}_cdf.svg")
     # viz.plot_cdf(save_path=f"./images/{simulate_name}_cdf.svg")
 
 
@@ -75,6 +81,8 @@ if __name__ == "__main__":
     base_seed = int("666")
     run_save(
         "sanliou_zhenpinchuanshuo",
+        "termination_skin",
+        target_total_draw=1010000,
         "termination_skin",
         target_total_draw=1010000,
         seed=base_seed,
