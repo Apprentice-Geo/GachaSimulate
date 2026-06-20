@@ -1,10 +1,10 @@
 from pathlib import Path
-from simulate.core import (
+from gachasimulate.core import (
     load_simulation_result,
     simulate_until_total_draw,
 )
-from simulate.builder import RuntimeBuilder
-from simulate.engine import MonteCarlo
+from gachasimulate.builder import RuntimeBuilder
+from gachasimulate.engine import MonteCarlo
 import os
 import numpy as np
 
@@ -81,8 +81,6 @@ if __name__ == "__main__":
     base_seed = int("666")
     run_save(
         "sanliou_zhenpinchuanshuo",
-        "termination_skin",
-        target_total_draw=1010000,
         "termination_skin",
         target_total_draw=1010000,
         seed=base_seed,

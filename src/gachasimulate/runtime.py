@@ -46,23 +46,15 @@ class RuntimeContext:
     every_draw_actions: List[Action]
     item_id_index: Dict[str, int]  # 对物品进行编号
     draw_count_index: int
-    every_draw_actions: List[Action]
-    item_id_index: Dict[str, int]  # 对物品进行编号
-    draw_count_index: int
     item_list: List[Item]
-    item_resolve_list: List[ItemResolve]  # 分解某个物品时执行的动作
-    item_draw_list: List[List[Action]]  # 获得物品时执行的动作
-    pool_id_index: Dict[str, int]  # 对池子进行编号
     item_resolve_list: List[ItemResolve]  # 分解某个物品时执行的动作
     item_draw_list: List[List[Action]]  # 获得物品时执行的动作
     pool_id_index: Dict[str, int]  # 对池子进行编号
     pool_list: List[Pool]
     pool_draw_list: List[Action]  # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
     draw_stage_id_index: Dict[str, int]  # 对阶段进行编号
-    draw_stage_id_index: Dict[str, int]  # 对阶段进行编号
     draw_stage_list: List[Stage]
     retained_items_index: List[int]
-    termination_tree: LogicNode | CheckNode
     termination_tree: LogicNode | CheckNode
 
 
@@ -94,8 +86,6 @@ class RuntimeState:
 class Action(ABC):
     kind = RUNTIME_KIND.Action
 
-    kind = RUNTIME_KIND.Action
-
     @abstractmethod
     def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
         pass
@@ -103,8 +93,6 @@ class Action(ABC):
 
 @dataclass(frozen=True, slots=True)
 class AddItem(Action):
-    kind = RUNTIME_KIND.AddItem
-
     kind = RUNTIME_KIND.AddItem
 
     item_index: int
@@ -119,8 +107,6 @@ class AddItem(Action):
 class ReduceItem(Action):
     kind = RUNTIME_KIND.ReduceItem
 
-    kind = RUNTIME_KIND.ReduceItem
-
     item_index: int
     amount: int
 
@@ -133,8 +119,6 @@ class ReduceItem(Action):
 class SetItem(Action):
     kind = RUNTIME_KIND.SetItem
 
-    kind = RUNTIME_KIND.SetItem
-
     item_index: int
     amount: int
 
@@ -144,8 +128,6 @@ class SetItem(Action):
 
 @dataclass(frozen=True, slots=True)
 class DrawPool(Action):
-    kind = RUNTIME_KIND.DrawPool
-
     kind = RUNTIME_KIND.DrawPool
 
     pool_index: int
@@ -161,8 +143,6 @@ class DrawPool(Action):
 class PoolChange(Action):
     kind = RUNTIME_KIND.PoolChange
 
-    kind = RUNTIME_KIND.PoolChange
-
     pool_index: int
 
     def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
@@ -173,8 +153,6 @@ class PoolChange(Action):
 class Termination(Action):
     kind = RUNTIME_KIND.Termination
 
-    kind = RUNTIME_KIND.Termination
-
     reason: str
 
     def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
@@ -182,8 +160,6 @@ class Termination(Action):
         runtime_state.terminate_reason = self.reason
 
 
-class ConditionNode(ABC):
-    kind = RUNTIME_KIND.ConditionNode
 class ConditionNode(ABC):
     kind = RUNTIME_KIND.ConditionNode
 
@@ -199,10 +175,6 @@ class LogicNode(ConditionNode):
 
 @dataclass(frozen=True, slots=True)
 class CheckNode(ConditionNode):
-    kind = RUNTIME_KIND.CheckNode
-
-    item_index: int
-    op: int
     kind = RUNTIME_KIND.CheckNode
 
     item_index: int

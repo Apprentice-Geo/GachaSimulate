@@ -1,4 +1,4 @@
-from simulate.engine import MonteCarlo
+from gachasimulate.engine import MonteCarlo
 import json
 import numpy as np
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait

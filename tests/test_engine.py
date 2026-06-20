@@ -7,9 +7,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from simulate.builder import RuntimeBuilder
-from simulate.engine import MonteCarlo
-from simulate.runtime import (
+from gachasimulate.builder import RuntimeBuilder
+from gachasimulate.engine import MonteCarlo
+from gachasimulate.runtime import (
     AddItem,
     CheckNode,
     DrawPool,
@@ -25,7 +25,7 @@ from simulate.runtime import (
     Stage,
     Termination,
 )
-from simulate.core import (
+from gachasimulate.core import (
     load_simulation_result,
     save_simulation_result,
     save_visualize_input,

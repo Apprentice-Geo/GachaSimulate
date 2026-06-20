@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from simulate.builder import RuntimeBuilder
-from simulate.runtime import (
+from gachasimulate.builder import RuntimeBuilder
+from gachasimulate.runtime import (
     Action,
     ItemResolve,
     RUNTIME_KIND,

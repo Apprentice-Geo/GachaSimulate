@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
-from simulate.validator import (
+from gachasimulate.validator import (
     ValidationError,
     validate_config,
     validate_files,

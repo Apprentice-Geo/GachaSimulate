@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 from typing import Iterable
 
-from simulate.runtime import (
+from gachasimulate.runtime import (
     Action,
     LogicNode,
     LogicNode,
@@ -44,7 +44,6 @@ class MonteCarlo:
         return state
 
     def _one_draw_cycle(self, state: RuntimeState) -> None:
-        self._execute_actions(state, self.ctx.every_draw_actions)
         self._execute_actions(state, self.ctx.every_draw_actions)
 
         # 这里所有池子的单次抽取都被构造成了 Action，需要抽取直接调用
@@ -178,17 +177,7 @@ class MonteCarlo:
         if op_code == RUNTIME_OP_CODE.LT:
             return left < right
         if op_code == RUNTIME_OP_CODE.LE:
-        if op_code == RUNTIME_OP_CODE.NE:
-            return left != right
-        if op_code == RUNTIME_OP_CODE.LT:
-            return left < right
-        if op_code == RUNTIME_OP_CODE.LE:
             return left <= right
-        if op_code == RUNTIME_OP_CODE.GT:
-            return left > right
-        if op_code == RUNTIME_OP_CODE.GE:
-            return left >= right
-        raise RuntimeError(f"Unknown op_code: {op_code}")
         if op_code == RUNTIME_OP_CODE.GT:
             return left > right
         if op_code == RUNTIME_OP_CODE.GE:
