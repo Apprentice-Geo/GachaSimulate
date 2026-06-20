@@ -10,6 +10,7 @@ from simulate.runtime import (
     AddItem,
     CheckNode,
     ConditionNode,
+    RUNTIME_OP_CODE,
     DrawPool,
     Item,
     ItemResolve,
@@ -68,6 +69,17 @@ class RuntimeBuilder:
         self.initial_actions = []
         self.every_draw_actions = []
         self.termination_tree = None
+        self.OP_TO_CODE: dict[str, int] = {
+    "==": RUNTIME_OP_CODE.EQ,
+    "!=": RUNTIME_OP_CODE.NE,
+    "<": RUNTIME_OP_CODE.LT,
+    "<=": RUNTIME_OP_CODE.LE,
+    ">": RUNTIME_OP_CODE.GT,
+    ">=": RUNTIME_OP_CODE.GE,
+    "AND": RUNTIME_OP_CODE.AND,
+    "OR": RUNTIME_OP_CODE.OR,
+    "NOT": RUNTIME_OP_CODE.NOT
+}
 
     def _resolve_item_index(self, item_id: str) -> int:
         return self.item_id_index[item_id]
@@ -205,7 +217,7 @@ class RuntimeBuilder:
 
         for stage_id, stage_config in stage_sources.items():
             condition_config = stage_config["condition"]
-            condition = self._build_termination_tree(condition_config)
+            condition = self._build_condition_tree(condition_config)
             if condition is None:
                 raise ValueError("stage condition cannot be None")
             stage_once = bool(stage_config.get("once", False))
@@ -218,25 +230,25 @@ class RuntimeBuilder:
                 )
             )
 
-    def _build_termination_tree(
+    def _build_condition_tree(
         self, condition_config: dict[str, Any] | None
-    ) -> ConditionNode | None:
+    ) -> LogicNode | CheckNode | None:
         if condition_config is None:
             return None
 
         condition_type = condition_config.get("type")
         actions_config = condition_config.get("actions")
-        actions = self._build_actions(actions_config) if actions_config is not None else None
+        actions = self._build_actions(actions_config) if actions_config is not None else []
 
         if condition_type == "logic":
-            conditions: list[ConditionNode] = []
+            conditions: list[LogicNode | CheckNode] = []
             for child in condition_config.get("conditions", []):
-                child_condition = self._build_termination_tree(child)
+                child_condition = self._build_condition_tree(child)
                 if child_condition is None:
                     raise ValueError("logic condition child cannot be None")
                 conditions.append(child_condition)
             return LogicNode(
-                op=condition_config.get("op", "OR"),
+                op=self.OP_TO_CODE[condition_config["op"]],
                 conditions=conditions,
                 actions=actions,
             )
@@ -244,7 +256,7 @@ class RuntimeBuilder:
         if condition_type == "predicate":
             return CheckNode(
                 item_index=self._resolve_item_index(condition_config["id"]),
-                op=condition_config["op"],
+                op=self.OP_TO_CODE[condition_config["op"]],
                 value=int(condition_config.get("value", 0)),
                 actions=actions,
             )
@@ -260,7 +272,7 @@ class RuntimeBuilder:
         self._build_item_draws()
         self._build_item_resolves()
         self._build_stages()
-        self.termination_tree = self._build_termination_tree(
+        self.termination_tree = self._build_condition_tree(
             self.termination_config["termination_condition"]
         )
         if self.termination_tree is None:

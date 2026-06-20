@@ -48,8 +48,8 @@ def run_save(
         )
         data_dir = Path("./data")
         data_dir.mkdir(parents=True, exist_ok=True)
-        save_simulation_result(result_file_path, result)
-        save_visualize_input(f"./data/{simulate_name}_visualize_input.json", result)
+        # save_simulation_result(result_file_path, result)
+        # save_visualize_input(f"./data/{simulate_name}_visualize_input.json", result)
     else:
         result = load_simulation_result(result_file_path)
 

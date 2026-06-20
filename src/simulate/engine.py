@@ -4,8 +4,10 @@ from typing import Iterable
 
 from simulate.runtime import (
     Action,
-    ConditionNode,
+    LogicNode,
+    CheckNode,
     RUNTIME_KIND,
+    RUNTIME_OP_CODE,
     RuntimeContext,
     RuntimeState,
 )
@@ -126,10 +128,10 @@ class MonteCarlo:
         raise TypeError(f"unsupported action kind: {kind}")
 
     def _eval_condition(
-            self, node: ConditionNode | None, state: RuntimeState
-    ) -> tuple[bool, list[Action]]:
+        self, node: LogicNode | CheckNode, state: RuntimeState
+    ) -> tuple[bool, list[Action]|None]:
         if node is None:
-            return False, []
+            return False, None
 
         kind = node.kind
 
@@ -138,10 +140,10 @@ class MonteCarlo:
             ok = self._compare(left, node.op, node.value)
             if ok:
                 return True, list(node.actions or [])
-            return False, []
+            return False, None
 
         if kind == RUNTIME_KIND.LogicNode:
-            if node.op == "OR":
+            if node.op == RUNTIME_OP_CODE.OR:
                 for child in node.conditions:
                     ok, child_actions = self._eval_condition(child, state)
                     if ok:
@@ -162,19 +164,17 @@ class MonteCarlo:
 
         raise TypeError(f"unsupported condition node type: {type(node).__name__}")
 
-    def _compare(self, left: int, op: str, right: int) -> bool:
-        match op:
-            case ">=":
-                return left >= right
-            case "<=":
-                return left <= right
-            case "!=":
-                return left != right
-            case "==":
-                return left == right
-            case ">":
-                return left > right
-            case "<":
-                return left < right
-            case _:
-                raise ValueError(f"unsupported predicate op: {op}")
+    def _compare(self, left: int, op_code: str, right: int) -> bool:
+        if op_code == RUNTIME_OP_CODE.EQ:
+            return left == right
+        if op_code == RUNTIME_OP_CODE.NE:
+            return left != right
+        if op_code == RUNTIME_OP_CODE.LT:
+            return left < right
+        if op_code == RUNTIME_OP_CODE.LE:
+            return left <= right
+        if op_code == RUNTIME_OP_CODE.GT:
+            return left > right
+        if op_code == RUNTIME_OP_CODE.GE:
+            return left >= right
+        raise RuntimeError(f"Unknown op_code: {op_code}")

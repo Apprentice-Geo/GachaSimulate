@@ -22,6 +22,21 @@ class RuntimeKind:
 
 RUNTIME_KIND = RuntimeKind()
 
+@dataclass(frozen=True, slots=True)
+class RuntimeOpCode:
+    EQ: int = 0   # ==, equal
+    NE: int = 1   # !=, not equal
+    LT: int = 2   # <, less than
+    LE: int = 3   # <=, less than or equal
+    GT: int = 4   # >, greater than
+    GE: int = 5   # >=, greater than or equal
+    AND: int = 6  # AND
+    OR: int = 7   # OR
+    NOT: int = 8   # NOT
+
+RUNTIME_OP_CODE = RuntimeOpCode()
+
+
 
 @dataclass(frozen=True, slots=True)
 class RuntimeContext:
@@ -39,7 +54,7 @@ class RuntimeContext:
     draw_stage_id_index: Dict[str, int]  # 对阶段进行编号
     draw_stage_list: List[Stage]
     retained_items_index: List[int]
-    termination_tree: ConditionNode
+    termination_tree: LogicNode | CheckNode
 
 
 class RuntimeState:
@@ -152,8 +167,8 @@ class ConditionNode(ABC):
 class LogicNode(ConditionNode):
     kind = RUNTIME_KIND.LogicNode
 
-    op: str
-    conditions: Sequence[ConditionNode]
+    op: int
+    conditions: Sequence[LogicNode|CheckNode]
     actions: List[Action] | None
 
 
@@ -162,7 +177,7 @@ class CheckNode(ConditionNode):
     kind = RUNTIME_KIND.CheckNode
 
     item_index: int
-    op: str
+    op: int
     value: int
     actions: List[Action] | None
 

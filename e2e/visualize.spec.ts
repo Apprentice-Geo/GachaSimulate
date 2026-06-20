@@ -264,7 +264,7 @@ test("replay button disables while animation is running", async ({ page }) => {
   await page.clock.runFor(ANIMATION_IDLE_TIMEOUT_MS); // Advance time to let animation complete
   await expect(page.getByTestId("visualize-root")).toHaveAttribute(
     "data-animation-state",
-    "idle", 
+    "idle",
   );
   await expect(replay_button).toBeEnabled();
 });
