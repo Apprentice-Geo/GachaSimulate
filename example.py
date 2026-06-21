@@ -28,8 +28,8 @@ def run_save(
     config_json_path = os.path.join(base_path, "config.json")
     termination_json_path = os.path.join(base_path, termination_name + ".json")
     result_file_path = f"./data/{config_name}_{termination_name}_{target_total_draw}_seed{seed}.npz"
-    name = os.path.basename(os.path.dirname(config_json_path))
-    simulate_name = f"{name}_{Path(termination_json_path).stem}"
+    # name = os.path.basename(os.path.dirname(config_json_path))
+    # simulate_name = f"{name}_{Path(termination_json_path).stem}"
     builder = RuntimeBuilder(
         config_path=config_json_path,
         termination_path=termination_json_path,

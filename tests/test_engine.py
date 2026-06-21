@@ -19,7 +19,7 @@ from gachasimulate.runtime import (
     Pool,
     PoolChange,
     ReduceItem,
-    RUNTIME_OP_CODE,
+    RuntimeOpCode,
     RuntimeContext,
     SetItem,
     Stage,
@@ -94,7 +94,7 @@ def test_runs_with_manual_context() -> None:
         retained_items_index=[],
         termination_tree=CheckNode(
             item_index=item_id_index["target"],
-            op=RUNTIME_OP_CODE.GE,
+            op=RuntimeOpCode.GE,
             value=1,
             actions=[Termination(reason="target reached")],
         ),
@@ -139,7 +139,7 @@ def test_checks_termination_after_each_draw() -> None:
                 once=True,
                 condition=CheckNode(
                     item_index=item_id_index["draw_count"],
-                    op=RUNTIME_OP_CODE.GE,
+                    op=RuntimeOpCode.GE,
                     value=3,
                     actions=[AddItem(item_index=item_id_index["target"], amount=1)],
                 ),
@@ -148,7 +148,7 @@ def test_checks_termination_after_each_draw() -> None:
         retained_items_index=[item_id_index["target"]],
         termination_tree=CheckNode(
             item_index=item_id_index["target"],
-            op=RUNTIME_OP_CODE.GE,
+            op=RuntimeOpCode.GE,
             value=1,
             actions=[Termination(reason="target reached")],
         ),
@@ -199,7 +199,7 @@ def test_every_draw_runs_before_main_pool_draw() -> None:
         retained_items_index=[],
         termination_tree=CheckNode(
             item_index=item_id_index["draw_count"],
-            op=RUNTIME_OP_CODE.GE,
+            op=RuntimeOpCode.GE,
             value=1,
             actions=[Termination(reason="done")],
         ),
@@ -237,7 +237,7 @@ def test_initial_actions_are_visible_to_first_stage() -> None:
                 once=True,
                 condition=CheckNode(
                     item_index=item_id_index["token"],
-                    op=RUNTIME_OP_CODE.GE,
+                    op=RuntimeOpCode.GE,
                     value=1,
                     actions=[AddItem(item_index=item_id_index["target"], amount=1)],
                 ),
@@ -246,7 +246,7 @@ def test_initial_actions_are_visible_to_first_stage() -> None:
         retained_items_index=[],
         termination_tree=CheckNode(
             item_index=item_id_index["target"],
-            op=RUNTIME_OP_CODE.GE,
+            op=RuntimeOpCode.GE,
             value=1,
             actions=[Termination(reason="target reached")],
         ),
@@ -290,7 +290,7 @@ def test_once_stage_executes_only_once() -> None:
                 once=True,
                 condition=CheckNode(
                     item_index=item_id_index["counter"],
-                    op=RUNTIME_OP_CODE.GE,
+                    op=RuntimeOpCode.GE,
                     value=1,
                     actions=[AddItem(item_index=item_id_index["bonus"], amount=1)],
                 ),
@@ -299,7 +299,7 @@ def test_once_stage_executes_only_once() -> None:
         retained_items_index=[],
         termination_tree=CheckNode(
             item_index=item_id_index["draw_count"],
-            op=RUNTIME_OP_CODE.GE,
+            op=RuntimeOpCode.GE,
             value=3,
             actions=[Termination(reason="done")],
         ),
@@ -348,7 +348,7 @@ def test_pool_change_affects_next_draw() -> None:
                 once=True,
                 condition=CheckNode(
                     item_index=item_id_index["draw_count"],
-                    op=RUNTIME_OP_CODE.GE,
+                    op=RuntimeOpCode.GE,
                     value=1,
                     actions=[PoolChange(pool_index=1)],
                 ),
@@ -357,7 +357,7 @@ def test_pool_change_affects_next_draw() -> None:
         retained_items_index=[],
         termination_tree=CheckNode(
             item_index=item_id_index["draw_count"],
-            op=RUNTIME_OP_CODE.GE,
+            op=RuntimeOpCode.GE,
             value=2,
             actions=[Termination(reason="done")],
         ),
@@ -400,12 +400,12 @@ def test_or_condition_short_circuits_later_branch_actions() -> None:
         draw_stage_list=[],
         retained_items_index=[],
         termination_tree=LogicNode(
-            op=RUNTIME_OP_CODE.OR,
+            op=RuntimeOpCode.OR,
             actions=[AddItem(item_index=item_id_index["parent"], amount=1)],
             conditions=[
                 CheckNode(
                     item_index=item_id_index["draw_count"],
-                    op=RUNTIME_OP_CODE.GE,
+                    op=RuntimeOpCode.GE,
                     value=1,
                     actions=[
                         AddItem(item_index=item_id_index["first"], amount=1),
@@ -414,7 +414,7 @@ def test_or_condition_short_circuits_later_branch_actions() -> None:
                 ),
                 CheckNode(
                     item_index=item_id_index["draw_count"],
-                    op=RUNTIME_OP_CODE.GE,
+                    op=RuntimeOpCode.GE,
                     value=1,
                     actions=[AddItem(item_index=item_id_index["second"], amount=1)],
                 ),
@@ -461,7 +461,7 @@ def test_stage_actions_are_visible_to_later_stages_in_same_draw() -> None:
                 once=False,
                 condition=CheckNode(
                     item_index=item_id_index["counter"],
-                    op=RUNTIME_OP_CODE.GE,
+                    op=RuntimeOpCode.GE,
                     value=1,
                     actions=[SetItem(item_index=item_id_index["counter"], amount=2)],
                 ),
@@ -470,7 +470,7 @@ def test_stage_actions_are_visible_to_later_stages_in_same_draw() -> None:
                 once=True,
                 condition=CheckNode(
                     item_index=item_id_index["counter"],
-                    op=RUNTIME_OP_CODE.GE,
+                    op=RuntimeOpCode.GE,
                     value=2,
                     actions=[AddItem(item_index=item_id_index["target"], amount=1)],
                 ),
@@ -479,7 +479,7 @@ def test_stage_actions_are_visible_to_later_stages_in_same_draw() -> None:
         retained_items_index=[],
         termination_tree=CheckNode(
             item_index=item_id_index["target"],
-            op=RUNTIME_OP_CODE.GE,
+            op=RuntimeOpCode.GE,
             value=1,
             actions=[Termination(reason="target reached")],
         ),
@@ -525,7 +525,7 @@ def test_triggers_followup_draw_from_item() -> None:
         retained_items_index=[],
         termination_tree=CheckNode(
             item_index=item_id_index["target"],
-            op=RUNTIME_OP_CODE.GE,
+            op=RuntimeOpCode.GE,
             value=1,
             actions=[Termination(reason="target reached")],
         ),
@@ -578,7 +578,7 @@ def test_set_item_only_changes_inventory_without_followup_draw() -> None:
         retained_items_index=[],
         termination_tree=CheckNode(
             item_index=item_id_index["draw_count"],
-            op=RUNTIME_OP_CODE.GE,
+            op=RuntimeOpCode.GE,
             value=1,
             actions=[Termination(reason="done")],
         ),
@@ -630,7 +630,7 @@ def test_item_resolve_retains_configured_inventory() -> None:
         retained_items_index=[],
         termination_tree=CheckNode(
             item_index=item_id_index["draw_count"],
-            op=RUNTIME_OP_CODE.GE,
+            op=RuntimeOpCode.GE,
             value=1,
             actions=[Termination(reason="done")],
         ),
@@ -680,7 +680,7 @@ def test_retained_item_keeps_one_but_resolves_duplicates() -> None:
         retained_items_index=[item_id_index["skin"]],
         termination_tree=CheckNode(
             item_index=item_id_index["draw_count"],
-            op=RUNTIME_OP_CODE.GE,
+            op=RuntimeOpCode.GE,
             value=1,
             actions=[Termination(reason="done")],
         ),
@@ -805,7 +805,7 @@ def test_parallel_simulation_merges_worker_results() -> None:
         retained_items_index=[],
         termination_tree=CheckNode(
             item_index=item_id_index["draw_count"],
-            op=RUNTIME_OP_CODE.GE,
+            op=RuntimeOpCode.GE,
             value=1,
             actions=[Termination(reason="done")],
         ),

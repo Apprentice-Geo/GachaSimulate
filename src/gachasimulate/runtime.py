@@ -2,42 +2,31 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, List, Sequence
-
+from enum import IntEnum
 import numpy as np
 
+class RuntimeKind(IntEnum):
+    Action = 0
+    AddItem = 1
+    ReduceItem  = 2
+    SetItem  = 3
+    DrawPool  = 4
+    PoolChange  = 5
+    Termination  = 6
+    ConditionNode  = 7
+    LogicNode  = 8
+    CheckNode  = 9
 
-@dataclass(frozen=True, slots=True)
-class RuntimeKind:
-    Action: int = 0
-    AddItem: int = 1
-    ReduceItem: int = 2
-    SetItem: int = 3
-    DrawPool: int = 4
-    PoolChange: int = 5
-    Termination: int = 6
-    ConditionNode: int = 7
-    LogicNode: int = 8
-    CheckNode: int = 9
-
-
-RUNTIME_KIND = RuntimeKind()
-
-
-@dataclass(frozen=True, slots=True)
-class RuntimeOpCode:
-    EQ: int = 0  # ==, equal
-    NE: int = 1  # !=, not equal
-    LT: int = 2  # <, less than
-    LE: int = 3  # <=, less than or equal
-    GT: int = 4  # >, greater than
-    GE: int = 5  # >=, greater than or equal
-    AND: int = 6  # AND
-    OR: int = 7  # OR
-    NOT: int = 8  # NOT
-
-
-RUNTIME_OP_CODE = RuntimeOpCode()
-
+class RuntimeOpCode(IntEnum):
+    EQ  = 0  # ==, equal
+    NE  = 1  # !=, not equal
+    LT  = 2  # <, less than
+    LE  = 3  # <=, less than or equal
+    GT  = 4  # >, greater than
+    GE  = 5  # >=, greater than or equal
+    AND  = 6  # AND
+    OR  = 7  # OR
+    NOT  = 8  # NOT
 
 @dataclass(frozen=True, slots=True)
 class RuntimeContext:
@@ -84,7 +73,7 @@ class RuntimeState:
 
 
 class Action(ABC):
-    kind = RUNTIME_KIND.Action
+    kind = RuntimeKind.Action
 
     @abstractmethod
     def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
@@ -93,7 +82,7 @@ class Action(ABC):
 
 @dataclass(frozen=True, slots=True)
 class AddItem(Action):
-    kind = RUNTIME_KIND.AddItem
+    kind = RuntimeKind.AddItem
 
     item_index: int
     amount: int
@@ -105,7 +94,7 @@ class AddItem(Action):
 
 @dataclass(frozen=True, slots=True)
 class ReduceItem(Action):
-    kind = RUNTIME_KIND.ReduceItem
+    kind = RuntimeKind.ReduceItem
 
     item_index: int
     amount: int
@@ -117,7 +106,7 @@ class ReduceItem(Action):
 
 @dataclass(frozen=True, slots=True)
 class SetItem(Action):
-    kind = RUNTIME_KIND.SetItem
+    kind = RuntimeKind.SetItem
 
     item_index: int
     amount: int
@@ -128,7 +117,7 @@ class SetItem(Action):
 
 @dataclass(frozen=True, slots=True)
 class DrawPool(Action):
-    kind = RUNTIME_KIND.DrawPool
+    kind = RuntimeKind.DrawPool
 
     pool_index: int
 
@@ -141,7 +130,7 @@ class DrawPool(Action):
 
 @dataclass(frozen=True, slots=True)
 class PoolChange(Action):
-    kind = RUNTIME_KIND.PoolChange
+    kind = RuntimeKind.PoolChange
 
     pool_index: int
 
@@ -151,7 +140,7 @@ class PoolChange(Action):
 
 @dataclass(frozen=True, slots=True)
 class Termination(Action):
-    kind = RUNTIME_KIND.Termination
+    kind = RuntimeKind.Termination
 
     reason: str
 
@@ -161,12 +150,12 @@ class Termination(Action):
 
 
 class ConditionNode(ABC):
-    kind = RUNTIME_KIND.ConditionNode
+    kind = RuntimeKind.ConditionNode
 
 
 @dataclass(frozen=True, slots=True)
 class LogicNode(ConditionNode):
-    kind = RUNTIME_KIND.LogicNode
+    kind = RuntimeKind.LogicNode
 
     op: int
     conditions: Sequence[LogicNode | CheckNode]
@@ -175,7 +164,7 @@ class LogicNode(ConditionNode):
 
 @dataclass(frozen=True, slots=True)
 class CheckNode(ConditionNode):
-    kind = RUNTIME_KIND.CheckNode
+    kind = RuntimeKind.CheckNode
 
     item_index: int
     op: int

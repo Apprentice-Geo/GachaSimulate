@@ -219,7 +219,7 @@ def validate_config(config: dict[str, Any]) -> None:
             termination_only=False,
         )
 
-    every_draw = config.get("every_draw")
+    every_draw = _require_list(config.get("every_draw"), "config.every_draw")
     _validate_actions(
         every_draw,
         "config.every_draw",

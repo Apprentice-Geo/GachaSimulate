@@ -9,7 +9,7 @@ from gachasimulate.runtime import (
     Action,
     AddItem,
     CheckNode,
-    RUNTIME_OP_CODE,
+    RuntimeOpCode,
     DrawPool,
     Item,
     ItemResolve,
@@ -69,15 +69,15 @@ class RuntimeBuilder:
         self.every_draw_actions = []
         self.termination_tree = None
         self.OP_TO_CODE: dict[str, int] = {
-            "==": RUNTIME_OP_CODE.EQ,
-            "!=": RUNTIME_OP_CODE.NE,
-            "<": RUNTIME_OP_CODE.LT,
-            "<=": RUNTIME_OP_CODE.LE,
-            ">": RUNTIME_OP_CODE.GT,
-            ">=": RUNTIME_OP_CODE.GE,
-            "AND": RUNTIME_OP_CODE.AND,
-            "OR": RUNTIME_OP_CODE.OR,
-            "NOT": RUNTIME_OP_CODE.NOT,
+            "==": RuntimeOpCode.EQ,
+            "!=": RuntimeOpCode.NE,
+            "<": RuntimeOpCode.LT,
+            "<=": RuntimeOpCode.LE,
+            ">": RuntimeOpCode.GT,
+            ">=": RuntimeOpCode.GE,
+            "AND": RuntimeOpCode.AND,
+            "OR": RuntimeOpCode.OR,
+            "NOT": RuntimeOpCode.NOT,
         }
 
     def _resolve_item_index(self, item_id: str) -> int:

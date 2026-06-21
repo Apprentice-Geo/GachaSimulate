@@ -5,12 +5,9 @@ from typing import Iterable
 from gachasimulate.runtime import (
     Action,
     LogicNode,
-    LogicNode,
     CheckNode,
-    RUNTIME_KIND,
-    RUNTIME_OP_CODE,
-    RUNTIME_KIND,
-    RUNTIME_OP_CODE,
+    RuntimeKind,
+    RuntimeOpCode,
     RuntimeContext,
     RuntimeState,
 )
@@ -105,7 +102,7 @@ class MonteCarlo:
 
     def _execute_action(self, state: RuntimeState, action: Action) -> None:
         match action.kind:
-            case RUNTIME_KIND.AddItem:
+            case RuntimeKind.AddItem:
                 action.execute(state, self.ctx)
 
                 # 直接触发带有二级池子物品的抽取
@@ -115,16 +112,16 @@ class MonteCarlo:
                         self._execute_actions(state, draw_actions)
                 return
 
-            case RUNTIME_KIND.DrawPool:
+            case  RuntimeKind.DrawPool:
                 drawn_results = action.execute(state, self.ctx)
                 self._execute_actions(state, drawn_results)
                 return
 
             case (
-                RUNTIME_KIND.ReduceItem
-                | RUNTIME_KIND.SetItem
-                | RUNTIME_KIND.PoolChange
-                | RUNTIME_KIND.Termination
+                 RuntimeKind.ReduceItem
+                |  RuntimeKind.SetItem
+                |  RuntimeKind.PoolChange
+                |  RuntimeKind.Termination
             ):
                 action.execute(state, self.ctx)
                 return
@@ -138,16 +135,16 @@ class MonteCarlo:
             return False, None
 
         match node.kind:
-            case RUNTIME_KIND.CheckNode:
+            case  RuntimeKind.CheckNode:
                 left = int(state.inventory[node.item_index])
                 ok = self._compare(left, node.op, node.value)
                 if ok:
                     return True, list(node.actions or [])
                 return False, None
 
-            case RUNTIME_KIND.LogicNode:
+            case  RuntimeKind.LogicNode:
                 match node.op:
-                    case RUNTIME_OP_CODE.OR:
+                    case RuntimeOpCode.OR:
                         for child in node.conditions:
                             ok, child_actions = self._eval_condition(child, state)
                             if ok:
@@ -156,7 +153,7 @@ class MonteCarlo:
                                     node.actions + child_actions if node.actions else child_actions,
                                 )
                         return False, []
-                    case RUNTIME_OP_CODE.AND:
+                    case RuntimeOpCode.AND:
                         aggregated: list[Action] = []
                         for child in node.conditions:
                             ok, child_actions = self._eval_condition(child, state)
@@ -169,17 +166,17 @@ class MonteCarlo:
 
         raise TypeError(f"unsupported condition node type: {type(node).__name__}")
 
-    def _compare(self, left: int, op_code: str, right: int) -> bool:
-        if op_code == RUNTIME_OP_CODE.EQ:
+    def _compare(self, left: int, op_code: int, right: int) -> bool:
+        if op_code == RuntimeOpCode.EQ:
             return left == right
-        if op_code == RUNTIME_OP_CODE.NE:
+        if op_code == RuntimeOpCode.NE:
             return left != right
-        if op_code == RUNTIME_OP_CODE.LT:
+        if op_code == RuntimeOpCode.LT:
             return left < right
-        if op_code == RUNTIME_OP_CODE.LE:
+        if op_code == RuntimeOpCode.LE:
             return left <= right
-        if op_code == RUNTIME_OP_CODE.GT:
+        if op_code == RuntimeOpCode.GT:
             return left > right
-        if op_code == RUNTIME_OP_CODE.GE:
+        if op_code == RuntimeOpCode.GE:
             return left >= right
         raise RuntimeError(f"Unknown op_code: {op_code}")

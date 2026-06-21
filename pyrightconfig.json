@@ -3,7 +3,7 @@
   "exclude": ["dist", "node_modules", "playwright-report", "test-results"],
   "extraPaths": ["src"],
   "venvPath": ".",
-  "venv": "venv",
+  "venv": ".venv",
   "pythonVersion": "3.12",
   "typeCheckingMode": "basic",
   "reportMissingImports": "error",
