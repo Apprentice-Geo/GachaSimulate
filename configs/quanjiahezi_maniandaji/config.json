@@ -39,6 +39,9 @@
         },
         "putonwupin": {
             "name": "普通物品"
+        },
+        "draw_count": {
+            "name": "Draw count"
         }
     },
     "pools": {
@@ -136,5 +139,12 @@
                 }
             ]
         }
-    }
+    },
+    "every_draw": [
+        {
+            "type": "add_item",
+            "id": "draw_count",
+            "amount": 1
+        }
+    ]
 }

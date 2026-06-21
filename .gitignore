@@ -18,6 +18,8 @@ data/
 .docs/superpowers/
 /build/
 .ruff_cache/
+profile.prof
+scalene*
 
 # Playwright
 /playwright-report/

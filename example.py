@@ -1,13 +1,10 @@
 from pathlib import Path
-from simulate.core import (
+from gachasimulate.core import (
     load_simulation_result,
-    save_simulation_result,
-    save_visualize_input,
     simulate_until_total_draw,
 )
-from simulate.builder import RuntimeBuilder
-from simulate.engine import MonteCarlo
-from simulate.visualize import Visualizer
+from gachasimulate.builder import RuntimeBuilder
+from gachasimulate.engine import MonteCarlo
 import os
 import numpy as np
 
@@ -31,8 +28,8 @@ def run_save(
     config_json_path = os.path.join(base_path, "config.json")
     termination_json_path = os.path.join(base_path, termination_name + ".json")
     result_file_path = f"./data/{config_name}_{termination_name}_{target_total_draw}_seed{seed}.npz"
-    name = os.path.basename(os.path.dirname(config_json_path))
-    simulate_name = f"{name}_{Path(termination_json_path).stem}"
+    # name = os.path.basename(os.path.dirname(config_json_path))
+    # simulate_name = f"{name}_{Path(termination_json_path).stem}"
     builder = RuntimeBuilder(
         config_path=config_json_path,
         termination_path=termination_json_path,
@@ -48,8 +45,10 @@ def run_save(
         )
         data_dir = Path("./data")
         data_dir.mkdir(parents=True, exist_ok=True)
-        save_simulation_result(result_file_path, result)
-        save_visualize_input(f"./data/{simulate_name}_visualize_input.json", result)
+        # save_simulation_result(result_file_path, result)
+        # save_visualize_input(f"./data/{simulate_name}_visualize_input.json", result)
+        # save_simulation_result(result_file_path, result)
+        # save_visualize_input(f"./data/{simulate_name}_visualize_input.json", result)
     else:
         result = load_simulation_result(result_file_path)
 
@@ -65,21 +64,26 @@ def run_save(
         total_acquired = np.sum(result["lifetime_acquired"][:, index])
         print(f"  {item_id}: {total_acquired}")
 
-    viz = Visualizer(result)
-    img_dir = Path("./images")
-    img_dir.mkdir(parents=True, exist_ok=True)
+    # viz = Visualizer(result)
+    # img_dir = Path("./images")
+    # img_dir.mkdir(parents=True, exist_ok=True)
+    # viz = Visualizer(result)
+    # img_dir = Path("./images")
+    # img_dir.mkdir(parents=True, exist_ok=True)
     # viz.plot_draw_distribution(
     #     save_path=f"./images/{simulate_name}_draw_distribution.svg"
     # )
-    viz.plot_cdf(save_path=f"./images/{simulate_name}_cdf.svg")
+    # viz.plot_cdf(save_path=f"./images/{simulate_name}_cdf.svg")
+    # viz.plot_cdf(save_path=f"./images/{simulate_name}_cdf.svg")
 
 
 if __name__ == "__main__":
     base_seed = int("666")
     run_save(
         "sanliou_zhenpinchuanshuo",
-        "termination_skin_all",
-        target_total_draw=100000000,
+        "termination_skin",
+        target_total_draw=1010000,
         seed=base_seed,
+        workers=1,
     )
     # print(os.cpu_count())

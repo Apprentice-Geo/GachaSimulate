@@ -267,6 +267,9 @@
                     }
                 ]
             }
+        },
+        "draw_count": {
+            "name": "Draw count"
         }
     },
     "pools": {
@@ -473,13 +476,20 @@
             ]
         }
     },
+    "every_draw": [
+        {
+            "type": "add_item",
+            "id": "draw_count",
+            "amount": 1
+        }
+    ],
     "stages": {
         "5draw": {
             "once": true,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 5,
                 "actions": [
@@ -495,8 +505,8 @@
             "once": true,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 10,
                 "actions": [
@@ -512,8 +522,8 @@
             "once": true,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 25,
                 "actions": [
@@ -529,8 +539,8 @@
             "once": true,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 40,
                 "actions": [
@@ -546,8 +556,8 @@
             "once": true,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 45,
                 "actions": [
@@ -563,8 +573,8 @@
             "once": true,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 50,
                 "actions": [
@@ -580,8 +590,8 @@
             "once": true,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 65,
                 "actions": [
@@ -597,8 +607,8 @@
             "once": true,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 80,
                 "actions": [
@@ -614,8 +624,8 @@
             "once": true,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 85,
                 "actions": [
@@ -631,8 +641,8 @@
             "once": true,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 90,
                 "actions": [
@@ -648,8 +658,8 @@
             "once": true,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 105,
                 "actions": [
@@ -665,8 +675,8 @@
             "once": true,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 120,
                 "actions": [

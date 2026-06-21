@@ -5,11 +5,10 @@ from typing import Any
 from .validator import validate_config, validate_files, validate_termination
 import numpy as np
 
-from simulate.runtime import (
-    Action,
+from gachasimulate.runtime import (
     AddItem,
     CheckNode,
-    ConditionNode,
+    RuntimeOpCode,
     DrawPool,
     Item,
     ItemResolve,
@@ -18,6 +17,8 @@ from simulate.runtime import (
     PoolChange,
     ReduceItem,
     RuntimeContext,
+    RuntimeAction,
+    RuntimeCondition,
     SetItem,
     Stage,
     Termination,
@@ -64,8 +65,21 @@ class RuntimeBuilder:
         self.draw_stage_list = []
         self.retained_items_index = []
         self.begin_pool_index = 0
+        self.draw_count_index = 0
         self.initial_actions = []
+        self.every_draw_actions = []
         self.termination_tree = None
+        self.OP_TO_CODE: dict[str, int] = {
+            "==": RuntimeOpCode.EQ,
+            "!=": RuntimeOpCode.NE,
+            "<": RuntimeOpCode.LT,
+            "<=": RuntimeOpCode.LE,
+            ">": RuntimeOpCode.GT,
+            ">=": RuntimeOpCode.GE,
+            "AND": RuntimeOpCode.AND,
+            "OR": RuntimeOpCode.OR,
+            "NOT": RuntimeOpCode.NOT,
+        }
 
     def _resolve_item_index(self, item_id: str) -> int:
         return self.item_id_index[item_id]
@@ -73,7 +87,7 @@ class RuntimeBuilder:
     def _resolve_pool_index(self, pool_id: str) -> int:
         return self.pool_id_index[pool_id]
 
-    def _build_action(self, action_config: dict[str, Any]) -> Action:
+    def _build_action(self, action_config: dict[str, Any]) -> RuntimeAction:
         action_type = action_config.get("type")
 
         if action_type == "add_item":
@@ -111,8 +125,8 @@ class RuntimeBuilder:
         else:
             raise ValueError(f"unsupported action type: {action_type}")
 
-    def _build_actions(self, action_configs: list[dict[str, Any]] | None) -> list[Action]:
-        actions: list[Action] = []
+    def _build_actions(self, action_configs: list[dict[str, Any]] | None) -> list[RuntimeAction]:
+        actions: list[RuntimeAction] = []
         for action_config in action_configs or []:
             actions.append(self._build_action(action_config))
         return actions
@@ -133,6 +147,8 @@ class RuntimeBuilder:
             )
             self.item_resolve_list.append(ItemResolve(retain=0, actions=[]))
             self.item_draw_list.append([])
+
+        self.draw_count_index = self._resolve_item_index("draw_count")
 
     def _build_item_resolves(self):
         for item_id, item_config in self.config.get("items", {}).items():
@@ -167,7 +183,7 @@ class RuntimeBuilder:
 
         for pool_id, pool_config in pool_sources:
             entries = pool_config.get("entries", [])
-            actions: list[list[Action]] = []
+            actions: list[list[RuntimeAction]] = []
             probabilities: list[float] = []
 
             for entry in entries:
@@ -185,6 +201,9 @@ class RuntimeBuilder:
         self.begin_pool_index = self._resolve_pool_index(initial_config["begin_pool"])
         self.initial_actions = self._build_actions(initial_config.get("actions"))
 
+    def _build_every_draw(self):
+        self.every_draw_actions = self._build_actions(self.config["every_draw"])
+
     def _build_pool_draw_list(self):
         self.pool_draw_list.clear()
         for pool_index in range(len(self.pool_list)):
@@ -198,7 +217,7 @@ class RuntimeBuilder:
 
         for stage_id, stage_config in stage_sources.items():
             condition_config = stage_config["condition"]
-            condition = self._build_termination_tree(condition_config)
+            condition = self._build_condition_tree(condition_config)
             if condition is None:
                 raise ValueError("stage condition cannot be None")
             stage_once = bool(stage_config.get("once", False))
@@ -211,34 +230,33 @@ class RuntimeBuilder:
                 )
             )
 
-    def _build_termination_tree(
+    def _build_condition_tree(
         self, condition_config: dict[str, Any] | None
-    ) -> ConditionNode | None:
+    ) -> RuntimeCondition | None:
         if condition_config is None:
             return None
 
         condition_type = condition_config.get("type")
         actions_config = condition_config.get("actions")
-        actions = self._build_actions(actions_config) if actions_config is not None else None
+        actions = self._build_actions(actions_config) if actions_config is not None else []
 
         if condition_type == "logic":
-            conditions: list[ConditionNode] = []
+            conditions: list[RuntimeCondition] = []
             for child in condition_config.get("conditions", []):
-                child_condition = self._build_termination_tree(child)
+                child_condition = self._build_condition_tree(child)
                 if child_condition is None:
                     raise ValueError("logic condition child cannot be None")
                 conditions.append(child_condition)
             return LogicNode(
-                op=condition_config.get("op", "OR"),
+                op=self.OP_TO_CODE[condition_config["op"]],
                 conditions=conditions,
                 actions=actions,
             )
 
         if condition_type == "predicate":
             return CheckNode(
-                subject=condition_config["subject"],
-                id=condition_config.get("id"),
-                op=condition_config["op"],
+                item_index=self._resolve_item_index(condition_config["id"]),
+                op=self.OP_TO_CODE[condition_config["op"]],
                 value=int(condition_config.get("value", 0)),
                 actions=actions,
             )
@@ -249,11 +267,13 @@ class RuntimeBuilder:
         self._build_items()
         self._build_pools()
         self._build_initial()
+        self._build_every_draw()
+        self._build_every_draw()
         self._build_pool_draw_list()
         self._build_item_draws()
         self._build_item_resolves()
         self._build_stages()
-        self.termination_tree = self._build_termination_tree(
+        self.termination_tree = self._build_condition_tree(
             self.termination_config["termination_condition"]
         )
         if self.termination_tree is None:
@@ -266,7 +286,9 @@ class RuntimeBuilder:
         return RuntimeContext(
             begin_pool_index=self.begin_pool_index,
             initial_actions=self.initial_actions,
+            every_draw_actions=self.every_draw_actions,
             item_id_index=self.item_id_index,
+            draw_count_index=self.draw_count_index,
             item_list=self.item_list,
             item_resolve_list=self.item_resolve_list,
             item_draw_list=self.item_draw_list,

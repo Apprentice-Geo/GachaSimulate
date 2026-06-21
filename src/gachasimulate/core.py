@@ -1,4 +1,4 @@
-from simulate.engine import MonteCarlo
+from gachasimulate.engine import MonteCarlo
 import json
 import numpy as np
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
@@ -22,7 +22,7 @@ def _simulate_until_total_draw_serial(
     progress_interval: int = 0,
 ):
     """
-    持续运行完整模拟，直到累计抽数达到目标值
+    单进程持续运行完整模拟，直到累计抽数达到目标值
     """
 
     draw_count = []
@@ -42,24 +42,25 @@ def _simulate_until_total_draw_serial(
     with progress as pbar:
         while total_draw < target_total_draw:
             state = sim.run_once()
+            run_draw_count = int(state.inventory[sim.ctx.draw_count_index])
 
-            draw_count.append(state.draw_count)
+            draw_count.append(run_draw_count)
             acquired_records.append(state.acquired.copy())
             terminate_reasons.append(state.terminate_reason)
 
-            total_draw += state.draw_count
+            total_draw += run_draw_count
             total_runs += 1
 
             if progress_queue is None:
                 # 单进程模式更新进度条
-                pbar.update(state.draw_count)
+                pbar.update(run_draw_count)
 
                 # 防止超过总量导致进度条溢出
                 if total_draw > target_total_draw:
                     pbar.update(target_total_draw - pbar.n)
             else:
                 # 多进程模式通过队列发送进度更新
-                pending_progress += state.draw_count
+                pending_progress += run_draw_count
                 if pending_progress >= progress_interval:
                     progress_queue.put(pending_progress)
                     pending_progress = 0
@@ -129,6 +130,9 @@ def _update_progress_from_queue(progress_queue, pbar, target_total_draw: int) ->
 
 
 def _simulate_until_total_draw_parallel(sim: MonteCarlo, target_total_draw: int, workers: int):
+    """
+    多进程持续运行完整模拟，直到累计抽数达到目标值
+    """
     targets = _split_target_total_draw(target_total_draw, workers)
     # 生成子进程的随机数种子，保证每个子进程的随机数序列独立且可复现
     seed_sequence = np.random.SeedSequence(sim.seed)

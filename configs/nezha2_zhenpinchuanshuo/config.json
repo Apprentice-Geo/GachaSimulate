@@ -114,6 +114,9 @@
         },
         "gexingchuochuoyijianhuiyou": {
             "name": "个性戳戳以毽会友"
+        },
+        "draw_count": {
+            "name": "Draw count"
         }
     },
     "pools": {
@@ -361,13 +364,20 @@
             ]
         }
     },
+    "every_draw": [
+        {
+            "type": "add_item",
+            "id": "draw_count",
+            "amount": 1
+        }
+    ],
     "stages": {
         "teshuhuizhangbaodi": {
             "once": false,
             "condition": {
                 "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
+                "subject": "item",
+                "id": "draw_count",
                 "op": ">=",
                 "value": 1,
                 "actions": [

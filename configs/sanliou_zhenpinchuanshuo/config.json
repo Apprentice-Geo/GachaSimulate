@@ -186,6 +186,9 @@
         },
         "gexingchuochuodaergouzhimeng": {
             "name": "个性戳戳大耳狗之梦"
+        },
+        "draw_count": {
+            "name": "Draw count"
         }
     },
     "pools": {
@@ -473,24 +476,19 @@
             ]
         }
     },
-    "stages": {
-        "teshuhuizhangbaodi": {
-            "once": false,
-            "condition": {
-                "type": "predicate",
-                "subject": "draw_count",
-                "id": null,
-                "op": ">=",
-                "value": 1,
-                "actions": [
-                    {
-                        "type": "add_item",
-                        "id": "teshuhuizhangbaodijishu",
-                        "amount": 1
-                    }
-                ]
-            }
+    "every_draw": [
+        {
+            "type": "add_item",
+            "id": "draw_count",
+            "amount": 1
         },
+        {
+            "type": "add_item",
+            "id": "teshuhuizhangbaodijishu",
+            "amount": 1
+        }
+    ],
+    "stages": {
         "teshuhuizhang_gain": {
             "once": false,
             "condition": {

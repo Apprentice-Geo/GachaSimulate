@@ -2,19 +2,16 @@ from __future__ import annotations
 import numpy as np
 from typing import Iterable
 
-from simulate.runtime import (
-    Action,
-    AddItem,
-    CheckNode,
-    ConditionNode,
-    DrawPool,
-    LogicNode,
-    ReduceItem,
+from gachasimulate.runtime import (
+    RuntimeAction,
+    RuntimeCondition,
+    RuntimeKind,
+    RuntimeOpCode,
     RuntimeContext,
     RuntimeState,
-    SetItem,
-    Termination,
 )
+
+_EMPTY_ACTIONS: list[RuntimeAction] = []
 
 
 class MonteCarlo:
@@ -23,6 +20,8 @@ class MonteCarlo:
         self.seed = seed
         # 此处定义全局rng,避免多次模拟时重复创建同一个种子的rng,导致每次模拟结果重复
         self.rng = np.random.default_rng(self.seed)
+        # 记录可分解的物品索引
+        # 记录可分解的物品索引
         self.resolvable_item_indices = [
             item_index
             for item_index, item_resolve in enumerate(self.ctx.item_resolve_list)
@@ -43,7 +42,7 @@ class MonteCarlo:
         return state
 
     def _one_draw_cycle(self, state: RuntimeState) -> None:
-        state.draw_count += 1
+        self._execute_actions(state, self.ctx.every_draw_actions)
 
         # 这里所有池子的单次抽取都被构造成了 Action，需要抽取直接调用
         self._execute_action(state, self.ctx.pool_draw_list[state.main_pool_index])
@@ -66,8 +65,9 @@ class MonteCarlo:
 
             ok, stage_actions = self._eval_condition(stage.condition, state)
             if ok:
+                state.stage_execute[stage_index] = True
+                state.stage_execute[stage_index] = True
                 if stage.once:
-                    state.stage_execute[stage_index] = True
                     state.active_stage_indices.pop(active_stage_pos)
                 else:
                     active_stage_pos += 1
@@ -93,7 +93,9 @@ class MonteCarlo:
             for _ in range(resolve_count):
                 self._execute_actions(state, item_resolve.actions)
 
-    def _execute_actions(self, state: RuntimeState, actions: Iterable[Action] | None) -> None:
+    def _execute_actions(
+        self, state: RuntimeState, actions: Iterable[RuntimeAction] | None
+    ) -> None:
         if not actions:
             return
         for action in actions:
@@ -101,83 +103,80 @@ class MonteCarlo:
                 return
             self._execute_action(state, action)
 
-    def _execute_action(self, state: RuntimeState, action: Action) -> None:
-        match action:
-            case AddItem():
+    def _execute_action(self, state: RuntimeState, action: RuntimeAction) -> None:
+        match action.kind:
+            case RuntimeKind.AddItem:
                 action.execute(state, self.ctx)
+
                 # 直接触发带有二级池子物品的抽取
                 draw_actions = self.ctx.item_draw_list[action.item_index]
                 if draw_actions:
                     for _ in range(action.amount):
                         self._execute_actions(state, draw_actions)
-            case DrawPool():
+                return
+
+            case RuntimeKind.DrawPool:
                 drawn_results = action.execute(state, self.ctx)
                 self._execute_actions(state, drawn_results)
-            # case ReduceItem() | SetItem() | Termination():
-            #     action.execute(state, self.ctx)
-            case _:
+                return
+
+            case (
+                RuntimeKind.ReduceItem
+                | RuntimeKind.SetItem
+                | RuntimeKind.PoolChange
+                | RuntimeKind.Termination
+            ):
                 action.execute(state, self.ctx)
+                return
+
+        raise TypeError(f"unsupported action kind: {action.kind}")
 
     def _eval_condition(
-            self, node: ConditionNode | None, state: RuntimeState
-    ) -> tuple[bool, list[Action]]:
-        match node:
-            case None:
-                return False, []
-            case CheckNode():
-                left = self._get_subject_value(node.subject, node.id, state)
+        self, node: RuntimeCondition, state: RuntimeState
+    ) -> tuple[bool, list[RuntimeAction]]:
+        match node.kind:
+            case RuntimeKind.CheckNode:
+                left = int(state.inventory[node.item_index])
                 ok = self._compare(left, node.op, node.value)
                 if ok:
-                    # return a copy or itself?
-                    return True, node.actions[:] if node.actions else []
-                return False, []
-            case LogicNode(op="OR"):
-                for child in node.conditions:
-                    ok, child_actions = self._eval_condition(child, state)
-                    if ok:
-                        # actions = node.actions if node.actions else []
-                        # actions.extend(child_actions)
-                        return True, node.actions + child_actions if node.actions else child_actions
-                return False, []
-            case LogicNode(op="AND"):
-                aggregated: list[Action] = []
-                for child in node.conditions:
-                    ok, child_actions = self._eval_condition(child, state)
-                    if not ok:
-                        return False, []
-                    aggregated.extend(child_actions)
-                # actions = node.actions if node.actions else []
-                # actions.extend(aggregated)
-                return True, node.actions + aggregated if node.actions else aggregated
-            case LogicNode():
+                    return True, node.actions or _EMPTY_ACTIONS
+                return False, _EMPTY_ACTIONS
+
+            case RuntimeKind.LogicNode:
+                match node.op:
+                    case RuntimeOpCode.OR:
+                        for child in node.conditions:
+                            ok, child_actions = self._eval_condition(child, state)
+                            if ok:
+                                return (
+                                    True,
+                                    node.actions + child_actions if node.actions else child_actions,
+                                )
+                        return False, _EMPTY_ACTIONS
+                    case RuntimeOpCode.AND:
+                        aggregated: list[RuntimeAction] = []
+                        for child in node.conditions:
+                            ok, child_actions = self._eval_condition(child, state)
+                            if not ok:
+                                return False, _EMPTY_ACTIONS
+                            aggregated.extend(child_actions)
+                        return True, node.actions + aggregated if node.actions else aggregated
+
                 raise ValueError(f"unsupported logic op: {node.op}")
-            case _:
-                raise TypeError(f"unsupported condition node type: {type(node).__name__}")
 
-    def _get_subject_value(self, subject: str, subject_id: str | None, state: RuntimeState) -> int:
-        match subject:
-            case "draw_count":
-                return state.draw_count
-            case "item":
-                if subject_id is None:
-                    raise ValueError("item predicate requires id")
-                return int(state.inventory[self.ctx.item_id_index[subject_id]])
-            case _:
-                raise ValueError(f"unsupported predicate subject: {subject}")
+        raise TypeError(f"unsupported condition node type: {type(node).__name__}")
 
-    def _compare(self, left: int, op: str, right: int) -> bool:
-        match op:
-            case ">=":
-                return left >= right
-            case "<=":
-                return left <= right
-            case "!=":
-                return left != right
-            case "==":
-                return left == right
-            case ">":
-                return left > right
-            case "<":
-                return left < right
-            case _:
-                raise ValueError(f"unsupported predicate op: {op}")
+    def _compare(self, left: int, op_code: int, right: int) -> bool:
+        if op_code == RuntimeOpCode.EQ:
+            return left == right
+        if op_code == RuntimeOpCode.NE:
+            return left != right
+        if op_code == RuntimeOpCode.LT:
+            return left < right
+        if op_code == RuntimeOpCode.LE:
+            return left <= right
+        if op_code == RuntimeOpCode.GT:
+            return left > right
+        if op_code == RuntimeOpCode.GE:
+            return left >= right
+        raise RuntimeError(f"Unknown op_code: {op_code}")

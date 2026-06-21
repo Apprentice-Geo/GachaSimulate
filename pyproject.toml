@@ -1,5 +1,5 @@
 [project]
-name = "simulate"
+name = "gachasimulate"
 version = "0.1.0"
 description = "Monte Carlo Gacha Simulator"
 requires-python = ">=3.12"
@@ -36,10 +36,6 @@ dependencies = [
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-
-[[tool.uv.index]]
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-default = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
