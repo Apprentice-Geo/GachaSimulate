@@ -1,50 +1,55 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, List, Sequence
+from typing import ClassVar, Dict, List, Literal, Sequence
 from enum import IntEnum
 import numpy as np
+
 
 class RuntimeKind(IntEnum):
     Action = 0
     AddItem = 1
-    ReduceItem  = 2
-    SetItem  = 3
-    DrawPool  = 4
-    PoolChange  = 5
-    Termination  = 6
-    ConditionNode  = 7
-    LogicNode  = 8
-    CheckNode  = 9
+    ReduceItem = 2
+    SetItem = 3
+    DrawPool = 4
+    PoolChange = 5
+    Termination = 6
+    ConditionNode = 7
+    LogicNode = 8
+    CheckNode = 9
+
 
 class RuntimeOpCode(IntEnum):
-    EQ  = 0  # ==, equal
-    NE  = 1  # !=, not equal
-    LT  = 2  # <, less than
-    LE  = 3  # <=, less than or equal
-    GT  = 4  # >, greater than
-    GE  = 5  # >=, greater than or equal
-    AND  = 6  # AND
-    OR  = 7  # OR
-    NOT  = 8  # NOT
+    EQ = 0  # ==, equal
+    NE = 1  # !=, not equal
+    LT = 2  # <, less than
+    LE = 3  # <=, less than or equal
+    GT = 4  # >, greater than
+    GE = 5  # >=, greater than or equal
+    AND = 6  # AND
+    OR = 7  # OR
+    NOT = 8  # NOT
+
 
 @dataclass(frozen=True, slots=True)
 class RuntimeContext:
     begin_pool_index: int
-    initial_actions: List[Action]
-    every_draw_actions: List[Action]
+    initial_actions: List[RuntimeAction]
+    every_draw_actions: List[RuntimeAction]
     item_id_index: Dict[str, int]  # 对物品进行编号
     draw_count_index: int
     item_list: List[Item]
     item_resolve_list: List[ItemResolve]  # 分解某个物品时执行的动作
-    item_draw_list: List[List[Action]]  # 获得物品时执行的动作
+    item_draw_list: List[List[RuntimeAction]]  # 获得物品时执行的动作
     pool_id_index: Dict[str, int]  # 对池子进行编号
     pool_list: List[Pool]
-    pool_draw_list: List[Action]  # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
+    pool_draw_list: List[
+        RuntimeAction
+    ]  # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
     draw_stage_id_index: Dict[str, int]  # 对阶段进行编号
     draw_stage_list: List[Stage]
     retained_items_index: List[int]
-    termination_tree: LogicNode | CheckNode
+    termination_tree: RuntimeCondition
 
 
 class RuntimeState:
@@ -73,7 +78,7 @@ class RuntimeState:
 
 
 class Action(ABC):
-    kind = RuntimeKind.Action
+    kind: ClassVar[RuntimeKind] = RuntimeKind.Action
 
     @abstractmethod
     def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
@@ -82,7 +87,7 @@ class Action(ABC):
 
 @dataclass(frozen=True, slots=True)
 class AddItem(Action):
-    kind = RuntimeKind.AddItem
+    kind: ClassVar[Literal[RuntimeKind.AddItem]] = RuntimeKind.AddItem
 
     item_index: int
     amount: int
@@ -94,7 +99,7 @@ class AddItem(Action):
 
 @dataclass(frozen=True, slots=True)
 class ReduceItem(Action):
-    kind = RuntimeKind.ReduceItem
+    kind: ClassVar[Literal[RuntimeKind.ReduceItem]] = RuntimeKind.ReduceItem
 
     item_index: int
     amount: int
@@ -106,7 +111,7 @@ class ReduceItem(Action):
 
 @dataclass(frozen=True, slots=True)
 class SetItem(Action):
-    kind = RuntimeKind.SetItem
+    kind: ClassVar[Literal[RuntimeKind.SetItem]] = RuntimeKind.SetItem
 
     item_index: int
     amount: int
@@ -117,11 +122,13 @@ class SetItem(Action):
 
 @dataclass(frozen=True, slots=True)
 class DrawPool(Action):
-    kind = RuntimeKind.DrawPool
+    kind: ClassVar[Literal[RuntimeKind.DrawPool]] = RuntimeKind.DrawPool
 
     pool_index: int
 
-    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext) -> List[Action]:
+    def execute(
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+    ) -> List[RuntimeAction]:
         r = runtime_state.rng.random()
         idx = np.searchsorted(runtime_context.pool_list[self.pool_index].cdf, r)
         actions = runtime_context.pool_list[self.pool_index].actions[idx]
@@ -130,7 +137,7 @@ class DrawPool(Action):
 
 @dataclass(frozen=True, slots=True)
 class PoolChange(Action):
-    kind = RuntimeKind.PoolChange
+    kind: ClassVar[Literal[RuntimeKind.PoolChange]] = RuntimeKind.PoolChange
 
     pool_index: int
 
@@ -140,7 +147,7 @@ class PoolChange(Action):
 
 @dataclass(frozen=True, slots=True)
 class Termination(Action):
-    kind = RuntimeKind.Termination
+    kind: ClassVar[Literal[RuntimeKind.Termination]] = RuntimeKind.Termination
 
     reason: str
 
@@ -149,39 +156,45 @@ class Termination(Action):
         runtime_state.terminate_reason = self.reason
 
 
+type RuntimeAction = AddItem | ReduceItem | SetItem | DrawPool | PoolChange | Termination
+
+
 class ConditionNode(ABC):
-    kind = RuntimeKind.ConditionNode
+    kind: ClassVar[RuntimeKind] = RuntimeKind.ConditionNode
 
 
 @dataclass(frozen=True, slots=True)
 class LogicNode(ConditionNode):
-    kind = RuntimeKind.LogicNode
+    kind: ClassVar[Literal[RuntimeKind.LogicNode]] = RuntimeKind.LogicNode
 
     op: int
-    conditions: Sequence[LogicNode | CheckNode]
-    actions: List[Action] | None
+    conditions: Sequence[RuntimeCondition]
+    actions: List[RuntimeAction] | None
 
 
 @dataclass(frozen=True, slots=True)
 class CheckNode(ConditionNode):
-    kind = RuntimeKind.CheckNode
+    kind: ClassVar[Literal[RuntimeKind.CheckNode]] = RuntimeKind.CheckNode
 
     item_index: int
     op: int
     value: int
-    actions: List[Action] | None
+    actions: List[RuntimeAction] | None
+
+
+type RuntimeCondition = LogicNode | CheckNode
 
 
 @dataclass(frozen=True, slots=True)
 class Stage:
     once: bool
-    condition: ConditionNode
+    condition: RuntimeCondition
 
 
 @dataclass(frozen=True, slots=True)
 class Pool:
     cdf: np.ndarray
-    actions: List[List[Action]]
+    actions: List[List[RuntimeAction]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,4 +206,4 @@ class Item:
 @dataclass(frozen=True, slots=True)
 class ItemResolve:
     retain: int
-    actions: List[Action]
+    actions: List[RuntimeAction]

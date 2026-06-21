@@ -3,14 +3,15 @@ import numpy as np
 from typing import Iterable
 
 from gachasimulate.runtime import (
-    Action,
-    LogicNode,
-    CheckNode,
+    RuntimeAction,
+    RuntimeCondition,
     RuntimeKind,
     RuntimeOpCode,
     RuntimeContext,
     RuntimeState,
 )
+
+_EMPTY_ACTIONS: list[RuntimeAction] = []
 
 
 class MonteCarlo:
@@ -92,7 +93,9 @@ class MonteCarlo:
             for _ in range(resolve_count):
                 self._execute_actions(state, item_resolve.actions)
 
-    def _execute_actions(self, state: RuntimeState, actions: Iterable[Action] | None) -> None:
+    def _execute_actions(
+        self, state: RuntimeState, actions: Iterable[RuntimeAction] | None
+    ) -> None:
         if not actions:
             return
         for action in actions:
@@ -100,7 +103,7 @@ class MonteCarlo:
                 return
             self._execute_action(state, action)
 
-    def _execute_action(self, state: RuntimeState, action: Action) -> None:
+    def _execute_action(self, state: RuntimeState, action: RuntimeAction) -> None:
         match action.kind:
             case RuntimeKind.AddItem:
                 action.execute(state, self.ctx)
@@ -112,16 +115,16 @@ class MonteCarlo:
                         self._execute_actions(state, draw_actions)
                 return
 
-            case  RuntimeKind.DrawPool:
+            case RuntimeKind.DrawPool:
                 drawn_results = action.execute(state, self.ctx)
                 self._execute_actions(state, drawn_results)
                 return
 
             case (
-                 RuntimeKind.ReduceItem
-                |  RuntimeKind.SetItem
-                |  RuntimeKind.PoolChange
-                |  RuntimeKind.Termination
+                RuntimeKind.ReduceItem
+                | RuntimeKind.SetItem
+                | RuntimeKind.PoolChange
+                | RuntimeKind.Termination
             ):
                 action.execute(state, self.ctx)
                 return
@@ -129,20 +132,17 @@ class MonteCarlo:
         raise TypeError(f"unsupported action kind: {action.kind}")
 
     def _eval_condition(
-        self, node: LogicNode | CheckNode, state: RuntimeState
-    ) -> tuple[bool, list[Action] | None]:
-        if node is None:
-            return False, None
-
+        self, node: RuntimeCondition, state: RuntimeState
+    ) -> tuple[bool, list[RuntimeAction]]:
         match node.kind:
-            case  RuntimeKind.CheckNode:
+            case RuntimeKind.CheckNode:
                 left = int(state.inventory[node.item_index])
                 ok = self._compare(left, node.op, node.value)
                 if ok:
-                    return True, list(node.actions or [])
-                return False, None
+                    return True, node.actions or _EMPTY_ACTIONS
+                return False, _EMPTY_ACTIONS
 
-            case  RuntimeKind.LogicNode:
+            case RuntimeKind.LogicNode:
                 match node.op:
                     case RuntimeOpCode.OR:
                         for child in node.conditions:
@@ -152,13 +152,13 @@ class MonteCarlo:
                                     True,
                                     node.actions + child_actions if node.actions else child_actions,
                                 )
-                        return False, []
+                        return False, _EMPTY_ACTIONS
                     case RuntimeOpCode.AND:
-                        aggregated: list[Action] = []
+                        aggregated: list[RuntimeAction] = []
                         for child in node.conditions:
                             ok, child_actions = self._eval_condition(child, state)
                             if not ok:
-                                return False, []
+                                return False, _EMPTY_ACTIONS
                             aggregated.extend(child_actions)
                         return True, node.actions + aggregated if node.actions else aggregated
 

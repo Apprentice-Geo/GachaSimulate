@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -25,7 +26,7 @@ CONFIG_SCHEMA_PATH = ROOT / "docs" / "schemas" / "config.schema.json"
 TERMINATION_SCHEMA_PATH = ROOT / "docs" / "schemas" / "termination.schema.json"
 
 
-def _pool_action_details(actions: list[Action]):
+def _pool_action_details(actions: Sequence[Action]):
     details = []
     for action in actions:
         assert isinstance(action, DrawPool)
@@ -33,7 +34,7 @@ def _pool_action_details(actions: list[Action]):
     return details
 
 
-def _item_amount_action_details(actions: list[Action]):
+def _item_amount_action_details(actions: Sequence[Action]):
     details = []
     for action in actions:
         assert isinstance(action, AddItem | ReduceItem | SetItem)

@@ -6,7 +6,6 @@ from .validator import validate_config, validate_files, validate_termination
 import numpy as np
 
 from gachasimulate.runtime import (
-    Action,
     AddItem,
     CheckNode,
     RuntimeOpCode,
@@ -18,6 +17,8 @@ from gachasimulate.runtime import (
     PoolChange,
     ReduceItem,
     RuntimeContext,
+    RuntimeAction,
+    RuntimeCondition,
     SetItem,
     Stage,
     Termination,
@@ -86,7 +87,7 @@ class RuntimeBuilder:
     def _resolve_pool_index(self, pool_id: str) -> int:
         return self.pool_id_index[pool_id]
 
-    def _build_action(self, action_config: dict[str, Any]) -> Action:
+    def _build_action(self, action_config: dict[str, Any]) -> RuntimeAction:
         action_type = action_config.get("type")
 
         if action_type == "add_item":
@@ -124,8 +125,8 @@ class RuntimeBuilder:
         else:
             raise ValueError(f"unsupported action type: {action_type}")
 
-    def _build_actions(self, action_configs: list[dict[str, Any]] | None) -> list[Action]:
-        actions: list[Action] = []
+    def _build_actions(self, action_configs: list[dict[str, Any]] | None) -> list[RuntimeAction]:
+        actions: list[RuntimeAction] = []
         for action_config in action_configs or []:
             actions.append(self._build_action(action_config))
         return actions
@@ -182,7 +183,7 @@ class RuntimeBuilder:
 
         for pool_id, pool_config in pool_sources:
             entries = pool_config.get("entries", [])
-            actions: list[list[Action]] = []
+            actions: list[list[RuntimeAction]] = []
             probabilities: list[float] = []
 
             for entry in entries:
@@ -231,7 +232,7 @@ class RuntimeBuilder:
 
     def _build_condition_tree(
         self, condition_config: dict[str, Any] | None
-    ) -> LogicNode | CheckNode | None:
+    ) -> RuntimeCondition | None:
         if condition_config is None:
             return None
 
@@ -240,7 +241,7 @@ class RuntimeBuilder:
         actions = self._build_actions(actions_config) if actions_config is not None else []
 
         if condition_type == "logic":
-            conditions: list[LogicNode | CheckNode] = []
+            conditions: list[RuntimeCondition] = []
             for child in condition_config.get("conditions", []):
                 child_condition = self._build_condition_tree(child)
                 if child_condition is None:
