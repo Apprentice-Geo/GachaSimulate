@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 from typing import Iterable
 
-from gachasimulate.runtime import (
+from .runtime import (
     RuntimeAction,
     RuntimeCondition,
     RuntimeKind,

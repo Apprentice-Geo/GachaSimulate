@@ -1,4 +1,3 @@
-from gachasimulate.engine import MonteCarlo
 import json
 import numpy as np
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
@@ -7,6 +6,9 @@ from multiprocessing import Manager
 from queue import Empty
 from typing import BinaryIO
 from tqdm import tqdm
+
+from .engine import MonteCarlo
+
 
 DEFAULT_VISUALIZE_TITLE = "核心模拟结果"
 DEFAULT_VISUALIZE_TARGET = "未设置"

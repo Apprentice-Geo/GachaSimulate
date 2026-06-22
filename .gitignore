@@ -32,3 +32,4 @@ scalene*
 .DS_Store/
 
 *.prof
+uv.lock

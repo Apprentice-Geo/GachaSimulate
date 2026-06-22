@@ -5,7 +5,7 @@ from typing import Any
 from .validator import validate_config, validate_files, validate_termination
 import numpy as np
 
-from gachasimulate.runtime import (
+from .runtime import (
     AddItem,
     CheckNode,
     RuntimeOpCode,

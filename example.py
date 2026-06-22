@@ -82,7 +82,7 @@ if __name__ == "__main__":
     run_save(
         "sanliou_zhenpinchuanshuo",
         "termination_skin",
-        target_total_draw=1010000,
+        target_total_draw=1000,
         seed=base_seed,
         workers=1,
     )
