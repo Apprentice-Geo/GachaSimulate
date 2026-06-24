@@ -54,12 +54,14 @@ button:disabled {
 
 :root {
   --page-scale: 1;
+  --page-offset-x: 0px;
+  --page-offset-y: 0px;
 }
 
 .visualize-page {
-  left: 50%;
+  left: 0;
   position: fixed;
-  top: 50%;
-  transform: translate(-50%, -50%) scale(var(--page-scale));
-  transform-origin: center center;
+  top: 0;
+  transform: translate(var(--page-offset-x), var(--page-offset-y)) scale(var(--page-scale));
+  transform-origin: top left;
 }
