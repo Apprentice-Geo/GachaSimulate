@@ -9,13 +9,7 @@ function update_scale() {
     window.innerHeight / CANVAS_HEIGHT,
     1.0,
   );
-  const clamped = Math.max(0.1, scale);
-  const offset_x = (window.innerWidth - CANVAS_WIDTH * clamped) / 2;
-  const offset_y = (window.innerHeight - CANVAS_HEIGHT * clamped) / 2;
-  const root = document.documentElement.style;
-  root.setProperty("--page-scale", String(clamped));
-  root.setProperty("--page-offset-x", `${offset_x}px`);
-  root.setProperty("--page-offset-y", `${offset_y}px`);
+  document.documentElement.style.setProperty("--page-scale", String(Math.max(0.1, scale)));
 }
 
 export function use_page_scale() {

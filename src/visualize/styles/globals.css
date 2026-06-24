@@ -40,6 +40,12 @@ button:disabled {
 }
 
 #root {
+  align-items: center;
+  display: flex;
+  height: 100vh;
+  justify-content: center;
+  overflow: hidden;
+  width: 100vw;
 }
 
 .visually-hidden {
@@ -54,14 +60,8 @@ button:disabled {
 
 :root {
   --page-scale: 1;
-  --page-offset-x: 0px;
-  --page-offset-y: 0px;
 }
 
 .visualize-page {
-  left: 0;
-  position: fixed;
-  top: 0;
-  transform: scale(var(--page-scale)) translate(var(--page-offset-x), var(--page-offset-y));
-  transform-origin: top left;
+  zoom: var(--page-scale);
 }
