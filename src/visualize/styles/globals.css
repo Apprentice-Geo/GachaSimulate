@@ -62,6 +62,6 @@ button:disabled {
   left: 0;
   position: fixed;
   top: 0;
-  transform: translate(var(--page-offset-x), var(--page-offset-y)) scale(var(--page-scale));
+  transform: scale(var(--page-scale)) translate(var(--page-offset-x), var(--page-offset-y));
   transform-origin: top left;
 }
