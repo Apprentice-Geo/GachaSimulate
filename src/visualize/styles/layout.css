@@ -22,6 +22,17 @@
   position: absolute;
   top: var(--page-margin);
   width: 24px;
+  z-index: 1;
+}
+
+.visualize-page::after {
+  background-image: radial-gradient(var(--color-stardust) 1px, transparent 1px);
+  background-size: 96px 96px;
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
 }
 
 .top-bar {
@@ -30,6 +41,8 @@
   display: flex;
   height: var(--top-height);
   justify-content: space-between;
+  position: relative;
+  z-index: 1;
 }
 
 .visualize-page[data-animation-state="primed"] .top-bar,
@@ -122,6 +135,8 @@
   /* CDF区域宽度:核心统计量区域宽度 */
   grid-template-columns: minmax(0, 80fr) minmax(0, 20fr);
   height: calc(var(--main-height) + 40px + var(--footer-height) - 120px);
+  position: relative;
+  z-index: 1;
 }
 
 .primary-region {
@@ -148,7 +163,6 @@
   border: 2px solid var(--color-hairline);
   border-radius: var(--radius-card);
   box-shadow:
-    0 32px 88px rgba(0, 0, 0, 0.22),
     inset 0 2px 0 rgba(247, 243, 255, 0.035);
 }
 
@@ -391,7 +405,7 @@
   background: var(--color-panel-soft);
   border: 2px solid var(--color-hairline);
   border-left: 10px solid var(--metric-color);
-  border-radius: 8px;
+  border-radius: 2px;
   display: flex;
   /*统计量卡片高度*/
   height: 168px;
@@ -424,7 +438,7 @@
   color: var(--color-text-muted);
   /* 核心统计量名称的字体大小和粗细 */
   font-size: 64px;
-  font-weight: 550;
+  font-weight: 600;
   line-height: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -484,7 +498,7 @@
 .placeholder-line {
   background: var(--color-panel-soft);
   border: 2px solid var(--color-hairline);
-  border-radius: 8px;
+  border-radius: 2px;
   height: 168px;
 }
 
@@ -530,7 +544,7 @@
 .error-panel pre {
   background: rgba(229, 32, 32, 0.1);
   border: 2px solid rgba(229, 32, 32, 0.34);
-  border-radius: 8px;
+  border-radius: 2px;
   color: var(--color-text-primary);
   font-family: Monaco, Menlo, monospace;
   font-size: 26px;
@@ -605,7 +619,7 @@
   animation: none;
   background: var(--color-panel-soft);
   border: 2px solid var(--color-hairline);
-  border-radius: 8px;
+  border-radius: 2px;
   height: var(--pk-bar-height);
   overflow: hidden;
   position: relative;
@@ -687,7 +701,9 @@
 .page-note {
   margin: 28px auto 0;
   max-width: 1920px;
+  position: relative;
   text-align: center;
+  z-index: 1;
 }
 
 @keyframes page-fade-in {
