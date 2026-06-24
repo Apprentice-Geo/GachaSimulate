@@ -17,7 +17,11 @@ body,
 }
 
 body {
-  background: #0d0915;
+  background:
+    linear-gradient(90deg, rgba(21, 15, 35, 0.05) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(21, 15, 35, 0.05) 1px, transparent 1px),
+    #e9ebef;
+  background-size: 64px 64px;
   color: var(--color-sentry-ink);
   font-family: var(--font-ui);
 }
@@ -36,9 +40,6 @@ button:disabled {
 }
 
 #root {
-  min-height: 100vh;
-  overflow: hidden;
-  position: relative;
 }
 
 .visually-hidden {
@@ -57,7 +58,7 @@ button:disabled {
 
 .visualize-page {
   left: 50%;
-  position: absolute;
+  position: fixed;
   top: 50%;
   transform: translate(-50%, -50%) scale(var(--page-scale));
   transform-origin: center center;
