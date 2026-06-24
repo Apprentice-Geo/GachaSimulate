@@ -17,11 +17,7 @@ body,
 }
 
 body {
-  background:
-    linear-gradient(90deg, rgba(21, 15, 35, 0.05) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(21, 15, 35, 0.05) 1px, transparent 1px),
-    #e9ebef;
-  background-size: 64px 64px;
+  background: #0d0915;
   color: var(--color-sentry-ink);
   font-family: var(--font-ui);
 }
@@ -40,9 +36,9 @@ button:disabled {
 }
 
 #root {
-  display: grid;
   min-height: 100vh;
-  place-items: center;
+  overflow: hidden;
+  position: relative;
 }
 
 .visually-hidden {
@@ -60,6 +56,9 @@ button:disabled {
 }
 
 .visualize-page {
-  transform: scale(var(--page-scale));
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(var(--page-scale));
   transform-origin: center center;
 }

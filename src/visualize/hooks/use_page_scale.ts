@@ -15,11 +15,8 @@ function update_scale() {
 export function use_page_scale() {
   useLayoutEffect(() => {
     update_scale();
-    const observer = new ResizeObserver(update_scale);
-    observer.observe(document.documentElement);
     window.addEventListener("resize", update_scale);
     return () => {
-      observer.disconnect();
       window.removeEventListener("resize", update_scale);
     };
   }, []);
