@@ -9,22 +9,22 @@
 
 ## CLI
 
-- `npm run dev`
+- `pnpm run dev`
   - 启动 Vite dev server。
 
-- `npm run typecheck`
+- `pnpm run typecheck`
   - 执行 TypeScript 类型检查，不生成构建产物。
 
-- `npm run build`
+- `pnpm run build`
   - 先执行 TypeScript 类型检查，再使用 Vite 生成生产构建产物。
 
-- `npm run preview`
+- `pnpm run preview`
   - 启动 Vite preview server，预览 `build` 后的 `dist/` 产物。
 
-- `npm run test:e2e`
+- `pnpm run test:e2e`
   - 执行 Playwright 端到端测试。
 
-- `npm run export:cdf -- --input <json文件路径>`
+- `pnpm run export:cdf -- --input <json文件路径>`
   - 执行 CDF 可视化素材导出。
   - 默认输出 PNG、WebM 和 MP4 到 `outputs/`。
   - 基于 `build + preview` 产物运行，确保导出结果接近最终交付状态。
