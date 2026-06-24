@@ -254,6 +254,7 @@ class Reporter:
                  show_report_level: ReportLevel = ReportLevel.Warning,
                  fail_report_level: ReportLevel = ReportLevel.Error,
                  config: Optional[dict[str, str]] = None,
+                 max_char_per_line: int = 256,
                  stream: Optional[TextIO] = None
                  ):
         self.auto_report = auto_report
@@ -264,7 +265,8 @@ class Reporter:
         self.config = {
             k: config.get(k, self.DEFAULT_REPORT_CONFIG.get(k))
             for k in self.DEFAULT_REPORT_CONFIG.keys()
-        } if config is not None else {}
+        } if config is not None else self.DEFAULT_REPORT_CONFIG
+        self.max_char_per_line = max_char_per_line
         self.stream = stream if stream is not None else sys.stdout
 
     def log(self, message: str, level: ReportLevel = ReportLevel.Info) -> None:
@@ -291,6 +293,10 @@ class Reporter:
                         postfix = self.config.get("error_postfix")
                     case _:
                         prefix = postfix = ""
+                message = "\n".join(
+                    ss[:self.max_char_per_line-3]+"..." if len(ss) >= self.max_char_per_line else ss
+                    for ss in message.split("\n")
+                )
                 self.stream.write(f"{prefix}{message}{postfix}\n")
         self.messages.clear()
         return result

@@ -314,28 +314,17 @@ def _analyse_action(
             return Termination(reason="")
         case str():
             i = 0
+            action = action.strip()
             while i < len(action) and not action[i].isspace() and action[i] not in ("+", "-", "="):
                 i += 1
             item_id = action[:i].strip()
             while i < len(action) and action[i].isspace():
                 i += 1
-            match item_id:
-                case "draw":
-                    item_id = context.item_id_index.get(action[i:].strip())
-                    if item_id is None:
-                        if reporter:
-                            reporter.log(f"'{action}': no item id named '{action[i:]}'", report_level)
-                        return None
-                    return DrawPool(pool_index=context.item_id_index[action[i:].strip()])
-                case "change":
-                    item_id = context.item_id_index.get(action[i:].strip())
-                    if item_id is None:
-                        if reporter:
-                            reporter.log(f"'{action}': no item id named '{action[i:]}'", report_level)
-                        return None
-                    return PoolChange(pool_index=context.item_id_index[action[i:].strip()])
-                case "terminate":
-                    return Termination(reason=action[i:].strip())
+            item_idx = context.item_id_index.get(item_id)
+            if item_idx is None and item_id not in ("draw", "change", "terminate"):
+                if reporter is not None:
+                    reporter.log(f"{action}: no item named '{item_id}'", report_level)
+                return None
             if action[i:i + 2] == "+=":
                 num = action[i + 2:].strip()
                 if not num.isdigit():
@@ -364,28 +353,49 @@ def _analyse_action(
                         reporter.log(f"{action}: use '{item_id}--' instead", report_level)
                     return None
                 return ReduceItem(item_index=context.item_id_index[item_id], amount=1)
-            elif action[i] == "=":
+            elif action[i:i+1] == "=":
                 num = action[i + 1:].strip()
                 if not num.isdigit():
                     if reporter:
                         reporter.log(f"'{action}': invalid number '{num}'", report_level)
                     return None
                 return SetItem(item_index=context.item_id_index[item_id], amount=int(num))
+
+            match item_id:
+                case "draw":
+                    pool_id = action[i:].strip()
+                    pool_idx = context.pool_id_index.get(pool_id)
+                    if pool_idx is None:
+                        if reporter:
+                            reporter.log(f"'{action}': no pool named '{pool_id}'", report_level)
+                        return None
+                    return DrawPool(pool_index=pool_idx)
+                case "change":
+                    pool_id = action[i:].strip()
+                    pool_idx = context.pool_id_index.get(pool_id)
+                    if pool_idx is None:
+                        if reporter:
+                            reporter.log(f"'{action}': no pool named '{pool_id}'", report_level)
+                        return None
+                    return PoolChange(pool_index=pool_idx)
+                case "terminate":
+                    return Termination(reason=action[i:].strip())
+
             if reporter:
                 reporter.log(f"'{action}': unknown action", report_level)
             return None
         case {"type": "draw_pool", "id": item_id}:
-            idx = context.item_id_index.get(item_id)
+            idx = context.pool_id_index.get(item_id)
             if idx is None:
                 if reporter:
-                    reporter.log(f"{item_id}: no item id named '{item_id}'", report_level)
+                    reporter.log(f"{item_id}: no pool named '{item_id}'", report_level)
                 return None
             return DrawPool(pool_index=idx)
         case {"type": "pool_change", "id": item_id}:
-            idx = context.item_id_index.get(item_id)
+            idx = context.pool_id_index.get(item_id)
             if idx is None:
                 if reporter:
-                    reporter.log(f"{item_id}: no item id named '{item_id}'", report_level)
+                    reporter.log(f"{item_id}: no pool named '{item_id}'", report_level)
                 return None
             return PoolChange(pool_index=idx)
         case {"type": "termination"}:
@@ -394,21 +404,21 @@ def _analyse_action(
             idx = context.item_id_index.get(item_id)
             if idx is None:
                 if reporter:
-                    reporter.log(f"{item_id}: no item id named '{item_id}'", report_level)
+                    reporter.log(f"{item_id}: no item named '{item_id}'", report_level)
                 return None
             return AddItem(item_index=idx, amount=int(action.get("amount", 1)))
         case {"type": "reduce_item", "id": item_id}:
             idx = context.item_id_index.get(item_id)
             if idx is None:
                 if reporter:
-                    reporter.log(f"{item_id}: no item id named '{item_id}'", report_level)
+                    reporter.log(f"{item_id}: no item named '{item_id}'", report_level)
                 return None
             return ReduceItem(item_index=idx, amount=int(action.get("amount", 1)))
         case {"type": "set_item", "id": item_id}:
             idx = context.item_id_index.get(item_id)
             if idx is None:
                 if reporter:
-                    reporter.log(f"{item_id}: no item id named '{item_id}'", report_level)
+                    reporter.log(f"{item_id}: no item named '{item_id}'", report_level)
                 return None
             return SetItem(item_index=idx, amount=int(action.get("amount", 1)))
         case {"type": "add_item"} | {"type": "reduce_item"} | {"type": "set_item"}:
@@ -440,6 +450,7 @@ def _analyse_actions(
 
 def _str2node(s: str) -> Optional[Tuple[str, RuntimeOpCode, str]]:
     i = 0
+    s = s.strip()
     while i < len(s) and not s[i].isspace() and s[i] not in ("<", ">", "!", "="):
         i += 1
     item_id = s[:i].strip()
@@ -525,7 +536,7 @@ def _build_condition_tree(
             item_idx = context.item_id_index.get(item_id)
             if item_idx is None:
                 if reporter is not None:
-                    reporter.error(f"{condition!r}: unknown item '{item_id}'")
+                    reporter.log(f"{condition!r}: unknown item '{item_id}'", report_level)
                 return None
             return CheckNode(
                 item_index=item_idx,
@@ -566,19 +577,19 @@ def _build_condition_tree(
             node_result = _str2node(condition)
             if node_result is None:
                 if reporter is not None:
-                    reporter.error(f"{condition!r}: unknown condition")
+                    reporter.log(f"{condition!r}: unknown condition", report_level)
                 return None
             item_idx, op, value = node_result
             item_idx = context.item_id_index.get(item_idx)
             if item_idx is None:
                 if reporter is not None:
-                    reporter.error(f"{condition!r}: unknown item '{item_idx}'")
+                    reporter.log(f"{condition!r}: unknown item '{item_idx}'", report_level)
                 return None
             try:
                 value = int(value)
             except ValueError:
                 if reporter is not None:
-                    reporter.error(f"{condition!r}: unknown value '{value}'")
+                    reporter.log(f"{condition!r}: unknown value '{value}'", report_level)
                 return None
             return CheckNode(
                 item_index=item_idx,
@@ -586,13 +597,18 @@ def _build_condition_tree(
                 value=value,
                 actions=[]
             )
-    return None
+        case _:
+            if reporter is not None:
+                reporter.log(f"{condition!r}: unknown condition", report_level)
+            return None
 
 
 def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
     context = RuntimeConfigContext()
     # init items
     reporter = Reporter()
+
+    # ---- build items start ----
     items = config.get("items")
     if items is not None:
         for item_id, item_config in items.items():
@@ -605,7 +621,6 @@ def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
                         )
                     )
                     context.item_resolve_list.append(ItemResolve())
-                    context.item_draw_list.append([])
                 case {"name": item_name}:
                     context.item_list.append(
                         Item(
@@ -628,28 +643,27 @@ def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
                                 reporter.error(f"{retain!r}: invalid retain value")
                                 context.item_resolve_list.append(ItemResolve())
                                 break
-                            actions = resolve.get("actions")
                             context.item_resolve_list.append(
                                 ItemResolve(
                                     retain=retain,
-                                    actions=_analyse_actions(context, actions, reporter) if actions else []
+                                    actions=[]
                                 )
                             )
                     else:
                         context.item_resolve_list.append(ItemResolve())
-
-                    on_acquire = item_config.get("on_acquire")
-                    if on_acquire:
-                        context.item_draw_list.append(_analyse_actions(context, on_acquire, reporter))
-                    else:
-                        context.item_draw_list.append([])
                 case _:
                     reporter.error(f"Invalid item config: {item_config!r}")
                     continue
             context.item_id_index[item_id] = len(context.item_list) - 1
+            context.item_draw_list.append([])
     else:
         reporter.error("missing item config 'items'")
+        # help linter learn items MUST NOT be None
+        reporter.report()
+        return None
+    # ---- build items end ----
 
+    # ---- build pools start ----
     pools = config.get("pools")
     if pools is not None:
         # check prob and decide how to calculate cdf
@@ -658,22 +672,47 @@ def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
             match pool_config:
                 case list() as entries_p:
                     entities = entries_p
-                case {"entries": entries_p}:
+                case {"entries": entries_p} | {"entities": entries_p}:
                     entities = entries_p
                 case _:
                     reporter.error(f"Pool '{pool_id}: invalid pool config {pool_config!r}")
                     continue
 
-            probabilities = [
-                float.__truediv__(*map(float, i.split("/", 2)))
-                if isinstance(i, str) else i
-                for i in (entry.get("probability", 0) for entry in entities)
-            ]
+            probabilities = list(map(lambda entry: entry.get("probability", 0), entities))
+            has_invalid_num = False
+            for i in range(len(probabilities)):
+                value = probabilities[i]
+                match value:
+                    case str():
+                        frac = value.split("/", 2)
+                        if len(frac) == 1:
+                            try:
+                                probabilities[i] = float(frac[0])
+                            except ValueError:
+                                reporter.error(f"Pool '{pool_id}': invalid probability {value!r}")
+                                has_invalid_num = True
+                        else:
+                            molecule, denominator = frac
+                            try:
+                                probabilities[i] = int(molecule) / int(denominator)
+                            except ValueError:
+                                reporter.error(f"Pool '{pool_id}': invalid probability {value!r}")
+                                has_invalid_num = True
+                    case int() | float():
+                        if value < 0:
+                            reporter.error(f"Pool '{pool_id}': probability should greater or equal to 0, not {value}")
+                            has_invalid_num = True
+                    case _:
+                        reporter.error(f"Pool '{pool_id}': invalid probability {value!r}")
+
+            if has_invalid_num:
+                continue
+
             if any(i < 0 for i in probabilities):
                 reporter.error(
                     f"Pool '{pool_id}': invalid probabilities {''.join(chr(39) + str(i) + chr(39) for i in probabilities if i < 0)}")
                 continue
-            if any(i - int(i) > 0 for i in probabilities):
+            if any(i - int(i) > 1e-9 for i in probabilities):
                 if abs(sum(probabilities) - 1) > 1e-9:
                     reporter.error(f"Pool '{pool_id}': probabilities must sum to 1")
                     continue
@@ -683,22 +722,45 @@ def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
                 if sm == 0:
                     reporter.error(f"Pool '{pool_id}': no probabilities")
                     continue
-                cdf = np.cumsum(np.array(map(lambda x: x / sm, probabilities), dtype=np.float64))
+                cdf = np.cumsum(np.array([x / sm for x in probabilities], dtype=np.float64))
             cdf[-1] = 1.0
 
-            actions = [entity.get("actions", []) for entity in entities]
-            context.pool_list.append(
-                Pool(
-                    cdf=cdf,
-                    actions=[
-                        _analyse_actions(context, action, reporter)
-                        for action in actions
-                    ]
-                )
-            )
+            context.pool_list.append(Pool(cdf=cdf, actions=[]))
+            context.pool_id_index[pool_id] = len(context.pool_list) - 1
     else:
         reporter.error("missing pool config 'pools'")
+        # help linter learn items MUST NOT be None
+        reporter.report()
+        return None
+    # if any error occurs when initializing items and pools, exit!
+    if reporter.report():
+        return None
+    # ---- build pools end ----
 
+    # ---- build items' draws start ----
+    for item_id, item_config in items.items():
+        match item_config:
+            case {"name": str(), "resolve": {"actions": actions}}:
+                item_idx = context.item_id_index[item_id]
+                context.item_resolve_list[item_idx].actions.extend(_analyse_actions(context, actions, reporter))
+        match item_config:
+            case {"name": str(), "on_acquire": actions}:
+                item_idx = context.item_id_index[item_id]
+                context.item_draw_list[item_idx] = _analyse_actions(context, actions, reporter)
+    # ---- build items' draws end ----
+
+    # ---- build pools' draws start ----
+    for pool_id, pool_config in pools.items():
+        match pool_config:
+            case {"entries": [*entries_p]} | {"entities": [*entries_p]} | (list() as entries_p):
+                pool_idx = context.pool_id_index[pool_id]
+                context.pool_list[pool_idx].actions.extend(
+                    _analyse_actions(context, entry.get("actions", []), reporter)
+                    for entry in entries_p
+                )
+    # ---- build pools' draws end ----
+
+    # ---- build initial start ----
     initial_config = config.get("initial")
     if initial_config is not None:
         begin_pool = context.pool_id_index.get(initial_config.get("begin_pool", "begin_pool"))
@@ -714,7 +776,9 @@ def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
             pass
     else:
         reporter.error("missing initial config 'initial'")
+    # ---- build initial end ----
 
+    # ---- build stages start ----
     stages = config.get("stages")
     if stages is not None:
         for stage_id, stage_config in stages.items():
@@ -735,8 +799,77 @@ def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
             )
     else:
         pass
+    # ---- build stages end ----
+
+    # ---- build every draw's actions start ----
+    every_draw_actions = config.get("every_draw")
+    if every_draw_actions is not None:
+        context.every_draw_actions.extend(_analyse_actions(context, every_draw_actions, reporter))
+    # ---- build every draw's actions end ----
+
+    # ---- build pool draw list start ----
+    context.pool_draw_list = [
+        DrawPool(pool_index=pool_idx)
+        for pool_idx in range(len(context.pool_list))
+    ]
+    # ---- build pool draw list end ----
 
     if reporter.report():
         return None
-
     return context
+
+
+def termination_builder(config_context: RuntimeConfigContext, terminations: Dict[str, Any]) -> Optional[Tuple[RuntimeCondition, List[int]]]:
+    reporter = Reporter()
+    termination_condition_cfg = terminations.get("condition")
+    condition = None
+    if termination_condition_cfg is not None:
+        condition = _build_condition_tree(config_context, termination_condition_cfg, reporter)
+    else:
+        reporter.error("missing condition 'condition'")
+
+    retained_items_idx = []
+    bad_id = []
+    retained_items = terminations.get("retained_items")
+    if retained_items is not None:
+        for item_id in retained_items:
+            item_idx = config_context.item_id_index.get(item_id)
+            if item_idx is None:
+                bad_id.append(item_id)
+            else:
+                retained_items_idx.append(item_idx)
+        if bad_id:
+            retained_items_idx = []
+            msg = " ".join(f"'{item_id}'" for item_id in bad_id)
+            reporter.error(f"{retained_items!r}: invalid retained item name{'s' if len(bad_id) > 1 else ''} {msg}")
+
+    if reporter.report() or condition is None:
+        return None
+    return condition, retained_items_idx
+
+
+def build(config: Dict[str, Any], terminations: Dict[str, Any]) -> Optional[RuntimeContext]:
+    config_context = config_builder(config)
+    if config_context is None:
+        return None
+    termination_result = termination_builder(config_context, terminations)
+    if termination_result is None:
+        return None
+    termination_condition, termination_retained_items_idx = termination_result
+    return RuntimeContext(
+        begin_pool_index=config_context.begin_pool_index,
+        initial_actions=config_context.initial_actions,
+        every_draw_actions=config_context.every_draw_actions,
+        item_id_index=config_context.item_id_index,
+        draw_count_index=config_context.item_id_index.get("draw_count", -1),
+        item_list=config_context.item_list,
+        item_resolve_list=config_context.item_resolve_list,
+        item_draw_list=config_context.item_draw_list,
+        pool_id_index=config_context.pool_id_index,
+        pool_list=config_context.pool_list,
+        pool_draw_list=config_context.pool_draw_list,
+        draw_stage_id_index=config_context.draw_stage_id_index,
+        draw_stage_list=config_context.draw_stage_list,
+        retained_items_index=termination_retained_items_idx,
+        termination_tree=termination_condition,
+    )
