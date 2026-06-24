@@ -1,10 +1,10 @@
 :root {
-  --canvas-width: 1920px;
-  --canvas-height: 1080px;
-  --page-margin: 64px;
-  --top-height: 96px;
-  --main-height: 760px;
-  --footer-height: 140px;
+  --canvas-width: 3840px;
+  --canvas-height: 2160px;
+  --page-margin: 128px;
+  --top-height: 192px;
+  --main-height: 1520px;
+  --footer-height: 280px;
 
   --color-sentry-primary: #150f23;
   --color-sentry-ink: #1f1633;
@@ -39,6 +39,6 @@
   --color-cdf-marker-max: var(--color-danger);
 
   --font-ui: SourceHanSansSC, Rubik, "Segoe UI", sans-serif;
-  --radius-card: 6px;
-  --radius-button: 4px;
+  --radius-card: 12px;
+  --radius-button: 8px;
 }

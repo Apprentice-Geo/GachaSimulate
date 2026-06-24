@@ -34,7 +34,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function estimate_label_width(label: string): number {
-  return label.length * 9.6;
+  return label.length * 19.2;
 }
 
 function clamp_label_x(
@@ -45,10 +45,10 @@ function clamp_label_x(
 ): number {
   const label_width = estimate_label_width(label_text);
   if (text_anchor === "end") {
-    return clamp(x, plot_box.left + label_width, plot_box.right - 4);
+    return clamp(x, plot_box.left + label_width, plot_box.right - 8);
   }
   if (text_anchor === "start") {
-    return clamp(x, plot_box.left + 4, plot_box.right - label_width);
+    return clamp(x, plot_box.left + 8, plot_box.right - label_width);
   }
   return clamp(
     x,
@@ -88,14 +88,14 @@ export function build_marker_views(
       return [];
     }
 
-    let label_x = x - 8;
-    let label_y = y - 10;
+    let label_x = x - 16;
+    let label_y = y - 20;
     let text_anchor: MarkerView["text_anchor"] = "end";
     let dominant_baseline: MarkerView["dominant_baseline"] = "auto";
     let label_text = marker.label;
 
     if (marker.key === "MEAN") {
-      label_x = x - 14;
+      label_x = x - 28;
       label_y = y;
       text_anchor = "end";
       dominant_baseline = p50_is_greater_than_mean
@@ -105,15 +105,15 @@ export function build_marker_views(
     }
 
     if (marker.key === "MAX") {
-      label_x = x - 12;
-      label_y = y - 10;
+      label_x = x - 24;
+      label_y = y - 20;
       text_anchor = "end";
       dominant_baseline = "text-after-edge";
       label_text = "MAX ";
     }
 
     if (marker.key === "P50") {
-      label_x = x - 14;
+      label_x = x - 28;
       label_y = y;
       text_anchor = "end";
       dominant_baseline = p50_is_greater_than_mean
@@ -142,10 +142,10 @@ export function build_marker_views(
 
     const previous_view = sorted_views[index - 1];
     const is_neighboring =
-      Math.abs(view.x - previous_view.x) < 76 &&
-      Math.abs(view.label_y - previous_view.label_y) < 16;
+      Math.abs(view.x - previous_view.x) < 152 &&
+      Math.abs(view.label_y - previous_view.label_y) < 32;
     if (is_neighboring) {
-      view.label_y += index % 2 === 0 ? 12 : -12;
+      view.label_y += index % 2 === 0 ? 24 : -24;
     }
   });
 
@@ -157,7 +157,7 @@ export function build_marker_views(
       view.label_text,
       plot_box,
     ),
-    label_y: clamp(view.label_y, 24, plot_box.bottom - 8),
+    label_y: clamp(view.label_y, 48, plot_box.bottom - 16),
   }));
 }
 

@@ -21,7 +21,7 @@ body {
     linear-gradient(90deg, rgba(21, 15, 35, 0.05) 1px, transparent 1px),
     linear-gradient(180deg, rgba(21, 15, 35, 0.05) 1px, transparent 1px),
     #e9ebef;
-  background-size: 32px 32px;
+  background-size: 64px 64px;
   color: var(--color-sentry-ink);
   font-family: var(--font-ui);
 }
@@ -53,4 +53,13 @@ button:disabled {
   position: absolute;
   white-space: nowrap;
   width: 1px;
+}
+
+:root {
+  --page-scale: 1;
+}
+
+.visualize-page {
+  transform: scale(var(--page-scale));
+  transform-origin: center center;
 }

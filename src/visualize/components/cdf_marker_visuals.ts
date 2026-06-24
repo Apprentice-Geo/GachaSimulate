@@ -14,38 +14,38 @@ export const MARKER_VISUALS: Record<CDFMarker["weight"], CDFMarkerVisual> = {
   faint: {
     // MIN P5
     opacity: 0.85, // 不透明度
-    stroke_width: 2, // 线条宽度
-    point_radius: 5.5, // 标注点的半径
-    label_font_size: 15, // 标签字体大小
+    stroke_width: 4, // 线条宽度
+    point_radius: 11, // 标注点的半径
+    label_font_size: 30, // 标签字体大小
     label_font_weight: 700, // 标签字体粗细
-    label_stroke_width: 2.5, // 标签描边宽度
+    label_stroke_width: 5, // 标签描边宽度
   },
   normal: {
     // P25 P75
     opacity: 0.9,
-    stroke_width: 2.33,
-    point_radius: 5.5,
-    label_font_size: 18,
+    stroke_width: 4.66,
+    point_radius: 11,
+    label_font_size: 36,
     label_font_weight: 700,
-    label_stroke_width: 2.75,
+    label_stroke_width: 5.5,
   },
   strong: {
     // MEAN P95 MAX
     opacity: 0.95,
-    stroke_width: 2.66,
-    point_radius: 6.5,
-    label_font_size: 21,
+    stroke_width: 5.32,
+    point_radius: 13,
+    label_font_size: 42,
     label_font_weight: 700,
-    label_stroke_width: 3,
+    label_stroke_width: 6,
   },
   primary: {
     // P50
     opacity: 0.95,
-    stroke_width: 3,
-    point_radius: 8,
-    label_font_size: 24,
+    stroke_width: 6,
+    point_radius: 16,
+    label_font_size: 48,
     label_font_weight: 800,
-    label_stroke_width: 3,
+    label_stroke_width: 6,
   },
 };
 
