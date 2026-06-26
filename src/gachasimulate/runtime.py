@@ -1,34 +1,54 @@
 from __future__ import annotations
+
+import sys
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import ClassVar, Dict, List, Literal, Sequence
-from enum import IntEnum
+from dataclasses import dataclass, field
+from typing import ClassVar, Dict, List, Literal, Sequence, Optional, TextIO
+from enum import IntEnum, Enum, auto
 import numpy as np
 
 
 class RuntimeKind(IntEnum):
-    Action = 0
-    AddItem = 1
-    ReduceItem = 2
-    SetItem = 3
-    DrawPool = 4
-    PoolChange = 5
-    Termination = 6
-    ConditionNode = 7
-    LogicNode = 8
-    CheckNode = 9
+    Action = auto()
+    AddItem = auto()
+    ReduceItem = auto()
+    SetItem = auto()
+    DrawPool = auto()
+    PoolChange = auto()
+    Termination = auto()
+    ConditionNode = auto()
+    LogicNode = auto()
+    CheckNode = auto()
 
 
-class RuntimeOpCode(IntEnum):
-    EQ = 0  # ==, equal
-    NE = 1  # !=, not equal
-    LT = 2  # <, less than
-    LE = 3  # <=, less than or equal
-    GT = 4  # >, greater than
-    GE = 5  # >=, greater than or equal
-    AND = 6  # AND
-    OR = 7  # OR
-    NOT = 8  # NOT
+class RuntimeOpCode(Enum):
+    EQ = "=="
+    NE = "!="
+    LT = "<"
+    LE = "<="
+    GT = ">"
+    GE = ">="
+    AND = "AND"
+    OR = "OR"
+    XOR = "XOR"
+    NOT = "NOT"
+
+
+@dataclass(frozen=False, slots=True)
+class RuntimeConfigContext:
+    begin_pool_index: int = 0
+    initial_actions: List[RuntimeAction] = field(default_factory=list)
+    every_draw_actions: List[RuntimeAction] = field(default_factory=list)
+    item_id_index: Dict[str, int] = field(default_factory=dict)
+    item_list: List[Item] = field(default_factory=list)
+    item_resolve_list: List[ItemResolve] = field(default_factory=list)
+    item_draw_list: List[list[RuntimeAction]] = field(default_factory=list)
+    pool_id_index: Dict[str, int] = field(default_factory=dict)
+    pool_list: List[Pool] = field(default_factory=list)
+    # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
+    pool_draw_list: List[RuntimeAction] = field(default_factory=list)
+    draw_stage_id_index: Dict[str, int] = field(default_factory=dict)
+    draw_stage_list: List[Stage] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,7 +147,7 @@ class DrawPool(Action):
     pool_index: int
 
     def execute(
-        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+            self, runtime_state: RuntimeState, runtime_context: RuntimeContext
     ) -> List[RuntimeAction]:
         r = runtime_state.rng.random()
         idx = np.searchsorted(runtime_context.pool_list[self.pool_index].cdf, r)
@@ -167,7 +187,7 @@ class ConditionNode(ABC):
 class LogicNode(ConditionNode):
     kind: ClassVar[Literal[RuntimeKind.LogicNode]] = RuntimeKind.LogicNode
 
-    op: int
+    op: RuntimeOpCode
     conditions: Sequence[RuntimeCondition]
     actions: List[RuntimeAction] | None
 
@@ -177,7 +197,7 @@ class CheckNode(ConditionNode):
     kind: ClassVar[Literal[RuntimeKind.CheckNode]] = RuntimeKind.CheckNode
 
     item_index: int
-    op: int
+    op: RuntimeOpCode
     value: int
     actions: List[RuntimeAction] | None
 
@@ -205,5 +225,99 @@ class Item:
 
 @dataclass(frozen=True, slots=True)
 class ItemResolve:
-    retain: int
-    actions: List[RuntimeAction]
+    retain: int = 0
+    actions: List[RuntimeAction] = field(default_factory=list)
+
+
+class Reporter:
+    class ReportLevel(IntEnum):
+        Debug = 0
+        Info = 1
+        Warning = 2
+        Error = 3
+
+    DEFAULT_REPORT_CONFIG = {
+        "debug_prefix": "[debug]: ",
+        "debug_postfix": "",
+        "info_prefix": "[info]: ",
+        "info_postfix": "",
+        "warning_prefix": "[warning]: ",
+        "warning_postfix": "",
+        "error_prefix": "[error]: ",
+        "error_postfix": "",
+    }
+
+    def __init__(self,
+                 *,
+                 auto_report: bool = True,
+                 report_level: ReportLevel = ReportLevel.Warning,
+                 show_report_level: ReportLevel = ReportLevel.Warning,
+                 fail_report_level: ReportLevel = ReportLevel.Error,
+                 config: Optional[dict[str, str]] = None,
+                 max_char_per_line: int = 256,
+                 stream: Optional[TextIO] = None
+                 ):
+        self.auto_report = auto_report
+        self.report_level = report_level
+        self.show_report_level = show_report_level
+        self.fail_report_level = fail_report_level
+        self.messages = []
+        self.config = {
+            k: config.get(k, self.DEFAULT_REPORT_CONFIG.get(k))
+            for k in self.DEFAULT_REPORT_CONFIG.keys()
+        } if config is not None else self.DEFAULT_REPORT_CONFIG
+        self.max_char_per_line = max_char_per_line
+        self.stream = stream if stream is not None else sys.stdout
+
+    def log(self, message: str, level: ReportLevel = ReportLevel.Info) -> None:
+        self.messages.append((level, message))
+
+    def report(self) -> bool:
+        result = False
+        for level, message in self.messages:
+            if level >= self.show_report_level:
+                if level >= self.fail_report_level:
+                    result = True
+                match level:
+                    case self.ReportLevel.Debug:
+                        prefix = self.config.get("debug_prefix")
+                        postfix = self.config.get("debug_postfix")
+                    case self.ReportLevel.Info:
+                        prefix = self.config.get("info_prefix")
+                        postfix = self.config.get("info_postfix")
+                    case self.ReportLevel.Warning:
+                        prefix = self.config.get("warning_prefix")
+                        postfix = self.config.get("warning_postfix")
+                    case self.ReportLevel.Error:
+                        prefix = self.config.get("error_prefix")
+                        postfix = self.config.get("error_postfix")
+                    case _:
+                        prefix = postfix = ""
+                message = "\n".join(
+                    ss[:self.max_char_per_line-3]+"..." if len(ss) >= self.max_char_per_line else ss
+                    for ss in message.split("\n")
+                )
+                self.stream.write(f"{prefix}{message}{postfix}\n")
+        self.messages.clear()
+        return result
+
+    def debug(self, message: str) -> None:
+        self.log(message, self.report_level.Debug)
+
+    def info(self, message: str) -> None:
+        self.log(message, self.report_level.Info)
+
+    def warning(self, message: str) -> None:
+        self.log(message, self.report_level.Warning)
+
+    def error(self, message: str) -> None:
+        self.log(message, self.report_level.Error)
+
+    def __enter__(self):
+        self.messages.clear()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.auto_report:
+            self.report()
+        return False

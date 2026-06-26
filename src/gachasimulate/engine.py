@@ -94,7 +94,7 @@ class MonteCarlo:
                 self._execute_actions(state, item_resolve.actions)
 
     def _execute_actions(
-        self, state: RuntimeState, actions: Iterable[RuntimeAction] | None
+            self, state: RuntimeState, actions: Iterable[RuntimeAction] | None
     ) -> None:
         if not actions:
             return
@@ -121,10 +121,10 @@ class MonteCarlo:
                 return
 
             case (
-                RuntimeKind.ReduceItem
-                | RuntimeKind.SetItem
-                | RuntimeKind.PoolChange
-                | RuntimeKind.Termination
+            RuntimeKind.ReduceItem
+            | RuntimeKind.SetItem
+            | RuntimeKind.PoolChange
+            | RuntimeKind.Termination
             ):
                 action.execute(state, self.ctx)
                 return
@@ -132,7 +132,7 @@ class MonteCarlo:
         raise TypeError(f"unsupported action kind: {action.kind}")
 
     def _eval_condition(
-        self, node: RuntimeCondition, state: RuntimeState
+            self, node: RuntimeCondition, state: RuntimeState
     ) -> tuple[bool, list[RuntimeAction]]:
         match node.kind:
             case RuntimeKind.CheckNode:
@@ -166,7 +166,7 @@ class MonteCarlo:
 
         raise TypeError(f"unsupported condition node type: {type(node).__name__}")
 
-    def _compare(self, left: int, op_code: int, right: int) -> bool:
+    def _compare(self, left: int, op_code: RuntimeOpCode, right: int) -> bool:
         if op_code == RuntimeOpCode.EQ:
             return left == right
         if op_code == RuntimeOpCode.NE:
