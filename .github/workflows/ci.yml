@@ -140,17 +140,20 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: npm
+          cache: pnpm
 
       - name: Install Node dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Check frontend formatting
-        run: npm run format:check
+        run: pnpm run format:check
 
   frontend-lint:
     name: Frontend lint
@@ -160,17 +163,20 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: npm
+          cache: pnpm
 
       - name: Install Node dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Lint frontend
-        run: npm run lint
+        run: pnpm run lint
 
   frontend-typecheck:
     name: Frontend typecheck
@@ -180,17 +186,20 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: npm
+          cache: pnpm
 
       - name: Install Node dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck frontend
-        run: npm run typecheck
+        run: pnpm run typecheck
 
   frontend-build-test:
     name: Frontend build and tests
@@ -200,20 +209,23 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: npm
+          cache: pnpm
 
       - name: Install Node dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build frontend
-        run: npm run build
+        run: pnpm run build
 
       - name: Run visualize CDF tests
-        run: npm run test:visualize:cdf
+        run: pnpm run test:visualize:cdf
 
   e2e:
     name: Playwright e2e
@@ -224,20 +236,23 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: npm
+          cache: pnpm
 
       - name: Install Node dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Run e2e tests
-        run: npm run test:e2e
+        run: pnpm run test:e2e
 
       - name: Upload Playwright report
         if: always()

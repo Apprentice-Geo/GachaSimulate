@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { use_page_scale } from "./hooks/use_page_scale";
 import { ANIMATION_TIMELINE, ANIMATION_TOTAL_MS } from "./animation/timeline";
 import { CDFChart } from "./components/CDFChart";
 import { EmptyState } from "./components/EmptyState";
@@ -67,6 +68,8 @@ export default function App() {
     new URLSearchParams(window.location.search).get("autoplay") === "0",
   );
   const first_ready_seen_ref = useRef(false);
+
+  use_page_scale();
 
   const start_animation = useCallback(() => {
     if (animation_timeout_ref.current !== null) {

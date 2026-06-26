@@ -5,13 +5,13 @@ import { CDF_CHART_VIEW_CONFIG } from "../view/cdf_view_config";
 import { use_element_size } from "../hooks/use_element_size";
 
 const CHART_MARGIN = {
-  top: 58,
-  right: 36,
-  bottom: 34,
-  left: 48,
+  top: 116,
+  right: 72,
+  bottom: 68,
+  left: 96,
 }; // 控制 Recharts 图表内容相对外层 SVG 的留白
-const Y_AXIS_WIDTH = 54; //  Y 轴宽度
-const X_AXIS_HEIGHT = 52; //  X 轴高度
+const Y_AXIS_WIDTH = 108; //  Y 轴宽度
+const X_AXIS_HEIGHT = 104; //  X 轴高度
 const Y_CDF_AXIS_TICKS = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1];
 interface CDFChartProps {
   data: NormalizedVisualizeData;
@@ -60,7 +60,7 @@ export function CDFChart({ data, animation_key, is_animating }: CDFChartProps) {
             dataKey="draw"
             domain={[0, data.x_domain_max]}
             stroke={CDF_CHART_VIEW_CONFIG.axis_color}
-            tick={{ fill: CDF_CHART_VIEW_CONFIG.x_tick_color, fontSize: 16 }}
+            tick={{ fill: CDF_CHART_VIEW_CONFIG.x_tick_color, fontSize: 32 }}
             tickFormatter={format_draw}
             height={X_AXIS_HEIGHT}
             label={{
@@ -76,7 +76,7 @@ export function CDFChart({ data, animation_key, is_animating }: CDFChartProps) {
             dataKey="cumulative"
             domain={[0, 1]}
             stroke={CDF_CHART_VIEW_CONFIG.axis_color}
-            tick={{ fill: CDF_CHART_VIEW_CONFIG.y_tick_color, fontSize: 14 }}
+            tick={{ fill: CDF_CHART_VIEW_CONFIG.y_tick_color, fontSize: 28 }}
             tickFormatter={format_percent}
             ticks={Y_CDF_AXIS_TICKS}
             tickMargin={10}

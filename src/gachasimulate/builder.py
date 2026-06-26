@@ -29,11 +29,11 @@ from .runtime import (
 
 class RuntimeBuilder:
     def __init__(
-            self,
-            config_path: str,
-            termination_path: str,
-            config_schema_path: str,
-            termination_schema_path: str,
+        self,
+        config_path: str,
+        termination_path: str,
+        config_schema_path: str,
+        termination_schema_path: str,
     ):
         validate_files(config_path, termination_path, config_schema_path, termination_schema_path)
         with open(config_path, "r", encoding="utf-8") as f:
@@ -44,7 +44,7 @@ class RuntimeBuilder:
 
     @classmethod
     def from_config(
-            cls, config: dict[str, Any], termination_config: dict[str, Any]
+        cls, config: dict[str, Any], termination_config: dict[str, Any]
     ) -> "RuntimeBuilder":
         validate_config(config)
         validate_termination(termination_config, config)
@@ -233,7 +233,7 @@ class RuntimeBuilder:
             )
 
     def _build_condition_tree(
-            self, condition_config: dict[str, Any] | None
+        self, condition_config: dict[str, Any] | None
     ) -> RuntimeCondition | None:
         if condition_config is None:
             return None
@@ -304,10 +304,10 @@ class RuntimeBuilder:
 
 
 def _analyse_action(
-        context: RuntimeContext | RuntimeConfigContext,
-        action: str | Dict[str, Any],
-        reporter: Optional[Reporter] = None,
-        report_level: Reporter.ReportLevel = Reporter.ReportLevel.Error
+    context: RuntimeContext | RuntimeConfigContext,
+    action: str | Dict[str, Any],
+    reporter: Optional[Reporter] = None,
+    report_level: Reporter.ReportLevel = Reporter.ReportLevel.Error,
 ) -> Optional[RuntimeAction]:
     match action:
         case "termination":
@@ -325,36 +325,36 @@ def _analyse_action(
                 if reporter is not None:
                     reporter.log(f"{action}: no item named '{item_id}'", report_level)
                 return None
-            if action[i:i + 2] == "+=":
-                num = action[i + 2:].strip()
+            if action[i : i + 2] == "+=":
+                num = action[i + 2 :].strip()
                 if not num.isdigit():
                     if reporter:
                         reporter.log(f"'{action}': invalid number '{num}'", report_level)
                     return None
                 return AddItem(item_index=context.item_id_index[item_id], amount=int(num))
-            elif action[i:i + 2] == "++":
-                postfix = action[i + 2:].strip()
+            elif action[i : i + 2] == "++":
+                postfix = action[i + 2 :].strip()
                 if postfix:
                     if reporter:
                         reporter.log(f"{action}: use '{item_id}++' instead", report_level)
                     return None
                 return AddItem(item_index=context.item_id_index[item_id], amount=1)
-            elif action[i:i + 2] == "-=":
-                num = action[i + 2:].strip()
+            elif action[i : i + 2] == "-=":
+                num = action[i + 2 :].strip()
                 if not num.isdigit():
                     if reporter:
                         reporter.log(f"'{action}': invalid number '{num}'", report_level)
                     return None
                 return ReduceItem(item_index=context.item_id_index[item_id], amount=int(num))
-            elif action[i:i + 2] == "--":
-                postfix = action[i + 2:].strip()
+            elif action[i : i + 2] == "--":
+                postfix = action[i + 2 :].strip()
                 if postfix:
                     if reporter:
                         reporter.log(f"{action}: use '{item_id}--' instead", report_level)
                     return None
                 return ReduceItem(item_index=context.item_id_index[item_id], amount=1)
-            elif action[i:i+1] == "=":
-                num = action[i + 1:].strip()
+            elif action[i : i + 1] == "=":
+                num = action[i + 1 :].strip()
                 if not num.isdigit():
                     if reporter:
                         reporter.log(f"'{action}': invalid number '{num}'", report_level)
@@ -438,14 +438,16 @@ def _analyse_action(
 
 
 def _analyse_actions(
-        context: RuntimeContext | RuntimeConfigContext,
-        actions: List[str | Dict[str, Any]],
-        reporter: Optional[Reporter] = None,
-        report_level: Reporter.ReportLevel = Reporter.ReportLevel.Error
+    context: RuntimeContext | RuntimeConfigContext,
+    actions: List[str | Dict[str, Any]],
+    reporter: Optional[Reporter] = None,
+    report_level: Reporter.ReportLevel = Reporter.ReportLevel.Error,
 ) -> List[RuntimeAction]:
-    return [x for x in
-            (_analyse_action(context, action, reporter, report_level) for action in actions)
-            if x is not None]
+    return [
+        x
+        for x in (_analyse_action(context, action, reporter, report_level) for action in actions)
+        if x is not None
+    ]
 
 
 def _str2node(s: str) -> Optional[Tuple[str, RuntimeOpCode, str]]:
@@ -456,28 +458,28 @@ def _str2node(s: str) -> Optional[Tuple[str, RuntimeOpCode, str]]:
     item_id = s[:i].strip()
     while i < len(s) and s[i].isspace():
         i += 1
-    if s[i:i+2] == "<=":
-        return item_id, RuntimeOpCode.LE, s[i+2:].strip()
-    elif s[i:i+2] == ">=":
-        return item_id, RuntimeOpCode.GE, s[i+2:].strip()
-    elif s[i:i+2] == "!=":
-        return item_id, RuntimeOpCode.NE, s[i+2:].strip()
-    elif s[i:i+2] == "==":
-        return item_id, RuntimeOpCode.EQ, s[i+2:].strip()
-    elif s[i:i+1] == "<":
-        return item_id, RuntimeOpCode.LT, s[i+1:].strip()
-    elif s[i:i+1] == ">":
-        return item_id, RuntimeOpCode.GT, s[i+1:].strip()
-    elif s[i:i+1] == "=":
-        return item_id, RuntimeOpCode.EQ, s[i+1:].strip()
+    if s[i : i + 2] == "<=":
+        return item_id, RuntimeOpCode.LE, s[i + 2 :].strip()
+    elif s[i : i + 2] == ">=":
+        return item_id, RuntimeOpCode.GE, s[i + 2 :].strip()
+    elif s[i : i + 2] == "!=":
+        return item_id, RuntimeOpCode.NE, s[i + 2 :].strip()
+    elif s[i : i + 2] == "==":
+        return item_id, RuntimeOpCode.EQ, s[i + 2 :].strip()
+    elif s[i : i + 1] == "<":
+        return item_id, RuntimeOpCode.LT, s[i + 1 :].strip()
+    elif s[i : i + 1] == ">":
+        return item_id, RuntimeOpCode.GT, s[i + 1 :].strip()
+    elif s[i : i + 1] == "=":
+        return item_id, RuntimeOpCode.EQ, s[i + 1 :].strip()
     return None
 
 
 def _build_condition_tree(
-        context: RuntimeContext | RuntimeConfigContext,
-        condition: Optional[Dict[str, Any] | str] = None,
-        reporter: Optional[Reporter] = None,
-        report_level: Reporter.ReportLevel = Reporter.ReportLevel.Error
+    context: RuntimeContext | RuntimeConfigContext,
+    condition: Optional[Dict[str, Any] | str] = None,
+    reporter: Optional[Reporter] = None,
+    report_level: Reporter.ReportLevel = Reporter.ReportLevel.Error,
 ) -> Optional[RuntimeCondition]:
     if condition is None:
         return None
@@ -499,40 +501,36 @@ def _build_condition_tree(
 
     match condition:
         case (
-        {"op": "OR", "conditions": conditions}
-        |{"op": "or", "conditions": conditions}
-        |{"op": "|", "conditions": conditions}
-        |{"op": "AND", "conditions": conditions}
-        |{"op": "and", "conditions": conditions}
-        |{"op": "&", "conditions": conditions}
+            {"op": "OR", "conditions": conditions}
+            | {"op": "or", "conditions": conditions}
+            | {"op": "|", "conditions": conditions}
+            | {"op": "AND", "conditions": conditions}
+            | {"op": "and", "conditions": conditions}
+            | {"op": "&", "conditions": conditions}
         ):
             children = conditions2children(conditions)
-            actions = _analyse_actions(context, condition.get("actions", []), reporter, report_level)
+            actions = _analyse_actions(
+                context, condition.get("actions", []), reporter, report_level
+            )
             if children is None:
                 return None
             match condition["op"]:
                 case "OR" | "or" | "|":
-                    return LogicNode(
-                        op=RuntimeOpCode.OR,
-                        conditions=children,
-                        actions=actions
-                    )
+                    return LogicNode(op=RuntimeOpCode.OR, conditions=children, actions=actions)
                 case "AND" | "and" | "&":
-                    return LogicNode(
-                        op=RuntimeOpCode.AND,
-                        conditions=children,
-                        actions=actions
-                    )
+                    return LogicNode(op=RuntimeOpCode.AND, conditions=children, actions=actions)
             return None
         case (
-        {"op": ">=", "id": item_id, "value": value}
-        |{"op": ">", "id": item_id, "value": value}
-        |{"op": "<=", "id": item_id, "value": value}
-        |{"op": "<", "id": item_id, "value": value}
-        |{"op": "==", "id": item_id, "value": value}
-        |{"op": "!=", "id": item_id, "value": value}
+            {"op": ">=", "id": item_id, "value": value}
+            | {"op": ">", "id": item_id, "value": value}
+            | {"op": "<=", "id": item_id, "value": value}
+            | {"op": "<", "id": item_id, "value": value}
+            | {"op": "==", "id": item_id, "value": value}
+            | {"op": "!=", "id": item_id, "value": value}
         ):
-            actions = _analyse_actions(context, condition.get("actions", []), reporter, report_level)
+            actions = _analyse_actions(
+                context, condition.get("actions", []), reporter, report_level
+            )
             item_idx = context.item_id_index.get(item_id)
             if item_idx is None:
                 if reporter is not None:
@@ -542,7 +540,7 @@ def _build_condition_tree(
                 item_index=item_idx,
                 op=RuntimeOpCode(condition["op"]),
                 value=int(value),
-                actions=actions
+                actions=actions,
             )
         case str():
             # deal with logic node
@@ -554,11 +552,7 @@ def _build_condition_tree(
                 children = conditions2children(children_s)
                 if children is None:
                     return None
-                return LogicNode(
-                    op=RuntimeOpCode.OR,
-                    conditions=children,
-                    actions=[]
-                )
+                return LogicNode(op=RuntimeOpCode.OR, conditions=children, actions=[])
             if condition[:3].upper() == "AND" or condition[:1] == "&":
                 if condition[0] == "&":
                     children_s = condition[1:].split(",")
@@ -567,11 +561,7 @@ def _build_condition_tree(
                 children = conditions2children(children_s)
                 if children is None:
                     return None
-                return LogicNode(
-                    op=RuntimeOpCode.AND,
-                    conditions=children,
-                    actions=[]
-                )
+                return LogicNode(op=RuntimeOpCode.AND, conditions=children, actions=[])
 
             # check node init
             node_result = _str2node(condition)
@@ -591,12 +581,7 @@ def _build_condition_tree(
                 if reporter is not None:
                     reporter.log(f"{condition!r}: unknown value '{value}'", report_level)
                 return None
-            return CheckNode(
-                item_index=item_idx,
-                op=op,
-                value=value,
-                actions=[]
-            )
+            return CheckNode(item_index=item_idx, op=op, value=value, actions=[])
         case _:
             if reporter is not None:
                 reporter.log(f"{condition!r}: unknown condition", report_level)
@@ -614,20 +599,10 @@ def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
         for item_id, item_config in items.items():
             match item_config:
                 case str():
-                    context.item_list.append(
-                        Item(
-                            id=item_id,
-                            name=item_config
-                        )
-                    )
+                    context.item_list.append(Item(id=item_id, name=item_config))
                     context.item_resolve_list.append(ItemResolve())
                 case {"name": item_name}:
-                    context.item_list.append(
-                        Item(
-                            id=item_id,
-                            name=item_name
-                        )
-                    )
+                    context.item_list.append(Item(id=item_id, name=item_name))
 
                     resolve = item_config.get("resolve")
                     if resolve:
@@ -643,12 +618,7 @@ def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
                                 reporter.error(f"{retain!r}: invalid retain value")
                                 context.item_resolve_list.append(ItemResolve())
                                 break
-                            context.item_resolve_list.append(
-                                ItemResolve(
-                                    retain=retain,
-                                    actions=[]
-                                )
-                            )
+                            context.item_resolve_list.append(ItemResolve(retain=retain, actions=[]))
                     else:
                         context.item_resolve_list.append(ItemResolve())
                 case _:
@@ -700,7 +670,9 @@ def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
                                 has_invalid_num = True
                     case int() | float():
                         if value < 0:
-                            reporter.error(f"Pool '{pool_id}': probability should greater or equal to 0, not {value}")
+                            reporter.error(
+                                f"Pool '{pool_id}': probability should greater or equal to 0, not {value}"
+                            )
                             has_invalid_num = True
                     case _:
                         reporter.error(f"Pool '{pool_id}': invalid probability {value!r}")
@@ -710,7 +682,8 @@ def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
 
             if any(i < 0 for i in probabilities):
                 reporter.error(
-                    f"Pool '{pool_id}': invalid probabilities {''.join(chr(39) + str(i) + chr(39) for i in probabilities if i < 0)}")
+                    f"Pool '{pool_id}': invalid probabilities {''.join(chr(39) + str(i) + chr(39) for i in probabilities if i < 0)}"
+                )
                 continue
             if any(i - int(i) > 1e-9 for i in probabilities):
                 if abs(sum(probabilities) - 1) > 1e-9:
@@ -742,7 +715,9 @@ def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
         match item_config:
             case {"name": str(), "resolve": {"actions": actions}}:
                 item_idx = context.item_id_index[item_id]
-                context.item_resolve_list[item_idx].actions.extend(_analyse_actions(context, actions, reporter))
+                context.item_resolve_list[item_idx].actions.extend(
+                    _analyse_actions(context, actions, reporter)
+                )
         match item_config:
             case {"name": str(), "on_acquire": actions}:
                 item_idx = context.item_id_index[item_id]
@@ -809,8 +784,7 @@ def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
 
     # ---- build pool draw list start ----
     context.pool_draw_list = [
-        DrawPool(pool_index=pool_idx)
-        for pool_idx in range(len(context.pool_list))
+        DrawPool(pool_index=pool_idx) for pool_idx in range(len(context.pool_list))
     ]
     # ---- build pool draw list end ----
 
@@ -819,7 +793,9 @@ def config_builder(config: dict[str, Any]) -> Optional[RuntimeConfigContext]:
     return context
 
 
-def termination_builder(config_context: RuntimeConfigContext, terminations: Dict[str, Any]) -> Optional[Tuple[RuntimeCondition, List[int]]]:
+def termination_builder(
+    config_context: RuntimeConfigContext, terminations: Dict[str, Any]
+) -> Optional[Tuple[RuntimeCondition, List[int]]]:
     reporter = Reporter()
     termination_condition_cfg = terminations.get("condition")
     condition = None
@@ -841,7 +817,9 @@ def termination_builder(config_context: RuntimeConfigContext, terminations: Dict
         if bad_id:
             retained_items_idx = []
             msg = " ".join(f"'{item_id}'" for item_id in bad_id)
-            reporter.error(f"{retained_items!r}: invalid retained item name{'s' if len(bad_id) > 1 else ''} {msg}")
+            reporter.error(
+                f"{retained_items!r}: invalid retained item name{'s' if len(bad_id) > 1 else ''} {msg}"
+            )
 
     if reporter.report() or condition is None:
         return None

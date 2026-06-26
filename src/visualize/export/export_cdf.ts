@@ -20,7 +20,7 @@ import {
 
 const PREVIEW_PORT = 4173;
 const PREVIEW_URL = `http://127.0.0.1:${PREVIEW_PORT}`;
-const VIEWPORT = { width: 1920, height: 1080 } as const;
+const VIEWPORT = { width: 3840, height: 2160 } as const;
 const TRIM_PREROLL_SECONDS = 0.3;
 
 interface CliArgs {
@@ -35,8 +35,8 @@ function parse_args(argv: string[]): CliArgs {
   };
 }
 
-function npm_command(): string {
-  return process.platform === "win32" ? "npm.cmd" : "npm";
+function pnpm_command(): string {
+  return process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 }
 
 function platform_command(command: string, args: string[]) {
@@ -73,7 +73,7 @@ function run_command(command: string, args: string[]): Promise<void> {
 }
 
 function start_preview_server(): ChildProcess {
-  const platform = platform_command(npm_command(), [
+  const platform = platform_command(pnpm_command(), [
     "run",
     "preview",
     "--",
@@ -223,7 +223,7 @@ async function export_cdf(input_path: string) {
 
   await ensure_output_dir(output_dir);
   await remove_existing_final_outputs(output_dir);
-  await run_command(npm_command(), ["run", "build"]);
+  await run_command(pnpm_command(), ["run", "build"]);
   await assert_preview_port_available();
 
   const server = start_preview_server();
@@ -234,7 +234,10 @@ async function export_cdf(input_path: string) {
   try {
     await wait_for_preview_server(server);
 
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch({
+      headless: true,
+      args: ["--disable-frame-rate-limit", "--disable-gpu-vsync"],
+    });
     context = await browser.newContext({
       viewport: VIEWPORT,
       deviceScaleFactor: 1,
@@ -307,7 +310,7 @@ async function main() {
   const args = parse_args(process.argv.slice(2));
   if (!args.input) {
     throw new Error(
-      "缺少 --input 参数。用法：npm run export:cdf -- --input <json文件路径>",
+      "缺少 --input 参数。用法：pnpm run export:cdf -- --input <json文件路径>",
     );
   }
 

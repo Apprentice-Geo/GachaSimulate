@@ -1,6 +1,7 @@
 {
   "name": "montecarlo-gachasimulate",
   "version": "1.0.0",
+  "packageManager": "pnpm@11.3.0",
   "description": "",
   "main": "index.js",
   "directories": {
@@ -9,6 +10,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "format": "prettier --write \"src/visualize/**/*.{ts,tsx,css,json}\" \"e2e/**/*.ts\" \"docs/schemas/**/*.json\" \"*.{ts,json,html,mjs}\"",
     "format:check": "prettier --check \"src/visualize/**/*.{ts,tsx,css,json}\" \"e2e/**/*.ts\" \"docs/schemas/**/*.json\" \"*.{ts,json,html,mjs}\"",
     "lint": "eslint \"src/visualize/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"*.ts\"",
     "typecheck": "tsc --noEmit",
@@ -36,7 +38,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.14.0",
     "motion": "^12.38.0",
-    "playwright": "^1.60.0",
+    "playwright": "1.61.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-is": "^19.2.6",
@@ -44,7 +46,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "1.61.0",
     "@types/node": "^25.7.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
