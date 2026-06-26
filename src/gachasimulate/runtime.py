@@ -147,7 +147,7 @@ class DrawPool(Action):
     pool_index: int
 
     def execute(
-            self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
     ) -> List[RuntimeAction]:
         r = runtime_state.rng.random()
         idx = np.searchsorted(runtime_context.pool_list[self.pool_index].cdf, r)
@@ -247,25 +247,30 @@ class Reporter:
         "error_postfix": "",
     }
 
-    def __init__(self,
-                 *,
-                 auto_report: bool = True,
-                 report_level: ReportLevel = ReportLevel.Warning,
-                 show_report_level: ReportLevel = ReportLevel.Warning,
-                 fail_report_level: ReportLevel = ReportLevel.Error,
-                 config: Optional[dict[str, str]] = None,
-                 max_char_per_line: int = 256,
-                 stream: Optional[TextIO] = None
-                 ):
+    def __init__(
+        self,
+        *,
+        auto_report: bool = True,
+        report_level: ReportLevel = ReportLevel.Warning,
+        show_report_level: ReportLevel = ReportLevel.Warning,
+        fail_report_level: ReportLevel = ReportLevel.Error,
+        config: Optional[dict[str, str]] = None,
+        max_char_per_line: int = 256,
+        stream: Optional[TextIO] = None,
+    ):
         self.auto_report = auto_report
         self.report_level = report_level
         self.show_report_level = show_report_level
         self.fail_report_level = fail_report_level
         self.messages = []
-        self.config = {
-            k: config.get(k, self.DEFAULT_REPORT_CONFIG.get(k))
-            for k in self.DEFAULT_REPORT_CONFIG.keys()
-        } if config is not None else self.DEFAULT_REPORT_CONFIG
+        self.config = (
+            {
+                k: config.get(k, self.DEFAULT_REPORT_CONFIG.get(k))
+                for k in self.DEFAULT_REPORT_CONFIG.keys()
+            }
+            if config is not None
+            else self.DEFAULT_REPORT_CONFIG
+        )
         self.max_char_per_line = max_char_per_line
         self.stream = stream if stream is not None else sys.stdout
 
@@ -294,7 +299,9 @@ class Reporter:
                     case _:
                         prefix = postfix = ""
                 message = "\n".join(
-                    ss[:self.max_char_per_line-3]+"..." if len(ss) >= self.max_char_per_line else ss
+                    ss[: self.max_char_per_line - 3] + "..."
+                    if len(ss) >= self.max_char_per_line
+                    else ss
                     for ss in message.split("\n")
                 )
                 self.stream.write(f"{prefix}{message}{postfix}\n")

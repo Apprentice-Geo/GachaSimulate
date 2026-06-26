@@ -9,7 +9,10 @@ function update_scale() {
     window.innerHeight / CANVAS_HEIGHT,
     1.0,
   );
-  document.documentElement.style.setProperty("--page-scale", String(Math.max(0.1, scale)));
+  document.documentElement.style.setProperty(
+    "--page-scale",
+    String(Math.max(0.1, scale)),
+  );
 }
 
 export function use_page_scale() {

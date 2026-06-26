@@ -14,7 +14,7 @@
 安装 Node 依赖：
 
 ```powershell
-npm ci
+pnpm install --frozen-lockfile
 ```
 
 ## Push 前全量检查
@@ -32,15 +32,15 @@ Python 检查：
 前端检查：
 
 ```powershell
-npm run format:check
-npm run lint
-npm run typecheck
-npm run build
-npm run test:visualize:cdf
-npm run test:e2e
+pnpm run format:check
+pnpm run lint
+pnpm run typecheck
+pnpm run build
+pnpm run test:visualize:cdf
+pnpm run test:e2e
 ```
 
-这些命令覆盖当前 CI 的格式化、lint、类型检查、构建和测试门禁。`npm run build` 如果只输出 Vite chunk size warning 且退出码为 0，不会导致 CI 失败。
+这些命令覆盖当前 CI 的格式化、lint、类型检查、构建和测试门禁。`pnpm run build` 如果只输出 Vite chunk size warning 且退出码为 0，不会导致 CI 失败。
 
 ## 常见修复命令
 
@@ -59,7 +59,7 @@ npm run test:e2e
 如果前端格式检查失败，执行：
 
 ```powershell
-npx prettier --write "src/visualize/**/*.{ts,tsx,css,json}" "e2e/**/*.ts" "docs/schemas/**/*.json" "*.{ts,json,html,mjs}"
+pnpm run format
 ```
 
 如果前端 lint、TypeScript typecheck、Python pyright 或构建失败，优先按报错定位具体文件，不要用批量改动掩盖问题。
@@ -70,8 +70,8 @@ npx prettier --write "src/visualize/**/*.{ts,tsx,css,json}" "e2e/**/*.ts" "docs/
 - `ruff check .`：Python lint。
 - `pyright`：Python 类型检查。
 - `python -m build --wheel --no-isolation`：Python wheel 构建检查。
-- `npm run format:check`：前端和 schema 格式化检查。
-- `npm run lint`：前端 ESLint 检查。
-- `npm run typecheck`：TypeScript 类型检查。
-- `npm run build`：前端生产构建检查。
+- `pnpm run format:check`：前端和 schema 格式化检查。
+- `pnpm run lint`：前端 ESLint 检查。
+- `pnpm run typecheck`：TypeScript 类型检查。
+- `pnpm run build`：前端生产构建检查。
 - `pytest`、`test:visualize:cdf`、`test:e2e`：测试门禁。

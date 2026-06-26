@@ -1,6 +1,7 @@
 {
   "name": "montecarlo-gachasimulate",
   "version": "1.0.0",
+  "packageManager": "pnpm@11.3.0",
   "description": "",
   "main": "index.js",
   "directories": {
@@ -9,6 +10,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "format": "prettier --write \"src/visualize/**/*.{ts,tsx,css,json}\" \"e2e/**/*.ts\" \"docs/schemas/**/*.json\" \"*.{ts,json,html,mjs}\"",
     "format:check": "prettier --check \"src/visualize/**/*.{ts,tsx,css,json}\" \"e2e/**/*.ts\" \"docs/schemas/**/*.json\" \"*.{ts,json,html,mjs}\"",
     "lint": "eslint \"src/visualize/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"*.ts\"",
     "typecheck": "tsc --noEmit",

@@ -374,9 +374,7 @@ def _make_probe_context() -> RuntimeConfigContext:
         ("termination", Termination(reason="")),
     ],
 )
-def test_analyse_action_parses_item_amount_shorthand(
-    source: str, expected: Action
-) -> None:
+def test_analyse_action_parses_item_amount_shorthand(source: str, expected: Action) -> None:
     context = _make_probe_context()
 
     result = _analyse_action(context, source)
@@ -402,9 +400,7 @@ def test_analyse_action_dict_form_matches_string_shorthand() -> None:
     context = _make_probe_context()
 
     string_form = _analyse_action(context, "token+=7")
-    dict_form = _analyse_action(
-        context, {"type": "add_item", "id": "token", "amount": 7}
-    )
+    dict_form = _analyse_action(context, {"type": "add_item", "id": "token", "amount": 7})
     assert string_form == dict_form == AddItem(item_index=0, amount=7)
 
 
@@ -725,9 +721,7 @@ def test_config_builder_compiles_string_shortcuts_inside_resolve_and_on_acquire(
         },
         "on_acquire": ["draw begin_pool"],
     }
-    config["pools"]["begin_pool"] = {
-        "entries": [{"probability": 1.0, "actions": ["reward++"]}]
-    }
+    config["pools"]["begin_pool"] = {"entries": [{"probability": 1.0, "actions": ["reward++"]}]}
 
     context = config_builder(config)
     assert context is not None
@@ -1308,12 +1302,8 @@ def test_build_matches_runtime_builder_on_shared_fields() -> None:
     assert new_ctx.begin_pool_index == legacy_ctx.begin_pool_index
 
     # Items and resolve/draw lists match.
-    assert [item.name for item in new_ctx.item_list] == [
-        item.name for item in legacy_ctx.item_list
-    ]
-    for new_item, legacy_item in zip(
-        new_ctx.item_resolve_list, legacy_ctx.item_resolve_list
-    ):
+    assert [item.name for item in new_ctx.item_list] == [item.name for item in legacy_ctx.item_list]
+    for new_item, legacy_item in zip(new_ctx.item_resolve_list, legacy_ctx.item_resolve_list):
         assert new_item.retain == legacy_item.retain
         assert new_item.actions == legacy_item.actions
     assert new_ctx.item_draw_list == legacy_ctx.item_draw_list
@@ -1353,6 +1343,4 @@ def test_build_populates_pool_draw_list_one_entry_per_pool() -> None:
     )
     assert ctx is not None
 
-    assert ctx.pool_draw_list == [
-        DrawPool(pool_index=index) for index in range(len(ctx.pool_list))
-    ]
+    assert ctx.pool_draw_list == [DrawPool(pool_index=index) for index in range(len(ctx.pool_list))]
