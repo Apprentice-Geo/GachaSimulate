@@ -15,9 +15,8 @@ function update_scale() {
 export function use_page_scale() {
   useLayoutEffect(() => {
     update_scale();
-    window.addEventListener("resize", update_scale);
-    return () => {
-      window.removeEventListener("resize", update_scale);
-    };
+    // No resize listener — browser zoom should work natively.
+    // Scale is calculated once on mount; a page refresh is needed
+    // to re-fit after a window resize.
   }, []);
 }
