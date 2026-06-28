@@ -88,8 +88,10 @@ def _parse_items(items: Any) -> list[tuple[str, Any]]:
             item_id, name = item, item
         else:
             item_id, name = _require_single_key_mapping(item, path)
-            if name is not None and not isinstance(name, str):
+            if not isinstance(name, str):
                 _fail(path + f".{item_id}", "name must be a string")
+            if not name:
+                _fail(path + f".{item_id}", "name must be non-empty")
 
         _validate_id(item_id, path)
         if item_id in seen:
@@ -119,6 +121,8 @@ def _parse_pools(pools: Any) -> list[tuple[str, Any]]:
 
 
 def _normalize_actions(actions: Any, path: str, *, allow_empty: bool = False) -> list[str]:
+    if actions is None:
+        return []
     if isinstance(actions, str):
         return [actions]
     actions = _require_list(actions, path)

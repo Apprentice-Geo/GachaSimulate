@@ -84,6 +84,43 @@ def test_build_context_parses_action_strings() -> None:
     ]
 
 
+def test_build_context_compiles_null_actions_to_empty_lists() -> None:
+    config = _minimal_config()
+    config["pools"] = [
+        {"main": [{"probability": 1.0, "actions": None}]},
+    ]
+    config["initial"] = None
+    config["every_draw"] = None
+    config["item_resolve"] = [
+        {"item": "target", "retain": 1, "actions": None},
+    ]
+    config["rules"] = [
+        {
+            "name": "rule",
+            "conditions": "token >= 1",
+            "actions": None,
+        },
+        {
+            "name": "case_rule",
+            "cases": [
+                {"conditions": "token == 0", "actions": None},
+                {"conditions": "token >= 1", "actions": None},
+            ],
+        },
+    ]
+
+    ctx = build_context(config, _minimal_termination())
+
+    assert ctx.pool_list[0].actions == [[]]
+    assert ctx.initial_actions == []
+    assert ctx.every_draw_actions == []
+    assert ctx.item_resolve_list[ctx.item_id_index["target"]].actions == []
+    assert ctx.draw_stage_list[ctx.draw_stage_id_index["rule"]].condition.actions == []
+    case_rule = ctx.draw_stage_list[ctx.draw_stage_id_index["case_rule"]]
+    assert isinstance(case_rule.condition, LogicNode)
+    assert [case.actions for case in case_rule.condition.conditions] == [[], []]
+
+
 def test_build_context_parses_condition_logic_and_implicit_and() -> None:
     config = _minimal_config()
     config["rules"] = [

@@ -68,6 +68,18 @@ def test_validate_config_accepts_yaml_spec_config() -> None:
     validate_config(_valid_config())
 
 
+def test_validate_config_accepts_null_actions() -> None:
+    config = _valid_config()
+    config["pools"][0]["main"][0]["actions"] = None
+    config["initial"] = None
+    config["every_draw"] = None
+    config["item_resolve"][0]["actions"] = None
+    config["rules"][0]["actions"] = None
+    config["rules"][1]["cases"][0]["actions"] = None
+
+    validate_config(config)
+
+
 def test_validate_termination_accepts_yaml_spec_termination() -> None:
     validate_termination(_valid_termination(), _valid_config())
 
@@ -117,6 +129,15 @@ def test_validate_config_rejects_bad_item_name_with_spaces() -> None:
     config["items"][1] = "bad item"
 
     with pytest.raises(ValidationError, match="cannot contain spaces"):
+        validate_config(config)
+
+
+@pytest.mark.parametrize("name", [None, ""])
+def test_validate_config_rejects_empty_item_mapping_names(name: object) -> None:
+    config = _valid_config()
+    config["items"][1] = {"token": name}
+
+    with pytest.raises(ValidationError, match="name must"):
         validate_config(config)
 
 
