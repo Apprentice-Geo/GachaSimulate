@@ -1,411 +1,179 @@
 from __future__ import annotations
 
-import json
 from copy import deepcopy
-from pathlib import Path
 
 import pytest
-from jsonschema import Draft202012Validator
 
 from gachasimulate.validator import (
     ValidationError,
     validate_config,
-    validate_files,
     validate_termination,
 )
 
-ROOT = Path(__file__).resolve().parents[1]
-CONFIG_SCHEMA_PATH = ROOT / "docs" / "schemas" / "config.schema.json"
-TERMINATION_SCHEMA_PATH = ROOT / "docs" / "schemas" / "termination.schema.json"
+
+def _valid_config() -> dict:
+    return {
+        "items": [
+            {"draw_count": "抽数"},
+            "token",
+            "target",
+            "shard",
+        ],
+        "pools": [
+            {
+                "main": [
+                    {"probability": 0.5, "actions": "token += 1"},
+                    {"probability": 0.5, "actions": "target += 1"},
+                ]
+            },
+            {"bonus": [{"weight": 1, "actions": "shard += 1"}]},
+        ],
+        "initial": "change main",
+        "every_draw": "draw_count += 1",
+        "rules": [
+            {
+                "name": "implicit_and",
+                "mode": "per_draw",
+                "conditions": ["token >= 1", "target >= 1"],
+                "actions": "shard += 1",
+            },
+            {
+                "name": "case_rule",
+                "cases": [
+                    {"conditions": "token == 0", "actions": "draw bonus"},
+                    {"conditions": "token >= 1", "actions": "change bonus"},
+                ],
+            },
+        ],
+        "item_resolve": [
+            {"item": "target", "retain": 1, "actions": "target -= 1"}
+        ],
+    }
 
 
-def _config_termination_pairs() -> list[tuple[Path, Path]]:
-    pairs: list[tuple[Path, Path]] = []
-    for config_path in sorted((ROOT / "configs").glob("*/config.json")):
-        for termination_path in sorted(config_path.parent.glob("termination*.json")):
-            pairs.append((config_path, termination_path))
-    return pairs
+def _valid_termination() -> dict:
+    return {
+        "retained_items": [{"target": 2}],
+        "termination_rule": {
+            "conditions": {
+                "op": "AND",
+                "conditions": ["target >= 2", "draw_count >= 1"],
+            },
+            "reason": "done",
+        },
+    }
 
 
-def _load_json(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
+def test_validate_config_accepts_yaml_spec_config() -> None:
+    validate_config(_valid_config())
 
 
-def _assert_matches_schema(instance_path: Path, schema_path: Path) -> None:
-    schema = _load_json(schema_path)
-    instance = _load_json(instance_path)
-    Draft202012Validator.check_schema(schema)
-    validator = Draft202012Validator(schema)
-    errors = sorted(validator.iter_errors(instance), key=lambda error: error.path)
-
-    if errors:
-        error = errors[0]
-        path = ".".join(str(part) for part in error.absolute_path) or "<root>"
-        pytest.fail(
-            f"{instance_path.relative_to(ROOT)} does not match "
-            f"{schema_path.relative_to(ROOT)} at {path}: {error.message}"
-        )
+def test_validate_termination_accepts_yaml_spec_termination() -> None:
+    validate_termination(_valid_termination(), _valid_config())
 
 
-@pytest.fixture
-def test_config() -> dict:
-    return _load_json(ROOT / "configs" / "test" / "config.json")
+def test_validate_config_rejects_unknown_item_reference() -> None:
+    config = _valid_config()
+    config["pools"][0]["main"][0]["actions"] = "missing += 1"
 
-
-@pytest.fixture
-def test_termination() -> dict:
-    return _load_json(ROOT / "configs" / "test" / "termination.json")
-
-
-def test_validates_test_configs(test_config: dict, test_termination: dict) -> None:
-    validate_config(test_config)
-    validate_termination(test_termination, test_config)
-
-
-def test_validates_real_config_files() -> None:
-    validate_files(
-        str(ROOT / "configs" / "sunwukong_wuxiang" / "config.json"),
-        str(ROOT / "configs" / "sunwukong_wuxiang" / "termination_skin.json"),
-        str(CONFIG_SCHEMA_PATH),
-        str(TERMINATION_SCHEMA_PATH),
-    )
-
-
-@pytest.mark.parametrize(
-    "config_path",
-    sorted((ROOT / "configs").glob("*/config.json")),
-    ids=lambda path: path.parent.name,
-)
-def test_config_files_match_json_schema(config_path: Path) -> None:
-    _assert_matches_schema(config_path, CONFIG_SCHEMA_PATH)
-
-
-@pytest.mark.parametrize(
-    "termination_path",
-    sorted((ROOT / "configs").glob("*/termination*.json")),
-    ids=lambda path: f"{path.parent.name}/{path.name}",
-)
-def test_termination_files_match_json_schema(termination_path: Path) -> None:
-    _assert_matches_schema(termination_path, TERMINATION_SCHEMA_PATH)
-
-
-@pytest.mark.parametrize(
-    "config_path",
-    sorted((ROOT / "configs").glob("*/config.json")),
-    ids=lambda path: path.parent.name,
-)
-def test_config_directory_has_termination_files(config_path: Path) -> None:
-    assert list(config_path.parent.glob("termination*.json"))
-
-
-@pytest.mark.parametrize(
-    ("config_path", "termination_path"),
-    _config_termination_pairs(),
-    ids=lambda value: value.parent.name if value.name == "config.json" else value.name,
-)
-def test_validates_all_real_config_files(config_path: Path, termination_path: Path) -> None:
-    validate_files(
-        str(config_path),
-        str(termination_path),
-        str(CONFIG_SCHEMA_PATH),
-        str(TERMINATION_SCHEMA_PATH),
-    )
-
-
-def test_initial_begin_pool_may_reference_any_pool_order(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    pools = config["pools"]
-    config["pools"] = {"pool_1": pools["pool_1"]}
-    config["pools"].update({key: value for key, value in pools.items() if key != "pool_1"})
-    config["initial"]["begin_pool"] = "begin_pool"
-
-    validate_config(config)
-
-
-def test_requires_initial(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    del config["initial"]
-
-    with pytest.raises(ValidationError, match=r"config\.initial: must be an object"):
+    with pytest.raises(ValidationError, match="unknown item id: missing"):
         validate_config(config)
 
 
-def test_requires_draw_count_item(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    del config["items"]["draw_count"]
+def test_validate_config_rejects_unknown_pool_reference() -> None:
+    config = _valid_config()
+    config["rules"][1]["cases"][0]["actions"] = "draw missing"
 
-    with pytest.raises(ValidationError, match=r"config\.items\.draw_count: is required"):
+    with pytest.raises(ValidationError, match="unknown pool id: missing"):
         validate_config(config)
 
 
-def test_requires_every_draw(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    del config["every_draw"]
+def test_validate_config_rejects_unknown_condition_item_reference() -> None:
+    config = _valid_config()
+    config["rules"][0]["conditions"][1] = "missing >= 1"
 
-    with pytest.raises(ValidationError, match=r"config\.every_draw: must be an array"):
+    with pytest.raises(ValidationError, match="unknown item id: missing"):
         validate_config(config)
 
 
-def test_requires_every_draw_to_increment_draw_count(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["every_draw"] = [{"type": "add_item", "id": "general_fragment", "amount": 1}]
+def test_validate_config_rejects_mixed_probability_and_weight() -> None:
+    config = _valid_config()
+    config["pools"][0]["main"][1] = {"weight": 1, "actions": "target += 1"}
 
-    with pytest.raises(
-        ValidationError,
-        match="config.every_draw: must include add_item action for draw_count",
-    ):
+    with pytest.raises(ValidationError, match="cannot mix probability and weight"):
         validate_config(config)
 
 
-def test_requires_known_initial_begin_pool(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["initial"]["begin_pool"] = "missing_pool"
-
-    with pytest.raises(ValidationError, match="unknown pool id: missing_pool"):
-        validate_config(config)
-
-
-def test_rejects_empty_pools(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["pools"] = {}
-
-    with pytest.raises(ValidationError, match="config.pools: must be non-empty"):
-        validate_config(config)
-
-
-def test_rejects_unknown_action_type(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["pools"]["begin_pool"]["entries"][0]["actions"][0]["type"] = "noop"
-
-    with pytest.raises(ValidationError, match="unsupported action type: noop"):
-        validate_config(config)
-
-
-def test_rejects_action_unknown_item_reference(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["pools"]["begin_pool"]["entries"][0]["actions"][0]["id"] = "missing_item"
-
-    with pytest.raises(ValidationError, match="unknown item id: missing_item"):
-        validate_config(config)
-
-
-def test_rejects_action_unknown_pool_reference(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["items"]["random_precious_item"]["on_acquire"][0]["id"] = "missing_pool"
-
-    with pytest.raises(ValidationError, match="unknown pool id: missing_pool"):
-        validate_config(config)
-
-
-def test_requires_predicate_id(test_termination: dict, test_config: dict) -> None:
-    termination = deepcopy(test_termination)
-    del termination["termination_condition"]["conditions"][1]["conditions"][0]["id"]
-
-    with pytest.raises(ValidationError, match=r"\.id: must be present"):
-        validate_termination(termination, test_config)
-
-
-def test_requires_termination_actions_inside_termination_tree(
-    test_termination: dict, test_config: dict
-) -> None:
-    termination = deepcopy(test_termination)
-    termination["termination_condition"]["conditions"][0]["actions"] = [
-        {"type": "add_item", "id": "general_fragment", "amount": 1}
-    ]
-
-    with pytest.raises(
-        ValidationError,
-        match="termination tree actions must use type 'termination'",
-    ):
-        validate_termination(termination, test_config)
-
-
-def test_requires_positive_integer_amount(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["items"]["ordinary_item_1"]["resolve"]["actions"][1]["amount"] = 0
-
-    with pytest.raises(ValidationError, match="must be a positive integer"):
-        validate_config(config)
-
-
-def test_rejects_boolean_amount(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["items"]["ordinary_item_1"]["resolve"]["actions"][1]["amount"] = True
-
-    with pytest.raises(ValidationError, match="must be a positive integer"):
-        validate_config(config)
-
-
-def test_requires_item_resolve_retain(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    del config["items"]["ordinary_item_1"]["resolve"]["retain"]
-
-    with pytest.raises(ValidationError, match=r"\.retain: is required"):
-        validate_config(config)
-
-
-def test_rejects_negative_item_resolve_retain(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["items"]["ordinary_item_1"]["resolve"]["retain"] = -1
-
-    with pytest.raises(ValidationError, match="must be a non-negative integer"):
-        validate_config(config)
-
-
-def test_rejects_empty_item_on_acquire(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["items"]["random_ordinary_item"]["on_acquire"] = []
-
-    with pytest.raises(ValidationError, match="must be a non-empty array"):
-        validate_config(config)
-
-
-def test_rejects_empty_item_resolve(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["items"]["ordinary_item_1"]["resolve"] = {}
-
-    with pytest.raises(ValidationError, match="must be non-empty"):
-        validate_config(config)
-
-
-def test_requires_item_resolve_actions(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    del config["items"]["ordinary_item_1"]["resolve"]["actions"]
-
-    with pytest.raises(ValidationError, match=r"\.actions: is required"):
-        validate_config(config)
-
-
-def test_rejects_empty_item_resolve_actions(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["items"]["ordinary_item_1"]["resolve"]["actions"] = []
-
-    with pytest.raises(ValidationError, match="must be a non-empty array"):
-        validate_config(config)
-
-
-def test_allows_zero_amount_for_set_item(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["every_draw"] = [
-        {"type": "add_item", "id": "draw_count", "amount": 1},
-        {"type": "set_item", "id": "general_fragment", "amount": 0},
-    ]
-
-    validate_config(config)
-
-
-def test_rejects_negative_amount_for_set_item(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["every_draw"] = [
-        {"type": "add_item", "id": "draw_count", "amount": 1},
-        {"type": "set_item", "id": "general_fragment", "amount": -1},
-    ]
-
-    with pytest.raises(ValidationError, match="must be a non-negative integer"):
-        validate_config(config)
-
-
-def test_requires_pool_probabilities_to_sum_to_one(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["pools"]["begin_pool"]["entries"][0]["probability"] = 0.02
+def test_validate_config_rejects_invalid_probability_sum() -> None:
+    config = _valid_config()
+    config["pools"][0]["main"][1]["probability"] = 0.4
 
     with pytest.raises(ValidationError, match="probability sum must be 1"):
         validate_config(config)
 
 
-def test_rejects_negative_pool_probability(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["pools"]["begin_pool"]["entries"][0]["probability"] = -0.01
+def test_validate_config_rejects_bad_item_name_with_spaces() -> None:
+    config = _valid_config()
+    config["items"][1] = "bad item"
 
-    with pytest.raises(ValidationError, match="must be non-negative"):
+    with pytest.raises(ValidationError, match="cannot contain spaces"):
         validate_config(config)
 
 
-def test_allows_omitted_pool_entry_actions(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    del config["pools"]["begin_pool"]["entries"][0]["actions"]
+def test_validate_config_requires_draw_count() -> None:
+    config = _valid_config()
+    config["items"] = ["token", "target"]
 
-    validate_config(config)
-
-
-def test_rejects_null_pool_entry_actions(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["pools"]["begin_pool"]["entries"][0]["actions"] = None
-
-    with pytest.raises(ValidationError, match="must be an array"):
+    with pytest.raises(ValidationError, match="draw_count is required"):
         validate_config(config)
 
 
-def test_rejects_empty_pool_entry_actions(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["pools"]["begin_pool"]["entries"][0]["actions"] = []
+def test_validate_config_rejects_old_dict_action_shape() -> None:
+    config = _valid_config()
+    config["every_draw"] = [{"type": "add_item", "id": "draw_count"}]
 
-    with pytest.raises(ValidationError, match="must be a non-empty array"):
+    with pytest.raises(ValidationError, match="must be an action string"):
         validate_config(config)
 
 
-def test_rejects_empty_condition_actions(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["stages"]["have_target_item_1"]["condition"]["actions"] = []
-
-    with pytest.raises(ValidationError, match="must be a non-empty array"):
-        validate_config(config)
-
-
-def test_rejects_unknown_predicate_subject(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["stages"]["have_target_item_1"]["condition"]["subject"] = "currency"
-
-    with pytest.raises(ValidationError, match="unsupported predicate subject: currency"):
-        validate_config(config)
-
-
-def test_rejects_unknown_predicate_op(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["stages"]["have_target_item_1"]["condition"]["op"] = "contains"
-
-    with pytest.raises(ValidationError, match="unsupported predicate op: contains"):
-        validate_config(config)
-
-
-def test_rejects_draw_count_predicate_subject(test_config: dict) -> None:
-    config = deepcopy(test_config)
-    config["stages"]["have_target_item_1"]["condition"]["subject"] = "draw_count"
-
-    with pytest.raises(
-        ValidationError,
-        match="unsupported predicate subject: draw_count",
-    ):
-        validate_config(config)
-
-
-def test_rejects_unknown_item_predicate_id(test_termination: dict, test_config: dict) -> None:
-    termination = deepcopy(test_termination)
-    termination["termination_condition"]["conditions"][0]["conditions"][0]["id"] = "missing_item"
-
-    with pytest.raises(ValidationError, match="unknown item id: missing_item"):
-        validate_termination(termination, test_config)
-
-
-def test_rejects_unknown_logic_op(test_termination: dict, test_config: dict) -> None:
-    termination = deepcopy(test_termination)
-    termination["termination_condition"]["op"] = "XOR"
+def test_validate_config_rejects_bad_logic_operator() -> None:
+    config = _valid_config()
+    config["rules"][0]["conditions"] = {
+        "op": "XOR",
+        "conditions": ["token >= 1", "target >= 1"],
+    }
 
     with pytest.raises(ValidationError, match="unsupported logic op: XOR"):
-        validate_termination(termination, test_config)
+        validate_config(config)
 
 
-def test_requires_non_empty_logic_conditions(test_termination: dict, test_config: dict) -> None:
-    termination = deepcopy(test_termination)
-    termination["termination_condition"]["conditions"] = []
+def test_validate_termination_requires_retained_items() -> None:
+    termination = _valid_termination()
+    del termination["retained_items"]
 
-    with pytest.raises(ValidationError, match="must be non-empty"):
-        validate_termination(termination, test_config)
+    with pytest.raises(ValidationError, match="termination.retained_items: must be a list"):
+        validate_termination(termination, _valid_config())
 
 
-def test_rejects_unknown_retained_item(test_termination: dict, test_config: dict) -> None:
-    termination = deepcopy(test_termination)
-    termination["retained_items"].append("missing_item")
+def test_validate_termination_rejects_unknown_retained_item() -> None:
+    termination = _valid_termination()
+    termination["retained_items"].append({"missing": 1})
 
-    with pytest.raises(ValidationError, match="unknown item id: missing_item"):
-        validate_termination(termination, test_config)
+    with pytest.raises(ValidationError, match="unknown item id: missing"):
+        validate_termination(termination, _valid_config())
+
+
+def test_validate_termination_rejects_unknown_condition_item() -> None:
+    termination = deepcopy(_valid_termination())
+    termination["termination_rule"]["conditions"]["conditions"][0] = "missing >= 1"
+
+    with pytest.raises(ValidationError, match="unknown item id: missing"):
+        validate_termination(termination, _valid_config())
+
+
+def test_validate_termination_requires_reason() -> None:
+    termination = _valid_termination()
+    termination["termination_rule"]["reason"] = ""
+
+    with pytest.raises(ValidationError, match="reason: must be a non-empty string"):
+        validate_termination(termination, _valid_config())
