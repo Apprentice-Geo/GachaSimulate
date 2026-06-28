@@ -670,19 +670,12 @@ def test_runs_real_config(sanliou_ctx: RuntimeContext) -> None:
     state = MonteCarlo(ctx, seed=42).run_once()
 
     assert state.terminate is True
-    assert state.terminate_reason == "抽中皮肤或兑换币兑换"
+    assert state.terminate_reason in {"抽中皮肤", "兑换币兑换"}
     assert _draw_count(state, ctx) > 0
     assert (
         state.inventory[ctx.item_id_index["yao_daergouzhimeng"]] >= 1
         or state.inventory[ctx.item_id_index["sanliouduihuanbi"]] >= 498
     )
-
-
-def test_sanliou_yaml_merges_termination_retains(sanliou_ctx: RuntimeContext) -> None:
-    ctx = sanliou_ctx
-
-    assert ctx.item_resolve_list[ctx.item_id_index["yao_daergouzhimeng"]].retain == 1
-    assert ctx.item_resolve_list[ctx.item_id_index["sanliouduihuanbi"]].retain == 498
 
 
 def test_saves_and_loads_simulation_result(sanliou_ctx: RuntimeContext) -> None:

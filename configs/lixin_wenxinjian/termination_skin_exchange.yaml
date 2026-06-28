@@ -1,0 +1,15 @@
+retained_items:
+- lixin_wenxinjian: 1
+- gongsunli_lihenyan: 1
+- yao_qilingchilongjian: 1
+- jianxinling: 998
+termination_rule:
+  cases:
+  - conditions: lixin_wenxinjian >= 1
+    reason: skin obtained
+  - conditions: gongsunli_lihenyan >= 1
+    reason: skin obtained
+  - conditions: yao_qilingchilongjian >= 1
+    reason: skin obtained
+  - conditions: jianxinling >= 998
+    reason: point exchange

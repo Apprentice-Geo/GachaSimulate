@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from gachasimulate.builder import build_context, build_from_files
 from gachasimulate.engine import MonteCarlo
@@ -234,6 +235,27 @@ def test_build_context_compiles_cases_as_ordered_first_match() -> None:
     assert actions == [AddItem(item_index=ctx.item_id_index["shard"], amount=1)]
 
 
+def test_build_context_compiles_termination_cases_with_distinct_reasons() -> None:
+    termination = {
+        "retained_items": [{"token": 1}, {"target": 1}],
+        "termination_rule": {
+            "cases": [
+                {"conditions": "token >= 1", "reason": "token stop"},
+                {"conditions": "target >= 1", "reason": "target stop"},
+            ],
+        },
+    }
+
+    ctx = build_context(_minimal_config(), termination)
+    state = RuntimeState(item_count=len(ctx.item_list), rng=np.random.default_rng(0))
+    state.inventory[ctx.item_id_index["target"]] = 1
+
+    ok, actions = MonteCarlo(ctx)._eval_condition(ctx.termination_tree, state)
+
+    assert ok is True
+    assert actions == [Termination(reason="target stop")]
+
+
 def test_build_context_merges_termination_retains_into_item_resolve() -> None:
     config = _minimal_config()
     config["item_resolve"] = [
@@ -305,3 +327,13 @@ termination_rule:
     assert ctx.pool_id_index == {"main": 0}
     assert ctx.item_id_index["draw_count"] == 0
     assert ctx.every_draw_actions == [AddItem(item_index=0, amount=1)]
+
+
+def test_build_from_files_rejects_json_extension(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.json"
+    termination_path = tmp_path / "termination.yaml"
+    config_path.write_text("{}", encoding="utf-8")
+    termination_path.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="must use .yaml or .yml"):
+        build_from_files(config_path, termination_path)

@@ -1,0 +1,14 @@
+retained_items:
+- target_item_1: 1
+- target_item_2: 1
+- target_item_3: 1
+- general_fragment: 10000
+termination_rule:
+  cases:
+  - conditions:
+    - target_item_1 >= 1
+    - target_item_2 >= 1
+    - target_item_3 >= 1
+    reason: all target items obtained
+  - conditions: general_fragment >= 10000
+    reason: fragment exchange

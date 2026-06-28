@@ -1,0 +1,18 @@
+retained_items:
+- sunwukong_wuxiang: 1
+- yao_zhenwohezi: 1
+- zhenji_xuejingqiyu: 1
+- xuejingqiyuquanpingtianmu: 1
+- wuxiang_point: 998
+termination_rule:
+  cases:
+  - conditions: sunwukong_wuxiang >= 1
+    reason: skin obtained
+  - conditions: yao_zhenwohezi >= 1
+    reason: skin obtained
+  - conditions: zhenji_xuejingqiyu >= 1
+    reason: skin obtained
+  - conditions: xuejingqiyuquanpingtianmu >= 1
+    reason: skin obtained
+  - conditions: wuxiang_point >= 998
+    reason: point exchange

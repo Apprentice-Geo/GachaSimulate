@@ -84,6 +84,20 @@ def test_validate_termination_accepts_yaml_spec_termination() -> None:
     validate_termination(_valid_termination(), _valid_config())
 
 
+def test_validate_termination_accepts_cases() -> None:
+    termination = {
+        "retained_items": [{"target": 1}, {"shard": 1}],
+        "termination_rule": {
+            "cases": [
+                {"conditions": "target >= 1", "reason": "target"},
+                {"conditions": "shard >= 1", "reason": "shard"},
+            ],
+        },
+    }
+
+    validate_termination(termination, _valid_config())
+
+
 def test_validate_config_rejects_unknown_item_reference() -> None:
     config = _valid_config()
     config["pools"][0]["main"][0]["actions"] = "missing += 1"
@@ -189,6 +203,21 @@ def test_validate_termination_rejects_unknown_condition_item() -> None:
     termination["termination_rule"]["conditions"]["conditions"][0] = "missing >= 1"
 
     with pytest.raises(ValidationError, match="unknown item id: missing"):
+        validate_termination(termination, _valid_config())
+
+
+def test_validate_termination_rejects_case_without_reason() -> None:
+    termination = {
+        "retained_items": [{"target": 1}, {"shard": 1}],
+        "termination_rule": {
+            "cases": [
+                {"conditions": "target >= 1", "reason": "target"},
+                {"conditions": "shard >= 1", "reason": ""},
+            ],
+        },
+    }
+
+    with pytest.raises(ValidationError, match="reason: must be a non-empty string"):
         validate_termination(termination, _valid_config())
 
 

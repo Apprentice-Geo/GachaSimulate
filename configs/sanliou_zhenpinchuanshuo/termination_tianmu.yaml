@@ -1,11 +1,9 @@
 retained_items:
-  - mianhuatangjuhuitianmu: 1
-  - sanliouduihuanbi: 428
-
+- mianhuatangjuhuitianmu: 1
+- sanliouduihuanbi: 428
 termination_rule:
-  conditions:
-    op: OR
-    conditions:
-      - "mianhuatangjuhuitianmu >= 1"
-      - "sanliouduihuanbi >= 428"
-  reason: 抽中天幕或兑换币兑换
+  cases:
+  - conditions: mianhuatangjuhuitianmu >= 1
+    reason: 抽中天幕
+  - conditions: sanliouduihuanbi >= 428
+    reason: 兑换币兑换

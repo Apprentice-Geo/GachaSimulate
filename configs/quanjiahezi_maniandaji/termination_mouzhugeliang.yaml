@@ -1,0 +1,5 @@
+retained_items:
+- mou_zhugeliang: 1
+termination_rule:
+  conditions: mou_zhugeliang >= 1
+  reason: obtained mou_zhugeliang

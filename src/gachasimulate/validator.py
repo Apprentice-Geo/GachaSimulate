@@ -388,6 +388,29 @@ def validate_termination(termination: dict[str, Any], config: dict[str, Any]) ->
         termination.get("termination_rule"),
         "termination.termination_rule",
     )
+    has_cases = "cases" in rule
+    has_condition_reason = "conditions" in rule or "reason" in rule
+    if has_cases == has_condition_reason:
+        _fail("termination.termination_rule", "must contain either cases or conditions/reason")
+
+    if has_cases:
+        cases = _require_list(rule["cases"], "termination.termination_rule.cases")
+        if len(cases) < 2:
+            _fail("termination.termination_rule.cases", "must contain at least two cases")
+        for case_index, case in enumerate(cases):
+            case_path = f"termination.termination_rule.cases[{case_index}]"
+            case = _require_mapping(case, case_path)
+            if "conditions" not in case:
+                _fail(case_path + ".conditions", "is required")
+            _validate_condition(
+                case["conditions"],
+                case_path + ".conditions",
+                item_ids=item_ids,
+            )
+            if not isinstance(case.get("reason"), str) or not case["reason"]:
+                _fail(case_path + ".reason", "must be a non-empty string")
+        return
+
     if "conditions" not in rule:
         _fail("termination.termination_rule.conditions", "is required")
     _validate_condition(

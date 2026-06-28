@@ -1,0 +1,9 @@
+retained_items:
+- shenjiangwei: 1
+- shishibaozhu_66: 1
+termination_rule:
+  cases:
+  - conditions: shenjiangwei >= 1
+    reason: obtained shenjiangwei
+  - conditions: shishibaozhu_66 >= 1
+    reason: obtained shishibaozhu_66

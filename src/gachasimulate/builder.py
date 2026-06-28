@@ -48,7 +48,10 @@ _COMPARE_OPS = {
 
 
 def load_yaml_file(path: str | Path) -> dict[str, Any]:
-    data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    path = Path(path)
+    if path.suffix not in {".yaml", ".yml"}:
+        raise ValueError(f"{path}: config files must use .yaml or .yml")
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError(f"{path}: YAML root must be a mapping")
     return data
@@ -72,11 +75,7 @@ def build_context(config: dict[str, Any], termination: dict[str, Any]) -> Runtim
     _merge_termination_retains(context, termination)
     _build_rules(context, config)
 
-    termination_tree = _build_condition_tree(
-        context,
-        termination["termination_rule"]["conditions"],
-        [Termination(reason=termination["termination_rule"]["reason"])],
-    )
+    termination_tree = _build_termination_tree(context, termination["termination_rule"])
 
     return RuntimeContext(
         initial_actions=context.initial_actions,
@@ -217,6 +216,30 @@ def _build_rules(context: RuntimeConfigContext, config: dict[str, Any]) -> None:
 
         context.rule_id_index[rule_id] = len(context.rule_list)
         context.rule_list.append(Rule(condition=condition, mode=mode))
+
+
+def _build_termination_tree(
+    context: RuntimeConfigContext, rule: dict[str, Any]
+) -> RuntimeCondition:
+    if "cases" in rule:
+        return LogicNode(
+            op=RuntimeOpCode.OR,
+            conditions=[
+                _build_condition_tree(
+                    context,
+                    case["conditions"],
+                    [Termination(reason=case["reason"])],
+                )
+                for case in rule["cases"]
+            ],
+            actions=[],
+        )
+
+    return _build_condition_tree(
+        context,
+        rule["conditions"],
+        [Termination(reason=rule["reason"])],
+    )
 
 
 def _build_action(context: RuntimeConfigContext, action: str) -> RuntimeAction:

@@ -1,0 +1,9 @@
+retained_items:
+- shiweiyan: 1
+- shishibaozhu_33: 1
+termination_rule:
+  cases:
+  - conditions: shiweiyan >= 1
+    reason: obtained shiweiyan
+  - conditions: shishibaozhu_33 >= 1
+    reason: obtained shishibaozhu_33

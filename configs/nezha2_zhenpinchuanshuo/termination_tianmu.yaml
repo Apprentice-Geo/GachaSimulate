@@ -1,0 +1,9 @@
+retained_items:
+- talangtongxintianmu: 1
+- nezha2duihuanbi: 428
+termination_rule:
+  cases:
+  - conditions: talangtongxintianmu >= 1
+    reason: tianmu
+  - conditions: nezha2duihuanbi >= 428
+    reason: exchange

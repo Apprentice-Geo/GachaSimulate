@@ -1,0 +1,122 @@
+meta_data:
+  name: test
+  source: null
+  game: null
+  time: '2026_4_13'
+  cost_id: test_coin
+  cost_name: 测试币
+  amount: 10
+  per_cost_to_rmb: 1
+items:
+- target_item_1: 目标物品_1
+- target_item_2: 目标物品_2
+- target_item_3: 目标物品_3
+- random_precious_item: 随机珍贵物品
+- random_ordinary_item: 随机普通物品
+- precious_item_1: 珍贵物品_1
+- precious_item_2: 珍贵物品_2
+- precious_item_3: 珍贵物品_3
+- ordinary_item_1: 普通物品_1
+- ordinary_item_2: 普通物品_2
+- ordinary_item_3: 普通物品_3
+- general_fragment: 通用碎片
+- draw_count: Draw count
+pools:
+- begin_pool:
+  - probability: 0.01
+    actions: target_item_1 += 1
+  - probability: 0.09
+    actions: random_precious_item += 1
+  - probability: 0.6
+    actions: random_ordinary_item += 1
+  - probability: 0.3
+    actions: general_fragment += 5
+- pool_1:
+  - probability: 0.005
+    actions: target_item_2 += 1
+  - probability: 0.095
+    actions: random_precious_item += 1
+  - probability: 0.7
+    actions: random_ordinary_item += 1
+  - probability: 0.2
+    actions: general_fragment += 5
+- pool_2:
+  - probability: 0.001
+    actions: target_item_3 += 1
+  - probability: 0.099
+    actions: random_precious_item += 1
+  - probability: 0.8
+    actions: random_ordinary_item += 1
+  - probability: 0.1
+    actions: general_fragment += 5
+- precious_item_pool:
+  - probability: 0.1
+    actions: precious_item_1 += 1
+  - probability: 0.3
+    actions: precious_item_2 += 1
+  - probability: 0.6
+    actions: precious_item_3 += 1
+- ordinary_item_pool:
+  - probability: 0.1
+    actions: ordinary_item_1 += 1
+  - probability: 0.3
+    actions: ordinary_item_2 += 1
+  - probability: 0.6
+    actions: ordinary_item_3 += 1
+every_draw:
+- draw_count += 1
+- general_fragment += 1
+rules:
+- name: have_target_item_1
+  mode: once
+  conditions: target_item_1 >= 1
+  actions:
+  - change pool_1
+- name: have_target_item_2
+  mode: once
+  conditions: target_item_2 >= 1
+  actions:
+  - change pool_2
+item_resolve:
+- item: random_precious_item
+  retain: 0
+  actions:
+  - random_precious_item -= 1
+  - draw precious_item_pool
+- item: random_ordinary_item
+  retain: 0
+  actions:
+  - random_ordinary_item -= 1
+  - draw ordinary_item_pool
+- item: precious_item_1
+  retain: 0
+  actions:
+  - general_fragment += 120
+  - precious_item_1 -= 1
+- item: precious_item_2
+  retain: 0
+  actions:
+  - general_fragment += 60
+  - precious_item_2 -= 1
+- item: precious_item_3
+  retain: 0
+  actions:
+  - general_fragment += 20
+  - precious_item_3 -= 1
+- item: ordinary_item_1
+  retain: 0
+  actions:
+  - general_fragment += 60
+  - ordinary_item_1 -= 1
+- item: ordinary_item_2
+  retain: 0
+  actions:
+  - general_fragment += 30
+  - ordinary_item_2 -= 1
+- item: ordinary_item_3
+  retain: 0
+  actions:
+  - general_fragment += 10
+  - ordinary_item_3 -= 1
+initial:
+- change begin_pool
