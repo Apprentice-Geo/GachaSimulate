@@ -36,39 +36,34 @@ class RuntimeOpCode(Enum):
 
 @dataclass(frozen=False, slots=True)
 class RuntimeConfigContext:
-    begin_pool_index: int = 0
     initial_actions: List[RuntimeAction] = field(default_factory=list)
     every_draw_actions: List[RuntimeAction] = field(default_factory=list)
     item_id_index: Dict[str, int] = field(default_factory=dict)
     item_list: List[Item] = field(default_factory=list)
     item_resolve_list: List[ItemResolve] = field(default_factory=list)
-    item_draw_list: List[list[RuntimeAction]] = field(default_factory=list)
     pool_id_index: Dict[str, int] = field(default_factory=dict)
     pool_list: List[Pool] = field(default_factory=list)
     # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
     pool_draw_list: List[RuntimeAction] = field(default_factory=list)
-    draw_stage_id_index: Dict[str, int] = field(default_factory=dict)
-    draw_stage_list: List[Stage] = field(default_factory=list)
+    rule_id_index: Dict[str, int] = field(default_factory=dict)
+    rule_list: List[Rule] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
 class RuntimeContext:
-    begin_pool_index: int
     initial_actions: List[RuntimeAction]
     every_draw_actions: List[RuntimeAction]
     item_id_index: Dict[str, int]  # 对物品进行编号
     draw_count_index: int
     item_list: List[Item]
     item_resolve_list: List[ItemResolve]  # 分解某个物品时执行的动作
-    item_draw_list: List[List[RuntimeAction]]  # 获得物品时执行的动作
     pool_id_index: Dict[str, int]  # 对池子进行编号
     pool_list: List[Pool]
     pool_draw_list: List[
         RuntimeAction
     ]  # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
-    draw_stage_id_index: Dict[str, int]  # 对阶段进行编号
-    draw_stage_list: List[Stage]
-    retained_items_index: List[int]
+    rule_id_index: Dict[str, int]  # 对规则进行编号
+    rule_list: List[Rule]
     termination_tree: RuntimeCondition
 
 
@@ -76,8 +71,8 @@ class RuntimeState:
     __slots__ = (
         "rng",
         "main_pool_index",
-        "stage_execute",
-        "active_stage_indices",
+        "rule_execute",
+        "active_rule_indices",
         "inventory",  # 规则用库存
         "acquired",  # 统计用累计获得
         "reduced",  # 统计用累计消耗
@@ -88,8 +83,8 @@ class RuntimeState:
     def __init__(self, item_count: int, rng: np.random.Generator):
         self.rng = rng
         self.main_pool_index = 0
-        self.stage_execute = []
-        self.active_stage_indices = []
+        self.rule_execute = []
+        self.active_rule_indices = []
         self.inventory = np.zeros(item_count, dtype=np.int32)
         self.acquired = np.zeros(item_count, dtype=np.int32)
         self.reduced = np.zeros(item_count, dtype=np.int32)
@@ -203,18 +198,18 @@ class CheckNode(ConditionNode):
 
 
 type RuntimeCondition = LogicNode | CheckNode
-type StageMode = Literal["once", "per_draw", "repeat"]
+type RuleMode = Literal["once", "per_draw", "repeat"]
 
 
 @dataclass(frozen=True, slots=True, init=False)
-class Stage:
-    mode: StageMode
+class Rule:
+    mode: RuleMode
     condition: RuntimeCondition
 
     def __init__(
             self,
             condition: RuntimeCondition,
-            mode: StageMode | None = None,
+            mode: RuleMode | None = None,
             once: bool | None = None,
     ) -> None:
         if mode is None:

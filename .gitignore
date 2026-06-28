@@ -3,6 +3,7 @@ venv/
 __pycache__/
 .vscode/
 .idea/
+.plan/
 .codex
 *.egg-info/
 /images/

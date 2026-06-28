@@ -22,8 +22,8 @@ from .runtime import (
     RuntimeConfigContext,
     RuntimeContext,
     RuntimeOpCode,
+    Rule,
     SetItem,
-    Stage,
     Termination,
 )
 from .validator import validate_config, validate_termination
@@ -79,20 +79,17 @@ def build_context(config: dict[str, Any], termination: dict[str, Any]) -> Runtim
     )
 
     return RuntimeContext(
-        begin_pool_index=context.begin_pool_index,
         initial_actions=context.initial_actions,
         every_draw_actions=context.every_draw_actions,
         item_id_index=context.item_id_index,
         draw_count_index=context.item_id_index["draw_count"],
         item_list=context.item_list,
         item_resolve_list=context.item_resolve_list,
-        item_draw_list=context.item_draw_list,
         pool_id_index=context.pool_id_index,
         pool_list=context.pool_list,
         pool_draw_list=context.pool_draw_list,
-        draw_stage_id_index=context.draw_stage_id_index,
-        draw_stage_list=context.draw_stage_list,
-        retained_items_index=[],
+        rule_id_index=context.rule_id_index,
+        rule_list=context.rule_list,
         termination_tree=termination_tree,
     )
 
@@ -130,7 +127,6 @@ def _build_items(context: RuntimeConfigContext, config: dict[str, Any]) -> None:
         context.item_id_index[item_id] = index
         context.item_list.append(Item(id=item_id, name=item_name))
         context.item_resolve_list.append(ItemResolve())
-        context.item_draw_list.append([])
 
 
 def _build_pool_index(context: RuntimeConfigContext, config: dict[str, Any]) -> None:
@@ -165,14 +161,7 @@ def _build_pools(context: RuntimeConfigContext, config: dict[str, Any]) -> None:
 
 
 def _build_initial(context: RuntimeConfigContext, config: dict[str, Any]) -> None:
-    if not context.pool_list:
-        return
-
-    context.begin_pool_index = 0
     context.initial_actions = _build_actions(context, config.get("initial"))
-    for action in context.initial_actions:
-        if isinstance(action, PoolChange):
-            context.begin_pool_index = action.pool_index
 
 
 def _build_every_draw(context: RuntimeConfigContext, config: dict[str, Any]) -> None:
@@ -226,8 +215,8 @@ def _build_rules(context: RuntimeConfigContext, config: dict[str, Any]) -> None:
                 _build_actions(context, rule["actions"]),
             )
 
-        context.draw_stage_id_index[rule_id] = len(context.draw_stage_list)
-        context.draw_stage_list.append(Stage(condition=condition, mode=mode))
+        context.rule_id_index[rule_id] = len(context.rule_list)
+        context.rule_list.append(Rule(condition=condition, mode=mode))
 
 
 def _build_action(context: RuntimeConfigContext, action: str) -> RuntimeAction:

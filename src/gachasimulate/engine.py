@@ -27,13 +27,11 @@ class MonteCarlo:
             for item_index, item_resolve in enumerate(self.ctx.item_resolve_list)
             if item_resolve.actions
         ]
-        self.retained_items_index_set = set(self.ctx.retained_items_index)
 
     def run_once(self) -> RuntimeState:
         state = RuntimeState(item_count=len(self.ctx.item_list), rng=self.rng)
-        state.main_pool_index = self.ctx.begin_pool_index
-        state.stage_execute = [False] * len(self.ctx.draw_stage_list)
-        state.active_stage_indices = list(range(len(self.ctx.draw_stage_list)))
+        state.rule_execute = [False] * len(self.ctx.rule_list)
+        state.active_rule_indices = list(range(len(self.ctx.rule_list)))
         self._execute_actions(state, self.ctx.initial_actions)
 
         while not state.terminate:
@@ -47,7 +45,7 @@ class MonteCarlo:
         # 这里所有池子的单次抽取都被构造成了 Action，需要抽取直接调用
         self._execute_action(state, self.ctx.pool_draw_list[state.main_pool_index])
 
-        self._stage_phase(state)
+        self._rule_phase(state)
         # 只要 resolve 不会产生还需要 resolve 的物品，就不会出错
         self._resolve_phase(state)
 
@@ -57,36 +55,33 @@ class MonteCarlo:
         if should_terminate:
             self._execute_actions(state, termination_actions)
 
-    def _stage_phase(self, state: RuntimeState) -> None:
-        active_stage_pos = 0
-        while active_stage_pos < len(state.active_stage_indices):
-            stage_index = state.active_stage_indices[active_stage_pos]
-            stage = self.ctx.draw_stage_list[stage_index]
+    def _rule_phase(self, state: RuntimeState) -> None:
+        active_rule_pos = 0
+        while active_rule_pos < len(state.active_rule_indices):
+            rule_index = state.active_rule_indices[active_rule_pos]
+            rule = self.ctx.rule_list[rule_index]
 
-            ok, stage_actions = self._eval_condition(stage.condition, state)
+            ok, rule_actions = self._eval_condition(rule.condition, state)
             if ok:
-                state.stage_execute[stage_index] = True
-                self._execute_actions(state, stage_actions)
+                state.rule_execute[rule_index] = True
+                self._execute_actions(state, rule_actions)
                 if state.terminate:
                     return
-                if stage.mode == "once":
-                    state.active_stage_indices.pop(active_stage_pos)
-                elif stage.mode == "repeat":
+                if rule.mode == "once":
+                    state.active_rule_indices.pop(active_rule_pos)
+                elif rule.mode == "repeat":
                     continue
                 else:
-                    active_stage_pos += 1
+                    active_rule_pos += 1
                 continue
 
-            active_stage_pos += 1
+            active_rule_pos += 1
 
     def _resolve_phase(self, state: RuntimeState) -> None:
         for item_index in self.resolvable_item_indices:
             item_resolve = self.ctx.item_resolve_list[item_index]
             count = int(state.inventory[item_index])
-            retain = max(
-                item_resolve.retain,
-                int(item_index in self.retained_items_index_set),
-            )
+            retain = item_resolve.retain
             resolve_count = count - retain
             if resolve_count <= 0:
                 continue
@@ -109,12 +104,6 @@ class MonteCarlo:
         match action.kind:
             case RuntimeKind.AddItem:
                 action.execute(state, self.ctx)
-
-                # 直接触发带有二级池子物品的抽取
-                draw_actions = self.ctx.item_draw_list[action.item_index]
-                if draw_actions:
-                    for _ in range(action.amount):
-                        self._execute_actions(state, draw_actions)
                 return
 
             case RuntimeKind.DrawPool:
