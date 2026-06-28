@@ -66,13 +66,15 @@ class MonteCarlo:
             ok, stage_actions = self._eval_condition(stage.condition, state)
             if ok:
                 state.stage_execute[stage_index] = True
-                state.stage_execute[stage_index] = True
-                if stage.once:
+                self._execute_actions(state, stage_actions)
+                if state.terminate:
+                    return
+                if stage.mode == "once":
                     state.active_stage_indices.pop(active_stage_pos)
+                elif stage.mode == "repeat":
+                    continue
                 else:
                     active_stage_pos += 1
-                self._execute_actions(state, stage_actions)
-                # 由于之前已经执行了 pop 或者 +=1，continue 以后不会重复触发同一个 stage
                 continue
 
             active_stage_pos += 1

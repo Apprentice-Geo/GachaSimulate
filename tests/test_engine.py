@@ -313,6 +313,119 @@ def test_once_stage_executes_only_once() -> None:
     assert int(state.acquired[item_id_index["bonus"]]) == 1
 
 
+def test_per_draw_stage_executes_at_most_once_per_draw_cycle() -> None:
+    item_list = [Item(id="counter", name="Counter"), Item(id="bonus", name="Bonus")]
+    item_list.append(Item(id="draw_count", name="Draw count"))
+    item_id_index = {item.id: i for i, item in enumerate(item_list)}
+
+    ctx = RuntimeContext(
+        begin_pool_index=0,
+        initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
+        item_id_index=item_id_index,
+        draw_count_index=item_id_index["draw_count"],
+        item_list=item_list,
+        item_resolve_list=[
+            ItemResolve(retain=0, actions=[]),
+            ItemResolve(retain=0, actions=[]),
+        ],
+        item_draw_list=[[], [], []],
+        pool_id_index={"begin_pool": 0},
+        pool_list=[
+            Pool(
+                cdf=np.array([1.0], dtype=np.float64),
+                actions=[[AddItem(item_index=item_id_index["counter"], amount=2)]],
+            )
+        ],
+        pool_draw_list=[DrawPool(pool_index=0)],
+        draw_stage_id_index={"grant_bonus": 0},
+        draw_stage_list=[
+            Stage(
+                mode="per_draw",
+                condition=CheckNode(
+                    item_index=item_id_index["counter"],
+                    op=RuntimeOpCode.GE,
+                    value=1,
+                    actions=[
+                        ReduceItem(item_index=item_id_index["counter"], amount=1),
+                        AddItem(item_index=item_id_index["bonus"], amount=1),
+                    ],
+                ),
+            )
+        ],
+        retained_items_index=[],
+        termination_tree=CheckNode(
+            item_index=item_id_index["draw_count"],
+            op=RuntimeOpCode.GE,
+            value=3,
+            actions=[Termination(reason="done")],
+        ),
+    )
+
+    state = MonteCarlo(ctx, seed=0).run_once()
+
+    assert _draw_count(state, ctx) == 3
+    assert int(state.acquired[item_id_index["counter"]]) == 6
+    assert int(state.reduced[item_id_index["counter"]]) == 3
+    assert int(state.acquired[item_id_index["bonus"]]) == 3
+
+
+def test_repeat_stage_rechecks_condition_in_same_draw_cycle() -> None:
+    item_list = [Item(id="counter", name="Counter"), Item(id="bonus", name="Bonus")]
+    item_list.append(Item(id="draw_count", name="Draw count"))
+    item_id_index = {item.id: i for i, item in enumerate(item_list)}
+
+    ctx = RuntimeContext(
+        begin_pool_index=0,
+        initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
+        item_id_index=item_id_index,
+        draw_count_index=item_id_index["draw_count"],
+        item_list=item_list,
+        item_resolve_list=[
+            ItemResolve(retain=0, actions=[]),
+            ItemResolve(retain=0, actions=[]),
+        ],
+        item_draw_list=[[], [], []],
+        pool_id_index={"begin_pool": 0},
+        pool_list=[
+            Pool(
+                cdf=np.array([1.0], dtype=np.float64),
+                actions=[[AddItem(item_index=item_id_index["counter"], amount=3)]],
+            )
+        ],
+        pool_draw_list=[DrawPool(pool_index=0)],
+        draw_stage_id_index={"grant_bonus": 0},
+        draw_stage_list=[
+            Stage(
+                mode="repeat",
+                condition=CheckNode(
+                    item_index=item_id_index["counter"],
+                    op=RuntimeOpCode.GE,
+                    value=1,
+                    actions=[
+                        ReduceItem(item_index=item_id_index["counter"], amount=1),
+                        AddItem(item_index=item_id_index["bonus"], amount=1),
+                    ],
+                ),
+            )
+        ],
+        retained_items_index=[],
+        termination_tree=CheckNode(
+            item_index=item_id_index["bonus"],
+            op=RuntimeOpCode.GE,
+            value=3,
+            actions=[Termination(reason="done")],
+        ),
+    )
+
+    state = MonteCarlo(ctx, seed=0).run_once()
+
+    assert _draw_count(state, ctx) == 1
+    assert int(state.reduced[item_id_index["counter"]]) == 3
+    assert int(state.acquired[item_id_index["bonus"]]) == 3
+
+
 def test_pool_change_affects_next_draw() -> None:
     item_list = [Item(id="first", name="First"), Item(id="second", name="Second")]
     item_list.append(Item(id="draw_count", name="Draw count"))

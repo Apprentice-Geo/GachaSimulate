@@ -203,12 +203,28 @@ class CheckNode(ConditionNode):
 
 
 type RuntimeCondition = LogicNode | CheckNode
+type StageMode = Literal["once", "per_draw", "repeat"]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class Stage:
-    once: bool
+    mode: StageMode
     condition: RuntimeCondition
+
+    def __init__(
+            self,
+            condition: RuntimeCondition,
+            mode: StageMode | None = None,
+            once: bool | None = None,
+    ) -> None:
+        if mode is None:
+            mode = "once" if once is not False else "per_draw"
+        object.__setattr__(self, "mode", mode)
+        object.__setattr__(self, "condition", condition)
+
+    @property
+    def once(self) -> bool:
+        return self.mode == "once"
 
 
 @dataclass(frozen=True, slots=True)
