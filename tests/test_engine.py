@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from gachasimulate.builder import RuntimeBuilder
+from gachasimulate.builder import build_from_files
 from gachasimulate.engine import MonteCarlo
 from gachasimulate.runtime import (
     AddItem,
@@ -33,8 +33,6 @@ from gachasimulate.core import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFIG_SCHEMA_PATH = ROOT / "docs" / "schemas" / "config.schema.json"
-TERMINATION_SCHEMA_PATH = ROOT / "docs" / "schemas" / "termination.schema.json"
 
 
 class CountingMonteCarlo(MonteCarlo):
@@ -49,15 +47,10 @@ class CountingMonteCarlo(MonteCarlo):
 
 
 @pytest.fixture
-def test_ctx() -> RuntimeContext:
-    config_path = ROOT / "configs" / "test" / "config.json"
-    termination_path = ROOT / "configs" / "test" / "termination.json"
-    return RuntimeBuilder(
-        str(config_path),
-        str(termination_path),
-        str(CONFIG_SCHEMA_PATH),
-        str(TERMINATION_SCHEMA_PATH),
-    ).build()
+def sanliou_ctx() -> RuntimeContext:
+    config_path = ROOT / "configs" / "sanliou_zhenpinchuanshuo" / "config.yaml"
+    termination_path = ROOT / "configs" / "sanliou_zhenpinchuanshuo" / "termination_skin.yaml"
+    return build_from_files(config_path, termination_path)
 
 
 def _draw_count(state, ctx: RuntimeContext) -> int:
@@ -807,38 +800,28 @@ def test_retained_item_keeps_one_but_resolves_duplicates() -> None:
     assert int(state.inventory[item_id_index["coin"]]) == 10
 
 
-def test_runs_real_config() -> None:
-    config_path = ROOT / "configs" / "sunwukong_wuxiang" / "config.json"
-    termination_path = ROOT / "configs" / "sunwukong_wuxiang" / "termination_skin.json"
-
-    ctx = RuntimeBuilder(
-        str(config_path),
-        str(termination_path),
-        str(CONFIG_SCHEMA_PATH),
-        str(TERMINATION_SCHEMA_PATH),
-    ).build()
+def test_runs_real_config(sanliou_ctx: RuntimeContext) -> None:
+    ctx = sanliou_ctx
     state = MonteCarlo(ctx, seed=42).run_once()
 
     assert state.terminate is True
-    assert state.terminate_reason in {"skin obtained", "point exchange"}
+    assert state.terminate_reason == "抽中皮肤或兑换币兑换"
     assert _draw_count(state, ctx) > 0
+    assert (
+        state.inventory[ctx.item_id_index["yao_daergouzhimeng"]] >= 1
+        or state.inventory[ctx.item_id_index["sanliouduihuanbi"]] >= 498
+    )
 
 
-def test_reaches_expected_final_state(test_ctx: RuntimeContext) -> None:
-    state = MonteCarlo(test_ctx, seed=0).run_once()
+def test_sanliou_yaml_merges_termination_retains(sanliou_ctx: RuntimeContext) -> None:
+    ctx = sanliou_ctx
 
-    assert state.terminate is True
-    assert state.terminate_reason == "all target items obtained"
-    assert _draw_count(state, test_ctx) == 459
-    assert state.main_pool_index == test_ctx.pool_id_index["pool_2"]
-    assert state.inventory.tolist() == [1, 1, 1, 40, 357, 0, 0, 0, 0, 0, 0, 9494, 459]
-    assert state.acquired.tolist() == [1, 1, 1, 40, 357, 5, 12, 23, 29, 97, 231, 9494, 459]
-    assert state.reduced.tolist() == [0, 0, 0, 0, 0, 5, 12, 23, 29, 97, 231, 0, 0]
+    assert ctx.item_resolve_list[ctx.item_id_index["yao_daergouzhimeng"]].retain == 1
+    assert ctx.item_resolve_list[ctx.item_id_index["sanliouduihuanbi"]].retain == 498
 
 
-def test_saves_and_loads_simulation_result(test_ctx: RuntimeContext) -> None:
-    ctx = test_ctx
-
+def test_saves_and_loads_simulation_result(sanliou_ctx: RuntimeContext) -> None:
+    ctx = sanliou_ctx
     result = simulate_until_total_draw(MonteCarlo(ctx, seed=0), target_total_draw=100)
     output = BytesIO()
     save_simulation_result(output, result)

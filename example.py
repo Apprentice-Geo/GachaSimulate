@@ -3,14 +3,12 @@ from gachasimulate.core import (
     load_simulation_result,
     simulate_until_total_draw,
 )
-from gachasimulate.builder import RuntimeBuilder
+from gachasimulate.builder import build_from_files
 from gachasimulate.engine import MonteCarlo
 import os
 import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-CONFIG_SCHEMA_PATH = os.path.join(PROJECT_ROOT, "docs", "schemas", "config.schema.json")
-TERMINATION_SCHEMA_PATH = os.path.join(PROJECT_ROOT, "docs", "schemas", "termination.schema.json")
 
 
 def run_save(
@@ -25,19 +23,12 @@ def run_save(
 ):
 
     base_path = os.path.join(PROJECT_ROOT, "configs", config_name)
-    config_json_path = os.path.join(base_path, "config.json")
-    termination_json_path = os.path.join(base_path, termination_name + ".json")
+    config_yaml_path = os.path.join(base_path, "config.yaml")
+    termination_yaml_path = os.path.join(base_path, termination_name + ".yaml")
     result_file_path = f"./data/{config_name}_{termination_name}_{target_total_draw}_seed{seed}.npz"
-    # name = os.path.basename(os.path.dirname(config_json_path))
-    # simulate_name = f"{name}_{Path(termination_json_path).stem}"
-    builder = RuntimeBuilder(
-        config_path=config_json_path,
-        termination_path=termination_json_path,
-        config_schema_path=CONFIG_SCHEMA_PATH,
-        termination_schema_path=TERMINATION_SCHEMA_PATH,
-    )
-
-    ctx = builder.build()
+    # name = os.path.basename(os.path.dirname(config_yaml_path))
+    # simulate_name = f"{name}_{Path(termination_yaml_path).stem}"
+    ctx = build_from_files(config_yaml_path, termination_yaml_path)
     if not Path(result_file_path).exists():
         simulator = MonteCarlo(ctx, seed=seed)
         result = simulate_until_total_draw(
@@ -82,7 +73,7 @@ if __name__ == "__main__":
     run_save(
         "sanliou_zhenpinchuanshuo",
         "termination_skin",
-        target_total_draw=1000,
+        target_total_draw=1000000,
         seed=base_seed,
         workers=1,
     )

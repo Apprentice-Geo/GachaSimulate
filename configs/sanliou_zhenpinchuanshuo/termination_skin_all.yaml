@@ -1,0 +1,14 @@
+retained_items:
+  - yao_daergouzhimeng: 1
+  - sanliouduihuanbi: 952
+
+termination_rule:
+  conditions:
+    op: OR
+    conditions:
+      - op: AND
+        conditions:
+          - "yao_daergouzhimeng >= 1"
+          - "sanliouduihuanbi >= 454"
+      - "sanliouduihuanbi >= 952"
+  reason: 抽中皮肤并兑换其余礼包或兑换币兑换
