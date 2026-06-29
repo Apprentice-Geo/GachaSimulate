@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from io import BytesIO
 from pathlib import Path
+from typing import Iterable
 
 import numpy as np
 import pytest
@@ -11,14 +12,16 @@ from gachasimulate.builder import build_from_files
 from gachasimulate.engine import MonteCarlo
 from gachasimulate.runtime import (
     AddItem,
-    CheckNode,
+    CheckNode as _CheckNode,
     DrawPool,
     Item,
-    ItemResolve,
-    LogicNode,
-    Pool,
+    ItemResolve as _ItemResolve,
+    LogicNode as _LogicNode,
+    Pool as _Pool,
     PoolChange,
     ReduceItem,
+    RuntimeAction,
+    RuntimeCondition,
     RuntimeOpCode,
     RuntimeContext,
     SetItem,
@@ -33,6 +36,53 @@ from gachasimulate.core import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def CheckNode(
+    *,
+    item_index: int,
+    op: RuntimeOpCode,
+    value: int,
+    actions: Iterable[RuntimeAction] = (),
+) -> _CheckNode:
+    return _CheckNode(
+        item_index=item_index,
+        op=op,
+        value=value,
+        actions=tuple(actions),
+    )
+
+
+def LogicNode(
+    *,
+    op: RuntimeOpCode,
+    conditions: Iterable[RuntimeCondition],
+    actions: Iterable[RuntimeAction] = (),
+) -> _LogicNode:
+    return _LogicNode(
+        op=op,
+        conditions=tuple(conditions),
+        actions=tuple(actions),
+    )
+
+
+def Pool(
+    *,
+    cdf: np.ndarray,
+    actions: Iterable[Iterable[RuntimeAction]],
+) -> _Pool:
+    return _Pool(
+        cdf=cdf,
+        actions=tuple(tuple(entry_actions) for entry_actions in actions),
+    )
+
+
+def ItemResolve(
+    *,
+    retain: int = 0,
+    actions: Iterable[RuntimeAction] = (),
+) -> _ItemResolve:
+    return _ItemResolve(retain=retain, actions=tuple(actions))
 
 
 class CountingMonteCarlo(MonteCarlo):
@@ -57,12 +107,76 @@ def _draw_count(state, ctx: RuntimeContext) -> int:
     return int(state.inventory[ctx.draw_count_index])
 
 
+def _freeze_condition(node):
+    if isinstance(node, _CheckNode):
+        return CheckNode(
+            item_index=node.item_index,
+            op=node.op,
+            value=node.value,
+            actions=tuple(node.actions),
+        )
+
+    if isinstance(node, _LogicNode):
+        return LogicNode(
+            op=node.op,
+            conditions=tuple(_freeze_condition(child) for child in node.conditions),
+            actions=tuple(node.actions),
+        )
+
+    raise TypeError(f"unsupported condition node type: {type(node).__name__}")
+
+
+def _runtime_context(
+    *,
+    initial_actions,
+    every_draw_actions,
+    item_id_index,
+    draw_count_index,
+    item_list,
+    item_resolve_list,
+    pool_id_index,
+    pool_list,
+    pool_draw_list,
+    rule_id_index,
+    rule_list,
+    termination_tree,
+) -> RuntimeContext:
+    item_list = tuple(item_list)
+    item_resolve_list = tuple(
+        ItemResolve(retain=resolve.retain, actions=tuple(resolve.actions))
+        for resolve in item_resolve_list
+    )
+    item_resolve_list += tuple(
+        ItemResolve() for _ in range(len(item_list) - len(item_resolve_list))
+    )
+
+    return RuntimeContext(
+        initial_actions=tuple(initial_actions),
+        every_draw_actions=tuple(every_draw_actions),
+        item_id_index=item_id_index,
+        draw_count_index=draw_count_index,
+        item_list=item_list,
+        item_resolve_list=item_resolve_list,
+        pool_id_index=pool_id_index,
+        pool_list=tuple(
+            Pool(cdf=pool.cdf, actions=tuple(tuple(actions) for actions in pool.actions))
+            for pool in pool_list
+        ),
+        pool_draw_list=tuple(pool_draw_list),
+        rule_id_index=rule_id_index,
+        rule_list=tuple(
+            Rule(condition=_freeze_condition(rule.condition), mode=rule.mode) for rule in rule_list
+        ),
+        termination_tree=_freeze_condition(termination_tree),
+    )
+
+
 def test_runs_with_manual_context() -> None:
     item_list = [Item(id="token", name="Token"), Item(id="target", name="Target")]
     item_list.append(Item(id="draw_count", name="Draw count"))
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
-    ctx = RuntimeContext(
+    ctx = _runtime_context(
         initial_actions=[],
         every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
@@ -103,7 +217,7 @@ def test_checks_termination_after_each_draw() -> None:
     item_list.append(Item(id="draw_count", name="Draw count"))
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
-    ctx = RuntimeContext(
+    ctx = _runtime_context(
         initial_actions=[],
         every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
@@ -154,7 +268,7 @@ def test_every_draw_runs_before_main_pool_draw() -> None:
     item_list.append(Item(id="draw_count", name="Draw count"))
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
-    ctx = RuntimeContext(
+    ctx = _runtime_context(
         initial_actions=[],
         every_draw_actions=[
             AddItem(item_index=item_id_index["draw_count"], amount=1),
@@ -200,7 +314,7 @@ def test_initial_actions_are_visible_to_first_stage() -> None:
     item_list.append(Item(id="draw_count", name="Draw count"))
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
-    ctx = RuntimeContext(
+    ctx = _runtime_context(
         initial_actions=[AddItem(item_index=item_id_index["token"], amount=1)],
         every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
@@ -245,7 +359,7 @@ def test_once_rule_executes_only_once() -> None:
     item_list.append(Item(id="draw_count", name="Draw count"))
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
-    ctx = RuntimeContext(
+    ctx = _runtime_context(
         initial_actions=[],
         every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
@@ -296,7 +410,7 @@ def test_per_draw_rule_executes_at_most_once_per_draw_cycle() -> None:
     item_list.append(Item(id="draw_count", name="Draw count"))
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
-    ctx = RuntimeContext(
+    ctx = _runtime_context(
         initial_actions=[],
         every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
@@ -350,7 +464,7 @@ def test_repeat_rule_rechecks_condition_in_same_draw_cycle() -> None:
     item_list.append(Item(id="draw_count", name="Draw count"))
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
-    ctx = RuntimeContext(
+    ctx = _runtime_context(
         initial_actions=[],
         every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
@@ -403,7 +517,7 @@ def test_pool_change_affects_next_draw() -> None:
     item_list.append(Item(id="draw_count", name="Draw count"))
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
-    ctx = RuntimeContext(
+    ctx = _runtime_context(
         initial_actions=[],
         every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
@@ -462,7 +576,7 @@ def test_or_condition_short_circuits_later_branch_actions() -> None:
     item_list.append(Item(id="draw_count", name="Draw count"))
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
-    ctx = RuntimeContext(
+    ctx = _runtime_context(
         initial_actions=[],
         every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
@@ -514,7 +628,7 @@ def test_rule_actions_are_visible_to_later_rules_in_same_draw() -> None:
     item_list.append(Item(id="draw_count", name="Draw count"))
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
-    ctx = RuntimeContext(
+    ctx = _runtime_context(
         initial_actions=[],
         every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
@@ -572,7 +686,7 @@ def test_item_resolve_can_draw_bonus_pool() -> None:
     item_list.append(Item(id="draw_count", name="Draw count"))
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
-    ctx = RuntimeContext(
+    ctx = _runtime_context(
         initial_actions=[],
         every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
@@ -623,7 +737,7 @@ def test_item_resolve_retains_configured_inventory() -> None:
     item_list.append(Item(id="draw_count", name="Draw count"))
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
-    ctx = RuntimeContext(
+    ctx = _runtime_context(
         initial_actions=[],
         every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,
@@ -737,7 +851,7 @@ def test_parallel_simulation_merges_worker_results() -> None:
     item_list.append(Item(id="draw_count", name="Draw count"))
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
 
-    ctx = RuntimeContext(
+    ctx = _runtime_context(
         initial_actions=[],
         every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
         item_id_index=item_id_index,

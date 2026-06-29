@@ -22,11 +22,11 @@ pnpm install --frozen-lockfile
 Python 检查：
 
 ```powershell
-.\.venv\Scripts\python.exe -m ruff format --check .
-.\.venv\Scripts\python.exe -m ruff check .
-.\.venv\Scripts\python.exe -m pyright
-.\.venv\Scripts\python.exe -m build --wheel --no-isolation
-.\.venv\Scripts\python.exe -m pytest
+uv run ruff format --check .
+uv run ruff check .
+uv run pyright
+uv build --wheel
+uv run pytest
 ```
 
 前端检查：

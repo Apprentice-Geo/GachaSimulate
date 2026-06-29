@@ -75,17 +75,17 @@ def test_build_context_parses_action_strings() -> None:
     ctx = build_context(config, _minimal_termination())
     actions = ctx.pool_list[ctx.pool_id_index["main"]].actions[0]
 
-    assert actions == [
+    assert actions == (
         AddItem(item_index=ctx.item_id_index["token"], amount=2),
         ReduceItem(item_index=ctx.item_id_index["token"], amount=1),
         SetItem(item_index=ctx.item_id_index["token"], amount=3),
         DrawPool(pool_index=ctx.pool_id_index["bonus"]),
         PoolChange(pool_index=ctx.pool_id_index["bonus"]),
         Termination(reason="manual stop"),
-    ]
+    )
 
 
-def test_build_context_compiles_null_actions_to_empty_lists() -> None:
+def test_build_context_compiles_null_actions_to_empty_tuples() -> None:
     config = _minimal_config()
     config["pools"] = [
         {"main": [{"probability": 1.0, "actions": None}]},
@@ -112,14 +112,14 @@ def test_build_context_compiles_null_actions_to_empty_lists() -> None:
 
     ctx = build_context(config, _minimal_termination())
 
-    assert ctx.pool_list[0].actions == [[]]
-    assert ctx.initial_actions == []
-    assert ctx.every_draw_actions == []
-    assert ctx.item_resolve_list[ctx.item_id_index["target"]].actions == []
-    assert ctx.rule_list[ctx.rule_id_index["rule"]].condition.actions == []
+    assert ctx.pool_list[0].actions == ((),)
+    assert ctx.initial_actions == ()
+    assert ctx.every_draw_actions == ()
+    assert ctx.item_resolve_list[ctx.item_id_index["target"]].actions == ()
+    assert ctx.rule_list[ctx.rule_id_index["rule"]].condition.actions == ()
     case_rule = ctx.rule_list[ctx.rule_id_index["case_rule"]]
     assert isinstance(case_rule.condition, LogicNode)
-    assert [case.actions for case in case_rule.condition.conditions] == [[], []]
+    assert [case.actions for case in case_rule.condition.conditions] == [(), ()]
 
 
 def test_build_context_parses_condition_logic_and_implicit_and() -> None:
@@ -147,9 +147,7 @@ def test_build_context_parses_condition_logic_and_implicit_and() -> None:
     assert implicit.mode == "per_draw"
     assert isinstance(implicit.condition, LogicNode)
     assert implicit.condition.op == RuntimeOpCode.AND
-    assert implicit.condition.actions == [
-        AddItem(item_index=ctx.item_id_index["shard"], amount=1)
-    ]
+    assert implicit.condition.actions == (AddItem(item_index=ctx.item_id_index["shard"], amount=1),)
 
     first_child = implicit.condition.conditions[0]
     assert isinstance(first_child, CheckNode)
@@ -232,7 +230,7 @@ def test_build_context_compiles_cases_as_ordered_first_match() -> None:
     ok, actions = MonteCarlo(ctx)._eval_condition(ctx.rule_list[0].condition, state)
 
     assert ok is True
-    assert actions == [AddItem(item_index=ctx.item_id_index["shard"], amount=1)]
+    assert actions == (AddItem(item_index=ctx.item_id_index["shard"], amount=1),)
 
 
 def test_build_context_compiles_termination_cases_with_distinct_reasons() -> None:
@@ -253,7 +251,7 @@ def test_build_context_compiles_termination_cases_with_distinct_reasons() -> Non
     ok, actions = MonteCarlo(ctx)._eval_condition(ctx.termination_tree, state)
 
     assert ok is True
-    assert actions == [Termination(reason="target stop")]
+    assert actions == (Termination(reason="target stop"),)
 
 
 def test_build_context_merges_termination_retains_into_item_resolve() -> None:
@@ -286,10 +284,10 @@ def test_build_context_uses_initial_change_as_begin_pool() -> None:
     ctx = build_context(config, termination)
     state = MonteCarlo(ctx, seed=0).run_once()
 
-    assert ctx.initial_actions == [
+    assert ctx.initial_actions == (
         AddItem(item_index=ctx.item_id_index["token"], amount=1),
         PoolChange(pool_index=ctx.pool_id_index["bonus"]),
-    ]
+    )
     assert int(state.acquired[ctx.item_id_index["shard"]]) == 1
 
 
@@ -326,7 +324,7 @@ termination_rule:
 
     assert ctx.pool_id_index == {"main": 0}
     assert ctx.item_id_index["draw_count"] == 0
-    assert ctx.every_draw_actions == [AddItem(item_index=0, amount=1)]
+    assert ctx.every_draw_actions == (AddItem(item_index=0, amount=1),)
 
 
 def test_build_from_files_rejects_json_extension(tmp_path: Path) -> None:

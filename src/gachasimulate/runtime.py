@@ -3,9 +3,15 @@ from __future__ import annotations
 import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import ClassVar, Dict, List, Literal, Sequence, Optional, TextIO
+from typing import ClassVar, Literal, Optional, TextIO
 from enum import IntEnum, Enum, auto
 import numpy as np
+
+EMPTY_ACTIONS: tuple[()] = ()
+
+type RuntimeCondition = LogicNode | CheckNode
+type RuleMode = Literal["once", "per_draw", "repeat"]
+type RuntimeAction = AddItem | ReduceItem | SetItem | DrawPool | PoolChange | Termination
 
 
 class RuntimeKind(IntEnum):
@@ -30,40 +36,40 @@ class RuntimeOpCode(Enum):
     GE = ">="
     AND = "AND"
     OR = "OR"
-    XOR = "XOR"
-    NOT = "NOT"
 
 
+# build 期使用的可变上下文
 @dataclass(frozen=False, slots=True)
-class RuntimeConfigContext:
-    initial_actions: List[RuntimeAction] = field(default_factory=list)
-    every_draw_actions: List[RuntimeAction] = field(default_factory=list)
-    item_id_index: Dict[str, int] = field(default_factory=dict)
-    item_list: List[Item] = field(default_factory=list)
-    item_resolve_list: List[ItemResolve] = field(default_factory=list)
-    pool_id_index: Dict[str, int] = field(default_factory=dict)
-    pool_list: List[Pool] = field(default_factory=list)
+class RuntimeBuildingContext:
+    initial_actions: list[RuntimeAction] = field(default_factory=list)
+    every_draw_actions: list[RuntimeAction] = field(default_factory=list)
+    item_id_index: dict[str, int] = field(default_factory=dict)
+    item_list: list[Item] = field(default_factory=list)
+    item_resolve_list: list[ItemResolve] = field(default_factory=list)
+    pool_id_index: dict[str, int] = field(default_factory=dict)
+    pool_list: list[Pool] = field(default_factory=list)
     # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
-    pool_draw_list: List[RuntimeAction] = field(default_factory=list)
-    rule_id_index: Dict[str, int] = field(default_factory=dict)
-    rule_list: List[Rule] = field(default_factory=list)
+    pool_draw_list: list[RuntimeAction] = field(default_factory=list)
+    rule_id_index: dict[str, int] = field(default_factory=dict)
+    rule_list: list[Rule] = field(default_factory=list)
 
 
+# 运行时使用的不可变上下文
 @dataclass(frozen=True, slots=True)
 class RuntimeContext:
-    initial_actions: List[RuntimeAction]
-    every_draw_actions: List[RuntimeAction]
-    item_id_index: Dict[str, int]  # 对物品进行编号
+    initial_actions: tuple[RuntimeAction, ...]
+    every_draw_actions: tuple[RuntimeAction, ...]
+    item_id_index: dict[str, int]  # 对物品进行编号
     draw_count_index: int
-    item_list: List[Item]
-    item_resolve_list: List[ItemResolve]  # 分解某个物品时执行的动作
-    pool_id_index: Dict[str, int]  # 对池子进行编号
-    pool_list: List[Pool]
-    pool_draw_list: List[
-        RuntimeAction
-    ]  # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
-    rule_id_index: Dict[str, int]  # 对规则进行编号
-    rule_list: List[Rule]
+    item_list: tuple[Item, ...]
+    # 分解某个物品时执行的动作
+    item_resolve_list: tuple[ItemResolve, ...]
+    pool_id_index: dict[str, int]
+    pool_list: tuple[Pool, ...]
+    # 对每一个池子构建一个 DrawPool 动作
+    pool_draw_list: tuple[RuntimeAction, ...]
+    rule_id_index: dict[str, int]  # 对规则进行编号
+    rule_list: tuple[Rule, ...]
     termination_tree: RuntimeCondition
 
 
@@ -96,7 +102,9 @@ class Action(ABC):
     kind: ClassVar[RuntimeKind] = RuntimeKind.Action
 
     @abstractmethod
-    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
+    def execute(
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+    ) -> tuple[RuntimeAction, ...]:
         pass
 
 
@@ -107,9 +115,18 @@ class AddItem(Action):
     item_index: int
     amount: int
 
-    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
+    def execute(
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+    ) -> tuple[RuntimeAction, ...]:
         runtime_state.inventory[self.item_index] += self.amount
         runtime_state.acquired[self.item_index] += self.amount
+        if runtime_context.item_resolve_list[self.item_index]:
+            return runtime_context.item_resolve_list[self.item_index].actions * (
+                runtime_state.inventory[self.item_index]
+                - runtime_context.item_resolve_list[self.item_index].retain
+            )
+        else:
+            return EMPTY_ACTIONS
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,9 +136,13 @@ class ReduceItem(Action):
     item_index: int
     amount: int
 
-    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
+    def execute(
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+    ) -> tuple[RuntimeAction, ...]:
         runtime_state.inventory[self.item_index] -= self.amount
         runtime_state.reduced[self.item_index] += self.amount
+
+        return EMPTY_ACTIONS
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,8 +152,11 @@ class SetItem(Action):
     item_index: int
     amount: int
 
-    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
+    def execute(
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+    ) -> tuple[RuntimeAction, ...]:
         runtime_state.inventory[self.item_index] = self.amount
+        return EMPTY_ACTIONS
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,7 +167,7 @@ class DrawPool(Action):
 
     def execute(
         self, runtime_state: RuntimeState, runtime_context: RuntimeContext
-    ) -> List[RuntimeAction]:
+    ) -> tuple[RuntimeAction, ...]:
         r = runtime_state.rng.random()
         idx = np.searchsorted(runtime_context.pool_list[self.pool_index].cdf, r)
         actions = runtime_context.pool_list[self.pool_index].actions[idx]
@@ -156,8 +180,11 @@ class PoolChange(Action):
 
     pool_index: int
 
-    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
+    def execute(
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+    ) -> tuple[RuntimeAction, ...]:
         runtime_state.main_pool_index = self.pool_index
+        return EMPTY_ACTIONS
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,12 +193,12 @@ class Termination(Action):
 
     reason: str
 
-    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
+    def execute(
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+    ) -> tuple[RuntimeAction, ...]:
         runtime_state.terminate = True
         runtime_state.terminate_reason = self.reason
-
-
-type RuntimeAction = AddItem | ReduceItem | SetItem | DrawPool | PoolChange | Termination
+        return EMPTY_ACTIONS
 
 
 class ConditionNode(ABC):
@@ -183,8 +210,8 @@ class LogicNode(ConditionNode):
     kind: ClassVar[Literal[RuntimeKind.LogicNode]] = RuntimeKind.LogicNode
 
     op: RuntimeOpCode
-    conditions: Sequence[RuntimeCondition]
-    actions: List[RuntimeAction] | None
+    conditions: tuple[RuntimeCondition, ...]
+    actions: tuple[RuntimeAction, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,11 +221,7 @@ class CheckNode(ConditionNode):
     item_index: int
     op: RuntimeOpCode
     value: int
-    actions: List[RuntimeAction] | None
-
-
-type RuntimeCondition = LogicNode | CheckNode
-type RuleMode = Literal["once", "per_draw", "repeat"]
+    actions: tuple[RuntimeAction, ...]
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -207,10 +230,10 @@ class Rule:
     condition: RuntimeCondition
 
     def __init__(
-            self,
-            condition: RuntimeCondition,
-            mode: RuleMode | None = None,
-            once: bool | None = None,
+        self,
+        condition: RuntimeCondition,
+        mode: RuleMode | None = None,
+        once: bool | None = None,
     ) -> None:
         if mode is None:
             mode = "once" if once is not False else "per_draw"
@@ -225,7 +248,7 @@ class Rule:
 @dataclass(frozen=True, slots=True)
 class Pool:
     cdf: np.ndarray
-    actions: List[List[RuntimeAction]]
+    actions: tuple[tuple[RuntimeAction, ...], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -237,7 +260,7 @@ class Item:
 @dataclass(frozen=True, slots=True)
 class ItemResolve:
     retain: int = 0
-    actions: List[RuntimeAction] = field(default_factory=list)
+    actions: tuple[RuntimeAction, ...] = EMPTY_ACTIONS
 
 
 class Reporter:
@@ -269,11 +292,30 @@ class Reporter:
         max_char_per_line: int = 256,
         stream: Optional[TextIO] = None,
     ):
+    def __init__(
+        self,
+        *,
+        auto_report: bool = True,
+        report_level: ReportLevel = ReportLevel.Warning,
+        show_report_level: ReportLevel = ReportLevel.Warning,
+        fail_report_level: ReportLevel = ReportLevel.Error,
+        config: Optional[dict[str, str]] = None,
+        max_char_per_line: int = 256,
+        stream: Optional[TextIO] = None,
+    ):
         self.auto_report = auto_report
         self.report_level = report_level
         self.show_report_level = show_report_level
         self.fail_report_level = fail_report_level
         self.messages = []
+        self.config = (
+            {
+                k: config.get(k, self.DEFAULT_REPORT_CONFIG.get(k))
+                for k in self.DEFAULT_REPORT_CONFIG.keys()
+            }
+            if config is not None
+            else self.DEFAULT_REPORT_CONFIG
+        )
         self.config = (
             {
                 k: config.get(k, self.DEFAULT_REPORT_CONFIG.get(k))
@@ -310,6 +352,9 @@ class Reporter:
                     case _:
                         prefix = postfix = ""
                 message = "\n".join(
+                    ss[: self.max_char_per_line - 3] + "..."
+                    if len(ss) >= self.max_char_per_line
+                    else ss
                     ss[: self.max_char_per_line - 3] + "..."
                     if len(ss) >= self.max_char_per_line
                     else ss

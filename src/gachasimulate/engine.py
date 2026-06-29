@@ -9,9 +9,8 @@ from .runtime import (
     RuntimeOpCode,
     RuntimeContext,
     RuntimeState,
+    EMPTY_ACTIONS,
 )
-
-_EMPTY_ACTIONS: list[RuntimeAction] = []
 
 
 class MonteCarlo:
@@ -47,7 +46,7 @@ class MonteCarlo:
 
         self._rule_phase(state)
         # 只要 resolve 不会产生还需要 resolve 的物品，就不会出错
-        self._resolve_phase(state)
+        # self._resolve_phase(state) 分解已经写在 AddItem 的执行中，因此这个注释掉不影响
 
         should_terminate, termination_actions = self._eval_condition(
             self.ctx.termination_tree, state
@@ -92,6 +91,7 @@ class MonteCarlo:
 
     def _execute_actions(
         self, state: RuntimeState, actions: Iterable[RuntimeAction] | None
+        self, state: RuntimeState, actions: Iterable[RuntimeAction] | None
     ) -> None:
         if not actions:
             return
@@ -101,37 +101,20 @@ class MonteCarlo:
             self._execute_action(state, action)
 
     def _execute_action(self, state: RuntimeState, action: RuntimeAction) -> None:
-        match action.kind:
-            case RuntimeKind.AddItem:
-                action.execute(state, self.ctx)
-                return
-
-            case RuntimeKind.DrawPool:
-                drawn_results = action.execute(state, self.ctx)
-                self._execute_actions(state, drawn_results)
-                return
-
-            case (
-                RuntimeKind.ReduceItem
-                | RuntimeKind.SetItem
-                | RuntimeKind.PoolChange
-                | RuntimeKind.Termination
-            ):
-                action.execute(state, self.ctx)
-                return
-
-        raise TypeError(f"unsupported action kind: {action.kind}")
+        next_actions = action.execute(state, self.ctx)
+        if next_actions:
+            self._execute_actions(state, next_actions)
 
     def _eval_condition(
         self, node: RuntimeCondition, state: RuntimeState
-    ) -> tuple[bool, list[RuntimeAction]]:
+    ) -> tuple[bool, tuple[RuntimeAction, ...]]:
         match node.kind:
             case RuntimeKind.CheckNode:
                 left = int(state.inventory[node.item_index])
                 ok = self._compare(left, node.op, node.value)
                 if ok:
-                    return True, node.actions or _EMPTY_ACTIONS
-                return False, _EMPTY_ACTIONS
+                    return True, node.actions or EMPTY_ACTIONS
+                return False, EMPTY_ACTIONS
 
             case RuntimeKind.LogicNode:
                 match node.op:
@@ -143,14 +126,14 @@ class MonteCarlo:
                                     True,
                                     node.actions + child_actions if node.actions else child_actions,
                                 )
-                        return False, _EMPTY_ACTIONS
+                        return False, EMPTY_ACTIONS
                     case RuntimeOpCode.AND:
-                        aggregated: list[RuntimeAction] = []
+                        aggregated: tuple[RuntimeAction, ...] = ()
                         for child in node.conditions:
                             ok, child_actions = self._eval_condition(child, state)
                             if not ok:
-                                return False, _EMPTY_ACTIONS
-                            aggregated.extend(child_actions)
+                                return False, EMPTY_ACTIONS
+                            aggregated += child_actions
                         return True, node.actions + aggregated if node.actions else aggregated
 
                 raise ValueError(f"unsupported logic op: {node.op}")

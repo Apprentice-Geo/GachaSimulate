@@ -45,9 +45,7 @@ def _valid_config() -> dict:
                 ],
             },
         ],
-        "item_resolve": [
-            {"item": "target", "retain": 1, "actions": "target -= 1"}
-        ],
+        "item_resolve": [{"item": "target", "retain": 1, "actions": "target -= 1"}],
     }
 
 
