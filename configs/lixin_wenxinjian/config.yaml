@@ -80,84 +80,100 @@ every_draw:
 rules:
 - name: 5draw
   mode: once
-  conditions: draw_count >= 5
-  actions:
-  - random_skin += 1
+  condition:
+    check: draw_count >= 5
+    actions:
+    - random_skin += 1
 - name: 10draw
   mode: once
-  conditions: draw_count >= 10
-  actions:
-  - random_skin += 1
+  condition:
+    check: draw_count >= 10
+    actions:
+    - random_skin += 1
 - name: 25draw
   mode: once
-  conditions: draw_count >= 25
-  actions:
-  - random_skin += 1
+  condition:
+    check: draw_count >= 25
+    actions:
+    - random_skin += 1
 - name: 40draw
   mode: once
-  conditions: draw_count >= 40
-  actions:
-  - jianxinling += 288
+  condition:
+    check: draw_count >= 40
+    actions:
+    - jianxinling += 288
 - name: 45draw
   mode: once
-  conditions: draw_count >= 45
-  actions:
-  - random_skin += 1
+  condition:
+    check: draw_count >= 45
+    actions:
+    - random_skin += 1
 - name: 50draw
   mode: once
-  conditions: draw_count >= 50
-  actions:
-  - random_skin += 1
+  condition:
+    check: draw_count >= 50
+    actions:
+    - random_skin += 1
 - name: 65draw
   mode: once
-  conditions: draw_count >= 65
-  actions:
-  - random_skin += 1
+  condition:
+    check: draw_count >= 65
+    actions:
+    - random_skin += 1
 - name: 80draw
   mode: once
-  conditions: draw_count >= 80
-  actions:
-  - jianxinling += 288
+  condition:
+    check: draw_count >= 80
+    actions:
+    - jianxinling += 288
 - name: 85draw
   mode: once
-  conditions: draw_count >= 85
-  actions:
-  - random_skin += 1
+  condition:
+    check: draw_count >= 85
+    actions:
+    - random_skin += 1
 - name: 90draw
   mode: once
-  conditions: draw_count >= 90
-  actions:
-  - random_skin += 1
+  condition:
+    check: draw_count >= 90
+    actions:
+    - random_skin += 1
 - name: 105draw
   mode: once
-  conditions: draw_count >= 105
-  actions:
-  - random_skin += 1
+  condition:
+    check: draw_count >= 105
+    actions:
+    - random_skin += 1
 - name: 120draw
   mode: once
-  conditions: draw_count >= 120
-  actions:
-  - jianxinling += 288
+  condition:
+    check: draw_count >= 120
+    actions:
+    - jianxinling += 288
 - name: 125draw
   mode: once
-  conditions: draw_count >= 125
-  actions:
-  - random_skin += 1
+  condition:
+    check: draw_count >= 125
+    actions:
+    - random_skin += 1
 - name: 130draw
   mode: once
-  conditions: draw_count >= 130
-  actions:
-  - random_skin += 1
+  condition:
+    check: draw_count >= 130
+    actions:
+    - random_skin += 1
 - name: 145draw
   mode: once
-  conditions: draw_count >= 145
-  actions:
-  - random_skin += 1
+  condition:
+    check: draw_count >= 145
+    actions:
+    - random_skin += 1
 - name: 160draw
   mode: once
-  conditions: draw_count >= 160
-  actions:
-  - random_skin += 1
+  condition:
+    check: draw_count >= 160
+    actions:
+    - random_skin += 1
 item_resolve:
 - item: random_limited_skin
   retain: 0

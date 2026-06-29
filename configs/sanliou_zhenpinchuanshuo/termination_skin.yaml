@@ -2,8 +2,10 @@ retained_items:
 - yao_daergouzhimeng: 1
 - sanliouduihuanbi: 498
 termination_rule:
-  cases:
-  - conditions: yao_daergouzhimeng >= 1
-    reason: 抽中皮肤
-  - conditions: sanliouduihuanbi >= 498
-    reason: 兑换币兑换
+  condition:
+    op: OR
+    children:
+    - check: yao_daergouzhimeng >= 1
+      actions: terminate 抽中皮肤
+    - check: sanliouduihuanbi >= 498
+      actions: terminate 兑换币兑换

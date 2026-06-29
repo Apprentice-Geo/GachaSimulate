@@ -122,13 +122,12 @@ class AddItem(Action):
         runtime_state.acquired[self.item_index] += self.amount
         # 将可分解的立即分解
         if runtime_context.item_resolve_list[self.item_index]:
-            return (
-                runtime_context.item_resolve_list[self.item_index].actions
-                * ((
+            return runtime_context.item_resolve_list[self.item_index].actions * (
+                (
                     runtime_state.inventory[self.item_index]
                     - runtime_context.item_resolve_list[self.item_index].retain
                 )
-                // runtime_context.item_resolve_list[self.item_index].reduce)
+                // runtime_context.item_resolve_list[self.item_index].reduce
             )
         else:
             return EMPTY_ACTIONS
@@ -214,7 +213,7 @@ class LogicNode(ConditionNode):
     kind: ClassVar[Literal[RuntimeKind.LogicNode]] = RuntimeKind.LogicNode
 
     op: RuntimeOpCode
-    conditions: tuple[RuntimeCondition, ...]
+    children: tuple[RuntimeCondition, ...]
     actions: tuple[RuntimeAction, ...]
 
 

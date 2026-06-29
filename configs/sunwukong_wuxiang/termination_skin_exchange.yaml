@@ -5,14 +5,16 @@ retained_items:
 - xuejingqiyuquanpingtianmu: 1
 - wuxiang_point: 998
 termination_rule:
-  cases:
-  - conditions: sunwukong_wuxiang >= 1
-    reason: skin obtained
-  - conditions: yao_zhenwohezi >= 1
-    reason: skin obtained
-  - conditions: zhenji_xuejingqiyu >= 1
-    reason: skin obtained
-  - conditions: xuejingqiyuquanpingtianmu >= 1
-    reason: skin obtained
-  - conditions: wuxiang_point >= 998
-    reason: point exchange
+  condition:
+    op: OR
+    children:
+    - check: sunwukong_wuxiang >= 1
+      actions: terminate skin obtained
+    - check: yao_zhenwohezi >= 1
+      actions: terminate skin obtained
+    - check: zhenji_xuejingqiyu >= 1
+      actions: terminate skin obtained
+    - check: xuejingqiyuquanpingtianmu >= 1
+      actions: terminate skin obtained
+    - check: wuxiang_point >= 998
+      actions: terminate point exchange

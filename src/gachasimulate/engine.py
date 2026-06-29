@@ -119,7 +119,7 @@ class MonteCarlo:
             case RuntimeKind.LogicNode:
                 match node.op:
                     case RuntimeOpCode.OR:
-                        for child in node.conditions:
+                        for child in node.children:
                             ok, child_actions = self._eval_condition(child, state)
                             if ok:
                                 return (
@@ -129,7 +129,7 @@ class MonteCarlo:
                         return False, EMPTY_ACTIONS
                     case RuntimeOpCode.AND:
                         aggregated: tuple[RuntimeAction, ...] = ()
-                        for child in node.conditions:
+                        for child in node.children:
                             ok, child_actions = self._eval_condition(child, state)
                             if not ok:
                                 return False, EMPTY_ACTIONS

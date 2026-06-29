@@ -69,14 +69,16 @@ every_draw:
 rules:
 - name: have_target_item_1
   mode: once
-  conditions: target_item_1 >= 1
-  actions:
-  - change pool_1
+  condition:
+    check: target_item_1 >= 1
+    actions:
+    - change pool_1
 - name: have_target_item_2
   mode: once
-  conditions: target_item_2 >= 1
-  actions:
-  - change pool_2
+  condition:
+    check: target_item_2 >= 1
+    actions:
+    - change pool_2
 item_resolve:
 - item: random_precious_item
   retain: 0

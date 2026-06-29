@@ -2,10 +2,13 @@ retained_items:
 - sunwukong_wuxiang: 1
 - wuxiang_point: 1673
 termination_rule:
-  cases:
-  - conditions:
-    - sunwukong_wuxiang >= 1
-    - wuxiang_point >= 675
-    reason: skin obtained
-  - conditions: wuxiang_point >= 1673
-    reason: point exchange
+  condition:
+    op: OR
+    children:
+    - op: AND
+      children:
+      - check: sunwukong_wuxiang >= 1
+      - check: wuxiang_point >= 675
+      actions: terminate skin obtained
+    - check: wuxiang_point >= 1673
+      actions: terminate point exchange

@@ -122,18 +122,18 @@ resolve 用于把超出保留数量的物品分解成其他资源。当前实现
 
 condition tree 支持两类节点：
 
-- 比较节点：读取指定 item 库存，与目标值比较。`draw_count` 判断也写作普通 item 条件。
-- `logic`：支持 `AND` 和 `OR`。
+- `check` 节点：读取指定 item 库存，与目标值比较。`draw_count` 判断也写作普通 item 条件。
+- `logic` 节点：支持 `AND` 和 `OR`，并通过 `children` 持有子节点。
 
 builder 会把条件中的 item id 编译为 item index。engine 执行 condition 时直接读取 `state.inventory[node.item_index]`。Condition 节点同样通过整数 `kind` 标记分派。
 
 Action 聚合规则：
 
 - `OR` 会短路，遇到第一个满足的 child 后，执行当前 logic node actions，再执行该 child actions。
-- `AND` 必须全部 child 满足，按 child 顺序聚合 actions，最后执行当前 logic node actions 加聚合后的 child actions。
+- `AND` 必须全部 child 满足，执行当前 logic node actions，再按 child 顺序执行聚合后的 child actions。
 - 比较节点满足时只返回自己的 actions。
 
-termination tree 由 builder 根据 `termination_rule.reason` 或 `termination_rule.cases[].reason` 生成 termination action。rule condition 则允许普通 actions。
+YAML 入口统一使用 `condition` 条件树语法。termination tree 不再有单独的 `reason` 或 `cases` 语法；终止原因由命中路径上的 `terminate ...` action 设置。完整配置语法见 [YAML_CONFIG_SYNTAX.md](YAML_CONFIG_SYNTAX.md)。
 
 ## 批量与并行模拟
 

@@ -2,10 +2,13 @@ retained_items:
 - kai_donghailongwang_aoguang: 1
 - nezha2duihuanbi: 960
 termination_rule:
-  cases:
-  - conditions:
-    - kai_donghailongwang_aoguang >= 1
-    - nezha2duihuanbi >= 462
-    reason: skin
-  - conditions: nezha2duihuanbi >= 960
-    reason: exchange
+  condition:
+    op: OR
+    children:
+    - op: AND
+      children:
+      - check: kai_donghailongwang_aoguang >= 1
+      - check: nezha2duihuanbi >= 462
+      actions: terminate skin
+    - check: nezha2duihuanbi >= 960
+      actions: terminate exchange

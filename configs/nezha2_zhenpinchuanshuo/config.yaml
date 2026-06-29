@@ -56,17 +56,14 @@ pools:
   - probability: 0.5
     actions: teshuhuizhang2 += 1
   - probability: 0.5
-    actions: null
 - teshuhuizhang3_pool:
   - probability: 0.25
     actions: teshuhuizhang3 += 1
   - probability: 0.75
-    actions: null
 - teshuhuizhang4_pool:
   - probability: 0.1
     actions: teshuhuizhang4 += 1
   - probability: 0.9
-    actions: null
 - teshuhuizhang_pool:
   - probability: 0.32
     actions: nezha2duihuanbi += 28
@@ -83,67 +80,77 @@ every_draw:
 rules:
 - name: teshuhuizhangbaodi
   mode: per_draw
-  conditions: draw_count >= 1
-  actions:
-  - teshuhuizhangbaodijishu += 1
+  condition:
+    check: draw_count >= 1
+    actions:
+    - teshuhuizhangbaodijishu += 1
 - name: teshuhuizhang_gain
   mode: per_draw
-  cases:
-  - conditions:
-    - teshuhuizhangbaodijishu < 10
-    - teshuhuizhang1 == 0
-    - teshuhuizhang2 == 0
-    - teshuhuizhang3 == 0
-    - teshuhuizhang4 == 0
-    actions:
-    - draw teshuhuizhang1_pool
-  - conditions:
-    - teshuhuizhangbaodijishu < 10
-    - teshuhuizhang1 == 1
-    - teshuhuizhang2 == 0
-    - teshuhuizhang3 == 0
-    - teshuhuizhang4 == 0
-    actions:
-    - draw teshuhuizhang2_pool
-  - conditions:
-    - teshuhuizhangbaodijishu < 10
-    - teshuhuizhang1 == 1
-    - teshuhuizhang2 == 1
-    - teshuhuizhang3 == 0
-    - teshuhuizhang4 == 0
-    actions:
-    - draw teshuhuizhang3_pool
-  - conditions:
-    - teshuhuizhangbaodijishu < 10
-    - teshuhuizhang1 == 1
-    - teshuhuizhang2 == 1
-    - teshuhuizhang3 == 1
-    - teshuhuizhang4 == 0
-    actions:
-    - draw teshuhuizhang4_pool
+  condition:
+    op: OR
+    children:
+    - op: AND
+      children:
+      - check: teshuhuizhangbaodijishu < 10
+      - check: teshuhuizhang1 == 0
+      - check: teshuhuizhang2 == 0
+      - check: teshuhuizhang3 == 0
+      - check: teshuhuizhang4 == 0
+      actions:
+      - draw teshuhuizhang1_pool
+    - op: AND
+      children:
+      - check: teshuhuizhangbaodijishu < 10
+      - check: teshuhuizhang1 == 1
+      - check: teshuhuizhang2 == 0
+      - check: teshuhuizhang3 == 0
+      - check: teshuhuizhang4 == 0
+      actions:
+      - draw teshuhuizhang2_pool
+    - op: AND
+      children:
+      - check: teshuhuizhangbaodijishu < 10
+      - check: teshuhuizhang1 == 1
+      - check: teshuhuizhang2 == 1
+      - check: teshuhuizhang3 == 0
+      - check: teshuhuizhang4 == 0
+      actions:
+      - draw teshuhuizhang3_pool
+    - op: AND
+      children:
+      - check: teshuhuizhangbaodijishu < 10
+      - check: teshuhuizhang1 == 1
+      - check: teshuhuizhang2 == 1
+      - check: teshuhuizhang3 == 1
+      - check: teshuhuizhang4 == 0
+      actions:
+      - draw teshuhuizhang4_pool
 - name: teshuhuizhangbaodi_execute
   mode: per_draw
-  conditions: teshuhuizhangbaodijishu == 10
-  actions:
-  - teshuhuizhang1 = 1
-  - teshuhuizhang2 = 1
-  - teshuhuizhang3 = 1
-  - teshuhuizhang4 = 1
-  - teshuhuizhangbaodijishu = 0
+  condition:
+    check: teshuhuizhangbaodijishu == 10
+    actions:
+    - teshuhuizhang1 = 1
+    - teshuhuizhang2 = 1
+    - teshuhuizhang3 = 1
+    - teshuhuizhang4 = 1
+    - teshuhuizhangbaodijishu = 0
 - name: teshuhuizhang_execute
   mode: per_draw
-  conditions:
-  - teshuhuizhang1 == 1
-  - teshuhuizhang2 == 1
-  - teshuhuizhang3 == 1
-  - teshuhuizhang4 == 1
-  actions:
-  - teshuhuizhang1 = 0
-  - teshuhuizhang2 = 0
-  - teshuhuizhang3 = 0
-  - teshuhuizhang4 = 0
-  - teshuhuizhangbaodijishu = 0
-  - draw teshuhuizhang_pool
+  condition:
+    op: AND
+    children:
+    - check: teshuhuizhang1 == 1
+    - check: teshuhuizhang2 == 1
+    - check: teshuhuizhang3 == 1
+    - check: teshuhuizhang4 == 1
+    actions:
+    - teshuhuizhang1 = 0
+    - teshuhuizhang2 = 0
+    - teshuhuizhang3 = 0
+    - teshuhuizhang4 = 0
+    - teshuhuizhangbaodijishu = 0
+    - draw teshuhuizhang_pool
 item_resolve:
 - item: kai_donghailongwang_aoguang
   retain: 1

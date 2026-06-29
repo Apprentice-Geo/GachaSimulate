@@ -1,5 +1,6 @@
 retained_items:
 - shenjiangwei: 1
 termination_rule:
-  conditions: shenjiangwei >= 1
-  reason: obtained shenjiangwei
+  condition:
+    check: shenjiangwei >= 1
+    actions: terminate obtained shenjiangwei

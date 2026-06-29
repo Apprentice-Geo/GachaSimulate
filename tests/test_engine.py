@@ -56,12 +56,12 @@ def CheckNode(
 def LogicNode(
     *,
     op: RuntimeOpCode,
-    conditions: Iterable[RuntimeCondition],
+    children: Iterable[RuntimeCondition],
     actions: Iterable[RuntimeAction] = (),
 ) -> _LogicNode:
     return _LogicNode(
         op=op,
-        conditions=tuple(conditions),
+        children=tuple(children),
         actions=tuple(actions),
     )
 
@@ -119,7 +119,7 @@ def _freeze_condition(node):
     if isinstance(node, _LogicNode):
         return LogicNode(
             op=node.op,
-            conditions=tuple(_freeze_condition(child) for child in node.conditions),
+            children=tuple(_freeze_condition(child) for child in node.children),
             actions=tuple(node.actions),
         )
 
@@ -595,7 +595,7 @@ def test_or_condition_short_circuits_later_branch_actions() -> None:
         termination_tree=LogicNode(
             op=RuntimeOpCode.OR,
             actions=[AddItem(item_index=item_id_index["parent"], amount=1)],
-            conditions=[
+            children=[
                 CheckNode(
                     item_index=item_id_index["draw_count"],
                     op=RuntimeOpCode.GE,

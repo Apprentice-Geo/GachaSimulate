@@ -1,5 +1,6 @@
 retained_items:
 - sanliouduihuanbi: 428
 termination_rule:
-  conditions: sanliouduihuanbi >= 428
-  reason: 兑换币兑换
+  condition:
+    check: sanliouduihuanbi >= 428
+    actions: terminate 兑换币兑换

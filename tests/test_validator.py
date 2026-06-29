@@ -32,17 +32,26 @@ def _valid_config() -> dict:
         "every_draw": "draw_count += 1",
         "rules": [
             {
-                "name": "implicit_and",
+                "name": "and_rule",
                 "mode": "per_draw",
-                "conditions": ["token >= 1", "target >= 1"],
-                "actions": "shard += 1",
+                "condition": {
+                    "op": "AND",
+                    "children": [
+                        {"check": "token >= 1"},
+                        {"check": "target >= 1"},
+                    ],
+                    "actions": "shard += 1",
+                },
             },
             {
-                "name": "case_rule",
-                "cases": [
-                    {"conditions": "token == 0", "actions": "draw bonus"},
-                    {"conditions": "token >= 1", "actions": "change bonus"},
-                ],
+                "name": "or_rule",
+                "condition": {
+                    "op": "OR",
+                    "children": [
+                        {"check": "token == 0", "actions": "draw bonus"},
+                        {"check": "token >= 1", "actions": "change bonus"},
+                    ],
+                },
             },
         ],
         "item_resolve": [{"item": "target", "retain": 1, "actions": "target -= 1"}],
@@ -53,11 +62,14 @@ def _valid_termination() -> dict:
     return {
         "retained_items": [{"target": 2}],
         "termination_rule": {
-            "conditions": {
+            "condition": {
                 "op": "AND",
-                "conditions": ["target >= 2", "draw_count >= 1"],
+                "children": [
+                    {"check": "target >= 2"},
+                    {"check": "draw_count >= 1"},
+                ],
+                "actions": "terminate done",
             },
-            "reason": "done",
         },
     }
 
@@ -66,34 +78,18 @@ def test_validate_config_accepts_yaml_spec_config() -> None:
     validate_config(_valid_config())
 
 
-def test_validate_config_accepts_null_actions() -> None:
+def test_validate_config_accepts_optional_empty_actions() -> None:
     config = _valid_config()
-    config["pools"][0]["main"][0]["actions"] = None
+    del config["pools"][0]["main"][0]["actions"]
     config["initial"] = None
     config["every_draw"] = None
-    config["item_resolve"][0]["actions"] = None
-    config["rules"][0]["actions"] = None
-    config["rules"][1]["cases"][0]["actions"] = None
+    config["rules"][1]["condition"]["children"][0].pop("actions")
 
     validate_config(config)
 
 
 def test_validate_termination_accepts_yaml_spec_termination() -> None:
     validate_termination(_valid_termination(), _valid_config())
-
-
-def test_validate_termination_accepts_cases() -> None:
-    termination = {
-        "retained_items": [{"target": 1}, {"shard": 1}],
-        "termination_rule": {
-            "cases": [
-                {"conditions": "target >= 1", "reason": "target"},
-                {"conditions": "shard >= 1", "reason": "shard"},
-            ],
-        },
-    }
-
-    validate_termination(termination, _valid_config())
 
 
 def test_validate_config_rejects_unknown_item_reference() -> None:
@@ -106,7 +102,7 @@ def test_validate_config_rejects_unknown_item_reference() -> None:
 
 def test_validate_config_rejects_unknown_pool_reference() -> None:
     config = _valid_config()
-    config["rules"][1]["cases"][0]["actions"] = "draw missing"
+    config["rules"][1]["condition"]["children"][0]["actions"] = "draw missing"
 
     with pytest.raises(ValidationError, match="unknown pool id: missing"):
         validate_config(config)
@@ -114,7 +110,7 @@ def test_validate_config_rejects_unknown_pool_reference() -> None:
 
 def test_validate_config_rejects_unknown_condition_item_reference() -> None:
     config = _valid_config()
-    config["rules"][0]["conditions"][1] = "missing >= 1"
+    config["rules"][0]["condition"]["children"][1]["check"] = "missing >= 1"
 
     with pytest.raises(ValidationError, match="unknown item id: missing"):
         validate_config(config)
@@ -171,12 +167,85 @@ def test_validate_config_rejects_old_dict_action_shape() -> None:
 
 def test_validate_config_rejects_bad_logic_operator() -> None:
     config = _valid_config()
-    config["rules"][0]["conditions"] = {
-        "op": "XOR",
-        "conditions": ["token >= 1", "target >= 1"],
-    }
+    config["rules"][0]["condition"]["op"] = "XOR"
 
     with pytest.raises(ValidationError, match="unsupported logic op: XOR"):
+        validate_config(config)
+
+
+def test_validate_config_rejects_old_rule_syntax() -> None:
+    config = _valid_config()
+    config["rules"][0] = {
+        "name": "old",
+        "conditions": "token >= 1",
+        "actions": "shard += 1",
+    }
+
+    with pytest.raises(ValidationError, match="must use condition tree syntax"):
+        validate_config(config)
+
+
+def test_validate_config_rejects_noop_rule() -> None:
+    config = _valid_config()
+    config["rules"][0]["condition"] = {"check": "token >= 1"}
+
+    with pytest.raises(ValidationError, match="must contain at least one action"):
+        validate_config(config)
+
+
+def test_validate_config_rejects_logic_node_without_children() -> None:
+    config = _valid_config()
+    config["rules"][0]["condition"] = {
+        "op": "AND",
+        "actions": "shard += 1",
+    }
+
+    with pytest.raises(ValidationError, match="children: must be a list"):
+        validate_config(config)
+
+
+def test_validate_config_rejects_item_resolve_without_actions() -> None:
+    config = _valid_config()
+    del config["item_resolve"][0]["actions"]
+
+    with pytest.raises(ValidationError, match="actions: is required"):
+        validate_config(config)
+
+
+@pytest.mark.parametrize("actions", [None, []])
+def test_validate_config_rejects_item_resolve_empty_actions(actions: object) -> None:
+    config = _valid_config()
+    config["item_resolve"][0]["actions"] = actions
+
+    with pytest.raises(ValidationError, match="must be non-empty"):
+        validate_config(config)
+
+
+def test_validate_config_rejects_item_resolve_without_reduce_action() -> None:
+    config = _valid_config()
+    config["item_resolve"][0]["actions"] = "shard += 1"
+
+    with pytest.raises(ValidationError, match="exactly one reduce action"):
+        validate_config(config)
+
+
+def test_validate_config_rejects_item_resolve_with_multiple_matching_reduce_actions() -> None:
+    config = _valid_config()
+    config["item_resolve"][0]["actions"] = [
+        "target -= 1",
+        "target -= 1",
+        "shard += 1",
+    ]
+
+    with pytest.raises(ValidationError, match="exactly one reduce action"):
+        validate_config(config)
+
+
+def test_validate_config_rejects_item_resolve_reducing_other_item() -> None:
+    config = _valid_config()
+    config["item_resolve"][0]["actions"] = ["token -= 1", "shard += 1"]
+
+    with pytest.raises(ValidationError, match="must reduce the resolved item"):
         validate_config(config)
 
 
@@ -198,30 +267,32 @@ def test_validate_termination_rejects_unknown_retained_item() -> None:
 
 def test_validate_termination_rejects_unknown_condition_item() -> None:
     termination = deepcopy(_valid_termination())
-    termination["termination_rule"]["conditions"]["conditions"][0] = "missing >= 1"
+    termination["termination_rule"]["condition"]["children"][0]["check"] = "missing >= 1"
 
     with pytest.raises(ValidationError, match="unknown item id: missing"):
         validate_termination(termination, _valid_config())
 
 
-def test_validate_termination_rejects_case_without_reason() -> None:
-    termination = {
-        "retained_items": [{"target": 1}, {"shard": 1}],
-        "termination_rule": {
-            "cases": [
-                {"conditions": "target >= 1", "reason": "target"},
-                {"conditions": "shard >= 1", "reason": ""},
-            ],
-        },
+def test_validate_termination_rejects_old_reason_syntax() -> None:
+    termination = _valid_termination()
+    termination["termination_rule"] = {
+        "conditions": "target >= 1",
+        "reason": "done",
     }
 
-    with pytest.raises(ValidationError, match="reason: must be a non-empty string"):
+    with pytest.raises(ValidationError, match="must use condition tree syntax"):
         validate_termination(termination, _valid_config())
 
 
-def test_validate_termination_requires_reason() -> None:
+def test_validate_termination_rejects_path_without_terminate_action() -> None:
     termination = _valid_termination()
-    termination["termination_rule"]["reason"] = ""
+    termination["termination_rule"]["condition"] = {
+        "op": "OR",
+        "children": [
+            {"check": "target >= 1", "actions": "terminate target"},
+            {"check": "shard >= 1"},
+        ],
+    }
 
-    with pytest.raises(ValidationError, match="reason: must be a non-empty string"):
+    with pytest.raises(ValidationError, match="every termination path"):
         validate_termination(termination, _valid_config())

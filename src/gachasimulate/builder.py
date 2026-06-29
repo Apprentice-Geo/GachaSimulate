@@ -25,12 +25,21 @@ from .runtime import (
     Rule,
     SetItem,
     Termination,
-    EMPTY_ACTIONS,
 )
 from .validator import validate_config, validate_termination
 
-
+# 匹配动作表达式：<name> += / -= / = <non-negative-int>
+# group(1): 左侧变量名，不允许包含空白、=、+、-
+# group(2): 操作符，只允许 +=、-=、=
+# group(3): 右侧非负整数
+# 操作符两侧允许有任意数量空白；要求整行完整匹配
 _ACTION_RE = re.compile(r"^([^\s=+\-]+)\s*(\+=|-=|=)\s*(\d+)$")
+
+# 匹配条件表达式：<name> >= / <= / == / != / > / < <non-negative-int>
+# group(1): 左侧变量名，不允许包含空白、<、>、!、=
+# group(2): 比较操作符，只允许 >=、<=、==、!=、>、<
+# group(3): 右侧非负整数
+# 操作符两侧允许有任意数量空白；要求整行完整匹配
 _CONDITION_RE = re.compile(r"^([^\s<>!=]+)\s*(>=|<=|==|!=|>|<)\s*(\d+)$")
 _LOGIC_OPS = {
     "AND": RuntimeOpCode.AND,
@@ -149,7 +158,7 @@ def _build_pools(context: RuntimeBuildingContext, config: dict[str, Any]) -> Non
             Pool(
                 cdf=cdf,
                 actions=tuple(
-                    tuple(_build_actions(context, entry["actions"])) for entry in entries
+                    tuple(_build_actions(context, entry.get("actions"))) for entry in entries
                 ),
             )
         )
@@ -192,25 +201,7 @@ def _build_rules(context: RuntimeBuildingContext, config: dict[str, Any]) -> Non
         rule_id = str(rule.get("name", f"rule_{index}"))
         mode = rule.get("mode", "once")
 
-        if "cases" in rule:
-            condition = LogicNode(
-                op=RuntimeOpCode.OR,
-                conditions=tuple(
-                    _build_condition_tree(
-                        context,
-                        case["conditions"],
-                        tuple(_build_actions(context, case["actions"])),
-                    )
-                    for case in rule["cases"]
-                ),
-                actions=EMPTY_ACTIONS,
-            )
-        else:
-            condition = _build_condition_tree(
-                context,
-                rule["conditions"],
-                tuple(_build_actions(context, rule["actions"])),
-            )
+        condition = _build_condition_tree(context, rule["condition"])
 
         context.rule_id_index[rule_id] = len(context.rule_list)
         context.rule_list.append(Rule(condition=condition, mode=mode))
@@ -219,25 +210,7 @@ def _build_rules(context: RuntimeBuildingContext, config: dict[str, Any]) -> Non
 def _build_termination_tree(
     context: RuntimeBuildingContext, rule: dict[str, Any]
 ) -> RuntimeCondition:
-    if "cases" in rule:
-        return LogicNode(
-            op=RuntimeOpCode.OR,
-            conditions=tuple(
-                _build_condition_tree(
-                    context,
-                    case["conditions"],
-                    (Termination(reason=case["reason"]),),
-                )
-                for case in rule["cases"]
-            ),
-            actions=EMPTY_ACTIONS,
-        )
-
-    return _build_condition_tree(
-        context,
-        rule["conditions"],
-        (Termination(reason=rule["reason"]),),
-    )
+    return _build_condition_tree(context, rule["condition"])
 
 
 def _build_action(context: RuntimeBuildingContext, action: str) -> RuntimeAction:
@@ -274,14 +247,14 @@ def _build_actions(
 
 def _build_condition_tree(
     context: RuntimeBuildingContext,
-    condition: str | list[Any] | dict[str, Any],
-    actions: tuple[RuntimeAction, ...] = EMPTY_ACTIONS,
+    condition: dict[str, Any],
 ) -> RuntimeCondition:
+    actions = tuple(_build_actions(context, condition.get("actions")))
 
-    if isinstance(condition, str):
-        match = _CONDITION_RE.fullmatch(condition.strip())
+    if "check" in condition:
+        match = _CONDITION_RE.fullmatch(str(condition["check"]).strip())
         if match is None:
-            raise ValueError(f"unsupported condition: {condition}")
+            raise ValueError(f"unsupported condition: {condition['check']}")
         item_id, op, value = match.groups()
         return CheckNode(
             item_index=context.item_id_index[item_id],
@@ -290,18 +263,9 @@ def _build_condition_tree(
             actions=actions,
         )
 
-    if isinstance(condition, list):
-        return LogicNode(
-            op=RuntimeOpCode.AND,
-            conditions=tuple(_build_condition_tree(context, child) for child in condition),
-            actions=actions,
-        )
-
     op = _LOGIC_OPS[condition["op"]]
     return LogicNode(
         op=op,
-        conditions=tuple(
-            _build_condition_tree(context, child) for child in condition["conditions"]
-        ),
+        children=tuple(_build_condition_tree(context, child) for child in condition["children"]),
         actions=actions,
     )

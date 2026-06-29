@@ -45,8 +45,10 @@ def _minimal_termination() -> dict:
     return {
         "retained_items": [{"target": 1}],
         "termination_rule": {
-            "conditions": "target >= 1",
-            "reason": "target acquired",
+            "condition": {
+                "check": "target >= 1",
+                "actions": "terminate target acquired",
+            },
         },
     }
 
@@ -85,28 +87,27 @@ def test_build_context_parses_action_strings() -> None:
     )
 
 
-def test_build_context_compiles_null_actions_to_empty_tuples() -> None:
+def test_build_context_compiles_empty_actions_to_empty_tuples() -> None:
     config = _minimal_config()
     config["pools"] = [
-        {"main": [{"probability": 1.0, "actions": None}]},
+        {"main": [{"probability": 1.0}]},
     ]
     config["initial"] = None
     config["every_draw"] = None
     config["item_resolve"] = [
-        {"item": "target", "retain": 1, "actions": None},
+        {"item": "target", "retain": 1, "actions": "target -= 1"},
     ]
     config["rules"] = [
         {
             "name": "rule",
-            "conditions": "token >= 1",
-            "actions": None,
-        },
-        {
-            "name": "case_rule",
-            "cases": [
-                {"conditions": "token == 0", "actions": None},
-                {"conditions": "token >= 1", "actions": None},
-            ],
+            "condition": {
+                "op": "AND",
+                "children": [
+                    {"check": "token >= 1"},
+                    {"check": "draw_count >= 1"},
+                ],
+                "actions": "shard += 1",
+            },
         },
     ]
 
@@ -115,49 +116,56 @@ def test_build_context_compiles_null_actions_to_empty_tuples() -> None:
     assert ctx.pool_list[0].actions == ((),)
     assert ctx.initial_actions == ()
     assert ctx.every_draw_actions == ()
-    assert ctx.item_resolve_list[ctx.item_id_index["target"]].actions == ()
-    assert ctx.rule_list[ctx.rule_id_index["rule"]].condition.actions == ()
-    case_rule = ctx.rule_list[ctx.rule_id_index["case_rule"]]
-    assert isinstance(case_rule.condition, LogicNode)
-    assert [case.actions for case in case_rule.condition.conditions] == [(), ()]
+    condition = ctx.rule_list[ctx.rule_id_index["rule"]].condition
+    assert isinstance(condition, LogicNode)
+    assert condition.children[0].actions == ()
 
 
-def test_build_context_parses_condition_logic_and_implicit_and() -> None:
+def test_build_context_parses_condition_tree() -> None:
     config = _minimal_config()
     config["rules"] = [
         {
-            "name": "implicit",
+            "name": "and_rule",
             "mode": "per_draw",
-            "conditions": ["token >= 1", "draw_count < 10"],
-            "actions": "shard += 1",
+            "condition": {
+                "op": "AND",
+                "children": [
+                    {"check": "token >= 1"},
+                    {"check": "draw_count < 10"},
+                ],
+                "actions": "shard += 1",
+            },
         },
         {
-            "name": "explicit",
-            "conditions": {
+            "name": "or_rule",
+            "condition": {
                 "op": "||",
-                "conditions": ["token == 0", "target >= 1"],
+                "children": [
+                    {"check": "token == 0"},
+                    {"check": "target >= 1"},
+                ],
+                "actions": "shard += 2",
             },
-            "actions": "shard += 2",
         },
     ]
 
     ctx = build_context(config, _minimal_termination())
 
-    implicit = ctx.rule_list[ctx.rule_id_index["implicit"]]
-    assert implicit.mode == "per_draw"
-    assert isinstance(implicit.condition, LogicNode)
-    assert implicit.condition.op == RuntimeOpCode.AND
-    assert implicit.condition.actions == (AddItem(item_index=ctx.item_id_index["shard"], amount=1),)
+    and_rule = ctx.rule_list[ctx.rule_id_index["and_rule"]]
+    assert and_rule.mode == "per_draw"
+    assert isinstance(and_rule.condition, LogicNode)
+    assert and_rule.condition.op == RuntimeOpCode.AND
+    assert and_rule.condition.actions == (AddItem(item_index=ctx.item_id_index["shard"], amount=1),)
 
-    first_child = implicit.condition.conditions[0]
+    first_child = and_rule.condition.children[0]
     assert isinstance(first_child, CheckNode)
     assert first_child.item_index == ctx.item_id_index["token"]
     assert first_child.op == RuntimeOpCode.GE
     assert first_child.value == 1
 
-    explicit = ctx.rule_list[ctx.rule_id_index["explicit"]]
-    assert isinstance(explicit.condition, LogicNode)
-    assert explicit.condition.op == RuntimeOpCode.OR
+    or_rule = ctx.rule_list[ctx.rule_id_index["or_rule"]]
+    assert isinstance(or_rule.condition, LogicNode)
+    assert or_rule.condition.op == RuntimeOpCode.OR
 
 
 def test_build_context_normalizes_weight_pools_to_cdf() -> None:
@@ -185,18 +193,16 @@ def test_build_context_uses_probability_pools_directly() -> None:
 def test_build_context_maps_rule_modes_to_rules() -> None:
     config = _minimal_config()
     config["rules"] = [
-        {"name": "default", "conditions": "token >= 1", "actions": "shard += 1"},
+        {"name": "default", "condition": {"check": "token >= 1", "actions": "shard += 1"}},
         {
             "name": "per_draw",
             "mode": "per_draw",
-            "conditions": "token >= 2",
-            "actions": "shard += 2",
+            "condition": {"check": "token >= 2", "actions": "shard += 2"},
         },
         {
             "name": "repeat",
             "mode": "repeat",
-            "conditions": "token >= 3",
-            "actions": "shard += 3",
+            "condition": {"check": "token >= 3", "actions": "shard += 3"},
         },
     ]
 
@@ -209,16 +215,19 @@ def test_build_context_maps_rule_modes_to_rules() -> None:
     ]
 
 
-def test_build_context_compiles_cases_as_ordered_first_match() -> None:
+def test_build_context_compiles_or_children_as_ordered_first_match() -> None:
     config = _minimal_config()
     config["rules"] = [
         {
-            "name": "case_rule",
+            "name": "or_rule",
             "mode": "repeat",
-            "cases": [
-                {"conditions": "token >= 1", "actions": "shard += 1"},
-                {"conditions": "draw_count >= 1", "actions": "shard += 2"},
-            ],
+            "condition": {
+                "op": "OR",
+                "children": [
+                    {"check": "token >= 1", "actions": "shard += 1"},
+                    {"check": "draw_count >= 1", "actions": "shard += 2"},
+                ],
+            },
         }
     ]
 
@@ -233,14 +242,17 @@ def test_build_context_compiles_cases_as_ordered_first_match() -> None:
     assert actions == (AddItem(item_index=ctx.item_id_index["shard"], amount=1),)
 
 
-def test_build_context_compiles_termination_cases_with_distinct_reasons() -> None:
+def test_build_context_compiles_termination_tree_actions() -> None:
     termination = {
         "retained_items": [{"token": 1}, {"target": 1}],
         "termination_rule": {
-            "cases": [
-                {"conditions": "token >= 1", "reason": "token stop"},
-                {"conditions": "target >= 1", "reason": "target stop"},
-            ],
+            "condition": {
+                "op": "OR",
+                "children": [
+                    {"check": "token >= 1", "actions": "terminate token stop"},
+                    {"check": "target >= 1", "actions": "terminate target stop"},
+                ],
+            },
         },
     }
 
@@ -276,8 +288,10 @@ def test_build_context_uses_initial_change_as_begin_pool() -> None:
     termination = {
         "retained_items": [],
         "termination_rule": {
-            "conditions": "draw_count >= 1",
-            "reason": "done",
+            "condition": {
+                "check": "draw_count >= 1",
+                "actions": "terminate done",
+            },
         },
     }
 
@@ -314,8 +328,9 @@ every_draw:
 retained_items:
   - target: 1
 termination_rule:
-  conditions: target >= 1
-  reason: done
+  condition:
+    check: target >= 1
+    actions: terminate done
 """,
         encoding="utf-8",
     )

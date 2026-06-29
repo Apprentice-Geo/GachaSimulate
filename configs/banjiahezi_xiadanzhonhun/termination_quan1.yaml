@@ -2,8 +2,10 @@ retained_items:
 - shiweiyan: 1
 - shishibaozhu_33: 1
 termination_rule:
-  cases:
-  - conditions: shiweiyan >= 1
-    reason: obtained shiweiyan
-  - conditions: shishibaozhu_33 >= 1
-    reason: obtained shishibaozhu_33
+  condition:
+    op: OR
+    children:
+    - check: shiweiyan >= 1
+      actions: terminate obtained shiweiyan
+    - check: shishibaozhu_33 >= 1
+      actions: terminate obtained shishibaozhu_33

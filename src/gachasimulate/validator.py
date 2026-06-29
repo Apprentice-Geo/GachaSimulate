@@ -185,37 +185,116 @@ def _validate_action(
     _fail(path, f"unsupported action: {action}")
 
 
-def _validate_condition(
-    condition: Any,
+def _validate_item_resolve_actions(
+    actions: Any,
+    path: str,
+    *,
+    item_id: str,
+    item_ids: set[str],
+    pool_ids: set[str],
+) -> None:
+    if actions is None:
+        _fail(path, "must be non-empty")
+    normalized_actions = _normalize_actions(actions, path)
+    matching_reduce_count = 0
+    for index, action in enumerate(normalized_actions):
+        action_path = f"{path}[{index}]"
+        _validate_action(action, action_path, item_ids=item_ids, pool_ids=pool_ids)
+
+        match = _ACTION_RE.fullmatch(action.strip())
+        if match is None:
+            continue
+
+        action_item_id, op, _ = match.groups()
+        if op != "-=":
+            continue
+        if action_item_id != item_id:
+            _fail(action_path, "reduce action must reduce the resolved item")
+        matching_reduce_count += 1
+
+    if matching_reduce_count != 1:
+        _fail(path, "must contain exactly one reduce action for the resolved item")
+
+
+def _validate_condition_node(
+    node: Any,
     path: str,
     *,
     item_ids: set[str],
+    pool_ids: set[str],
 ) -> None:
-    if isinstance(condition, str):
-        match = _CONDITION_RE.fullmatch(condition.strip())
-        if match is None:
-            _fail(path, f"unsupported condition: {condition}")
-        item_id = match.group(1)
-        if item_id not in item_ids:
-            _fail(path, f"unknown item id: {item_id}")
+    node = _require_mapping(node, path)
+    has_check = "check" in node
+    has_logic = "op" in node or "children" in node
+    if has_check == has_logic:
+        _fail(path, "must contain either check or op/children")
+
+    if "actions" in node:
+        _validate_actions(
+            node["actions"],
+            path + ".actions",
+            item_ids=item_ids,
+            pool_ids=pool_ids,
+            allow_empty=True,
+        )
+
+    if has_check:
+        if not isinstance(node["check"], str):
+            _fail(path + ".check", "must be a condition string")
+        _validate_condition_string(node["check"], path + ".check", item_ids=item_ids)
         return
 
-    if isinstance(condition, list):
-        if len(condition) < 2:
-            _fail(path, "implicit AND requires at least two conditions")
-        for index, child in enumerate(condition):
-            _validate_condition(child, f"{path}[{index}]", item_ids=item_ids)
-        return
-
-    condition = _require_mapping(condition, path)
-    op = condition.get("op")
+    op = node.get("op")
     if op not in _LOGIC_OPS:
         _fail(path + ".op", f"unsupported logic op: {op}")
-    children = _require_list(condition.get("conditions"), path + ".conditions")
+    children = _require_list(node.get("children"), path + ".children")
     if not children:
-        _fail(path + ".conditions", "must be non-empty")
+        _fail(path + ".children", "must be non-empty")
     for index, child in enumerate(children):
-        _validate_condition(child, f"{path}.conditions[{index}]", item_ids=item_ids)
+        _validate_condition_node(
+            child,
+            f"{path}.children[{index}]",
+            item_ids=item_ids,
+            pool_ids=pool_ids,
+        )
+
+
+def _validate_condition_string(condition: str, path: str, *, item_ids: set[str]) -> None:
+    match = _CONDITION_RE.fullmatch(condition.strip())
+    if match is None:
+        _fail(path, f"unsupported condition: {condition}")
+    item_id = match.group(1)
+    if item_id not in item_ids:
+        _fail(path, f"unknown item id: {item_id}")
+
+
+def _actions_have_any_action(actions: Any) -> bool:
+    return bool(_normalize_actions(actions, "actions", allow_empty=True))
+
+
+def _actions_have_terminate(actions: Any) -> bool:
+    return any(
+        action.strip().partition(" ")[0] == "terminate"
+        for action in _normalize_actions(actions, "actions", allow_empty=True)
+    )
+
+
+def _condition_has_any_action(node: dict[str, Any]) -> bool:
+    if _actions_have_any_action(node.get("actions")):
+        return True
+    if "check" in node:
+        return False
+    return any(_condition_has_any_action(child) for child in node["children"])
+
+
+def _condition_all_paths_have_terminate(node: dict[str, Any]) -> bool:
+    if _actions_have_terminate(node.get("actions")):
+        return True
+    if "check" in node:
+        return False
+    if node["op"] in {"OR", "||"}:
+        return all(_condition_all_paths_have_terminate(child) for child in node["children"])
+    return any(_condition_all_paths_have_terminate(child) for child in node["children"])
 
 
 def validate_config(config: dict[str, Any]) -> None:
@@ -258,14 +337,14 @@ def validate_config(config: dict[str, Any]) -> None:
             else:
                 _require_positive_number(entry["weight"], path + ".weight")
 
-            if "actions" not in entry:
-                _fail(path + ".actions", "is required")
-            _validate_actions(
-                entry["actions"],
-                path + ".actions",
-                item_ids=item_ids,
-                pool_ids=pool_ids,
-            )
+            if "actions" in entry:
+                _validate_actions(
+                    entry["actions"],
+                    path + ".actions",
+                    item_ids=item_ids,
+                    pool_ids=pool_ids,
+                    allow_empty=True,
+                )
 
         if mode == "probability" and not math.isclose(
             total_probability, 1.0, rel_tol=1e-9, abs_tol=1e-9
@@ -307,9 +386,10 @@ def validate_config(config: dict[str, Any]) -> None:
         _require_non_negative_int(resolve.get("retain"), path + ".retain")
         if "actions" not in resolve:
             _fail(path + ".actions", "is required")
-        _validate_actions(
+        _validate_item_resolve_actions(
             resolve["actions"],
             path + ".actions",
+            item_id=item_id,
             item_ids=item_ids,
             pool_ids=pool_ids,
         )
@@ -324,52 +404,25 @@ def validate_config(config: dict[str, Any]) -> None:
         if mode not in _MODES:
             _fail(path + ".mode", f"unsupported mode: {mode}")
 
-        has_cases = "cases" in rule
-        has_condition_actions = "conditions" in rule or "actions" in rule
-        if has_cases == has_condition_actions:
-            _fail(path, "must contain either cases or conditions/actions")
-
-        if has_cases:
-            cases = _require_list(rule["cases"], path + ".cases")
-            if len(cases) < 2:
-                _fail(path + ".cases", "must contain at least two cases")
-            for case_index, case in enumerate(cases):
-                case_path = f"{path}.cases[{case_index}]"
-                case = _require_mapping(case, case_path)
-                if "conditions" not in case:
-                    _fail(case_path + ".conditions", "is required")
-                if "actions" not in case:
-                    _fail(case_path + ".actions", "is required")
-                _validate_condition(
-                    case["conditions"],
-                    case_path + ".conditions",
-                    item_ids=item_ids,
-                )
-                _validate_actions(
-                    case["actions"],
-                    case_path + ".actions",
-                    item_ids=item_ids,
-                    pool_ids=pool_ids,
-                )
-            continue
-
-        if "conditions" not in rule:
-            _fail(path + ".conditions", "is required")
-        if "actions" not in rule:
-            _fail(path + ".actions", "is required")
-        _validate_condition(rule["conditions"], path + ".conditions", item_ids=item_ids)
-        _validate_actions(
-            rule["actions"],
-            path + ".actions",
+        if "conditions" in rule or "cases" in rule or "actions" in rule:
+            _fail(path, "must use condition tree syntax")
+        if "condition" not in rule:
+            _fail(path + ".condition", "is required")
+        _validate_condition_node(
+            rule["condition"],
+            path + ".condition",
             item_ids=item_ids,
             pool_ids=pool_ids,
         )
+        if not _condition_has_any_action(rule["condition"]):
+            _fail(path + ".condition", "rule condition must contain at least one action")
 
 
 def validate_termination(termination: dict[str, Any], config: dict[str, Any]) -> None:
     termination = _require_mapping(termination, "termination")
     config = _require_mapping(config, "config")
     item_ids = _item_ids(config)
+    pool_ids = _pool_ids(config)
 
     retained_items = _require_list(
         termination.get("retained_items"),
@@ -388,35 +441,18 @@ def validate_termination(termination: dict[str, Any], config: dict[str, Any]) ->
         termination.get("termination_rule"),
         "termination.termination_rule",
     )
-    has_cases = "cases" in rule
-    has_condition_reason = "conditions" in rule or "reason" in rule
-    if has_cases == has_condition_reason:
-        _fail("termination.termination_rule", "must contain either cases or conditions/reason")
-
-    if has_cases:
-        cases = _require_list(rule["cases"], "termination.termination_rule.cases")
-        if len(cases) < 2:
-            _fail("termination.termination_rule.cases", "must contain at least two cases")
-        for case_index, case in enumerate(cases):
-            case_path = f"termination.termination_rule.cases[{case_index}]"
-            case = _require_mapping(case, case_path)
-            if "conditions" not in case:
-                _fail(case_path + ".conditions", "is required")
-            _validate_condition(
-                case["conditions"],
-                case_path + ".conditions",
-                item_ids=item_ids,
-            )
-            if not isinstance(case.get("reason"), str) or not case["reason"]:
-                _fail(case_path + ".reason", "must be a non-empty string")
-        return
-
-    if "conditions" not in rule:
-        _fail("termination.termination_rule.conditions", "is required")
-    _validate_condition(
-        rule["conditions"],
-        "termination.termination_rule.conditions",
+    if "conditions" in rule or "cases" in rule or "reason" in rule:
+        _fail("termination.termination_rule", "must use condition tree syntax")
+    if "condition" not in rule:
+        _fail("termination.termination_rule.condition", "is required")
+    _validate_condition_node(
+        rule["condition"],
+        "termination.termination_rule.condition",
         item_ids=item_ids,
+        pool_ids=pool_ids,
     )
-    if not isinstance(rule.get("reason"), str) or not rule["reason"]:
-        _fail("termination.termination_rule.reason", "must be a non-empty string")
+    if not _condition_all_paths_have_terminate(rule["condition"]):
+        _fail(
+            "termination.termination_rule.condition",
+            "every termination path must contain a terminate action",
+        )
