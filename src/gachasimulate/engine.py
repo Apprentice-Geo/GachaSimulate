@@ -92,51 +92,57 @@ class MonteCarlo:
     def _eval_condition(
         self, node: RuntimeCondition, state: RuntimeState
     ) -> tuple[bool, tuple[RuntimeAction, ...]]:
-        match node.kind:
-            case RuntimeKind.CheckNode:
-                left = int(state.inventory[node.item_index])
-                ok = self._compare(left, node.op, node.value)
+        if node.kind is RuntimeKind.CheckNode:
+            left = state.inventory[node.item_index]
+            right = node.value
+            op = node.op
+            if op is RuntimeOpCode.GE:
+                ok = left >= right
+            elif op is RuntimeOpCode.EQ:
+                ok = left == right
+            elif op is RuntimeOpCode.NE:
+                ok = left != right
+            elif op is RuntimeOpCode.LT:
+                ok = left < right
+            elif op is RuntimeOpCode.LE:
+                ok = left <= right
+            elif op is RuntimeOpCode.GT:
+                ok = left > right
+            else:
+                raise RuntimeError(f"Unknown op_code: {op}")
+
+            if ok:
+                return True, node.actions or EMPTY_ACTIONS
+            return False, EMPTY_ACTIONS
+
+        if node.op is RuntimeOpCode.OR:
+            for child in node.children:
+                ok, child_actions = self._eval_condition(child, state)
                 if ok:
-                    return True, node.actions or EMPTY_ACTIONS
-                return False, EMPTY_ACTIONS
+                    if node.actions:
+                        if child_actions:
+                            return True, node.actions + child_actions
+                        return True, node.actions
+                    return True, child_actions
+            return False, EMPTY_ACTIONS
 
-            case RuntimeKind.LogicNode:
-                match node.op:
-                    case RuntimeOpCode.OR:
-                        for child in node.children:
-                            ok, child_actions = self._eval_condition(child, state)
-                            if ok:
-                                return (
-                                    True,
-                                    node.actions + child_actions if node.actions else child_actions,
-                                )
-                        return False, EMPTY_ACTIONS
-                    case RuntimeOpCode.AND:
-                        aggregated: list[tuple[RuntimeAction, ...]] = []
-                        for child in node.children:
-                            ok, child_actions = self._eval_condition(child, state)
-                            if not ok:
-                                return False, EMPTY_ACTIONS
-                            # 先用 list 的 append 收集
-                            if child_actions: aggregated.append(child_actions) 
-                        child_actions: tuple[RuntimeAction, ...] = ()
-                        for tuple in aggregated:
-                            child_actions+=tuple
-                        return True, node.actions + child_actions if node.actions else child_actions
+        if node.op is RuntimeOpCode.AND:
+            child_action_list: list[RuntimeAction] | None = None
+            for child in node.children:
+                ok, child_actions = self._eval_condition(child, state)
+                if not ok:
+                    return False, EMPTY_ACTIONS
+                if child_actions:
+                    if child_action_list is None:
+                        child_action_list = []
+                    child_action_list.extend(child_actions)
 
-                raise ValueError(f"unsupported logic op: {node.op}")
+            if child_action_list is None:
+                return True, node.actions or EMPTY_ACTIONS
 
-    def _compare(self, left: int, op_code: RuntimeOpCode, right: int) -> bool:
-        if op_code == RuntimeOpCode.EQ:
-            return left == right
-        if op_code == RuntimeOpCode.NE:
-            return left != right
-        if op_code == RuntimeOpCode.LT:
-            return left < right
-        if op_code == RuntimeOpCode.LE:
-            return left <= right
-        if op_code == RuntimeOpCode.GT:
-            return left > right
-        if op_code == RuntimeOpCode.GE:
-            return left >= right
-        raise RuntimeError(f"Unknown op_code: {op_code}")
+            child_actions = tuple(child_action_list)
+            if node.actions:
+                return True, node.actions + child_actions
+            return True, child_actions
+
+        raise ValueError(f"unsupported logic op: {node.op}")

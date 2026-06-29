@@ -91,9 +91,9 @@ class RuntimeState:
         self.main_pool_index = 0
         self.rule_execute = []
         self.active_rule_indices = []
-        self.inventory = np.zeros(item_count, dtype=np.int32)
-        self.acquired = np.zeros(item_count, dtype=np.int32)
-        self.reduced = np.zeros(item_count, dtype=np.int32)
+        self.inventory = [0] * item_count
+        self.acquired = [0] * item_count
+        self.reduced = [0] * item_count
         self.terminate = False
         self.terminate_reason: str | None = None
 
