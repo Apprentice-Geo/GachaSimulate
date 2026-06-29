@@ -1,4 +1,4 @@
-meta_data:
+metadata:
   name: sunwukong_wuxiang
   source: https://pvp.qq.com/web201706/newsdetail.shtml?tid=791287
   game: 王者荣耀
@@ -70,78 +70,78 @@ pools:
 every_draw:
 - draw_count += 1
 rules:
-- name: 5draw
-  mode: once
-  condition:
-    check: draw_count >= 5
-    actions:
-    - random_skin += 1
-- name: 10draw
-  mode: once
-  condition:
-    check: draw_count >= 10
-    actions:
-    - random_skin += 1
-- name: 25draw
-  mode: once
-  condition:
-    check: draw_count >= 25
-    actions:
-    - random_skin += 1
-- name: 40draw
-  mode: once
-  condition:
-    check: draw_count >= 40
-    actions:
-    - wuxiang_point += 288
-- name: 45draw
-  mode: once
-  condition:
-    check: draw_count >= 45
-    actions:
-    - random_skin += 1
-- name: 50draw
-  mode: once
-  condition:
-    check: draw_count >= 50
-    actions:
-    - random_skin += 1
-- name: 65draw
-  mode: once
-  condition:
-    check: draw_count >= 65
-    actions:
-    - random_skin += 1
-- name: 80draw
-  mode: once
-  condition:
-    check: draw_count >= 80
-    actions:
-    - wuxiang_point += 288
-- name: 85draw
-  mode: once
-  condition:
-    check: draw_count >= 85
-    actions:
-    - random_skin += 1
-- name: 90draw
-  mode: once
-  condition:
-    check: draw_count >= 90
-    actions:
-    - random_skin += 1
-- name: 105draw
-  mode: once
-  condition:
-    check: draw_count >= 105
-    actions:
-    - random_skin += 1
-- name: 120draw
-  mode: once
-  condition:
-    check: draw_count >= 120
-    actions:
-    - wuxiang_point += 288
+- draw_5:
+    mode: once
+    condition:
+      check: draw_count >= 5
+      actions:
+      - random_skin += 1
+- draw_10:
+    mode: once
+    condition:
+      check: draw_count >= 10
+      actions:
+      - random_skin += 1
+- draw_25:
+    mode: once
+    condition:
+      check: draw_count >= 25
+      actions:
+      - random_skin += 1
+- draw_40:
+    mode: once
+    condition:
+      check: draw_count >= 40
+      actions:
+      - wuxiang_point += 288
+- draw_45:
+    mode: once
+    condition:
+      check: draw_count >= 45
+      actions:
+      - random_skin += 1
+- draw_50:
+    mode: once
+    condition:
+      check: draw_count >= 50
+      actions:
+      - random_skin += 1
+- draw_65:
+    mode: once
+    condition:
+      check: draw_count >= 65
+      actions:
+      - random_skin += 1
+- draw_80:
+    mode: once
+    condition:
+      check: draw_count >= 80
+      actions:
+      - wuxiang_point += 288
+- draw_85:
+    mode: once
+    condition:
+      check: draw_count >= 85
+      actions:
+      - random_skin += 1
+- draw_90:
+    mode: once
+    condition:
+      check: draw_count >= 90
+      actions:
+      - random_skin += 1
+- draw_105:
+    mode: once
+    condition:
+      check: draw_count >= 105
+      actions:
+      - random_skin += 1
+- draw_120:
+    mode: once
+    condition:
+      check: draw_count >= 120
+      actions:
+      - wuxiang_point += 288
 item_resolve:
 - item: random_limited_skin
   retain: 0

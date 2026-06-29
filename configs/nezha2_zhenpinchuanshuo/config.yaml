@@ -1,4 +1,4 @@
-meta_data:
+metadata:
   name: nezha2_zhenpinchuanshuo
   source: https://pvp.qq.com/web201706/newsdetail.shtml?tid=800320
   game: 王者荣耀
@@ -78,79 +78,79 @@ pools:
 every_draw:
 - draw_count += 1
 rules:
-- name: teshuhuizhangbaodi
-  mode: per_draw
-  condition:
-    check: draw_count >= 1
-    actions:
-    - teshuhuizhangbaodijishu += 1
-- name: teshuhuizhang_gain
-  mode: per_draw
-  condition:
-    op: OR
-    children:
-    - op: AND
-      children:
-      - check: teshuhuizhangbaodijishu < 10
-      - check: teshuhuizhang1 == 0
-      - check: teshuhuizhang2 == 0
-      - check: teshuhuizhang3 == 0
-      - check: teshuhuizhang4 == 0
+- teshuhuizhangbaodi:
+    mode: per_draw
+    condition:
+      check: draw_count >= 1
       actions:
-      - draw teshuhuizhang1_pool
-    - op: AND
+      - teshuhuizhangbaodijishu += 1
+- teshuhuizhang_gain:
+    mode: per_draw
+    condition:
+      op: OR
       children:
-      - check: teshuhuizhangbaodijishu < 10
-      - check: teshuhuizhang1 == 1
-      - check: teshuhuizhang2 == 0
-      - check: teshuhuizhang3 == 0
-      - check: teshuhuizhang4 == 0
+      - op: AND
+        children:
+        - check: teshuhuizhangbaodijishu < 10
+        - check: teshuhuizhang1 == 0
+        - check: teshuhuizhang2 == 0
+        - check: teshuhuizhang3 == 0
+        - check: teshuhuizhang4 == 0
+        actions:
+        - draw teshuhuizhang1_pool
+      - op: AND
+        children:
+        - check: teshuhuizhangbaodijishu < 10
+        - check: teshuhuizhang1 == 1
+        - check: teshuhuizhang2 == 0
+        - check: teshuhuizhang3 == 0
+        - check: teshuhuizhang4 == 0
+        actions:
+        - draw teshuhuizhang2_pool
+      - op: AND
+        children:
+        - check: teshuhuizhangbaodijishu < 10
+        - check: teshuhuizhang1 == 1
+        - check: teshuhuizhang2 == 1
+        - check: teshuhuizhang3 == 0
+        - check: teshuhuizhang4 == 0
+        actions:
+        - draw teshuhuizhang3_pool
+      - op: AND
+        children:
+        - check: teshuhuizhangbaodijishu < 10
+        - check: teshuhuizhang1 == 1
+        - check: teshuhuizhang2 == 1
+        - check: teshuhuizhang3 == 1
+        - check: teshuhuizhang4 == 0
+        actions:
+        - draw teshuhuizhang4_pool
+- teshuhuizhangbaodi_execute:
+    mode: per_draw
+    condition:
+      check: teshuhuizhangbaodijishu == 10
       actions:
-      - draw teshuhuizhang2_pool
-    - op: AND
+      - teshuhuizhang1 = 1
+      - teshuhuizhang2 = 1
+      - teshuhuizhang3 = 1
+      - teshuhuizhang4 = 1
+      - teshuhuizhangbaodijishu = 0
+- teshuhuizhang_execute:
+    mode: per_draw
+    condition:
+      op: AND
       children:
-      - check: teshuhuizhangbaodijishu < 10
-      - check: teshuhuizhang1 == 1
-      - check: teshuhuizhang2 == 1
-      - check: teshuhuizhang3 == 0
-      - check: teshuhuizhang4 == 0
-      actions:
-      - draw teshuhuizhang3_pool
-    - op: AND
-      children:
-      - check: teshuhuizhangbaodijishu < 10
       - check: teshuhuizhang1 == 1
       - check: teshuhuizhang2 == 1
       - check: teshuhuizhang3 == 1
-      - check: teshuhuizhang4 == 0
+      - check: teshuhuizhang4 == 1
       actions:
-      - draw teshuhuizhang4_pool
-- name: teshuhuizhangbaodi_execute
-  mode: per_draw
-  condition:
-    check: teshuhuizhangbaodijishu == 10
-    actions:
-    - teshuhuizhang1 = 1
-    - teshuhuizhang2 = 1
-    - teshuhuizhang3 = 1
-    - teshuhuizhang4 = 1
-    - teshuhuizhangbaodijishu = 0
-- name: teshuhuizhang_execute
-  mode: per_draw
-  condition:
-    op: AND
-    children:
-    - check: teshuhuizhang1 == 1
-    - check: teshuhuizhang2 == 1
-    - check: teshuhuizhang3 == 1
-    - check: teshuhuizhang4 == 1
-    actions:
-    - teshuhuizhang1 = 0
-    - teshuhuizhang2 = 0
-    - teshuhuizhang3 = 0
-    - teshuhuizhang4 = 0
-    - teshuhuizhangbaodijishu = 0
-    - draw teshuhuizhang_pool
+      - teshuhuizhang1 = 0
+      - teshuhuizhang2 = 0
+      - teshuhuizhang3 = 0
+      - teshuhuizhang4 = 0
+      - teshuhuizhangbaodijishu = 0
+      - draw teshuhuizhang_pool
 item_resolve:
 - item: kai_donghailongwang_aoguang
   retain: 1

@@ -121,7 +121,7 @@ class AddItem(Action):
         runtime_state.inventory[self.item_index] += self.amount
         runtime_state.acquired[self.item_index] += self.amount
         # 将可分解的立即分解
-        if runtime_context.item_resolve_list[self.item_index]:
+        if runtime_context.item_resolve_list[self.item_index].actions:
             return runtime_context.item_resolve_list[self.item_index].actions * (
                 (
                     runtime_state.inventory[self.item_index]

@@ -20,7 +20,6 @@ class MonteCarlo:
         # 此处定义全局rng,避免多次模拟时重复创建同一个种子的rng,导致每次模拟结果重复
         self.rng = np.random.default_rng(self.seed)
         # 记录可分解的物品索引
-        # 记录可分解的物品索引
         self.resolvable_item_indices = [
             item_index
             for item_index, item_resolve in enumerate(self.ctx.item_resolve_list)
@@ -45,8 +44,6 @@ class MonteCarlo:
         self._execute_action(state, self.ctx.pool_draw_list[state.main_pool_index])
 
         self._rule_phase(state)
-        # 只要 resolve 不会产生还需要 resolve 的物品，就不会出错
-        # self._resolve_phase(state) 分解已经写在 AddItem 的执行中，因此这个注释掉不影响
 
         should_terminate, termination_actions = self._eval_condition(
             self.ctx.termination_tree, state
@@ -75,19 +72,6 @@ class MonteCarlo:
                 continue
 
             active_rule_pos += 1
-
-    def _resolve_phase(self, state: RuntimeState) -> None:
-        for item_index in self.resolvable_item_indices:
-            item_resolve = self.ctx.item_resolve_list[item_index]
-            count = int(state.inventory[item_index])
-            retain = item_resolve.retain
-            resolve_count = count - retain
-            if resolve_count <= 0:
-                continue
-
-            # 执行 resolve_count 次分解
-            for _ in range(resolve_count):
-                self._execute_actions(state, item_resolve.actions)
 
     def _execute_actions(
         self, state: RuntimeState, actions: Iterable[RuntimeAction] | None
@@ -128,17 +112,19 @@ class MonteCarlo:
                                 )
                         return False, EMPTY_ACTIONS
                     case RuntimeOpCode.AND:
-                        aggregated: tuple[RuntimeAction, ...] = ()
+                        aggregated: list[tuple[RuntimeAction, ...]] = []
                         for child in node.children:
                             ok, child_actions = self._eval_condition(child, state)
                             if not ok:
                                 return False, EMPTY_ACTIONS
-                            aggregated += child_actions
-                        return True, node.actions + aggregated if node.actions else aggregated
+                            # 先用 list 的 append 收集
+                            if child_actions: aggregated.append(child_actions) 
+                        child_actions: tuple[RuntimeAction, ...] = ()
+                        for tuple in aggregated:
+                            child_actions+=tuple
+                        return True, node.actions + child_actions if node.actions else child_actions
 
                 raise ValueError(f"unsupported logic op: {node.op}")
-
-        raise TypeError(f"unsupported condition node type: {type(node).__name__}")
 
     def _compare(self, left: int, op_code: RuntimeOpCode, right: int) -> bool:
         if op_code == RuntimeOpCode.EQ:

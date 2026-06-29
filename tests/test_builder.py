@@ -99,15 +99,16 @@ def test_build_context_compiles_empty_actions_to_empty_tuples() -> None:
     ]
     config["rules"] = [
         {
-            "name": "rule",
-            "condition": {
-                "op": "AND",
-                "children": [
-                    {"check": "token >= 1"},
-                    {"check": "draw_count >= 1"},
-                ],
-                "actions": "shard += 1",
-            },
+            "rule": {
+                "condition": {
+                    "op": "AND",
+                    "children": [
+                        {"check": "token >= 1"},
+                        {"check": "draw_count >= 1"},
+                    ],
+                    "actions": "shard += 1",
+                },
+            }
         },
     ]
 
@@ -125,27 +126,29 @@ def test_build_context_parses_condition_tree() -> None:
     config = _minimal_config()
     config["rules"] = [
         {
-            "name": "and_rule",
-            "mode": "per_draw",
-            "condition": {
-                "op": "AND",
-                "children": [
-                    {"check": "token >= 1"},
-                    {"check": "draw_count < 10"},
-                ],
-                "actions": "shard += 1",
-            },
+            "and_rule": {
+                "mode": "per_draw",
+                "condition": {
+                    "op": "AND",
+                    "children": [
+                        {"check": "token >= 1"},
+                        {"check": "draw_count < 10"},
+                    ],
+                    "actions": "shard += 1",
+                },
+            }
         },
         {
-            "name": "or_rule",
-            "condition": {
-                "op": "||",
-                "children": [
-                    {"check": "token == 0"},
-                    {"check": "target >= 1"},
-                ],
-                "actions": "shard += 2",
-            },
+            "or_rule": {
+                "condition": {
+                    "op": "||",
+                    "children": [
+                        {"check": "token == 0"},
+                        {"check": "target >= 1"},
+                    ],
+                    "actions": "shard += 2",
+                },
+            }
         },
     ]
 
@@ -193,16 +196,22 @@ def test_build_context_uses_probability_pools_directly() -> None:
 def test_build_context_maps_rule_modes_to_rules() -> None:
     config = _minimal_config()
     config["rules"] = [
-        {"name": "default", "condition": {"check": "token >= 1", "actions": "shard += 1"}},
         {
-            "name": "per_draw",
-            "mode": "per_draw",
-            "condition": {"check": "token >= 2", "actions": "shard += 2"},
+            "default": {
+                "condition": {"check": "token >= 1", "actions": "shard += 1"},
+            }
         },
         {
-            "name": "repeat",
-            "mode": "repeat",
-            "condition": {"check": "token >= 3", "actions": "shard += 3"},
+            "per_draw": {
+                "mode": "per_draw",
+                "condition": {"check": "token >= 2", "actions": "shard += 2"},
+            }
+        },
+        {
+            "repeat": {
+                "mode": "repeat",
+                "condition": {"check": "token >= 3", "actions": "shard += 3"},
+            }
         },
     ]
 
@@ -219,14 +228,15 @@ def test_build_context_compiles_or_children_as_ordered_first_match() -> None:
     config = _minimal_config()
     config["rules"] = [
         {
-            "name": "or_rule",
-            "mode": "repeat",
-            "condition": {
-                "op": "OR",
-                "children": [
-                    {"check": "token >= 1", "actions": "shard += 1"},
-                    {"check": "draw_count >= 1", "actions": "shard += 2"},
-                ],
+            "or_rule": {
+                "mode": "repeat",
+                "condition": {
+                    "op": "OR",
+                    "children": [
+                        {"check": "token >= 1", "actions": "shard += 1"},
+                        {"check": "draw_count >= 1", "actions": "shard += 2"},
+                    ],
+                },
             },
         }
     ]

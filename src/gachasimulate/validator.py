@@ -9,8 +9,10 @@ class ValidationError(ValueError):
     pass
 
 
-_ACTION_RE = re.compile(r"^([^\s=+\-]+)\s*(\+=|-=|=)\s*(\d+)$")
-_CONDITION_RE = re.compile(r"^([^\s<>!=]+)\s*(>=|<=|==|!=|>|<)\s*(\d+)$")
+_IDENTIFIER_PATTERN = r"[A-Za-z_][A-Za-z0-9_]*"
+_IDENTIFIER_RE = re.compile(rf"^{_IDENTIFIER_PATTERN}$")
+_ACTION_RE = re.compile(rf"^({_IDENTIFIER_PATTERN})\s*(\+=|-=|=)\s*(\d+)$")
+_CONDITION_RE = re.compile(rf"^({_IDENTIFIER_PATTERN})\s*(>=|<=|==|!=|>|<)\s*(\d+)$")
 _LOGIC_OPS = {"AND", "OR", "&&", "||"}
 _MODES = {"once", "per_draw", "repeat"}
 
@@ -41,6 +43,12 @@ def _require_single_key_mapping(value: Any, path: str) -> tuple[str, Any]:
     return key, item
 
 
+def _reject_unknown_keys(mapping: dict[str, Any], path: str, allowed: set[str]) -> None:
+    for key in mapping:
+        if key not in allowed:
+            _fail(path + f".{key}", "unsupported field")
+
+
 def _require_non_negative_int(value: Any, path: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value < 0:
         _fail(path, "must be a non-negative integer")
@@ -61,10 +69,8 @@ def _require_number(value: Any, path: str) -> float:
 
 
 def _validate_id(value: str, path: str) -> None:
-    if not value:
-        _fail(path, "must be non-empty")
-    if any(ch.isspace() for ch in value):
-        _fail(path, "cannot contain spaces")
+    if _IDENTIFIER_RE.fullmatch(value) is None:
+        _fail(path, "must match [A-Za-z_][A-Za-z0-9_]*")
 
 
 def _item_ids(config: dict[str, Any]) -> set[str]:
@@ -239,11 +245,13 @@ def _validate_condition_node(
         )
 
     if has_check:
+        _reject_unknown_keys(node, path, {"check", "actions"})
         if not isinstance(node["check"], str):
             _fail(path + ".check", "must be a condition string")
         _validate_condition_string(node["check"], path + ".check", item_ids=item_ids)
         return
 
+    _reject_unknown_keys(node, path, {"op", "children", "actions"})
     op = node.get("op")
     if op not in _LOGIC_OPS:
         _fail(path + ".op", f"unsupported logic op: {op}")
@@ -318,6 +326,7 @@ def validate_config(config: dict[str, Any]) -> None:
         for entry_index, entry in enumerate(entries):
             path = f"config.pools[{pool_index}].{pool_id}[{entry_index}]"
             entry = _require_mapping(entry, path)
+            _reject_unknown_keys(entry, path, {"probability", "weight", "actions"})
             has_probability = "probability" in entry
             has_weight = "weight" in entry
             if has_probability == has_weight:
@@ -330,9 +339,9 @@ def validate_config(config: dict[str, Any]) -> None:
                 _fail(f"config.pools[{pool_index}].{pool_id}", "cannot mix probability and weight")
 
             if has_probability:
-                probability = _require_number(entry["probability"], path + ".probability")
-                if probability < 0:
-                    _fail(path + ".probability", "must be non-negative")
+                probability = _require_positive_number(
+                    entry["probability"], path + ".probability"
+                )
                 total_probability += probability
             else:
                 _require_positive_number(entry["weight"], path + ".weight")
@@ -378,6 +387,7 @@ def validate_config(config: dict[str, Any]) -> None:
     for index, resolve in enumerate(item_resolves):
         path = f"config.item_resolve[{index}]"
         resolve = _require_mapping(resolve, path)
+        _reject_unknown_keys(resolve, path, {"item", "retain", "actions"})
         item_id = resolve.get("item")
         if not isinstance(item_id, str):
             _fail(path + ".item", "must be an item id")
@@ -397,25 +407,41 @@ def validate_config(config: dict[str, Any]) -> None:
     rules = config.get("rules", [])
     if "rules" in config:
         rules = _require_list(rules, "config.rules")
-    for index, rule in enumerate(rules):
+    seen_rule_ids: set[str] = set()
+    for index, rule_entry in enumerate(rules):
         path = f"config.rules[{index}]"
-        rule = _require_mapping(rule, path)
+        rule_entry = _require_mapping(rule_entry, path)
+        if "name" in rule_entry:
+            _fail(path + ".name", "rule id must be the mapping key")
+        if len(rule_entry) != 1:
+            _fail(path, "must be a single-key mapping")
+        rule_id, rule = next(iter(rule_entry.items()))
+        if not isinstance(rule_id, str):
+            _fail(path, "key must be a string")
+        _validate_id(rule_id, path)
+        if rule_id in seen_rule_ids:
+            _fail(path, f"duplicate rule id: {rule_id}")
+        seen_rule_ids.add(rule_id)
+
+        rule = _require_mapping(rule, path + f".{rule_id}")
+        _reject_unknown_keys(rule, path + f".{rule_id}", {"mode", "condition"})
         mode = rule.get("mode", "once")
         if mode not in _MODES:
-            _fail(path + ".mode", f"unsupported mode: {mode}")
+            _fail(path + f".{rule_id}.mode", f"unsupported mode: {mode}")
 
-        if "conditions" in rule or "cases" in rule or "actions" in rule:
-            _fail(path, "must use condition tree syntax")
         if "condition" not in rule:
-            _fail(path + ".condition", "is required")
+            _fail(path + f".{rule_id}.condition", "is required")
         _validate_condition_node(
             rule["condition"],
-            path + ".condition",
+            path + f".{rule_id}.condition",
             item_ids=item_ids,
             pool_ids=pool_ids,
         )
         if not _condition_has_any_action(rule["condition"]):
-            _fail(path + ".condition", "rule condition must contain at least one action")
+            _fail(
+                path + f".{rule_id}.condition",
+                "rule condition must contain at least one action",
+            )
 
 
 def validate_termination(termination: dict[str, Any], config: dict[str, Any]) -> None:
@@ -443,6 +469,7 @@ def validate_termination(termination: dict[str, Any], config: dict[str, Any]) ->
     )
     if "conditions" in rule or "cases" in rule or "reason" in rule:
         _fail("termination.termination_rule", "must use condition tree syntax")
+    _reject_unknown_keys(rule, "termination.termination_rule", {"condition"})
     if "condition" not in rule:
         _fail("termination.termination_rule.condition", "is required")
     _validate_condition_node(

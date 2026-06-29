@@ -28,19 +28,9 @@ from .runtime import (
 )
 from .validator import validate_config, validate_termination
 
-# 匹配动作表达式：<name> += / -= / = <non-negative-int>
-# group(1): 左侧变量名，不允许包含空白、=、+、-
-# group(2): 操作符，只允许 +=、-=、=
-# group(3): 右侧非负整数
-# 操作符两侧允许有任意数量空白；要求整行完整匹配
-_ACTION_RE = re.compile(r"^([^\s=+\-]+)\s*(\+=|-=|=)\s*(\d+)$")
-
-# 匹配条件表达式：<name> >= / <= / == / != / > / < <non-negative-int>
-# group(1): 左侧变量名，不允许包含空白、<、>、!、=
-# group(2): 比较操作符，只允许 >=、<=、==、!=、>、<
-# group(3): 右侧非负整数
-# 操作符两侧允许有任意数量空白；要求整行完整匹配
-_CONDITION_RE = re.compile(r"^([^\s<>!=]+)\s*(>=|<=|==|!=|>|<)\s*(\d+)$")
+_IDENTIFIER_PATTERN = r"[A-Za-z_][A-Za-z0-9_]*"
+_ACTION_RE = re.compile(rf"^({_IDENTIFIER_PATTERN})\s*(\+=|-=|=)\s*(\d+)$")
+_CONDITION_RE = re.compile(rf"^({_IDENTIFIER_PATTERN})\s*(>=|<=|==|!=|>|<)\s*(\d+)$")
 _LOGIC_OPS = {
     "AND": RuntimeOpCode.AND,
     "&&": RuntimeOpCode.AND,
@@ -123,6 +113,10 @@ def _pool_entries(pools: list[Any]) -> list[tuple[str, list[dict[str, Any]]]]:
     return [(_single_key(pool_entry)[0], _single_key(pool_entry)[1]) for pool_entry in pools]
 
 
+def _rule_entries(rules: list[Any]) -> list[tuple[str, dict[str, Any]]]:
+    return [(_single_key(rule_entry)[0], _single_key(rule_entry)[1]) for rule_entry in rules]
+
+
 def _normalize_actions(actions: str | list[str] | None) -> list[str]:
     if actions is None:
         return []
@@ -197,8 +191,7 @@ def _merge_termination_retains(
 
 
 def _build_rules(context: RuntimeBuildingContext, config: dict[str, Any]) -> None:
-    for index, rule in enumerate(config.get("rules", [])):
-        rule_id = str(rule.get("name", f"rule_{index}"))
+    for rule_id, rule in _rule_entries(config.get("rules", [])):
         mode = rule.get("mode", "once")
 
         condition = _build_condition_tree(context, rule["condition"])

@@ -32,26 +32,28 @@ def _valid_config() -> dict:
         "every_draw": "draw_count += 1",
         "rules": [
             {
-                "name": "and_rule",
-                "mode": "per_draw",
-                "condition": {
-                    "op": "AND",
-                    "children": [
-                        {"check": "token >= 1"},
-                        {"check": "target >= 1"},
-                    ],
-                    "actions": "shard += 1",
-                },
+                "and_rule": {
+                    "mode": "per_draw",
+                    "condition": {
+                        "op": "AND",
+                        "children": [
+                            {"check": "token >= 1"},
+                            {"check": "target >= 1"},
+                        ],
+                        "actions": "shard += 1",
+                    },
+                }
             },
             {
-                "name": "or_rule",
-                "condition": {
-                    "op": "OR",
-                    "children": [
-                        {"check": "token == 0", "actions": "draw bonus"},
-                        {"check": "token >= 1", "actions": "change bonus"},
-                    ],
-                },
+                "or_rule": {
+                    "condition": {
+                        "op": "OR",
+                        "children": [
+                            {"check": "token == 0", "actions": "draw bonus"},
+                            {"check": "token >= 1", "actions": "change bonus"},
+                        ],
+                    },
+                }
             },
         ],
         "item_resolve": [{"item": "target", "retain": 1, "actions": "target -= 1"}],
@@ -83,7 +85,7 @@ def test_validate_config_accepts_optional_empty_actions() -> None:
     del config["pools"][0]["main"][0]["actions"]
     config["initial"] = None
     config["every_draw"] = None
-    config["rules"][1]["condition"]["children"][0].pop("actions")
+    config["rules"][1]["or_rule"]["condition"]["children"][0].pop("actions")
 
     validate_config(config)
 
@@ -102,7 +104,7 @@ def test_validate_config_rejects_unknown_item_reference() -> None:
 
 def test_validate_config_rejects_unknown_pool_reference() -> None:
     config = _valid_config()
-    config["rules"][1]["condition"]["children"][0]["actions"] = "draw missing"
+    config["rules"][1]["or_rule"]["condition"]["children"][0]["actions"] = "draw missing"
 
     with pytest.raises(ValidationError, match="unknown pool id: missing"):
         validate_config(config)
@@ -110,7 +112,7 @@ def test_validate_config_rejects_unknown_pool_reference() -> None:
 
 def test_validate_config_rejects_unknown_condition_item_reference() -> None:
     config = _valid_config()
-    config["rules"][0]["condition"]["children"][1]["check"] = "missing >= 1"
+    config["rules"][0]["and_rule"]["condition"]["children"][1]["check"] = "missing >= 1"
 
     with pytest.raises(ValidationError, match="unknown item id: missing"):
         validate_config(config)
@@ -132,11 +134,28 @@ def test_validate_config_rejects_invalid_probability_sum() -> None:
         validate_config(config)
 
 
-def test_validate_config_rejects_bad_item_name_with_spaces() -> None:
+def test_validate_config_rejects_zero_probability() -> None:
+    config = _valid_config()
+    config["pools"][0]["main"][0]["probability"] = 0
+    config["pools"][0]["main"][1]["probability"] = 1
+
+    with pytest.raises(ValidationError, match="must be positive"):
+        validate_config(config)
+
+
+def test_validate_config_rejects_bad_item_id_with_spaces() -> None:
     config = _valid_config()
     config["items"][1] = "bad item"
 
-    with pytest.raises(ValidationError, match="cannot contain spaces"):
+    with pytest.raises(ValidationError, match="must match"):
+        validate_config(config)
+
+
+def test_validate_config_rejects_bad_item_id_starting_with_digit() -> None:
+    config = _valid_config()
+    config["items"][1] = "5draw"
+
+    with pytest.raises(ValidationError, match="must match"):
         validate_config(config)
 
 
@@ -167,7 +186,7 @@ def test_validate_config_rejects_old_dict_action_shape() -> None:
 
 def test_validate_config_rejects_bad_logic_operator() -> None:
     config = _valid_config()
-    config["rules"][0]["condition"]["op"] = "XOR"
+    config["rules"][0]["and_rule"]["condition"]["op"] = "XOR"
 
     with pytest.raises(ValidationError, match="unsupported logic op: XOR"):
         validate_config(config)
@@ -177,17 +196,35 @@ def test_validate_config_rejects_old_rule_syntax() -> None:
     config = _valid_config()
     config["rules"][0] = {
         "name": "old",
-        "conditions": "token >= 1",
-        "actions": "shard += 1",
+        "condition": {"check": "token >= 1", "actions": "shard += 1"},
     }
 
-    with pytest.raises(ValidationError, match="must use condition tree syntax"):
+    with pytest.raises(ValidationError, match="rule id must be the mapping key"):
+        validate_config(config)
+
+
+def test_validate_config_rejects_duplicate_rule_id() -> None:
+    config = _valid_config()
+    config["rules"] = [
+        {"duplicate": {"condition": {"check": "token >= 1", "actions": "shard += 1"}}},
+        {"duplicate": {"condition": {"check": "target >= 1", "actions": "shard += 1"}}},
+    ]
+
+    with pytest.raises(ValidationError, match="duplicate rule id: duplicate"):
+        validate_config(config)
+
+
+def test_validate_config_rejects_unknown_nested_field() -> None:
+    config = _valid_config()
+    config["rules"][0]["and_rule"]["extra"] = True
+
+    with pytest.raises(ValidationError, match="unsupported field"):
         validate_config(config)
 
 
 def test_validate_config_rejects_noop_rule() -> None:
     config = _valid_config()
-    config["rules"][0]["condition"] = {"check": "token >= 1"}
+    config["rules"][0]["and_rule"]["condition"] = {"check": "token >= 1"}
 
     with pytest.raises(ValidationError, match="must contain at least one action"):
         validate_config(config)
@@ -195,7 +232,7 @@ def test_validate_config_rejects_noop_rule() -> None:
 
 def test_validate_config_rejects_logic_node_without_children() -> None:
     config = _valid_config()
-    config["rules"][0]["condition"] = {
+    config["rules"][0]["and_rule"]["condition"] = {
         "op": "AND",
         "actions": "shard += 1",
     }
