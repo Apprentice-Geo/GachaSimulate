@@ -20,7 +20,9 @@ data/
 /build/
 .ruff_cache/
 profile.prof
+profile.pstats
 scalene*
+.codex
 
 # Playwright
 /playwright-report/

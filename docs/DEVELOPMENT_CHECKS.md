@@ -47,13 +47,13 @@ pnpm run test:e2e
 如果 Python 格式检查失败，执行：
 
 ```powershell
-.\.venv\Scripts\python.exe -m ruff format .
+uv run ruff format .
 ```
 
 如果 Python lint 失败，先查看 `ruff check` 输出并修复对应文件。部分安全的自动修复可以用：
 
 ```powershell
-.\.venv\Scripts\python.exe -m ruff check . --fix
+uv run ruff check . --fix
 ```
 
 如果前端格式检查失败，执行：

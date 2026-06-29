@@ -120,10 +120,15 @@ class AddItem(Action):
     ) -> tuple[RuntimeAction, ...]:
         runtime_state.inventory[self.item_index] += self.amount
         runtime_state.acquired[self.item_index] += self.amount
+        # 将可分解的立即分解
         if runtime_context.item_resolve_list[self.item_index]:
-            return runtime_context.item_resolve_list[self.item_index].actions * (
-                runtime_state.inventory[self.item_index]
-                - runtime_context.item_resolve_list[self.item_index].retain
+            return (
+                runtime_context.item_resolve_list[self.item_index].actions
+                * ((
+                    runtime_state.inventory[self.item_index]
+                    - runtime_context.item_resolve_list[self.item_index].retain
+                )
+                // runtime_context.item_resolve_list[self.item_index].reduce)
             )
         else:
             return EMPTY_ACTIONS
@@ -170,8 +175,7 @@ class DrawPool(Action):
     ) -> tuple[RuntimeAction, ...]:
         r = runtime_state.rng.random()
         idx = np.searchsorted(runtime_context.pool_list[self.pool_index].cdf, r)
-        actions = runtime_context.pool_list[self.pool_index].actions[idx]
-        return actions
+        return runtime_context.pool_list[self.pool_index].actions[idx]
 
 
 @dataclass(frozen=True, slots=True)
@@ -261,6 +265,20 @@ class Item:
 class ItemResolve:
     retain: int = 0
     actions: tuple[RuntimeAction, ...] = EMPTY_ACTIONS
+    # 表示 reduce 不参与构造参数
+    reduce: int = field(init=False)
+
+    def __post_init__(self) -> None:
+        reduce_value = self._get_reduce_from_actions(self.actions)
+        # 使用 __setattr__ 绕过 frozen=True 的普通赋值限制，只用于初始化阶段
+        object.__setattr__(self, "reduce", reduce_value)
+
+    @staticmethod
+    def _get_reduce_from_actions(actions: tuple[RuntimeAction, ...]) -> int:
+        for action in actions:
+            if action.kind == RuntimeKind.ReduceItem:
+                return action.amount
+        return 1
 
 
 class Reporter:
