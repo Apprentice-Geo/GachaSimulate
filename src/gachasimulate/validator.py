@@ -339,9 +339,7 @@ def validate_config(config: dict[str, Any]) -> None:
                 _fail(f"config.pools[{pool_index}].{pool_id}", "cannot mix probability and weight")
 
             if has_probability:
-                probability = _require_positive_number(
-                    entry["probability"], path + ".probability"
-                )
+                probability = _require_positive_number(entry["probability"], path + ".probability")
                 total_probability += probability
             else:
                 _require_positive_number(entry["weight"], path + ".weight")

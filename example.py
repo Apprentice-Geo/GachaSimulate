@@ -6,7 +6,6 @@ from gachasimulate.core import (
 from gachasimulate.builder import build_from_files
 from gachasimulate.engine import MonteCarlo
 import os
-import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 
@@ -34,8 +33,8 @@ def run_save(
         result = simulate_until_total_draw(
             simulator, target_total_draw=target_total_draw, workers=workers
         )
-        data_dir = Path("./data")
-        data_dir.mkdir(parents=True, exist_ok=True)
+        # data_dir = Path("./data")
+        # data_dir.mkdir(parents=True, exist_ok=True)
         # save_simulation_result(result_file_path, result)
         # save_visualize_input(f"./data/{simulate_name}_visualize_input.json", result)
         # save_simulation_result(result_file_path, result)
@@ -43,17 +42,17 @@ def run_save(
     else:
         result = load_simulation_result(result_file_path)
 
-    print("Total runs:", result["total_runs"])
-    print("Total draw:", result["total_draw"])
-    print("terminate reasons distribution:")
-    unique, count = np.unique(result["terminate_reasons"], return_counts=True)
-    for reason, count in zip(unique, count):
-        print(f"  {reason}: {count}")
-    print("Average draw per run:", np.mean(result["draw_count"]))
-    print("Lifetime acquired (per item):")
-    for item_id, index in ctx.item_id_index.items():
-        total_acquired = np.sum(result["lifetime_acquired"][:, index])
-        print(f"  {item_id}: {total_acquired}")
+    # print("Total runs:", result["total_runs"])
+    # print("Total draw:", result["total_draw"])
+    # print("terminate reasons distribution:")
+    # unique, count = np.unique(result["terminate_reasons"], return_counts=True)
+    # for reason, count in zip(unique, count):
+    #     print(f"  {reason}: {count}")
+    # print("Average draw per run:", np.mean(result["draw_count"]))
+    # print("Lifetime acquired (per item):")
+    # for item_id, index in ctx.item_id_index.items():
+    #     total_acquired = np.sum(result["lifetime_acquired"][:, index])
+    #     print(f"  {item_id}: {total_acquired}")
 
     # viz = Visualizer(result)
     # img_dir = Path("./images")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from abc import ABC, abstractmethod
+from bisect import bisect_left
 from dataclasses import dataclass, field
 from typing import ClassVar, Literal, Optional, TextIO
 from enum import IntEnum, Enum, auto
@@ -159,6 +160,9 @@ class SetItem(Action):
     def execute(
         self, runtime_state: RuntimeState, runtime_context: RuntimeContext
     ) -> tuple[RuntimeAction, ...]:
+        # 统计 set 导致的增减变更
+        runtime_state.acquired[self.item_index] += max(0,self.amount-runtime_state.inventory[self.item_index])
+        runtime_state.reduced[self.item_index] += max(0,runtime_state.inventory[self.item_index] - self.amount)
         runtime_state.inventory[self.item_index] = self.amount
         return EMPTY_ACTIONS
 
@@ -173,7 +177,8 @@ class DrawPool(Action):
         self, runtime_state: RuntimeState, runtime_context: RuntimeContext
     ) -> tuple[RuntimeAction, ...]:
         r = runtime_state.rng.random()
-        idx = np.searchsorted(runtime_context.pool_list[self.pool_index].cdf, r)
+        # 此处使用 bisect_left 比 np.searchsorted 更快
+        idx = bisect_left(runtime_context.pool_list[self.pool_index].cdf, r)
         return runtime_context.pool_list[self.pool_index].actions[idx]
 
 
@@ -250,7 +255,7 @@ class Rule:
 
 @dataclass(frozen=True, slots=True)
 class Pool:
-    cdf: np.ndarray
+    cdf: tuple[float, ...]
     actions: tuple[tuple[RuntimeAction, ...], ...]
 
 

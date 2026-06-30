@@ -68,11 +68,11 @@ def LogicNode(
 
 def Pool(
     *,
-    cdf: np.ndarray,
+    cdf: Iterable[float],
     actions: Iterable[Iterable[RuntimeAction]],
 ) -> _Pool:
     return _Pool(
-        cdf=cdf,
+        cdf=tuple(float(value) for value in cdf),
         actions=tuple(tuple(entry_actions) for entry_actions in actions),
     )
 

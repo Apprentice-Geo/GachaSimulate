@@ -150,7 +150,7 @@ def _build_pools(context: RuntimeBuildingContext, config: dict[str, Any]) -> Non
         cdf[-1] = 1.0
         context.pool_list.append(
             Pool(
-                cdf=cdf,
+                cdf=tuple(float(value) for value in cdf),
                 actions=tuple(
                     tuple(_build_actions(context, entry.get("actions"))) for entry in entries
                 ),
