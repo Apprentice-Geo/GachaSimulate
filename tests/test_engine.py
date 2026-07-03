@@ -32,6 +32,7 @@ from gachasimulate.core import (
     load_simulation_result,
     save_simulation_result,
     save_visualize_input,
+    simulate_fixed_runs,
     simulate_until_total_draw,
 )
 
@@ -846,6 +847,51 @@ def test_saves_visualize_input_json() -> None:
     assert isinstance(data["timestamp"], int)
 
 
+def test_fixed_runs_returns_exact_run_count() -> None:
+    item_list = [Item(id="target", name="Target")]
+    item_list.append(Item(id="draw_count", name="Draw count"))
+    item_id_index = {item.id: i for i, item in enumerate(item_list)}
+
+    ctx = _runtime_context(
+        initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
+        item_id_index=item_id_index,
+        draw_count_index=item_id_index["draw_count"],
+        item_list=item_list,
+        item_resolve_list=[ItemResolve(retain=0, actions=[])],
+        pool_id_index={"begin_pool": 0},
+        pool_list=[
+            Pool(
+                cdf=np.array([1.0], dtype=np.float64),
+                actions=[[AddItem(item_index=item_id_index["target"], amount=1)]],
+            )
+        ],
+        pool_draw_list=[DrawPool(pool_index=0)],
+        rule_id_index={},
+        rule_list=[],
+        termination_tree=CheckNode(
+            item_index=item_id_index["draw_count"],
+            op=RuntimeOpCode.GE,
+            value=1,
+            actions=[Termination(reason="done")],
+        ),
+    )
+
+    result = simulate_fixed_runs(MonteCarlo(ctx, seed=123), total_runs=5)
+
+    assert result["seed"] == 123
+    assert result["total_draw"] == 5
+    assert result["total_runs"] == 5
+    assert result["draw_count"].tolist() == [1] * 5
+    assert result["lifetime_acquired"].shape == (5, 2)
+    assert result["terminate_reasons"].tolist() == ["done"] * 5
+
+
+def test_fixed_runs_rejects_non_positive_total_runs(sanliou_ctx: RuntimeContext) -> None:
+    with pytest.raises(ValueError, match="total_runs must be >= 1"):
+        simulate_fixed_runs(MonteCarlo(sanliou_ctx, seed=0), total_runs=0)
+
+
 def test_parallel_simulation_merges_worker_results() -> None:
     item_list = [Item(id="target", name="Target")]
     item_list.append(Item(id="draw_count", name="Draw count"))
@@ -877,6 +923,46 @@ def test_parallel_simulation_merges_worker_results() -> None:
     )
 
     result = simulate_until_total_draw(MonteCarlo(ctx, seed=123), target_total_draw=8, workers=2)
+
+    assert result["seed"] == 123
+    assert result["total_draw"] == 8
+    assert result["total_runs"] == 8
+    assert result["draw_count"].tolist() == [1] * 8
+    assert result["lifetime_acquired"].shape == (8, 2)
+    assert result["terminate_reasons"].tolist() == ["done"] * 8
+
+
+def test_parallel_fixed_runs_merges_worker_results() -> None:
+    item_list = [Item(id="target", name="Target")]
+    item_list.append(Item(id="draw_count", name="Draw count"))
+    item_id_index = {item.id: i for i, item in enumerate(item_list)}
+
+    ctx = _runtime_context(
+        initial_actions=[],
+        every_draw_actions=[AddItem(item_index=item_id_index["draw_count"], amount=1)],
+        item_id_index=item_id_index,
+        draw_count_index=item_id_index["draw_count"],
+        item_list=item_list,
+        item_resolve_list=[ItemResolve(retain=0, actions=[])],
+        pool_id_index={"begin_pool": 0},
+        pool_list=[
+            Pool(
+                cdf=np.array([1.0], dtype=np.float64),
+                actions=[[AddItem(item_index=item_id_index["target"], amount=1)]],
+            )
+        ],
+        pool_draw_list=[DrawPool(pool_index=0)],
+        rule_id_index={},
+        rule_list=[],
+        termination_tree=CheckNode(
+            item_index=item_id_index["draw_count"],
+            op=RuntimeOpCode.GE,
+            value=1,
+            actions=[Termination(reason="done")],
+        ),
+    )
+
+    result = simulate_fixed_runs(MonteCarlo(ctx, seed=123), total_runs=8, workers=2)
 
     assert result["seed"] == 123
     assert result["total_draw"] == 8

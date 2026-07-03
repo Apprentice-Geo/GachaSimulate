@@ -1,0 +1,11 @@
+retained_items:
+  - target: 1
+  - token: 5
+termination_rule:
+  condition:
+    op: OR
+    children:
+      - check: target >= 1
+        actions: terminate target_acquired
+      - check: token >= 5
+        actions: terminate exchange_fallback

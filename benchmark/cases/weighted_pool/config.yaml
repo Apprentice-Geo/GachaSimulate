@@ -1,0 +1,29 @@
+items:
+  - draw_count: Draw count
+  - target
+  - shard
+  - dust
+  - common_a
+  - common_b
+  - common_c
+  - common_d
+pools:
+  - main:
+      - weight: 1
+        actions: target += 1
+      - weight: 4
+        actions: shard += 5
+      - weight: 10
+        actions: dust += 3
+      - weight: 20
+        actions: common_a += 1
+      - weight: 20
+        actions: common_b += 1
+      - weight: 20
+        actions: common_c += 1
+      - weight: 25
+        actions: common_d += 1
+every_draw:
+  - draw_count += 1
+initial:
+  - change main

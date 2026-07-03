@@ -1,0 +1,24 @@
+items:
+  - draw_count: Draw count
+  - phase_token
+  - target
+  - filler
+pools:
+  - begin_pool:
+      - probability: 1.0
+        actions: phase_token += 1
+  - second_pool:
+      - probability: 0.5
+        actions: target += 1
+      - probability: 0.5
+        actions: filler += 1
+every_draw:
+  - draw_count += 1
+rules:
+  - switch_to_second:
+      mode: once
+      condition:
+        check: phase_token >= 3
+        actions: change second_pool
+initial:
+  - change begin_pool

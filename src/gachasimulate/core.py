@@ -101,6 +101,15 @@ def _split_target_total_draw(target_total_draw: int, chunk_count: int) -> list[i
     ]
 
 
+def _split_total_runs(total_runs: int, chunk_count: int) -> list[int]:
+    base, remainder = divmod(total_runs, chunk_count)
+    return [
+        base + (1 if index < remainder else 0)
+        for index in range(chunk_count)
+        if base + (1 if index < remainder else 0) > 0
+    ]
+
+
 def _merge_simulation_results(results: list[dict], seed):
     return {
         "seed": seed,
@@ -177,6 +186,58 @@ def _simulate_until_total_draw_parallel(sim: MonteCarlo, target_total_draw: int,
     return _merge_simulation_results([result for result in results if result], sim.seed)
 
 
+def _simulate_fixed_runs_serial(sim: MonteCarlo, total_runs: int):
+    draw_count = []
+    acquired_records = []
+    terminate_reasons = []
+
+    total_draw = 0
+    for _ in range(total_runs):
+        state = sim.run_once()
+        run_draw_count = int(state.inventory[sim.ctx.draw_count_index])
+
+        draw_count.append(run_draw_count)
+        acquired_records.append(state.acquired.copy())
+        terminate_reasons.append(state.terminate_reason)
+
+        total_draw += run_draw_count
+
+    return {
+        "seed": sim.seed,
+        "draw_count": np.asarray(draw_count, dtype=np.int32),
+        "lifetime_acquired": np.vstack(acquired_records).astype(np.int32),
+        "terminate_reasons": np.array(terminate_reasons, dtype="U32"),
+        "total_draw": np.int64(total_draw),
+        "total_runs": np.int32(total_runs),
+    }
+
+
+def _simulate_fixed_runs_chunk(ctx, seed_sequence, total_runs: int):
+    return _simulate_fixed_runs_serial(MonteCarlo(ctx, seed=seed_sequence), total_runs)
+
+
+def _simulate_fixed_runs_parallel(sim: MonteCarlo, total_runs: int, workers: int):
+    targets = _split_total_runs(total_runs, workers)
+    seed_sequence = np.random.SeedSequence(sim.seed)
+    child_seed_sequences = seed_sequence.spawn(len(targets))
+    results: list[dict | None] = [None] * len(targets)
+
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        futures = {
+            executor.submit(
+                _simulate_fixed_runs_chunk,
+                sim.ctx,
+                child_seed_sequences[index],
+                target,
+            ): index
+            for index, target in enumerate(targets)
+        }
+        for future, index in futures.items():
+            results[index] = future.result()
+
+    return _merge_simulation_results([result for result in results if result], sim.seed)
+
+
 def simulate_until_total_draw(sim: MonteCarlo, target_total_draw: int, workers: int | None = 1):
     if workers is None:
         workers = 1
@@ -185,6 +246,18 @@ def simulate_until_total_draw(sim: MonteCarlo, target_total_draw: int, workers: 
     if workers == 1 or target_total_draw <= 0:
         return _simulate_until_total_draw_serial(sim, target_total_draw, show_progress=True)
     return _simulate_until_total_draw_parallel(sim, target_total_draw, workers)
+
+
+def simulate_fixed_runs(sim: MonteCarlo, total_runs: int, workers: int | None = 1):
+    if total_runs < 1:
+        raise ValueError("total_runs must be >= 1")
+    if workers is None:
+        workers = 1
+    if workers < 1:
+        raise ValueError("workers must be >= 1")
+    if workers == 1:
+        return _simulate_fixed_runs_serial(sim, total_runs)
+    return _simulate_fixed_runs_parallel(sim, total_runs, workers)
 
 
 def save_simulation_result(path: str | BinaryIO, result: dict):
