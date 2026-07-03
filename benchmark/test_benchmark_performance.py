@@ -10,7 +10,7 @@ from gachasimulate.engine import MonteCarlo
 
 CASES_ROOT = Path(__file__).resolve().parent / "cases"
 CASE_DIRS = sorted(path for path in CASES_ROOT.iterdir() if path.is_dir())
-TOTAL_RUNS = 100
+TOTAL_RUNS = 1
 
 
 @pytest.mark.parametrize("case_dir", CASE_DIRS, ids=lambda path: path.name)

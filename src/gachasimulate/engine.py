@@ -27,9 +27,9 @@ class MonteCarlo:
         ]
 
     def run_once(self) -> RuntimeState:
-        '''
-        运行一次完整模拟,多次模拟之间使用同一个 rng 生成器 
-        '''
+        """
+        运行一次完整模拟,多次模拟之间使用同一个 rng 生成器
+        """
         state = RuntimeState(item_count=len(self.ctx.item_list), rng=self.rng)
         state.rule_execute = [False] * len(self.ctx.rule_list)
         state.active_rule_indices = list(range(len(self.ctx.rule_list)))
@@ -41,9 +41,9 @@ class MonteCarlo:
         return state
 
     def _one_draw_cycle(self, state: RuntimeState) -> None:
-        '''
+        """
         执行一次主卡池的抽取,并检查 rule 和 terminate 条件树
-        '''
+        """
         self._execute_actions(state, self.ctx.every_draw_actions)
 
         # 这里所有池子的单次抽取都被构造成了 Action，需要抽取直接调用
@@ -80,7 +80,6 @@ class MonteCarlo:
             active_rule_pos += 1
 
     def _execute_actions(
-        self, state: RuntimeState, actions: Iterable[RuntimeAction] | None
         self, state: RuntimeState, actions: Iterable[RuntimeAction] | None
     ) -> None:
         if not actions:

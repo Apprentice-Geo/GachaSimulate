@@ -161,8 +161,12 @@ class SetItem(Action):
         self, runtime_state: RuntimeState, runtime_context: RuntimeContext
     ) -> tuple[RuntimeAction, ...]:
         # 统计 set 导致的增减变更
-        runtime_state.acquired[self.item_index] += max(0,self.amount-runtime_state.inventory[self.item_index])
-        runtime_state.reduced[self.item_index] += max(0,runtime_state.inventory[self.item_index] - self.amount)
+        runtime_state.acquired[self.item_index] += max(
+            0, self.amount - runtime_state.inventory[self.item_index]
+        )
+        runtime_state.reduced[self.item_index] += max(
+            0, runtime_state.inventory[self.item_index] - self.amount
+        )
         runtime_state.inventory[self.item_index] = self.amount
         return EMPTY_ACTIONS
 
@@ -314,17 +318,6 @@ class Reporter:
         max_char_per_line: int = 256,
         stream: Optional[TextIO] = None,
     ):
-    def __init__(
-        self,
-        *,
-        auto_report: bool = True,
-        report_level: ReportLevel = ReportLevel.Warning,
-        show_report_level: ReportLevel = ReportLevel.Warning,
-        fail_report_level: ReportLevel = ReportLevel.Error,
-        config: Optional[dict[str, str]] = None,
-        max_char_per_line: int = 256,
-        stream: Optional[TextIO] = None,
-    ):
         self.auto_report = auto_report
         self.report_level = report_level
         self.show_report_level = show_report_level
@@ -374,9 +367,6 @@ class Reporter:
                     case _:
                         prefix = postfix = ""
                 message = "\n".join(
-                    ss[: self.max_char_per_line - 3] + "..."
-                    if len(ss) >= self.max_char_per_line
-                    else ss
                     ss[: self.max_char_per_line - 3] + "..."
                     if len(ss) >= self.max_char_per_line
                     else ss

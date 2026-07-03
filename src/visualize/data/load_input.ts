@@ -1,15 +1,15 @@
-import { normalize_input } from './normalize_input';
-import { validate_input } from './validate_input';
-import type { NormalizedVisualizeInputData } from '../types/visualize_input';
+import { normalize_input } from "./normalize_input";
+import { validate_input } from "./validate_input";
+import type { NormalizedVisualizeInputData } from "../types/visualize_input";
 
-const INPUT_ENDPOINT = '/__visualize_input';
+const INPUT_ENDPOINT = "/__visualize_input";
 
 export async function load_input_from_value(
   value: unknown,
 ): Promise<NormalizedVisualizeInputData> {
   const validation_result = validate_input(value);
   if (!validation_result.valid || !validation_result.data) {
-    throw new Error(validation_result.errors.join('\n'));
+    throw new Error(validation_result.errors.join("\n"));
   }
 
   return normalize_input(validation_result.data);
@@ -33,10 +33,10 @@ export async function load_input_from_project_path(
 
   if (!response.ok) {
     const error =
-      typeof parsed === 'object' &&
+      typeof parsed === "object" &&
       parsed !== null &&
-      'error' in parsed &&
-      typeof parsed.error === 'string'
+      "error" in parsed &&
+      typeof parsed.error === "string"
         ? parsed.error
         : `读取 input 失败：HTTP ${response.status}`;
     throw new Error(error);
@@ -47,5 +47,5 @@ export async function load_input_from_project_path(
 
 export function get_input_path_from_url(): string | null {
   const params = new URLSearchParams(window.location.search);
-  return params.get('input');
+  return params.get("input");
 }
