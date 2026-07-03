@@ -287,6 +287,17 @@ def _actions_have_terminate(actions: Any) -> bool:
     )
 
 
+def _actions_increment_draw_count(actions: Any) -> bool:
+    for action in _normalize_actions(actions, "actions", allow_empty=True):
+        match = _ACTION_RE.fullmatch(action.strip())
+        if match is None:
+            continue
+        item_id, op, amount = match.groups()
+        if item_id == "draw_count" and op == "+=" and int(amount) > 0:
+            return True
+    return False
+
+
 def _condition_has_any_action(node: dict[str, Any]) -> bool:
     if _actions_have_any_action(node.get("actions")):
         return True
@@ -370,18 +381,22 @@ def validate_config(config: dict[str, Any]) -> None:
             allow_empty=True,
         )
 
-    if "every_draw" in config:
-        _validate_actions(
-            config["every_draw"],
-            "config.every_draw",
-            item_ids=item_ids,
-            pool_ids=pool_ids,
-            allow_empty=True,
-        )
+    if "every_draw" not in config:
+        _fail("config.every_draw", "every_draw must increment draw_count")
+    _validate_actions(
+        config["every_draw"],
+        "config.every_draw",
+        item_ids=item_ids,
+        pool_ids=pool_ids,
+        allow_empty=True,
+    )
+    if not _actions_increment_draw_count(config["every_draw"]):
+        _fail("config.every_draw", "every_draw must increment draw_count")
 
     item_resolves = config.get("item_resolve", [])
     if "item_resolve" in config:
         item_resolves = _require_list(item_resolves, "config.item_resolve")
+    seen_item_resolve_items: set[str] = set()
     for index, resolve in enumerate(item_resolves):
         path = f"config.item_resolve[{index}]"
         resolve = _require_mapping(resolve, path)
@@ -391,6 +406,9 @@ def validate_config(config: dict[str, Any]) -> None:
             _fail(path + ".item", "must be an item id")
         if item_id not in item_ids:
             _fail(path + ".item", f"unknown item id: {item_id}")
+        if item_id in seen_item_resolve_items:
+            _fail(path + ".item", f"duplicate item_resolve item: {item_id}")
+        seen_item_resolve_items.add(item_id)
         _require_non_negative_int(resolve.get("retain"), path + ".retain")
         if "actions" not in resolve:
             _fail(path + ".actions", "is required")

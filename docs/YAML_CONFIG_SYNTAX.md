@@ -39,7 +39,7 @@ Config = {
   "items": ItemList,
   "pools": PoolList,
   "initial"?: Actions,
-  "every_draw"?: Actions,
+  "every_draw": EveryDrawList,
   "rules"?: RuleList,
   "item_resolve"?: ItemResolveList,
   "metadata"?: Any,
@@ -82,6 +82,8 @@ RuleBody = {
   "condition": ConditionNode
 }
 
+EveryDrawList = [ "draw_count Padding += Padding PositiveNumber", ... ]
+
 ItemResolveList = [ ItemResolve, ... ]
 ItemResolve = {
   "item": ItemId,
@@ -100,6 +102,7 @@ RetainedItemList = [ { ItemId: NonNegativeInteger }, ... ]
 - 使用 `weight` 时，单个权重必须大于 `0`。
 - pool entry 的 `actions` 可省略，省略等价空动作。
 - `RuleId` 必须唯一。
+- `EveryDrawList`  中必须包含一个 `"draw_count Padding += Padding PositiveNumber"` 
 - `ItemResolve.actions` 必须出现，且必须是非空 action 或非空 action 列表；不能省略、不能为 `null`、不能为空列表。
 - `ItemResolve.actions` 必须包含且仅包含一个 `item -= n` 动作，且该动作必须减少当前 `ItemResolve.item`；不能包含减少其他 item 的 `-=` 动作。
 - `mode` 省略时等价 `once`。
@@ -168,7 +171,6 @@ CheckExpression =
 - `CheckExpression` 左侧 item 必须已定义，右侧只支持非负整数，不支持负数、小数或 item-to-item 比较。
 - 普通 rule 的 condition tree 至少应包含一个非空 action。
 - termination_rule 的每条可命中路径都必须包含 `terminate ...` action。
-- 不支持旧的 `conditions`、`cases`、`reason` 字段。
 
 执行语义：
 

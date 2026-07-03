@@ -93,7 +93,6 @@ def test_build_context_compiles_empty_actions_to_empty_tuples() -> None:
         {"main": [{"probability": 1.0}]},
     ]
     config["initial"] = None
-    config["every_draw"] = None
     config["item_resolve"] = [
         {"item": "target", "retain": 1, "actions": "target -= 1"},
     ]
@@ -116,7 +115,6 @@ def test_build_context_compiles_empty_actions_to_empty_tuples() -> None:
 
     assert ctx.pool_list[0].actions == ((),)
     assert ctx.initial_actions == ()
-    assert ctx.every_draw_actions == ()
     condition = ctx.rule_list[ctx.rule_id_index["rule"]].condition
     assert isinstance(condition, LogicNode)
     assert condition.children[0].actions == ()

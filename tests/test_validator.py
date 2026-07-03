@@ -84,7 +84,6 @@ def test_validate_config_accepts_optional_empty_actions() -> None:
     config = _valid_config()
     del config["pools"][0]["main"][0]["actions"]
     config["initial"] = None
-    config["every_draw"] = None
     config["rules"][1]["or_rule"]["condition"]["children"][0].pop("actions")
 
     validate_config(config)
@@ -184,6 +183,14 @@ def test_validate_config_rejects_old_dict_action_shape() -> None:
         validate_config(config)
 
 
+def test_validate_config_requires_every_draw_to_increment_draw_count() -> None:
+    config = _valid_config()
+    del config["every_draw"]
+
+    with pytest.raises(ValidationError, match="every_draw must increment draw_count"):
+        validate_config(config)
+
+
 def test_validate_config_rejects_bad_logic_operator() -> None:
     config = _valid_config()
     config["rules"][0]["and_rule"]["condition"]["op"] = "XOR"
@@ -246,6 +253,14 @@ def test_validate_config_rejects_item_resolve_without_actions() -> None:
     del config["item_resolve"][0]["actions"]
 
     with pytest.raises(ValidationError, match="actions: is required"):
+        validate_config(config)
+
+
+def test_validate_config_rejects_duplicate_item_resolve_item() -> None:
+    config = _valid_config()
+    config["item_resolve"].append({"item": "target", "retain": 0, "actions": "target -= 1"})
+
+    with pytest.raises(ValidationError, match="duplicate item_resolve item: target"):
         validate_config(config)
 
 
