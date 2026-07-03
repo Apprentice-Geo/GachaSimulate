@@ -36,6 +36,9 @@ dependencies = [
 requires = ["uv_build>=0.11.25,<0.12"]
 build-backend = "uv_build"
 
+[project.scripts]
+gachasimulate = "gachasimulate.cli:main"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

@@ -847,6 +847,46 @@ def test_saves_visualize_input_json() -> None:
     assert isinstance(data["timestamp"], int)
 
 
+def test_save_visualize_input_accepts_path_and_limits_termination_reasons(tmp_path: Path) -> None:
+    result = {
+        "seed": 0,
+        "draw_count": np.array([1, 2, 3, 4], dtype=np.int32),
+        "lifetime_acquired": np.zeros((4, 1), dtype=np.int32),
+        "terminate_reasons": np.array(["skin", "exchange", "skin", "other"], dtype="U32"),
+        "total_draw": np.int64(10),
+        "total_runs": np.int32(4),
+    }
+    output_path = tmp_path / "visualize.json"
+
+    save_visualize_input(output_path, result)
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+
+    assert data["termination_reason"] == [
+        {"reason": "skin", "proportion": 50},
+        {"reason": "其他", "proportion": 50},
+    ]
+    assert sum(item["proportion"] for item in data["termination_reason"]) == 100
+
+
+def test_save_simulation_result_accepts_path(tmp_path: Path) -> None:
+    result = {
+        "seed": 123,
+        "draw_count": np.array([1, 2], dtype=np.int32),
+        "lifetime_acquired": np.zeros((2, 1), dtype=np.int32),
+        "terminate_reasons": np.array(["done", "done"], dtype="U32"),
+        "total_draw": np.int64(3),
+        "total_runs": np.int32(2),
+    }
+    output_path = tmp_path / "result.npz"
+
+    save_simulation_result(output_path, result)
+    restored = load_simulation_result(output_path)
+
+    assert restored["seed"] == 123
+    assert restored["total_draw"] == 3
+    assert restored["total_runs"] == 2
+
+
 def test_fixed_runs_returns_exact_run_count() -> None:
     item_list = [Item(id="target", name="Target")]
     item_list.append(Item(id="draw_count", name="Draw count"))

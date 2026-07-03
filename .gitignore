@@ -7,7 +7,7 @@ __pycache__/
 .codex
 *.egg-info/
 /images/
-data/
+results/
 /node_modules/
 /dist/
 /outputs/

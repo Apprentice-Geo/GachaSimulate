@@ -1,4 +1,5 @@
 import json
+import os
 import numpy as np
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from datetime import datetime
@@ -14,6 +15,8 @@ DEFAULT_VISUALIZE_TITLE = "核心模拟结果"
 DEFAULT_VISUALIZE_TARGET = "未设置"
 DEFAULT_VISUALIZE_NOTE = "MEAN 受极端抽数影响，P50 更接近“典型体验”，P95 更适合衡量高风险预算。MIN、MAX 受模拟次数影响，不代表理论极限抽数。"
 DEFAULT_VISUALIZE_COST = 0
+OTHER_TERMINATION_REASON = "其他"
+type SavePath = str | os.PathLike[str] | BinaryIO
 
 
 def _simulate_until_total_draw_serial(
@@ -260,7 +263,13 @@ def simulate_fixed_runs(sim: MonteCarlo, total_runs: int, workers: int | None = 
     return _simulate_fixed_runs_parallel(sim, total_runs, workers)
 
 
-def save_simulation_result(path: str | BinaryIO, result: dict):
+def _ensure_parent_dir(path: str | os.PathLike[str]) -> None:
+    os.makedirs(os.fspath(os.path.dirname(os.fspath(path)) or "."), exist_ok=True)
+
+
+def save_simulation_result(path: SavePath, result: dict):
+    if isinstance(path, str | os.PathLike):
+        _ensure_parent_dir(path)
 
     np.savez_compressed(
         path,
@@ -275,6 +284,43 @@ def save_simulation_result(path: str | BinaryIO, result: dict):
     )
 
 
+def _build_reason_proportions(terminate_reasons: np.ndarray) -> list[dict[str, int | str]]:
+    unique_reasons, reason_counts = np.unique(terminate_reasons, return_counts=True)
+    reason_entries = sorted(
+        (
+            {
+                "reason": str(reason),
+                "count": int(reason_count),
+            }
+            for reason, reason_count in zip(unique_reasons, reason_counts)
+        ),
+        key=lambda item: str(item["reason"]),
+    )
+    total_count = sum(int(item["count"]) for item in reason_entries)
+
+    if len(reason_entries) > 2:
+        reason_entries = sorted(
+            reason_entries,
+            key=lambda item: (-int(item["count"]), str(item["reason"])),
+        )
+        reason_entries = [
+            reason_entries[0],
+            {
+                "reason": OTHER_TERMINATION_REASON,
+                "count": sum(int(item["count"]) for item in reason_entries[1:]),
+            },
+        ]
+
+    if len(reason_entries) == 1:
+        return [{"reason": str(reason_entries[0]["reason"]), "proportion": 100}]
+
+    first_proportion = int(round(int(reason_entries[0]["count"]) / total_count * 100))
+    return [
+        {"reason": str(reason_entries[0]["reason"]), "proportion": first_proportion},
+        {"reason": str(reason_entries[1]["reason"]), "proportion": 100 - first_proportion},
+    ]
+
+
 def _build_visualize_input(result: dict) -> dict:
     values = np.sort(np.asarray(result["draw_count"]))
     count = len(values)
@@ -283,9 +329,6 @@ def _build_visualize_input(result: dict) -> dict:
     # cumsum: cumulative sum，做前缀和
     cumulative = np.cumsum(draw_counts) / count
     mean_draw = int(np.mean(values))
-    unique_reasons, reason_counts = np.unique(
-        np.asarray(result["terminate_reasons"]), return_counts=True
-    )
 
     return {
         "title": DEFAULT_VISUALIZE_TITLE,
@@ -304,31 +347,26 @@ def _build_visualize_input(result: dict) -> dict:
             "MAX": int(np.max(values)),
             "COST": DEFAULT_VISUALIZE_COST,
         },
-        "termination_reason": [
-            {
-                "reason": str(reason),
-                "proportion": int(round(int(reason_count) / count * 100)),
-            }
-            for reason, reason_count in zip(unique_reasons, reason_counts)
-        ],
+        "termination_reason": _build_reason_proportions(np.asarray(result["terminate_reasons"])),
         "timestamp": int(datetime.now().timestamp()),
         "draws": draws.astype(int).tolist(),
         "cumulative": cumulative.astype(float).tolist(),
     }
 
 
-def save_visualize_input(path: str | BinaryIO, result: dict):
+def save_visualize_input(path: SavePath, result: dict):
     visualize_input = _build_visualize_input(result)
     content = json.dumps(visualize_input, ensure_ascii=False, indent=4) + "\n"
 
-    if isinstance(path, str):
+    if isinstance(path, str | os.PathLike):
+        _ensure_parent_dir(path)
         with open(path, "w", encoding="utf-8") as f:
             f.write(content)
     else:
         path.write(content.encode("utf-8"))
 
 
-def load_simulation_result(path: str | BinaryIO):
+def load_simulation_result(path: SavePath):
     data = np.load(path, allow_pickle=False)
 
     return {
