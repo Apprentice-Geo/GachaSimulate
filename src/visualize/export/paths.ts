@@ -34,7 +34,7 @@ export async function remove_existing_final_outputs(
   output_dir = DEFAULT_OUTPUT_DIR,
 ) {
   await Promise.all(
-    ["cdf-result.png", "cdf-animation.webm", "cdf-animation.mp4"].map(
+    ["cdf-result.png", "cdf-animation.mp4", "cdf-animation.webm"].map(
       (file_name) => fs.rm(path.join(output_dir, file_name), { force: true }),
     ),
   );

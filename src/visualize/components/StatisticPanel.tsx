@@ -1,4 +1,6 @@
 import type { CSSProperties } from "react";
+import { fade_style, metric_style } from "../animation/progress";
+import type { AnimationProgress } from "../animation/progress";
 import type {
   NormalizedVisualizeData,
   StatisticMetric,
@@ -11,7 +13,7 @@ import type { DistributionStatisticKey } from "../view/statistic_view_config";
 
 interface StatisticPanelProps {
   data: NormalizedVisualizeData | null;
-  animation_key: number;
+  animation_progress: AnimationProgress | null;
   is_ready: boolean;
 }
 
@@ -49,10 +51,12 @@ function MetricRow({
   metric,
   index,
   description,
+  animation_progress,
 }: {
   metric: StatisticMetric;
   index: number;
   description: string;
+  animation_progress: AnimationProgress | null;
 }) {
   return (
     <div
@@ -63,6 +67,9 @@ function MetricRow({
         {
           "--metric-color": metric.color,
           "--stat-content-index": index,
+          ...(animation_progress
+            ? metric_style(animation_progress.stat_content(index))
+            : {}),
         } as CSSProperties
       }
     >
@@ -79,7 +86,7 @@ function MetricRow({
 
 export function StatisticPanel({
   data,
-  animation_key,
+  animation_progress,
   is_ready,
 }: StatisticPanelProps) {
   const metrics_by_key = new Map(
@@ -108,7 +115,11 @@ export function StatisticPanel({
       className="statistic-panel"
       data-testid="statistic-panel"
       data-ready={is_ready}
-      key={`stat-panel-${animation_key}`}
+      style={
+        animation_progress
+          ? fade_style(animation_progress.stat_panel)
+          : undefined
+      }
     >
       {data ? (
         <div className="metric-list">
@@ -120,6 +131,13 @@ export function StatisticPanel({
                   {
                     "--stat-content-index":
                       stat_group_index_by_title.get(group.title) ?? 0,
+                    ...(animation_progress
+                      ? metric_style(
+                          animation_progress.stat_content(
+                            stat_group_index_by_title.get(group.title) ?? 0,
+                          ),
+                        )
+                      : {}),
                   } as CSSProperties
                 }
               >
@@ -132,6 +150,7 @@ export function StatisticPanel({
                 }
                 return (
                   <MetricRow
+                    animation_progress={animation_progress}
                     description={STATISTIC_VIEW_CONFIG[key].description}
                     index={display_index_by_key.get(key) ?? 0}
                     key={metric.key}

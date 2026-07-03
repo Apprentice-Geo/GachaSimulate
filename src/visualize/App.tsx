@@ -1,8 +1,8 @@
-import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { use_page_scale } from "./hooks/use_page_scale";
-import { ANIMATION_TIMELINE, ANIMATION_TOTAL_MS } from "./animation/timeline";
-import { CDFChart } from "./components/CDFChart";
+import { ANIMATION_TOTAL_MS } from "./animation/timeline";
+import { build_animation_progress } from "./animation/progress";
+import { VisualizeScene } from "./VisualizeScene";
 import { EmptyState } from "./components/EmptyState";
 import { ErrorState } from "./components/ErrorState";
 import { LoadingState } from "./components/LoadingState";
@@ -27,43 +27,13 @@ function get_error_message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-const ANIMATION_TIMELINE_STYLE = {
-  "--animation-top-bar-delay": `${ANIMATION_TIMELINE.TOP_BAR_DELAY_MS}ms`,
-  "--animation-top-bar-duration": `${ANIMATION_TIMELINE.TOP_BAR_DURATION_MS}ms`,
-  "--animation-chart-shell-delay": `${ANIMATION_TIMELINE.CHART_SHELL_DELAY_MS}ms`,
-  "--animation-chart-shell-duration": `${ANIMATION_TIMELINE.CHART_SHELL_DURATION_MS}ms`,
-  "--animation-chart-surface-delay": `${ANIMATION_TIMELINE.CHART_SURFACE_DELAY_MS}ms`,
-  "--animation-chart-surface-duration": `${ANIMATION_TIMELINE.CHART_SURFACE_DURATION_MS}ms`,
-  "--animation-curve-delay": `${ANIMATION_TIMELINE.CURVE_DELAY_MS}ms`,
-  "--animation-curve-duration": `${ANIMATION_TIMELINE.CURVE_DURATION_MS}ms`,
-  "--animation-marker-line-delay": `${ANIMATION_TIMELINE.MARKER_LINE_DELAY_MS}ms`,
-  "--animation-marker-line-duration": `${ANIMATION_TIMELINE.MARKER_LINE_DURATION_MS}ms`,
-  "--animation-marker-group-delay": `${ANIMATION_TIMELINE.MARKER_GROUP_DELAY_MS}ms`,
-  "--animation-marker-group-duration": `${ANIMATION_TIMELINE.MARKER_GROUP_DURATION_MS}ms`,
-  "--animation-marker-stagger": `${ANIMATION_TIMELINE.MARKER_STAGGER_MS}ms`,
-  "--animation-mean-line-delay": `${ANIMATION_TIMELINE.MEAN_LINE_DELAY_MS}ms`,
-  "--animation-mean-line-duration": `${ANIMATION_TIMELINE.MEAN_LINE_DURATION_MS}ms`,
-  "--animation-termination-panel-delay": `${ANIMATION_TIMELINE.TERMINATION_PANEL_DELAY_MS}ms`,
-  "--animation-termination-panel-duration": `${ANIMATION_TIMELINE.TERMINATION_PANEL_DURATION_MS}ms`,
-  "--animation-pk-fill-delay": `${ANIMATION_TIMELINE.PK_FILL_DELAY_MS}ms`,
-  "--animation-pk-fill-duration": `${ANIMATION_TIMELINE.PK_FILL_DURATION_MS}ms`,
-  "--animation-termination-detail-delay": `${ANIMATION_TIMELINE.TERMINATION_DETAIL_DELAY_MS}ms`,
-  "--animation-termination-detail-duration": `${ANIMATION_TIMELINE.TERMINATION_DETAIL_DURATION_MS}ms`,
-  "--animation-stat-panel-delay": `${ANIMATION_TIMELINE.STAT_PANEL_DELAY_MS}ms`,
-  "--animation-stat-panel-duration": `${ANIMATION_TIMELINE.STAT_PANEL_DURATION_MS}ms`,
-  "--animation-stat-content-delay": `${ANIMATION_TIMELINE.STAT_CONTENT_DELAY_MS}ms`,
-  "--animation-stat-content-duration": `${ANIMATION_TIMELINE.STAT_CONTENT_DURATION_MS}ms`,
-  "--animation-stat-content-stagger": `${ANIMATION_TIMELINE.STAT_CONTENT_STAGGER_MS}ms`,
-  "--animation-note-delay": `${ANIMATION_TIMELINE.NOTE_DELAY_MS}ms`,
-  "--animation-note-duration": `${ANIMATION_TIMELINE.NOTE_DURATION_MS}ms`,
-} as CSSProperties;
-
 export default function App() {
   const [state, set_state] = useState<AppState>({ status: "idle" });
-  const [animation_key, set_animation_key] = useState(0);
+  const [animation_elapsed_ms, set_animation_elapsed_ms] =
+    useState(ANIMATION_TOTAL_MS);
   const [is_animating, set_is_animating] = useState(false);
   const [is_animation_primed, set_is_animation_primed] = useState(false);
-  const animation_timeout_ref = useRef<number | null>(null);
+  const animation_frame_ref = useRef<number | null>(null);
   const skip_initial_autoplay_ref = useRef(
     new URLSearchParams(window.location.search).get("autoplay") === "0",
   );
@@ -72,17 +42,29 @@ export default function App() {
   use_page_scale();
 
   const start_animation = useCallback(() => {
-    if (animation_timeout_ref.current !== null) {
-      window.clearTimeout(animation_timeout_ref.current);
+    if (animation_frame_ref.current !== null) {
+      window.cancelAnimationFrame(animation_frame_ref.current);
     }
 
-    set_animation_key((current_key) => current_key + 1);
     set_is_animation_primed(false);
     set_is_animating(true);
-    animation_timeout_ref.current = window.setTimeout(() => {
-      set_is_animating(false);
-      animation_timeout_ref.current = null;
-    }, ANIMATION_TOTAL_MS);
+    set_animation_elapsed_ms(0);
+
+    const started_at = performance.now();
+    const tick = (now: number) => {
+      const elapsed_ms = Math.min(ANIMATION_TOTAL_MS, now - started_at);
+      set_animation_elapsed_ms(elapsed_ms);
+
+      if (elapsed_ms >= ANIMATION_TOTAL_MS) {
+        set_is_animating(false);
+        animation_frame_ref.current = null;
+        return;
+      }
+
+      animation_frame_ref.current = window.requestAnimationFrame(tick);
+    };
+
+    animation_frame_ref.current = window.requestAnimationFrame(tick);
   }, []);
 
   const load_project_input = useCallback(async (input_path: string) => {
@@ -117,6 +99,7 @@ export default function App() {
       if (skip_initial_autoplay_ref.current) {
         if (!first_ready_seen_ref.current) {
           first_ready_seen_ref.current = true;
+          set_animation_elapsed_ms(0);
           set_is_animation_primed(true);
         }
         return;
@@ -140,8 +123,8 @@ export default function App() {
 
   useEffect(() => {
     return () => {
-      if (animation_timeout_ref.current !== null) {
-        window.clearTimeout(animation_timeout_ref.current);
+      if (animation_frame_ref.current !== null) {
+        window.cancelAnimationFrame(animation_frame_ref.current);
       }
     };
   }, []);
@@ -151,16 +134,35 @@ export default function App() {
       state.status === "ready" ? build_visualize_view_model(state.data) : null,
     [state],
   );
+  const animation_progress = useMemo(
+    () => build_animation_progress(animation_elapsed_ms),
+    [animation_elapsed_ms],
+  );
+  const animation_state = is_animating
+    ? "playing"
+    : is_animation_primed
+      ? "primed"
+      : "idle";
+
+  if (state.status === "ready" && data) {
+    return (
+      <VisualizeScene
+        animation_progress={animation_progress}
+        animation_state={animation_state}
+        data={data}
+        is_animating={is_animating}
+        on_file_import={handle_file_import}
+        on_replay={start_animation}
+      />
+    );
+  }
 
   return (
     <main
       className="visualize-page"
       data-testid="visualize-root"
       data-load-state={state.status}
-      data-animation-state={
-        is_animating ? "playing" : is_animation_primed ? "primed" : "idle"
-      }
-      style={ANIMATION_TIMELINE_STYLE}
+      data-animation-state={animation_state}
     >
       <TopBar
         data={data}
@@ -180,23 +182,16 @@ export default function App() {
                 on_file_import={handle_file_import}
               />
             )}
-            {state.status === "ready" && data && (
-              <CDFChart
-                data={data}
-                animation_key={animation_key}
-                is_animating={is_animating}
-              />
-            )}
           </div>
           <TerminationBar
             data={data}
-            animation_key={animation_key}
+            animation_progress={null}
             is_ready={state.status === "ready"}
           />
         </div>
         <StatisticPanel
           data={data}
-          animation_key={animation_key}
+          animation_progress={null}
           is_ready={state.status === "ready"}
         />
       </section>

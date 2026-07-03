@@ -15,6 +15,11 @@ import {
   STATISTIC_VIEW_ORDER,
   TERMINATION_REASON_VIEW_CONFIG,
 } from "../view/statistic_view_config";
+import {
+  build_animation_progress,
+  segment_progress,
+} from "../animation/progress";
+import { ANIMATION_TIMELINE, ANIMATION_TOTAL_MS } from "../animation/timeline";
 import type { CDFMarker } from "../types/visualize_input";
 import type { VisualizeInput } from "../types/visualize_input";
 
@@ -167,4 +172,40 @@ test("build_visualize_view_model derives metrics cost and marker weights", () =>
     view_model.markers.find((marker) => marker.key === "P50")?.weight,
     "primary",
   );
+});
+
+test("segment_progress clamps before and after its time window", () => {
+  assert.equal(segment_progress(99, 100, 200), 0);
+  assert.equal(segment_progress(200, 100, 200), 0.5);
+  assert.equal(segment_progress(301, 100, 200), 1);
+});
+
+test("build_animation_progress exposes final state at animation end", () => {
+  const progress = build_animation_progress(ANIMATION_TOTAL_MS);
+
+  assert.equal(progress.top_bar.opacity, 1);
+  assert.equal(progress.chart_shell.translate_y, 0);
+  assert.equal(progress.chart_surface.opacity, 1);
+  assert.equal(progress.curve, 1);
+  assert.equal(progress.marker_line(0).scale, 1);
+  assert.equal(progress.marker_group(0).opacity, 1);
+  assert.equal(progress.pk_fill, 1);
+  assert.equal(progress.stat_content(3).translate_x, 0);
+  assert.equal(progress.note.opacity, 1);
+});
+
+test("build_animation_progress staggers marker and stat content timing", () => {
+  const marker_progress = build_animation_progress(
+    ANIMATION_TIMELINE.MARKER_GROUP_DELAY_MS +
+      Math.floor(ANIMATION_TIMELINE.MARKER_STAGGER_MS / 2),
+  );
+  assert.equal(marker_progress.marker_group(0).opacity > 0, true);
+  assert.equal(marker_progress.marker_group(1).opacity, 0);
+
+  const stat_progress = build_animation_progress(
+    ANIMATION_TIMELINE.STAT_CONTENT_DELAY_MS +
+      Math.floor(ANIMATION_TIMELINE.STAT_CONTENT_STAGGER_MS / 2),
+  );
+  assert.equal(stat_progress.stat_content(0).opacity > 0, true);
+  assert.equal(stat_progress.stat_content(1).opacity, 0);
 });

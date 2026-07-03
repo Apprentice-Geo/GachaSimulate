@@ -9,6 +9,7 @@ __pycache__/
 /images/
 results/
 /node_modules/
+/.pnpm-store/
 /dist/
 /outputs/
 .pytest_cache/
@@ -33,6 +34,7 @@ scalene*
 .DS_Store
 .DS_Store?
 .DS_Store/
+debug.log
 
 *.prof
 uv.lock
