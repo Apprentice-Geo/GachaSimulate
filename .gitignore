@@ -3,10 +3,11 @@ venv/
 __pycache__/
 .vscode/
 .idea/
+.plan/
 .codex
 *.egg-info/
 /images/
-data/
+results/
 /node_modules/
 /dist/
 /outputs/
@@ -19,7 +20,9 @@ data/
 /build/
 .ruff_cache/
 profile.prof
+profile.pstats
 scalene*
+.codex
 
 # Playwright
 /playwright-report/

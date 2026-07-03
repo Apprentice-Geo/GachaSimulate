@@ -1,0 +1,11 @@
+retained_items:
+- kai_donghailongwang_aoguang: 1
+- nezha2duihuanbi: 465
+termination_rule:
+  condition:
+    op: OR
+    children:
+    - check: kai_donghailongwang_aoguang >= 1
+      actions: terminate skin
+    - check: nezha2duihuanbi >= 465
+      actions: terminate exchange

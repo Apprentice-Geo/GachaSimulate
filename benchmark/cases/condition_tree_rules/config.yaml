@@ -1,0 +1,34 @@
+items:
+  - draw_count: Draw count
+  - token
+  - bonus
+  - target
+pools:
+  - main:
+      - probability: 1.0
+        actions: token += 2
+every_draw:
+  - draw_count += 1
+rules:
+  - grant_bonus:
+      mode: per_draw
+      condition:
+        op: AND
+        children:
+          - check: token >= 1
+          - op: OR
+            children:
+              - check: draw_count >= 1
+              - check: target >= 1
+        actions:
+          - token -= 1
+          - bonus += 1
+  - convert_bonus:
+      mode: repeat
+      condition:
+        check: bonus >= 3
+        actions:
+          - bonus -= 3
+          - target += 1
+initial:
+  - change main

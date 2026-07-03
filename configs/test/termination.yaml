@@ -1,0 +1,17 @@
+retained_items:
+- target_item_1: 1
+- target_item_2: 1
+- target_item_3: 1
+- general_fragment: 10000
+termination_rule:
+  condition:
+    op: OR
+    children:
+    - op: AND
+      children:
+      - check: target_item_1 >= 1
+      - check: target_item_2 >= 1
+      - check: target_item_3 >= 1
+      actions: terminate all target items obtained
+    - check: general_fragment >= 10000
+      actions: terminate fragment exchange

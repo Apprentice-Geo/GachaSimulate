@@ -1,0 +1,11 @@
+retained_items:
+- sunwukong_wuxiang: 1
+- wuxiang_point: 998
+termination_rule:
+  condition:
+    op: OR
+    children:
+    - check: sunwukong_wuxiang >= 1
+      actions: terminate skin obtained
+    - check: wuxiang_point >= 998
+      actions: terminate point exchange

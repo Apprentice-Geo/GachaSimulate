@@ -103,7 +103,7 @@ jobs:
         run: uv sync --locked
 
       - name: Build Python package
-        run: uv build --wheel --no-build-isolation
+        run: uv build --wheel
 
   python-test:
     name: Python tests

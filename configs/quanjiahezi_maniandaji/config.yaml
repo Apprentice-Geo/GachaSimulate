@@ -1,0 +1,44 @@
+metadata:
+  name: test
+  source: https://www.sanguosha.cn/pc/news-detail-2256.html
+  game: sanguoshayidonban
+  time: '2026_4_24'
+  cost_id: maniandaji
+  cost_name: 马年大吉
+  amount: 1
+  per_cost_to_rmb: 2
+items:
+- shenjiangwei: 神姜维
+- shishibaozhu_66: 史诗宝珠66
+- mou_zhugeliang: 谋·诸葛亮
+- shenliubei: 神刘备
+- manianxianding_caocaodongtaibao: 马年限定·曹操动态包
+- jianghun: 将魂
+- shishibaozhu: 史诗宝珠
+- jingliangwupin: 精良物品
+- putonwupin: 普通物品
+- draw_count: Draw count
+pools:
+- begin_pool:
+  - probability: 5.0e-05
+    actions: shenjiangwei += 1
+  - probability: 5.0e-05
+    actions: shishibaozhu_66 += 1
+  - probability: 0.00015
+    actions: mou_zhugeliang += 1
+  - probability: 0.0005
+    actions: shenliubei += 1
+  - probability: 0.00075
+    actions: manianxianding_caocaodongtaibao += 1
+  - probability: 0.00075
+    actions: jianghun += 1000
+  - probability: 0.005
+    actions: shishibaozhu += 1
+  - probability: 0.175
+    actions: jingliangwupin += 1
+  - probability: 0.81775
+    actions: putonwupin += 1
+every_draw:
+- draw_count += 1
+initial:
+- change begin_pool

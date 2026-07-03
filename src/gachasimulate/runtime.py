@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import sys
 from abc import ABC, abstractmethod
+from bisect import bisect_left
 from dataclasses import dataclass, field
-from typing import ClassVar, Dict, List, Literal, Sequence, Optional, TextIO
+from typing import ClassVar, Literal, Optional, TextIO
 from enum import IntEnum, Enum, auto
 import numpy as np
+
+EMPTY_ACTIONS: tuple[()] = ()
+
+type RuntimeCondition = LogicNode | CheckNode
+type RuleMode = Literal["once", "per_draw", "repeat"]
+type RuntimeAction = AddItem | ReduceItem | SetItem | DrawPool | PoolChange | Termination
 
 
 class RuntimeKind(IntEnum):
@@ -30,45 +37,40 @@ class RuntimeOpCode(Enum):
     GE = ">="
     AND = "AND"
     OR = "OR"
-    XOR = "XOR"
-    NOT = "NOT"
 
 
+# build 期使用的可变上下文
 @dataclass(frozen=False, slots=True)
-class RuntimeConfigContext:
-    begin_pool_index: int = 0
-    initial_actions: List[RuntimeAction] = field(default_factory=list)
-    every_draw_actions: List[RuntimeAction] = field(default_factory=list)
-    item_id_index: Dict[str, int] = field(default_factory=dict)
-    item_list: List[Item] = field(default_factory=list)
-    item_resolve_list: List[ItemResolve] = field(default_factory=list)
-    item_draw_list: List[list[RuntimeAction]] = field(default_factory=list)
-    pool_id_index: Dict[str, int] = field(default_factory=dict)
-    pool_list: List[Pool] = field(default_factory=list)
+class RuntimeBuildingContext:
+    initial_actions: list[RuntimeAction] = field(default_factory=list)
+    every_draw_actions: list[RuntimeAction] = field(default_factory=list)
+    item_id_index: dict[str, int] = field(default_factory=dict)
+    item_list: list[Item] = field(default_factory=list)
+    item_resolve_list: list[ItemResolve] = field(default_factory=list)
+    pool_id_index: dict[str, int] = field(default_factory=dict)
+    pool_list: list[Pool] = field(default_factory=list)
     # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
-    pool_draw_list: List[RuntimeAction] = field(default_factory=list)
-    draw_stage_id_index: Dict[str, int] = field(default_factory=dict)
-    draw_stage_list: List[Stage] = field(default_factory=list)
+    pool_draw_list: list[RuntimeAction] = field(default_factory=list)
+    rule_id_index: dict[str, int] = field(default_factory=dict)
+    rule_list: list[Rule] = field(default_factory=list)
 
 
+# 运行时使用的不可变上下文
 @dataclass(frozen=True, slots=True)
 class RuntimeContext:
-    begin_pool_index: int
-    initial_actions: List[RuntimeAction]
-    every_draw_actions: List[RuntimeAction]
-    item_id_index: Dict[str, int]  # 对物品进行编号
+    initial_actions: tuple[RuntimeAction, ...]
+    every_draw_actions: tuple[RuntimeAction, ...]
+    item_id_index: dict[str, int]  # 对物品进行编号
     draw_count_index: int
-    item_list: List[Item]
-    item_resolve_list: List[ItemResolve]  # 分解某个物品时执行的动作
-    item_draw_list: List[List[RuntimeAction]]  # 获得物品时执行的动作
-    pool_id_index: Dict[str, int]  # 对池子进行编号
-    pool_list: List[Pool]
-    pool_draw_list: List[
-        RuntimeAction
-    ]  # 供engine直接调用的抽卡动作,对每一个池子构建一个DrawPool动作
-    draw_stage_id_index: Dict[str, int]  # 对阶段进行编号
-    draw_stage_list: List[Stage]
-    retained_items_index: List[int]
+    item_list: tuple[Item, ...]
+    # 分解某个物品时执行的动作
+    item_resolve_list: tuple[ItemResolve, ...]
+    pool_id_index: dict[str, int]
+    pool_list: tuple[Pool, ...]
+    # 对每一个池子构建一个 DrawPool 动作
+    pool_draw_list: tuple[RuntimeAction, ...]
+    rule_id_index: dict[str, int]  # 对规则进行编号
+    rule_list: tuple[Rule, ...]
     termination_tree: RuntimeCondition
 
 
@@ -76,8 +78,8 @@ class RuntimeState:
     __slots__ = (
         "rng",
         "main_pool_index",
-        "stage_execute",
-        "active_stage_indices",
+        "rule_execute",
+        "active_rule_indices",
         "inventory",  # 规则用库存
         "acquired",  # 统计用累计获得
         "reduced",  # 统计用累计消耗
@@ -88,11 +90,11 @@ class RuntimeState:
     def __init__(self, item_count: int, rng: np.random.Generator):
         self.rng = rng
         self.main_pool_index = 0
-        self.stage_execute = []
-        self.active_stage_indices = []
-        self.inventory = np.zeros(item_count, dtype=np.int32)
-        self.acquired = np.zeros(item_count, dtype=np.int32)
-        self.reduced = np.zeros(item_count, dtype=np.int32)
+        self.rule_execute = []
+        self.active_rule_indices = []
+        self.inventory = [0] * item_count
+        self.acquired = [0] * item_count
+        self.reduced = [0] * item_count
         self.terminate = False
         self.terminate_reason: str | None = None
 
@@ -101,7 +103,9 @@ class Action(ABC):
     kind: ClassVar[RuntimeKind] = RuntimeKind.Action
 
     @abstractmethod
-    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
+    def execute(
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+    ) -> tuple[RuntimeAction, ...]:
         pass
 
 
@@ -112,9 +116,22 @@ class AddItem(Action):
     item_index: int
     amount: int
 
-    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
+    def execute(
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+    ) -> tuple[RuntimeAction, ...]:
         runtime_state.inventory[self.item_index] += self.amount
         runtime_state.acquired[self.item_index] += self.amount
+        # 将可分解的立即分解
+        if runtime_context.item_resolve_list[self.item_index].actions:
+            return runtime_context.item_resolve_list[self.item_index].actions * (
+                (
+                    runtime_state.inventory[self.item_index]
+                    - runtime_context.item_resolve_list[self.item_index].retain
+                )
+                // runtime_context.item_resolve_list[self.item_index].reduce
+            )
+        else:
+            return EMPTY_ACTIONS
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,9 +141,13 @@ class ReduceItem(Action):
     item_index: int
     amount: int
 
-    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
+    def execute(
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+    ) -> tuple[RuntimeAction, ...]:
         runtime_state.inventory[self.item_index] -= self.amount
         runtime_state.reduced[self.item_index] += self.amount
+
+        return EMPTY_ACTIONS
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,8 +157,18 @@ class SetItem(Action):
     item_index: int
     amount: int
 
-    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
+    def execute(
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+    ) -> tuple[RuntimeAction, ...]:
+        # 统计 set 导致的增减变更
+        runtime_state.acquired[self.item_index] += max(
+            0, self.amount - runtime_state.inventory[self.item_index]
+        )
+        runtime_state.reduced[self.item_index] += max(
+            0, runtime_state.inventory[self.item_index] - self.amount
+        )
         runtime_state.inventory[self.item_index] = self.amount
+        return EMPTY_ACTIONS
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,11 +179,11 @@ class DrawPool(Action):
 
     def execute(
         self, runtime_state: RuntimeState, runtime_context: RuntimeContext
-    ) -> List[RuntimeAction]:
+    ) -> tuple[RuntimeAction, ...]:
         r = runtime_state.rng.random()
-        idx = np.searchsorted(runtime_context.pool_list[self.pool_index].cdf, r)
-        actions = runtime_context.pool_list[self.pool_index].actions[idx]
-        return actions
+        # 此处使用 bisect_left 比 np.searchsorted 更快
+        idx = bisect_left(runtime_context.pool_list[self.pool_index].cdf, r)
+        return runtime_context.pool_list[self.pool_index].actions[idx]
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,8 +192,11 @@ class PoolChange(Action):
 
     pool_index: int
 
-    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
+    def execute(
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+    ) -> tuple[RuntimeAction, ...]:
         runtime_state.main_pool_index = self.pool_index
+        return EMPTY_ACTIONS
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,12 +205,12 @@ class Termination(Action):
 
     reason: str
 
-    def execute(self, runtime_state: RuntimeState, runtime_context: RuntimeContext):
+    def execute(
+        self, runtime_state: RuntimeState, runtime_context: RuntimeContext
+    ) -> tuple[RuntimeAction, ...]:
         runtime_state.terminate = True
         runtime_state.terminate_reason = self.reason
-
-
-type RuntimeAction = AddItem | ReduceItem | SetItem | DrawPool | PoolChange | Termination
+        return EMPTY_ACTIONS
 
 
 class ConditionNode(ABC):
@@ -188,8 +222,8 @@ class LogicNode(ConditionNode):
     kind: ClassVar[Literal[RuntimeKind.LogicNode]] = RuntimeKind.LogicNode
 
     op: RuntimeOpCode
-    conditions: Sequence[RuntimeCondition]
-    actions: List[RuntimeAction] | None
+    children: tuple[RuntimeCondition, ...]
+    actions: tuple[RuntimeAction, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,22 +233,34 @@ class CheckNode(ConditionNode):
     item_index: int
     op: RuntimeOpCode
     value: int
-    actions: List[RuntimeAction] | None
+    actions: tuple[RuntimeAction, ...]
 
 
-type RuntimeCondition = LogicNode | CheckNode
-
-
-@dataclass(frozen=True, slots=True)
-class Stage:
-    once: bool
+@dataclass(frozen=True, slots=True, init=False)
+class Rule:
+    mode: RuleMode
     condition: RuntimeCondition
+
+    def __init__(
+        self,
+        condition: RuntimeCondition,
+        mode: RuleMode | None = None,
+        once: bool | None = None,
+    ) -> None:
+        if mode is None:
+            mode = "once" if once is not False else "per_draw"
+        object.__setattr__(self, "mode", mode)
+        object.__setattr__(self, "condition", condition)
+
+    @property
+    def once(self) -> bool:
+        return self.mode == "once"
 
 
 @dataclass(frozen=True, slots=True)
 class Pool:
-    cdf: np.ndarray
-    actions: List[List[RuntimeAction]]
+    cdf: tuple[float, ...]
+    actions: tuple[tuple[RuntimeAction, ...], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -226,7 +272,21 @@ class Item:
 @dataclass(frozen=True, slots=True)
 class ItemResolve:
     retain: int = 0
-    actions: List[RuntimeAction] = field(default_factory=list)
+    actions: tuple[RuntimeAction, ...] = EMPTY_ACTIONS
+    # 表示 reduce 不参与构造参数
+    reduce: int = field(init=False)
+
+    def __post_init__(self) -> None:
+        reduce_value = self._get_reduce_from_actions(self.actions)
+        # 使用 __setattr__ 绕过 frozen=True 的普通赋值限制，只用于初始化阶段
+        object.__setattr__(self, "reduce", reduce_value)
+
+    @staticmethod
+    def _get_reduce_from_actions(actions: tuple[RuntimeAction, ...]) -> int:
+        for action in actions:
+            if action.kind == RuntimeKind.ReduceItem:
+                return action.amount
+        return 1
 
 
 class Reporter:
@@ -263,6 +323,14 @@ class Reporter:
         self.show_report_level = show_report_level
         self.fail_report_level = fail_report_level
         self.messages = []
+        self.config = (
+            {
+                k: config.get(k, self.DEFAULT_REPORT_CONFIG.get(k))
+                for k in self.DEFAULT_REPORT_CONFIG.keys()
+            }
+            if config is not None
+            else self.DEFAULT_REPORT_CONFIG
+        )
         self.config = (
             {
                 k: config.get(k, self.DEFAULT_REPORT_CONFIG.get(k))

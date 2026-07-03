@@ -1,0 +1,37 @@
+metadata:
+  name: test
+  source: https://mp.weixin.qq.com/s/geByodTqXB60NdY9f5JFFg
+  game: sanguoshayidonban
+  time: '2026_4_13'
+  cost_id: xinyuanjifeng
+  cost_name: 心愿积分
+  amount: 5
+  per_cost_to_rmb: null
+items:
+- xinyuanjifeng: 心愿积分
+- huanledou: 欢乐豆
+- cailanzi: 菜篮子
+- yinbi: 银币
+- draw_count: Draw count
+pools:
+- begin_pool:
+  - probability: 3.0e-05
+    actions: xinyuanjifeng += 20000
+  - probability: 0.0001
+    actions: xinyuanjifeng += 5000
+  - probability: 0.0005
+    actions: xinyuanjifeng += 500
+  - probability: 0.0015
+    actions: xinyuanjifeng += 50
+  - probability: 0.2
+    actions: xinyuanjifeng += 2
+  - probability: 0.2
+    actions: huanledou += 50
+  - probability: 0.2
+    actions: cailanzi += 6
+  - probability: 0.39787
+    actions: yinbi += 100
+every_draw:
+- draw_count += 1
+initial:
+- change begin_pool

@@ -192,20 +192,25 @@
 .axis-title {
   color: var(--color-text-muted);
   fill: var(--color-text-muted);
-  font-size: 32px;
-  font-weight: 700;
+  font-size: 40px;
+  font-weight: 500;
 }
 
 .y-axis-title {
   color: var(--color-text-muted);
   fill: var(--color-text-muted);
-  left: 20px;
+  left: 0px;
   letter-spacing: 0.2px;
+  /* 脱离正常布局，相对于父元素定位 */
   position: absolute;
+  /* 元素顶部移动到父元素高度的 50% 位置 */
   top: 50%;
+  /* 向上移动自身高度的一半 旋转-90度 */
   transform: translateY(-50%) rotate(-90deg);
   transform-origin: center;
   white-space: nowrap;
+  font-size: 40px;
+  font-weight: 500;
   z-index: 2;
 }
 

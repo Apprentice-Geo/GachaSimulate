@@ -9,9 +9,8 @@ from .runtime import (
     RuntimeOpCode,
     RuntimeContext,
     RuntimeState,
+    EMPTY_ACTIONS,
 )
-
-_EMPTY_ACTIONS: list[RuntimeAction] = []
 
 
 class MonteCarlo:
@@ -21,19 +20,19 @@ class MonteCarlo:
         # 此处定义全局rng,避免多次模拟时重复创建同一个种子的rng,导致每次模拟结果重复
         self.rng = np.random.default_rng(self.seed)
         # 记录可分解的物品索引
-        # 记录可分解的物品索引
         self.resolvable_item_indices = [
             item_index
             for item_index, item_resolve in enumerate(self.ctx.item_resolve_list)
             if item_resolve.actions
         ]
-        self.retained_items_index_set = set(self.ctx.retained_items_index)
 
     def run_once(self) -> RuntimeState:
+        """
+        运行一次完整模拟,多次模拟之间使用同一个 rng 生成器
+        """
         state = RuntimeState(item_count=len(self.ctx.item_list), rng=self.rng)
-        state.main_pool_index = self.ctx.begin_pool_index
-        state.stage_execute = [False] * len(self.ctx.draw_stage_list)
-        state.active_stage_indices = list(range(len(self.ctx.draw_stage_list)))
+        state.rule_execute = [False] * len(self.ctx.rule_list)
+        state.active_rule_indices = list(range(len(self.ctx.rule_list)))
         self._execute_actions(state, self.ctx.initial_actions)
 
         while not state.terminate:
@@ -42,14 +41,15 @@ class MonteCarlo:
         return state
 
     def _one_draw_cycle(self, state: RuntimeState) -> None:
+        """
+        执行一次主卡池的抽取,并检查 rule 和 terminate 条件树
+        """
         self._execute_actions(state, self.ctx.every_draw_actions)
 
         # 这里所有池子的单次抽取都被构造成了 Action，需要抽取直接调用
         self._execute_action(state, self.ctx.pool_draw_list[state.main_pool_index])
 
-        self._stage_phase(state)
-        # 只要 resolve 不会产生还需要 resolve 的物品，就不会出错
-        self._resolve_phase(state)
+        self._rule_phase(state)
 
         should_terminate, termination_actions = self._eval_condition(
             self.ctx.termination_tree, state
@@ -57,41 +57,27 @@ class MonteCarlo:
         if should_terminate:
             self._execute_actions(state, termination_actions)
 
-    def _stage_phase(self, state: RuntimeState) -> None:
-        active_stage_pos = 0
-        while active_stage_pos < len(state.active_stage_indices):
-            stage_index = state.active_stage_indices[active_stage_pos]
-            stage = self.ctx.draw_stage_list[stage_index]
+    def _rule_phase(self, state: RuntimeState) -> None:
+        active_rule_pos = 0
+        while active_rule_pos < len(state.active_rule_indices):
+            rule_index = state.active_rule_indices[active_rule_pos]
+            rule = self.ctx.rule_list[rule_index]
 
-            ok, stage_actions = self._eval_condition(stage.condition, state)
+            ok, rule_actions = self._eval_condition(rule.condition, state)
             if ok:
-                state.stage_execute[stage_index] = True
-                state.stage_execute[stage_index] = True
-                if stage.once:
-                    state.active_stage_indices.pop(active_stage_pos)
+                state.rule_execute[rule_index] = True
+                self._execute_actions(state, rule_actions)
+                if state.terminate:
+                    return
+                if rule.mode == "once":
+                    state.active_rule_indices.pop(active_rule_pos)
+                elif rule.mode == "repeat":
+                    continue
                 else:
-                    active_stage_pos += 1
-                self._execute_actions(state, stage_actions)
-                # 由于之前已经执行了 pop 或者 +=1，continue 以后不会重复触发同一个 stage
+                    active_rule_pos += 1
                 continue
 
-            active_stage_pos += 1
-
-    def _resolve_phase(self, state: RuntimeState) -> None:
-        for item_index in self.resolvable_item_indices:
-            item_resolve = self.ctx.item_resolve_list[item_index]
-            count = int(state.inventory[item_index])
-            retain = max(
-                item_resolve.retain,
-                int(item_index in self.retained_items_index_set),
-            )
-            resolve_count = count - retain
-            if resolve_count <= 0:
-                continue
-
-            # 执行 resolve_count 次分解
-            for _ in range(resolve_count):
-                self._execute_actions(state, item_resolve.actions)
+            active_rule_pos += 1
 
     def _execute_actions(
         self, state: RuntimeState, actions: Iterable[RuntimeAction] | None
@@ -104,79 +90,65 @@ class MonteCarlo:
             self._execute_action(state, action)
 
     def _execute_action(self, state: RuntimeState, action: RuntimeAction) -> None:
-        match action.kind:
-            case RuntimeKind.AddItem:
-                action.execute(state, self.ctx)
-
-                # 直接触发带有二级池子物品的抽取
-                draw_actions = self.ctx.item_draw_list[action.item_index]
-                if draw_actions:
-                    for _ in range(action.amount):
-                        self._execute_actions(state, draw_actions)
-                return
-
-            case RuntimeKind.DrawPool:
-                drawn_results = action.execute(state, self.ctx)
-                self._execute_actions(state, drawn_results)
-                return
-
-            case (
-                RuntimeKind.ReduceItem
-                | RuntimeKind.SetItem
-                | RuntimeKind.PoolChange
-                | RuntimeKind.Termination
-            ):
-                action.execute(state, self.ctx)
-                return
-
-        raise TypeError(f"unsupported action kind: {action.kind}")
+        next_actions = action.execute(state, self.ctx)
+        if next_actions:
+            self._execute_actions(state, next_actions)
 
     def _eval_condition(
         self, node: RuntimeCondition, state: RuntimeState
-    ) -> tuple[bool, list[RuntimeAction]]:
-        match node.kind:
-            case RuntimeKind.CheckNode:
-                left = int(state.inventory[node.item_index])
-                ok = self._compare(left, node.op, node.value)
+    ) -> tuple[bool, tuple[RuntimeAction, ...]]:
+        if node.kind is RuntimeKind.CheckNode:
+            left = state.inventory[node.item_index]
+            right = node.value
+            op = node.op
+            # 将比较逻辑内联，避免调用比较函数
+            if op is RuntimeOpCode.GE:
+                ok = left >= right
+            elif op is RuntimeOpCode.EQ:
+                ok = left == right
+            elif op is RuntimeOpCode.NE:
+                ok = left != right
+            elif op is RuntimeOpCode.LT:
+                ok = left < right
+            elif op is RuntimeOpCode.LE:
+                ok = left <= right
+            elif op is RuntimeOpCode.GT:
+                ok = left > right
+            else:
+                raise RuntimeError(f"Unknown op_code: {op}")
+
+            if ok:
+                return True, node.actions or EMPTY_ACTIONS
+            return False, EMPTY_ACTIONS
+
+        if node.op is RuntimeOpCode.OR:
+            for child in node.children:
+                ok, child_actions = self._eval_condition(child, state)
                 if ok:
-                    return True, node.actions or _EMPTY_ACTIONS
-                return False, _EMPTY_ACTIONS
+                    if node.actions:
+                        if child_actions:
+                            return True, node.actions + child_actions
+                        return True, node.actions
+                    return True, child_actions
+            return False, EMPTY_ACTIONS
 
-            case RuntimeKind.LogicNode:
-                match node.op:
-                    case RuntimeOpCode.OR:
-                        for child in node.conditions:
-                            ok, child_actions = self._eval_condition(child, state)
-                            if ok:
-                                return (
-                                    True,
-                                    node.actions + child_actions if node.actions else child_actions,
-                                )
-                        return False, _EMPTY_ACTIONS
-                    case RuntimeOpCode.AND:
-                        aggregated: list[RuntimeAction] = []
-                        for child in node.conditions:
-                            ok, child_actions = self._eval_condition(child, state)
-                            if not ok:
-                                return False, _EMPTY_ACTIONS
-                            aggregated.extend(child_actions)
-                        return True, node.actions + aggregated if node.actions else aggregated
+        if node.op is RuntimeOpCode.AND:
+            child_action_list: list[RuntimeAction] | None = None
+            for child in node.children:
+                ok, child_actions = self._eval_condition(child, state)
+                if not ok:
+                    return False, EMPTY_ACTIONS
+                if child_actions:
+                    if child_action_list is None:
+                        child_action_list = []
+                    child_action_list.extend(child_actions)
 
-                raise ValueError(f"unsupported logic op: {node.op}")
+            if child_action_list is None:
+                return True, node.actions or EMPTY_ACTIONS
 
-        raise TypeError(f"unsupported condition node type: {type(node).__name__}")
+            child_actions = tuple(child_action_list)
+            if node.actions:
+                return True, node.actions + child_actions
+            return True, child_actions
 
-    def _compare(self, left: int, op_code: RuntimeOpCode, right: int) -> bool:
-        if op_code == RuntimeOpCode.EQ:
-            return left == right
-        if op_code == RuntimeOpCode.NE:
-            return left != right
-        if op_code == RuntimeOpCode.LT:
-            return left < right
-        if op_code == RuntimeOpCode.LE:
-            return left <= right
-        if op_code == RuntimeOpCode.GT:
-            return left > right
-        if op_code == RuntimeOpCode.GE:
-            return left >= right
-        raise RuntimeError(f"Unknown op_code: {op_code}")
+        raise ValueError(f"unsupported logic op: {node.op}")

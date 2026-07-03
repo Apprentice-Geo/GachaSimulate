@@ -1,7 +1,7 @@
-import Ajv2020 from 'ajv/dist/2020';
-import addFormats from 'ajv-formats';
-import schema from '../../../docs/schemas/visualize_input.schema.json';
-import type { VisualizeInput } from '../types/visualize_input';
+import Ajv2020 from "ajv/dist/2020";
+import addFormats from "ajv-formats";
+import schema from "../../../docs/schemas/visualize_input.schema.json";
+import type { VisualizeInput } from "../types/visualize_input";
 
 export interface ValidationResult {
   valid: boolean;
@@ -16,39 +16,41 @@ const validate_schema = ajv.compile(schema);
 
 function format_schema_errors(): string[] {
   return (validate_schema.errors ?? []).map((error) => {
-    const path = error.instancePath || '/';
-    return `${path} ${error.message ?? '格式不符合 schema'}`;
+    const path = error.instancePath || "/";
+    return `${path} ${error.message ?? "格式不符合 schema"}`;
   });
 }
 
 function is_monotonic_non_decreasing(values: number[]): boolean {
-  return values.every((value, index) => index === 0 || value >= values[index - 1]);
+  return values.every(
+    (value, index) => index === 0 || value >= values[index - 1],
+  );
 }
 
 function validate_business_rules(input: VisualizeInput): string[] {
   const errors: string[] = [];
 
   if (input.draws.length === 0) {
-    errors.push('draws 不能为空。');
+    errors.push("draws 不能为空。");
   }
 
   if (input.draws.length !== input.cumulative.length) {
-    errors.push('draws 与 cumulative 长度必须一致。');
+    errors.push("draws 与 cumulative 长度必须一致。");
   }
 
   if (!is_monotonic_non_decreasing(input.draws)) {
-    errors.push('draws 必须单调不减。');
+    errors.push("draws 必须单调不减。");
   }
 
   if (!is_monotonic_non_decreasing(input.cumulative)) {
-    errors.push('cumulative 必须单调不减。');
+    errors.push("cumulative 必须单调不减。");
   }
 
   if (
     input.termination_reason.length < 1 ||
     input.termination_reason.length > 2
   ) {
-    errors.push('termination_reason 至少 1 项，至多 2 项。');
+    errors.push("termination_reason 至少 1 项，至多 2 项。");
   }
 
   const proportion_total = input.termination_reason.reduce(
@@ -56,7 +58,7 @@ function validate_business_rules(input: VisualizeInput): string[] {
     0,
   );
   if (proportion_total !== 100) {
-    errors.push('termination_reason 的 proportion 合计必须为 100。');
+    errors.push("termination_reason 的 proportion 合计必须为 100。");
   }
 
   const stat = input.statistic;
@@ -70,7 +72,9 @@ function validate_business_rules(input: VisualizeInput): string[] {
     stat.MAX,
   ];
   if (!is_monotonic_non_decreasing(ordered_values)) {
-    errors.push('统计量必须满足 MIN <= P5 <= P25 <= P50 <= P75 <= P95 <= MAX。');
+    errors.push(
+      "统计量必须满足 MIN <= P5 <= P25 <= P50 <= P75 <= P95 <= MAX。",
+    );
   }
 
   return errors;

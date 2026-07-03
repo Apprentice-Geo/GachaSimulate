@@ -1,0 +1,24 @@
+items:
+  - draw_count: Draw count
+  - gift
+  - target
+  - shard
+pools:
+  - main:
+      - probability: 1.0
+        actions: gift += 1
+  - gift_pool:
+      - weight: 1
+        actions: target += 1
+      - weight: 4
+        actions: shard += 1
+every_draw:
+  - draw_count += 1
+item_resolve:
+  - item: gift
+    retain: 0
+    actions:
+      - gift -= 1
+      - draw gift_pool
+initial:
+  - change main

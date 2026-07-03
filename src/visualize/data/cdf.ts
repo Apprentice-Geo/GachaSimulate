@@ -3,9 +3,12 @@ import type {
   CDFPoint,
   VisualizeStatisticInput,
   VisualizeInput,
-} from '../types/visualize_input';
+} from "../types/visualize_input";
 
-export function get_cdf_level_at_draw(points: CDFPoint[], draw: number): number {
+export function get_cdf_level_at_draw(
+  points: CDFPoint[],
+  draw: number,
+): number {
   if (points.length === 0) {
     return 0;
   }
@@ -44,42 +47,42 @@ export function build_marker_data_from_points(
 ): CDFMarkerDatum[] {
   return [
     {
-      key: 'MIN',
+      key: "MIN",
       draw: stat.MIN,
       level: get_cdf_level_at_draw(points, stat.MIN),
     },
     {
-      key: 'P5',
+      key: "P5",
       draw: stat.P5,
       level: get_cdf_level_at_draw(points, stat.P5),
     },
     {
-      key: 'P25',
+      key: "P25",
       draw: stat.P25,
       level: get_cdf_level_at_draw(points, stat.P25),
     },
     {
-      key: 'P50',
+      key: "P50",
       draw: stat.P50,
       level: get_cdf_level_at_draw(points, stat.P50),
     },
     {
-      key: 'MEAN',
+      key: "MEAN",
       draw: stat.MEAN,
       level: stat.MEAN_LEVEL,
     },
     {
-      key: 'P75',
+      key: "P75",
       draw: stat.P75,
       level: get_cdf_level_at_draw(points, stat.P75),
     },
     {
-      key: 'P95',
+      key: "P95",
       draw: stat.P95,
       level: get_cdf_level_at_draw(points, stat.P95),
     },
     {
-      key: 'MAX',
+      key: "MAX",
       draw: stat.MAX,
       level: get_cdf_level_at_draw(points, stat.MAX),
     },

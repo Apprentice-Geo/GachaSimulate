@@ -1,0 +1,6 @@
+retained_items:
+- xinyuanjifeng: 20000
+termination_rule:
+  condition:
+    check: xinyuanjifeng >= 20000
+    actions: terminate xinyuanjifeng over 20000

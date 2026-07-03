@@ -1,0 +1,22 @@
+retained_items:
+- sunwukong_wuxiang: 1
+- yao_zhenwohezi: 1
+- zhenji_xuejingqiyu: 1
+- xuejingqiyuquanpingtianmu: 1
+- wuxiang_point: 1673
+termination_rule:
+  condition:
+    op: OR
+    children:
+    - op: AND
+      children:
+      - op: OR
+        children:
+        - check: sunwukong_wuxiang >= 1
+        - check: yao_zhenwohezi >= 1
+        - check: zhenji_xuejingqiyu >= 1
+        - check: xuejingqiyuquanpingtianmu >= 1
+      - check: wuxiang_point >= 675
+      actions: terminate skin obtained
+    - check: wuxiang_point >= 1673
+      actions: terminate point exchange

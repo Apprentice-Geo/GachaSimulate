@@ -1,0 +1,20 @@
+retained_items:
+- lixin_wenxinjian: 1
+- gongsunli_lihenyan: 1
+- yao_qilingchilongjian: 1
+- jianxinling: 1831
+termination_rule:
+  condition:
+    op: OR
+    children:
+    - op: AND
+      children:
+      - op: OR
+        children:
+        - check: lixin_wenxinjian >= 1
+        - check: gongsunli_lihenyan >= 1
+        - check: yao_qilingchilongjian >= 1
+      - check: jianxinling >= 833
+      actions: terminate skin obtained
+    - check: jianxinling >= 1831
+      actions: terminate point exchange

@@ -1,0 +1,11 @@
+retained_items:
+- shenjiangwei: 1
+- shishibaozhu_66: 1
+termination_rule:
+  condition:
+    op: OR
+    children:
+    - check: shenjiangwei >= 1
+      actions: terminate obtained shenjiangwei
+    - check: shishibaozhu_66 >= 1
+      actions: terminate obtained shishibaozhu_66

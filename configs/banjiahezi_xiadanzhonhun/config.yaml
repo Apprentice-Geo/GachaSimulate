@@ -1,0 +1,38 @@
+metadata:
+  name: test
+  source: https://www.sanguosha.cn/pc/news-detail-2100.html
+  game: sanguoshayidonban
+  time: '2026_4_25'
+  cost_id: xiaddanzhonhun
+  cost_name: 侠胆忠魂
+  amount: 1
+  per_cost_to_rmb: 1
+items:
+- shiweiyan: 势魏延
+- shishibaozhu_33: 史诗宝珠33
+- fenyuezhenlv_huangfusongdontaibao: 奋钺振旅·皇甫嵩动态包
+- jianghun: 将魂
+- shishibaozhu: 史诗宝珠
+- jingliangwupin: 精良物品
+- putonwupin: 普通物品
+- draw_count: Draw count
+pools:
+- begin_pool:
+  - probability: 0.0001
+    actions: shiweiyan += 1
+  - probability: 0.0001
+    actions: shishibaozhu_33 += 1
+  - probability: 0.0005
+    actions: fenyuezhenlv_huangfusongdontaibao += 1
+  - probability: 0.0005
+    actions: jianghun += 1000
+  - probability: 0.0025
+    actions: shishibaozhu += 1
+  - probability: 0.0875
+    actions: jingliangwupin += 1
+  - probability: 0.9088
+    actions: putonwupin += 1
+every_draw:
+- draw_count += 1
+initial:
+- change begin_pool

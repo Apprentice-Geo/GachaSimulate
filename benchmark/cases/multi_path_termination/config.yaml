@@ -1,0 +1,14 @@
+items:
+  - draw_count: Draw count
+  - target
+  - token
+pools:
+  - main:
+      - probability: 0.1
+        actions: target += 1
+      - probability: 0.9
+        actions: token += 1
+every_draw:
+  - draw_count += 1
+initial:
+  - change main

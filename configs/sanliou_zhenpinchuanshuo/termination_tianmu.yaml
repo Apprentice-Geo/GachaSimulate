@@ -1,0 +1,11 @@
+retained_items:
+- mianhuatangjuhuitianmu: 1
+- sanliouduihuanbi: 428
+termination_rule:
+  condition:
+    op: OR
+    children:
+    - check: mianhuatangjuhuitianmu >= 1
+      actions: terminate 抽中天幕
+    - check: sanliouduihuanbi >= 428
+      actions: terminate 兑换币兑换

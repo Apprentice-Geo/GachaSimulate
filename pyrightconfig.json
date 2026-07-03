@@ -1,5 +1,5 @@
 {
-  "include": ["src", "tests", "example.py"],
+  "include": ["src", "tests", "benchmark"],
   "exclude": ["dist", "node_modules", "playwright-report", "test-results"],
   "extraPaths": ["src"],
   "venvPath": ".",

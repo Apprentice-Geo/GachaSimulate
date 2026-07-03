@@ -1,6 +1,280 @@
+---
+version: alpha
+name: Sentry-design-analysis
+description: An inspired interpretation of Sentry's design language — a developer-tools brand built on a deep purple-violet midnight canvas, electric lime accents, and a slightly subversive illustrated personality. The system pairs a custom display sans (chunky, playful, near-condensed) with the open Rubik family for UI copy and Monaco for code, then leans on dark-on-light pricing surfaces, sticker-style mascots, and a single-color CTA hierarchy where black-violet buttons read as the primary action against either polarity.
+
+colors:
+  primary: "#150f23"
+  ink-deep: "#1f1633"
+  on-primary: "#ffffff"
+  accent-lime: "#c2ef4e"
+  accent-pink: "#fa7faa"
+  accent-violet: "#6a5fc1"
+  accent-violet-deep: "#422082"
+  accent-violet-mid: "#79628c"
+  surface-canvas-dark: "#1f1633"
+  surface-canvas-light: "#ffffff"
+  surface-night: "#150f23"
+  surface-press-light: "#f0f0f0"
+  surface-press-stronger: "#efefef"
+  hairline-violet: "#362d59"
+  hairline-cool: "#cfcfdb"
+  hairline-cloud: "#e5e7eb"
+  ink: "#1f1633"
+  ink-press: "#1a1a1a"
+  on-dark-muted: "#bdb8c0"
+  on-dark-faint: "#3f3849"
+  ring-focus: "#9dc1f5"
+
+typography:
+  display-hero:
+    fontFamily: "Sentry Display, Rubik, system-ui, sans-serif"
+    fontSize: 88px
+    fontWeight: 700
+    lineHeight: 1.2
+    letterSpacing: 0
+  display-large:
+    fontFamily: "Sentry Display, Rubik, system-ui, sans-serif"
+    fontSize: 60px
+    fontWeight: 500
+    lineHeight: 1.1
+    letterSpacing: 0
+  heading-xl:
+    fontFamily: "Rubik, -apple-system, system-ui, Segoe UI, Helvetica, Arial, sans-serif"
+    fontSize: 30px
+    fontWeight: 500
+    lineHeight: 1.2
+    letterSpacing: 0
+  heading-lg:
+    fontFamily: "Rubik, -apple-system, system-ui, sans-serif"
+    fontSize: 27px
+    fontWeight: 500
+    lineHeight: 1.25
+    letterSpacing: 0
+  heading-md:
+    fontFamily: "Rubik, -apple-system, system-ui, sans-serif"
+    fontSize: 24px
+    fontWeight: 500
+    lineHeight: 1.25
+    letterSpacing: 0
+  heading-sm:
+    fontFamily: "Rubik, -apple-system, system-ui, sans-serif"
+    fontSize: 20px
+    fontWeight: 600
+    lineHeight: 1.25
+    letterSpacing: 0
+  body-lg:
+    fontFamily: "Rubik, -apple-system, system-ui, sans-serif"
+    fontSize: 16px
+    fontWeight: 400
+    lineHeight: 2.0
+    letterSpacing: 0
+  body-strong:
+    fontFamily: "Rubik, -apple-system, system-ui, sans-serif"
+    fontSize: 16px
+    fontWeight: 600
+    lineHeight: 1.5
+    letterSpacing: 0
+  body-md:
+    fontFamily: "Rubik, -apple-system, system-ui, sans-serif"
+    fontSize: 16px
+    fontWeight: 500
+    lineHeight: 1.5
+    letterSpacing: 0
+  eyebrow:
+    fontFamily: "Rubik, -apple-system, system-ui, sans-serif"
+    fontSize: 15px
+    fontWeight: 500
+    lineHeight: 1.4
+    letterSpacing: 0
+  button-cap:
+    fontFamily: "Rubik, -apple-system, system-ui, sans-serif"
+    fontSize: 14px
+    fontWeight: 700
+    lineHeight: 1.14
+    letterSpacing: 0.2px
+  button-cap-light:
+    fontFamily: "Rubik, -apple-system, system-ui, sans-serif"
+    fontSize: 14px
+    fontWeight: 500
+    lineHeight: 1.29
+    letterSpacing: 0.2px
+  caption:
+    fontFamily: "Rubik, -apple-system, system-ui, sans-serif"
+    fontSize: 14px
+    fontWeight: 400
+    lineHeight: 1.43
+    letterSpacing: 0
+  micro-cap:
+    fontFamily: "Rubik, -apple-system, system-ui, sans-serif"
+    fontSize: 10px
+    fontWeight: 600
+    lineHeight: 1.8
+    letterSpacing: 0.25px
+  code:
+    fontFamily: "Monaco, Menlo, Ubuntu Mono, monospace"
+    fontSize: 16px
+    fontWeight: 400
+    lineHeight: 1.5
+    letterSpacing: 0
+  code-strong:
+    fontFamily: "Monaco, Menlo, Ubuntu Mono, monospace"
+    fontSize: 16px
+    fontWeight: 700
+    lineHeight: 1.5
+    letterSpacing: 0
+
+rounded:
+  xs: 4px
+  sm: 6px
+  md: 8px
+  lg: 10px
+  xl: 12px
+  xxl: 18px
+  full: 9999px
+
+spacing:
+  xxs: 2px
+  xs: 4px
+  sm: 8px
+  md: 12px
+  lg: 16px
+  xl: 24px
+  xxl: 32px
+  section: 96px
+
+components:
+  button-primary:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.button-cap}"
+    rounded: "{rounded.md}"
+    padding: 12px 16px
+  button-primary-pressed:
+    backgroundColor: "{colors.surface-press-stronger}"
+    textColor: "{colors.ink-press}"
+    typography: "{typography.button-cap}"
+    rounded: "{rounded.md}"
+    padding: 12px 16px
+  button-inverted:
+    backgroundColor: "{colors.on-primary}"
+    textColor: "{colors.ink-deep}"
+    typography: "{typography.button-cap}"
+    rounded: "{rounded.md}"
+    padding: 12px 16px
+  button-inverted-pressed:
+    backgroundColor: "{colors.surface-press-light}"
+    textColor: "{colors.ink-press}"
+    typography: "{typography.button-cap}"
+    rounded: "{rounded.md}"
+    padding: 12px 16px
+  button-ghost-on-dark:
+    backgroundColor: "{colors.on-dark-faint}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.button-cap}"
+    rounded: "{rounded.xl}"
+    padding: 8px
+  button-violet-token:
+    backgroundColor: "{colors.accent-violet-mid}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.button-cap-light}"
+    rounded: "{rounded.xl}"
+    padding: 8px 16px
+  button-disabled:
+    backgroundColor: "{colors.hairline-cloud}"
+    textColor: "{colors.on-dark-muted}"
+    typography: "{typography.button-cap}"
+    rounded: "{rounded.md}"
+    padding: 12px 16px
+  pill-neutral-dark:
+    backgroundColor: "{colors.surface-night}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.xs}"
+    padding: 4px 8px
+  chip-lime-keyword:
+    backgroundColor: "{colors.accent-lime}"
+    textColor: "{colors.ink-deep}"
+    typography: "{typography.display-hero}"
+    rounded: "{rounded.xs}"
+    padding: 0 12px
+  text-input:
+    backgroundColor: "{colors.surface-canvas-light}"
+    textColor: "{colors.ink-deep}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.sm}"
+    padding: 8px 12px
+  text-input-focused:
+    backgroundColor: "{colors.surface-canvas-light}"
+    textColor: "{colors.ink-deep}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.sm}"
+    padding: 8px 12px
+  select-violet:
+    backgroundColor: "{colors.accent-violet-deep}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.md}"
+    padding: 8px 16px
+  card-pricing:
+    backgroundColor: "{colors.surface-canvas-light}"
+    textColor: "{colors.ink-deep}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.xl}"
+    padding: 32px
+  card-pricing-featured:
+    backgroundColor: "{colors.surface-night}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.xl}"
+    padding: 32px
+  card-feature-dark:
+    backgroundColor: "{colors.ink-deep}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.body-lg}"
+    rounded: "{rounded.xxl}"
+    padding: 32px
+  card-spotlight-violet:
+    backgroundColor: "{colors.accent-violet-deep}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.body-lg}"
+    rounded: "{rounded.xxl}"
+    padding: 32px
+  code-block:
+    backgroundColor: "{colors.surface-night}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.code}"
+    rounded: "{rounded.md}"
+    padding: 16px
+  link-on-dark:
+    backgroundColor: "{colors.surface-canvas-dark}"
+    textColor: "{colors.on-primary}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.xs}"
+    padding: 0px
+  link-on-light:
+    backgroundColor: "{colors.surface-canvas-light}"
+    textColor: "{colors.ink-deep}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.xs}"
+    padding: 0px
+  nav-bar-light:
+    backgroundColor: "{colors.surface-canvas-light}"
+    textColor: "{colors.ink-deep}"
+    typography: "{typography.body-md}"
+    rounded: "{rounded.xs}"
+    padding: 16px 24px
+  footer-light:
+    backgroundColor: "{colors.surface-canvas-light}"
+    textColor: "{colors.ink-deep}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.xs}"
+    padding: 32px 24px
+---
+
 ## Overview
 
-Sentri's design language reads like a debugging console wearing a leather jacket. The home and product surfaces sit on a near-black violet midnight (`{colors.surface-canvas-dark}` / `{colors.surface-night}`), strewn with starfield textures and floating sticker-style mascots — astronauts, monsters, traffic cones — that puncture the seriousness of an observability product. Headlines run in a chunky proprietary display sans where the most important keywords are wrapped in lime-green highlight chips (`{colors.accent-lime}`), as if the copy itself has been marked up by a developer redlining their own console output.
+Sentry's design language reads like a debugging console wearing a leather jacket. The home and product surfaces sit on a near-black violet midnight (`{colors.surface-canvas-dark}` / `{colors.surface-night}`), strewn with starfield textures and floating sticker-style mascots — astronauts, monsters, traffic cones — that puncture the seriousness of an observability product. Headlines run in a chunky proprietary display sans where the most important keywords are wrapped in lime-green highlight chips (`{colors.accent-lime}`), as if the copy itself has been marked up by a developer redlining their own console output.
 
 The palette is deliberately narrow: deep midnight as the dominant canvas, electric lime as the primary attention-grabber, hot pink (`{colors.accent-pink}`) as a secondary punctuation, and a violet-mid (`{colors.accent-violet-mid}`) for tag chips and hairline strokes. White appears in two roles — as text on dark, and as the canvas for pricing, contact, and content-heavy pages where developers need to scan dense tables. The "single primary CTA" is visually inverted depending on context: filled black-violet (`{colors.primary}`) with white type on light surfaces, or filled white with dark type on dark surfaces. The button always reads as the strongest UI affordance regardless of polarity.
 
@@ -59,24 +333,24 @@ The code tier is **Monaco** with Menlo and Ubuntu Mono fallbacks — used in cod
 
 ### Hierarchy
 
-| Token | Size | Weight | Line Height | Letter Spacing | Use |
-|---|---|---|---|---|---|
-| `{typography.display-hero}` | 88px | 700 | 1.2 | 0 | Marketing hero headline (single line of attention) |
-| `{typography.display-large}` | 60px | 500 | 1.1 | 0 | Section openers on dark surfaces |
-| `{typography.heading-xl}` | 30px | 500 | 1.2 | 0 | Page titles on light surfaces (e.g., "Pricing plans for dev teams of all sizes") |
-| `{typography.heading-lg}` | 27px | 500 | 1.25 | 0 | Sub-section headings, large card titles |
-| `{typography.heading-md}` | 24px | 500 | 1.25 | 0 | Card titles, in-page section headings |
-| `{typography.heading-sm}` | 20px | 600 | 1.25 | 0 | Compact card title, list-group title |
-| `{typography.body-lg}` | 16px | 400 | 2.0 | 0 | Marketing-paragraph body — the airy, two-line-leading variant used in hero subtext |
-| `{typography.body-strong}` | 16px | 600 | 1.5 | 0 | Emphasized body run, lead sentence |
-| `{typography.body-md}` | 16px | 500 | 1.5 | 0 | Default UI body, table cells, form labels |
-| `{typography.eyebrow}` | 15px | 500 | 1.4 | 0 | Section eyebrow above large headings, all-caps |
-| `{typography.button-cap}` | 14px | 700 | 1.14 | 0.2px | Filled button labels (uppercase) |
-| `{typography.button-cap-light}` | 14px | 500 | 1.29 | 0.2px | Ghost / outline button labels (uppercase) |
-| `{typography.caption}` | 14px | 400 | 1.43 | 0 | Footer text, fine print, helper copy |
-| `{typography.micro-cap}` | 10px | 600 | 1.8 | 0.25px | Status labels, badge text, micro-eyebrow |
-| `{typography.code}` | 16px | 400 | 1.5 | 0 | Code block content |
-| `{typography.code-strong}` | 16px | 700 | 1.5 | 0 | Highlighted code keyword |
+| Token                           | Size | Weight | Line Height | Letter Spacing | Use                                                                                |
+| ------------------------------- | ---- | ------ | ----------- | -------------- | ---------------------------------------------------------------------------------- |
+| `{typography.display-hero}`     | 88px | 700    | 1.2         | 0              | Marketing hero headline (single line of attention)                                 |
+| `{typography.display-large}`    | 60px | 500    | 1.1         | 0              | Section openers on dark surfaces                                                   |
+| `{typography.heading-xl}`       | 30px | 500    | 1.2         | 0              | Page titles on light surfaces (e.g., "Pricing plans for dev teams of all sizes")   |
+| `{typography.heading-lg}`       | 27px | 500    | 1.25        | 0              | Sub-section headings, large card titles                                            |
+| `{typography.heading-md}`       | 24px | 500    | 1.25        | 0              | Card titles, in-page section headings                                              |
+| `{typography.heading-sm}`       | 20px | 600    | 1.25        | 0              | Compact card title, list-group title                                               |
+| `{typography.body-lg}`          | 16px | 400    | 2.0         | 0              | Marketing-paragraph body — the airy, two-line-leading variant used in hero subtext |
+| `{typography.body-strong}`      | 16px | 600    | 1.5         | 0              | Emphasized body run, lead sentence                                                 |
+| `{typography.body-md}`          | 16px | 500    | 1.5         | 0              | Default UI body, table cells, form labels                                          |
+| `{typography.eyebrow}`          | 15px | 500    | 1.4         | 0              | Section eyebrow above large headings, all-caps                                     |
+| `{typography.button-cap}`       | 14px | 700    | 1.14        | 0.2px          | Filled button labels (uppercase)                                                   |
+| `{typography.button-cap-light}` | 14px | 500    | 1.29        | 0.2px          | Ghost / outline button labels (uppercase)                                          |
+| `{typography.caption}`          | 14px | 400    | 1.43        | 0              | Footer text, fine print, helper copy                                               |
+| `{typography.micro-cap}`        | 10px | 600    | 1.8         | 0.25px         | Status labels, badge text, micro-eyebrow                                           |
+| `{typography.code}`             | 16px | 400    | 1.5         | 0              | Code block content                                                                 |
+| `{typography.code-strong}`      | 16px | 700    | 1.5         | 0              | Highlighted code keyword                                                           |
 
 ### Principles
 - **Two leading worlds.** Marketing copy uses 2.0 line-height on `{typography.body-lg}` — extremely airy, generous breathing room. Functional UI copy uses 1.5 line-height on `{typography.body-md}` — denser, closer to console output. The choice is deliberate: marketing reads like prose, the product reads like a log.
@@ -106,30 +380,30 @@ The dark canvas absorbs whitespace differently from light. On dark surfaces the 
 
 ## Elevation & Depth
 
-| Level | Treatment | Use |
-|---|---|---|
-| 0 | Flat on canvas, no shadow | Default surface, dark or light |
-| 1 | `box-shadow: rgba(0,0,0,0.08) 0 2px 8px 0` | Inverted buttons on dark canvas (light fill lifting off dark surface) |
-| 2 | `box-shadow: rgba(0,0,0,0.1) 0 10px 15px -3px, rgba(0,0,0,0.1) 0 4px 6px -4px` | Floating cards on light canvas, modals |
-| 3 | `box-shadow: rgb(21,15,35) 0 0 8px 6px` | Glow halo around primary CTA on dark hero — the dark color itself becomes the shadow, creating a vignette of canvas around the button |
-| 4 | `box-shadow: rgba(0,0,0,0.18) 0 0.5rem 1.5rem` | Pressed inverted button on dark canvas |
+| Level | Treatment                                                                      | Use                                                                                                                                   |
+| ----- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 0     | Flat on canvas, no shadow                                                      | Default surface, dark or light                                                                                                        |
+| 1     | `box-shadow: rgba(0,0,0,0.08) 0 2px 8px 0`                                     | Inverted buttons on dark canvas (light fill lifting off dark surface)                                                                 |
+| 2     | `box-shadow: rgba(0,0,0,0.1) 0 10px 15px -3px, rgba(0,0,0,0.1) 0 4px 6px -4px` | Floating cards on light canvas, modals                                                                                                |
+| 3     | `box-shadow: rgb(21,15,35) 0 0 8px 6px`                                        | Glow halo around primary CTA on dark hero — the dark color itself becomes the shadow, creating a vignette of canvas around the button |
+| 4     | `box-shadow: rgba(0,0,0,0.18) 0 0.5rem 1.5rem`                                 | Pressed inverted button on dark canvas                                                                                                |
 
 ### Decorative Depth
-Sentri's depth doesn't come from drop shadows — it comes from the **starfield texture** on the hero canvas (subtle white-on-violet pinpricks at low opacity), the **floating sticker mascots** (drawn with hand-rendered outlines and saturated fills, layered above the canvas with no shadow), and the **lime squiggly divider** above the footer. These illustrative elements do the work that shadow stacks do in flatter design systems — they tell the eye where one section ends and another begins.
+Sentry's depth doesn't come from drop shadows — it comes from the **starfield texture** on the hero canvas (subtle white-on-violet pinpricks at low opacity), the **floating sticker mascots** (drawn with hand-rendered outlines and saturated fills, layered above the canvas with no shadow), and the **lime squiggly divider** above the footer. These illustrative elements do the work that shadow stacks do in flatter design systems — they tell the eye where one section ends and another begins.
 
 ## Shapes
 
 ### Border Radius Scale
 
-| Token | Value | Use |
-|---|---|---|
-| `{rounded.xs}` | 4px | Badges, status pills, lime keyword highlight chips |
-| `{rounded.sm}` | 6px | Text inputs, search boxes |
-| `{rounded.md}` | 8px | Primary and inverted buttons, code blocks, select dropdowns |
-| `{rounded.lg}` | 10px | Generic divs, container blocks |
-| `{rounded.xl}` | 12px | Pricing cards, feature cards, navigation pill chrome |
-| `{rounded.xxl}` | 18px | Image containers, large hero illustrations |
-| `{rounded.full}` | 9999px | Avatars, circular icon buttons |
+| Token            | Value  | Use                                                         |
+| ---------------- | ------ | ----------------------------------------------------------- |
+| `{rounded.xs}`   | 4px    | Badges, status pills, lime keyword highlight chips          |
+| `{rounded.sm}`   | 6px    | Text inputs, search boxes                                   |
+| `{rounded.md}`   | 8px    | Primary and inverted buttons, code blocks, select dropdowns |
+| `{rounded.lg}`   | 10px   | Generic divs, container blocks                              |
+| `{rounded.xl}`   | 12px   | Pricing cards, feature cards, navigation pill chrome        |
+| `{rounded.xxl}`  | 18px   | Image containers, large hero illustrations                  |
+| `{rounded.full}` | 9999px | Avatars, circular icon buttons                              |
 
 ### Photography Geometry
 The site doesn't use traditional photography — it uses **illustrated stickers and product UI screenshots** in roughly equivalent geometric roles. Product UI mocks sit inside `{rounded.xxl}` 18px containers, often tilted slightly off-axis, against the dark canvas with no border. Sticker mascots have no container at all — they are layered directly on canvas, often overlapping section boundaries to break the grid. Avatar treatments (in customer-logo strips) are simple greyscale wordmarks, not photos.
@@ -162,7 +436,7 @@ The site doesn't use traditional photography — it uses **illustrated stickers 
 **`card-pricing`** — the standard tier card on the pricing page.
 - Background `{colors.surface-canvas-light}`, text `{colors.ink-deep}`, padding `{spacing.xxl}` 32px, rounded `{rounded.xl}` 12px, 1px `{colors.hairline-cloud}` border. Headline at top in `{typography.heading-md}`, price in `{typography.display-large}`, feature list in `{typography.body-md}`, primary CTA pinned to the bottom of the card.
 
-**`card-pricing-featured`** — the dark inverted "featured" tier (Sentri uses the Business tier as the featured one).
+**`card-pricing-featured`** — the dark inverted "featured" tier (Sentry uses the Business tier as the featured one).
 - Background `{colors.surface-night}`, text `{colors.on-primary}`, otherwise identical structure to `card-pricing`. The inversion (rather than an accent-bordered light card) is the brand's distinctive choice — the featured tier reads as the brand's voice, not as a marketing decoration.
 
 **`card-feature-dark`** — large feature-band card on dark surfaces, used to anchor product feature explanations.
@@ -239,15 +513,15 @@ The site doesn't use traditional photography — it uses **illustrated stickers 
 
 ### Breakpoints
 
-| Name | Width | Key Changes |
-|---|---|---|
-| 4K / Wide | ≥ 1440px | Full 4-tier pricing row, hero illustration sits beside headline at full scale |
-| Desktop | 1152–1440px | Default content max-width sits at 1152px, all 4-tier patterns hold |
-| Laptop | 992–1151px | Pricing collapses to 2-up rows, nav remains horizontal |
-| Tablet | 768–991px | 2-column feature grids collapse to 1-up; nav still horizontal but compresses |
-| Mobile Large | 640–767px | Hamburger nav appears; hero display drops from 88px to ~56px |
-| Mobile | 576–639px | Single-column everything; section padding collapses from 96px to 32–48px |
-| Small Mobile | 1–575px | Compact mode; sticker mascots drop in size or hide entirely to preserve content priority |
+| Name         | Width       | Key Changes                                                                              |
+| ------------ | ----------- | ---------------------------------------------------------------------------------------- |
+| 4K / Wide    | ≥ 1440px    | Full 4-tier pricing row, hero illustration sits beside headline at full scale            |
+| Desktop      | 1152–1440px | Default content max-width sits at 1152px, all 4-tier patterns hold                       |
+| Laptop       | 992–1151px  | Pricing collapses to 2-up rows, nav remains horizontal                                   |
+| Tablet       | 768–991px   | 2-column feature grids collapse to 1-up; nav still horizontal but compresses             |
+| Mobile Large | 640–767px   | Hamburger nav appears; hero display drops from 88px to ~56px                             |
+| Mobile       | 576–639px   | Single-column everything; section padding collapses from 96px to 32–48px                 |
+| Small Mobile | 1–575px     | Compact mode; sticker mascots drop in size or hide entirely to preserve content priority |
 
 ### Touch Targets
 - Primary buttons hit a minimum 44×44px on mobile (12px vertical padding × 16px font + line-height = ~44px). Maintains WCAG AAA touch-target spec.
