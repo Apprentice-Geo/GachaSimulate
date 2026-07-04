@@ -18,11 +18,11 @@ body,
 
 body {
   background:
-    linear-gradient(90deg, rgba(21, 15, 35, 0.05) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(21, 15, 35, 0.05) 1px, transparent 1px),
-    #e9ebef;
+    linear-gradient(90deg, rgba(247, 243, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(118, 185, 0, 0.025) 1px, transparent 1px),
+    var(--color-page-backdrop);
   background-size: 64px 64px;
-  color: var(--color-sentry-ink);
+  color: var(--color-text-primary);
   font-family: var(--font-ui);
 }
 
@@ -40,10 +40,10 @@ button:disabled {
 }
 
 #root {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
   height: 100vh;
-  justify-content: center;
+  justify-content: flex-start;
   overflow: auto;
   width: 100vw;
 }
@@ -64,4 +64,8 @@ button:disabled {
 
 .visualize-page {
   zoom: var(--page-scale);
+}
+
+#root > .visualize-page {
+  margin: auto;
 }
