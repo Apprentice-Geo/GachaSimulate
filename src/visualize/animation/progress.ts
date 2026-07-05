@@ -17,7 +17,8 @@ export interface ScaleProgress {
 }
 
 export interface AnimationProgress {
-  top_bar: FadeProgress;
+  title_area: MetricProgress;
+  metadata: MetricProgress;
   chart_shell: FadeProgress;
   chart_surface: FadeProgress;
   curve: number;
@@ -64,17 +65,27 @@ function fade_progress(
 }
 
 function metric_progress(elapsed_ms: number, index: number): MetricProgress {
+  return timed_metric_progress(
+    elapsed_ms,
+    ANIMATION_TIMELINE.STAT_CONTENT_DELAY_MS +
+      index * ANIMATION_TIMELINE.STAT_CONTENT_STAGGER_MS,
+    ANIMATION_TIMELINE.STAT_CONTENT_DURATION_MS,
+    32,
+  );
+}
+
+function timed_metric_progress(
+  elapsed_ms: number,
+  delay_ms: number,
+  duration_ms: number,
+  distance_px: number,
+): MetricProgress {
   const progress = ease_out(
-    segment_progress(
-      elapsed_ms,
-      ANIMATION_TIMELINE.STAT_CONTENT_DELAY_MS +
-        index * ANIMATION_TIMELINE.STAT_CONTENT_STAGGER_MS,
-      ANIMATION_TIMELINE.STAT_CONTENT_DURATION_MS,
-    ),
+    segment_progress(elapsed_ms, delay_ms, duration_ms),
   );
   return {
     opacity: progress,
-    translate_x: 32 * (1 - progress),
+    translate_x: distance_px * (1 - progress),
   };
 }
 
@@ -98,11 +109,17 @@ export function build_animation_progress(
   elapsed_ms: number,
 ): AnimationProgress {
   return {
-    top_bar: fade_progress(
+    title_area: timed_metric_progress(
       elapsed_ms,
-      ANIMATION_TIMELINE.TOP_BAR_DELAY_MS,
-      ANIMATION_TIMELINE.TOP_BAR_DURATION_MS,
-      12,
+      ANIMATION_TIMELINE.TITLE_AREA_DELAY_MS,
+      ANIMATION_TIMELINE.TITLE_AREA_DURATION_MS,
+      32,
+    ),
+    metadata: timed_metric_progress(
+      elapsed_ms,
+      ANIMATION_TIMELINE.METADATA_DELAY_MS,
+      ANIMATION_TIMELINE.METADATA_DURATION_MS,
+      32,
     ),
     chart_shell: fade_progress(
       elapsed_ms,

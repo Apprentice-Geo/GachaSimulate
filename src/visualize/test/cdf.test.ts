@@ -100,6 +100,19 @@ test("canvas constants stay aligned with CSS tokens", () => {
   assert.equal(read_css_px_token(tokens_css, "canvas-height"), CANVAS_HEIGHT);
 });
 
+test("top header expansion preserves main region start", () => {
+  const tokens_css = readFileSync(
+    path.join(process.cwd(), "src/visualize/styles/tokens.css"),
+    "utf-8",
+  );
+
+  assert.equal(
+    read_css_px_token(tokens_css, "page-top-margin") +
+      read_css_px_token(tokens_css, "top-height"),
+    320,
+  );
+});
+
 test("schema required fields stay aligned with TS contract keys", () => {
   const visualize_schema = schema as VisualizeInputSchema;
 
@@ -311,7 +324,10 @@ test("segment_progress clamps before and after its time window", () => {
 test("build_animation_progress exposes final state at animation end", () => {
   const progress = build_animation_progress(ANIMATION_TOTAL_MS);
 
-  assert.equal(progress.top_bar.opacity, 1);
+  assert.equal(progress.title_area.opacity, 1);
+  assert.equal(progress.title_area.translate_x, 0);
+  assert.equal(progress.metadata.opacity, 1);
+  assert.equal(progress.metadata.translate_x, 0);
   assert.equal(progress.chart_shell.translate_y, 0);
   assert.equal(progress.chart_surface.opacity, 1);
   assert.equal(progress.curve, 1);
@@ -320,6 +336,23 @@ test("build_animation_progress exposes final state at animation end", () => {
   assert.equal(progress.pk_fill, 1);
   assert.equal(progress.stat_content(3).translate_x, 0);
   assert.equal(progress.note.opacity, 1);
+});
+
+test("title completes before curve and metadata follows statistic panel", () => {
+  assert.equal(
+    ANIMATION_TIMELINE.TITLE_AREA_DELAY_MS +
+      ANIMATION_TIMELINE.TITLE_AREA_DURATION_MS <=
+      ANIMATION_TIMELINE.CURVE_DELAY_MS,
+    true,
+  );
+  assert.equal(
+    ANIMATION_TIMELINE.METADATA_DELAY_MS,
+    ANIMATION_TIMELINE.STAT_PANEL_DELAY_MS,
+  );
+  assert.equal(
+    ANIMATION_TIMELINE.METADATA_DURATION_MS,
+    ANIMATION_TIMELINE.STAT_PANEL_DURATION_MS,
+  );
 });
 
 test("build_animation_progress staggers marker and stat content timing", () => {

@@ -1,54 +1,53 @@
-import type { CSSProperties } from "react";
-import { ImportButton } from "./ImportButton";
-import { ReplayButton } from "./ReplayButton";
+import { metric_style } from "../animation/progress";
+import type { AnimationProgress } from "../animation/progress";
 import type { NormalizedVisualizeData } from "../types/visualize_input";
 
 interface TopBarProps {
   data: NormalizedVisualizeData | null;
-  is_animating: boolean;
-  on_file_import?: (file: File) => void;
-  on_replay?: () => void;
-  show_controls?: boolean;
-  style?: CSSProperties;
+  animation_progress: AnimationProgress | null;
 }
 
-export function TopBar({
-  data,
-  is_animating,
-  on_file_import,
-  on_replay,
-  show_controls = true,
-  style,
-}: TopBarProps) {
-  const metadata = data
+export function TopBar({ data, animation_progress }: TopBarProps) {
+  const metadata_items = data
     ? [
         `模拟目标：${data.target}`,
         `本轮模拟抽数：${data.draw_counts_display}`,
-        `单抽成本: ${data.cost.display_value} ${data.cost.unit}`,
-      ].join(" · ")
-    : "导入模拟器输出 JSON 后生成结果页面";
+        `单抽成本：${data.cost.display_value} ${data.cost.unit}`,
+      ]
+    : ["导入模拟器输出 JSON 后生成结果页面"];
 
   return (
-    <header className="top-bar" style={style}>
-      <div className="title-stack">
+    <header className="top-bar">
+      <div
+        className="title-stack"
+        style={
+          animation_progress
+            ? metric_style(animation_progress.title_area)
+            : undefined
+        }
+      >
         <div className="section-kicker">CDF ANALYSIS</div>
         <h1>{data?.title ?? "抽卡模拟 CDF 分析"}</h1>
-        <p>{metadata}</p>
+        {data && (
+          <p>
+            半数模拟 {data.statistic.P50} 抽内达成，95% 模拟{" "}
+            {data.statistic.P95} 抽内达成。
+          </p>
+        )}
       </div>
-      {show_controls && on_file_import && on_replay && (
-        <div className="top-actions" aria-label="数据操作">
-          <ReplayButton
-            disabled={!data}
-            is_animating={is_animating}
-            on_replay={on_replay}
-          />
-          <ImportButton
-            compact={Boolean(data)}
-            disabled={is_animating}
-            on_file_import={on_file_import}
-          />
-        </div>
-      )}
+      <div
+        className="top-meta"
+        aria-label="模拟元信息"
+        style={
+          animation_progress
+            ? metric_style(animation_progress.metadata)
+            : undefined
+        }
+      >
+        {metadata_items.map((item) => (
+          <div key={item}>{item}</div>
+        ))}
+      </div>
     </header>
   );
 }

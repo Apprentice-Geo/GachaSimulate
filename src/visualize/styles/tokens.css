@@ -2,7 +2,8 @@
   --canvas-width: 3840px;
   --canvas-height: 2160px;
   --page-margin: 128px;
-  --top-height: 192px;
+  --page-top-margin: 80px;
+  --top-height: 240px;
   --main-height: 1520px;
   --footer-height: 280px;
 

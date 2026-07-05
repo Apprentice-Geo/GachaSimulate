@@ -2,6 +2,8 @@ import type { CSSProperties, ReactNode } from "react";
 import { fade_style } from "../animation/progress";
 import type { AnimationProgress } from "../animation/progress";
 import type { NormalizedVisualizeData } from "../types/visualize_input";
+import { ImportButton } from "./ImportButton";
+import { ReplayButton } from "./ReplayButton";
 import { StatisticPanel } from "./StatisticPanel";
 import { TerminationBar } from "./TerminationBar";
 import { TopBar } from "./TopBar";
@@ -41,22 +43,27 @@ export function VisualizeShell({
       data-animation-state={animation_state}
       style={style}
     >
-      <TopBar
-        data={data}
-        is_animating={is_animating}
-        on_file_import={on_file_import}
-        on_replay={on_replay}
-        show_controls={show_controls}
-        style={
-          animation_progress
-            ? fade_style(animation_progress.top_bar)
-            : undefined
-        }
-      />
+      <TopBar data={data} animation_progress={animation_progress} />
 
       <section className="main-region" aria-label="CDF 可视化主体">
         <div className="primary-region">
-          <div className="chart-region">{chart_slot}</div>
+          <div className="chart-region">
+            {chart_slot}
+            {show_controls && on_file_import && on_replay && (
+              <div className="chart-actions" aria-label="数据操作">
+                <ReplayButton
+                  disabled={!data}
+                  is_animating={is_animating}
+                  on_replay={on_replay}
+                />
+                <ImportButton
+                  compact={Boolean(data)}
+                  disabled={is_animating}
+                  on_file_import={on_file_import}
+                />
+              </div>
+            )}
+          </div>
           <TerminationBar
             animation_progress={animation_progress}
             data={data}

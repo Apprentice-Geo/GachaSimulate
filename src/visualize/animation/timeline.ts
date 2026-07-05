@@ -1,8 +1,8 @@
 export const ANIMATION_TOTAL_MS = 3500;
 
 export const ANIMATION_TIMELINE = {
-  TOP_BAR_DELAY_MS: 100, // top-bar 标题和操作按钮开始浮现的时间
-  TOP_BAR_DURATION_MS: 200, // top-bar 浮现持续时间
+  TITLE_AREA_DELAY_MS: 100, // 标题区域开始从右向左移入的时间
+  TITLE_AREA_DURATION_MS: 300, // 标题区域移入持续时间，需早于 CDF 曲线绘制
   CHART_SHELL_DELAY_MS: 200, // CDF 图背景卡片开始浮现的时间
   CHART_SHELL_DURATION_MS: 200, // CDF 图背景卡片浮现持续时间
   CHART_SURFACE_DELAY_MS: 400, // Recharts 坐标轴、网格和刻度开始浮现的时间
@@ -24,6 +24,8 @@ export const ANIMATION_TIMELINE = {
   TERMINATION_DETAIL_DURATION_MS: 300, // 终止原因图例浮现持续时间
   STAT_PANEL_DELAY_MS: 2000, // 核心统计量背景卡片开始浮现的时间
   STAT_PANEL_DURATION_MS: 300, // 核心统计量背景卡片浮现持续时间
+  METADATA_DELAY_MS: 2000, // 右侧元信息与核心统计量背景卡片同步开始移入
+  METADATA_DURATION_MS: 300, // 右侧元信息移入持续时间
   STAT_CONTENT_DELAY_MS: 2200, // 核心统计量列表内容开始自上而下浮现的时间
   STAT_CONTENT_DURATION_MS: 200, // 单个统计量卡片浮现持续时间
   STAT_CONTENT_STAGGER_MS: 50, // 核心统计量列表内容之间的错峰间隔
