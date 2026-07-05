@@ -4,7 +4,7 @@
 
 ## 运行入口
 
-- `main.tsx`：React 入口，挂载 `App`，加载 `tokens.css`、`globals.css`、`layout.css`。
+- `main.tsx`：React 入口，挂载 `App`，加载 `tokens.css`、`preview.css`、`scene.css`。
 - `App.tsx`：页面编排层。负责输入加载状态、文件导入、URL 参数输入、动画重放状态，以及把 normalized input 转成 view model 后传给组件。
 
 ## CLI
@@ -44,18 +44,18 @@
 | 阶段 | 时间段 | 目标属性 |
 | --- | --- | --- |
 | top bar | 100ms-300ms | `opacity`、`translateY` |
-| chart shell | 300ms-500ms | `opacity`、`translateY` |
-| chart surface | 500ms-700ms | Recharts surface 的 `opacity`、`translateY` |
-| CDF curve | 700ms-1600ms | SVG path `strokeDashoffset` |
-| marker line | 1000ms 起，按 marker 60ms 错峰 | marker line 的 `opacity`、`scaleY` |
-| marker point/label | 1400ms 起，按 marker 60ms 错峰 | point/label 的 `opacity`、`translateY` |
-| mean line | 1400ms-1600ms | horizontal line 的 `opacity`、`scaleX` |
-| termination panel | 1800ms-2000ms | footer panel 的 `opacity`、`translateY` |
+| chart shell | 200ms-400ms | `opacity`、`translateY` |
+| chart surface | 400ms-600ms | Recharts surface 的 `opacity`、`translateY` |
+| CDF curve | 600ms-2000ms | SVG path `strokeDashoffset` |
+| marker line | 1200ms 起，按 marker 50ms 错峰，单条持续 800ms | marker line 的 `opacity`、`scaleY` |
+| marker point/label | 1500ms 起，按 marker 50ms 错峰，单组持续 200ms | point/label 的 `opacity`、`translateY` |
+| mean line | 1800ms-2000ms | horizontal line 的 `opacity`、`scaleX` |
+| termination panel | 2000ms-2200ms | footer panel 的 `opacity`、`translateY` |
 | PK fill | 2000ms-2500ms | PK segment 的 `scaleX` |
-| termination detail | 2300ms-2500ms | reason list 的 `opacity`、`translateY` |
-| stat panel | 2500ms-2800ms | statistic panel 的 `opacity`、`translateY` |
-| stat content | 2800ms 起，按 row 50ms 错峰 | group heading/metric row 的 `opacity`、`translateX` |
-| note | 3300ms-3400ms | page note 的 `opacity`、`translateY` |
+| termination detail | 2200ms-2500ms | reason list 的 `opacity`、`translateY` |
+| stat panel | 2000ms-2300ms | statistic panel 的 `opacity`、`translateY` |
+| stat content | 2200ms 起，按 row 50ms 错峰，单项持续 200ms | group heading/metric row 的 `opacity`、`translateX` |
+| note | 2800ms-3000ms | page note 的 `opacity`、`translateY` |
 
 ## 目录职责
 
@@ -66,7 +66,7 @@
 - `fixtures/`：示例输入 JSON。
 - `hooks/`：可复用 React hook。目前包含图表容器尺寸测量。
 - `remotion/`：CDF Remotion composition、root 注册和固定视频规格。
-- `styles/`：设计 token、全局样式、页面布局和动画样式。
+- `styles/`：设计 token、浏览器预览壳样式和导出画面样式。Remotion 只加载 `tokens.css` 与 `scene.css`，不加载 `preview.css`。
 - `test/`：轻量单测和 e2e 启动脚本。
 - `types/`：前端 TypeScript 类型定义。
 - `view/`：展示模型、展示顺序、颜色、marker 布局等与视图相关但不直接渲染 DOM 的逻辑。
@@ -87,6 +87,8 @@
 - `components/StatisticPanel.tsx`：右侧统计量面板，按统计分组渲染 metric row。
 - `components/TerminationBar.tsx`：底部达成情况分布条和终止原因图例。
 - `components/TopBar.tsx`：顶部标题、模拟元信息、导入和重放操作。
+- `components/VisualizeShell.tsx`：统一 ready、idle、loading、error 状态的页面主骨架。
+- `constants.ts`：集中定义画布宽高和视频帧率，供预览缩放和 Remotion 规格复用。
 - `data/cdf.ts`：生成 CDF 曲线点，按抽数查询 CDF level，生成 marker 原始数据。
 - `data/load_input.ts`：从未知值、文件、项目路径加载输入，并串联校验和规范化。
 - `data/normalize_input.ts`：把 `VisualizeInput` 转为渲染前的 normalized data。
@@ -96,8 +98,8 @@
 - `hooks/use_element_size.ts`：基于 `ResizeObserver` 测量元素尺寸。
 - `remotion/CdfComposition.tsx`：根据 Remotion frame/fps 计算 elapsed ms 并渲染 `VisualizeScene`。
 - `remotion/Root.tsx`：注册固定 3840x2160、60fps、CDF composition。
-- `remotion/constants.ts`：集中定义 Remotion composition ID、尺寸、帧率和时长。
-- `test/cdf.test.ts`：覆盖 CDF 查询、曲线路径、marker 布局、展示配置和 view model。
+- `remotion/constants.ts`：定义 Remotion composition ID、持帧时长和导出总帧数；尺寸和帧率来自 `constants.ts`。
+- `test/cdf.test.ts`：覆盖 CDF 查询、曲线路径、marker 布局、输入契约、规格 token 同步和 view model。
 - `test/run_e2e.ts`：启动 Vite dev server 后运行 Playwright 测试。
 - `types/visualize_input.ts`：原始输入、normalized input、view model、marker、metric 等类型。
 - `view/cdf_overlay_layout.ts`：根据 Recharts scale 计算 overlay 坐标、标签位置和阶梯曲线路径。
@@ -129,6 +131,6 @@ CDF 标记采用多色风险谱系，并通过 `view/cdf_view_config.ts` 和 `co
 - 修改 CDF marker 的颜色或权重时，优先改 `view/cdf_view_config.ts`；修改线宽、字号、点大小时，优先改 `components/cdf_marker_visuals.ts`。
 - 修改 marker 标签避让或阶梯曲线路径时，优先改 `view/cdf_overlay_layout.ts`，并补充 `test/cdf.test.ts`。
 - 修改动画节奏时，优先改 `animation/timeline.ts` 和 `animation/progress.ts`，避免在组件或 CSS 中新增散落的时间常量。
-- 修改导出规格时，同步更新 `remotion/constants.ts`、README 和本文档；首版导出不暴露 codec、crf、concurrency 等高级 CLI 参数。
+- 修改导出规格时，同步更新 `constants.ts`、`styles/tokens.css`、README 和本文档；首版导出不暴露 codec、crf、concurrency 等高级 CLI 参数。
 - Remotion 是导出层依赖；分发或复用导出功能前，需要确认使用场景符合 Remotion 当前许可证条款。
 - 组件中新增逻辑前先判断是否属于 `data/`、`view/` 或 `hooks/`，保持组件偏渲染、低业务耦合。

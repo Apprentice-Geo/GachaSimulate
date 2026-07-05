@@ -2,9 +2,7 @@ import type { CSSProperties } from "react";
 import { fade_style } from "./animation/progress";
 import type { AnimationProgress } from "./animation/progress";
 import { CDFChart } from "./components/CDFChart";
-import { StatisticPanel } from "./components/StatisticPanel";
-import { TerminationBar } from "./components/TerminationBar";
-import { TopBar } from "./components/TopBar";
+import { VisualizeShell } from "./components/VisualizeShell";
 import type { NormalizedVisualizeData } from "./types/visualize_input";
 
 const EXPORT_CHART_SIZE = {
@@ -36,50 +34,24 @@ export function VisualizeScene({
   style,
 }: VisualizeSceneProps) {
   return (
-    <main
-      className="visualize-page"
-      data-testid="visualize-root"
-      data-load-state="ready"
-      data-animation-state={animation_state}
-      style={style}
-    >
-      <TopBar
-        data={data}
-        is_animating={is_animating}
-        on_file_import={on_file_import}
-        on_replay={on_replay}
-        show_controls={show_controls}
-        style={fade_style(animation_progress.top_bar)}
-      />
-
-      <section className="main-region" aria-label="CDF 可视化主体">
-        <div className="primary-region">
-          <div className="chart-region">
-            <CDFChart
-              animation_progress={animation_progress}
-              data={data}
-              fixed_size={use_fixed_chart_size ? EXPORT_CHART_SIZE : undefined}
-              style={fade_style(animation_progress.chart_shell)}
-            />
-          </div>
-          <TerminationBar
-            animation_progress={animation_progress}
-            data={data}
-            is_ready
-          />
-        </div>
-        <StatisticPanel
+    <VisualizeShell
+      animation_progress={animation_progress}
+      animation_state={animation_state}
+      chart_slot={
+        <CDFChart
           animation_progress={animation_progress}
           data={data}
-          is_ready
+          fixed_size={use_fixed_chart_size ? EXPORT_CHART_SIZE : undefined}
+          style={fade_style(animation_progress.chart_shell)}
         />
-      </section>
-
-      {data.note && (
-        <p className="page-note" style={fade_style(animation_progress.note)}>
-          {data.note}
-        </p>
-      )}
-    </main>
+      }
+      data={data}
+      is_animating={is_animating}
+      load_state="ready"
+      on_file_import={on_file_import}
+      on_replay={on_replay}
+      show_controls={show_controls}
+      style={style}
+    />
   );
 }

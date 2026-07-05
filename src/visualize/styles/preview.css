@@ -1,14 +1,3 @@
-@font-face {
-  font-family: SourceHanSansSC;
-  font-style: normal;
-  font-weight: 500;
-  src: url("/fonts/SourceHanSansSC-Medium.otf") format("opentype");
-}
-
-* {
-  box-sizing: border-box;
-}
-
 html,
 body,
 #root {

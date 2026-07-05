@@ -1,3 +1,14 @@
+@font-face {
+  font-family: SourceHanSansSC;
+  font-style: normal;
+  font-weight: 500;
+  src: url("/fonts/SourceHanSansSC-Medium.otf") format("opentype");
+}
+
+* {
+  box-sizing: border-box;
+}
+
 .visualize-page {
   background:
     linear-gradient(90deg, rgba(118, 185, 0, 0.045) 1px, transparent 1px),
@@ -6,6 +17,7 @@
   background-size: 96px 96px;
   border: 2px solid var(--color-hairline);
   color: var(--color-text-primary);
+  font-family: var(--font-ui);
   height: var(--canvas-height);
   flex-shrink: 0;
   overflow: visible;

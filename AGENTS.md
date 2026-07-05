@@ -110,7 +110,7 @@ uv run pytest benchmark --benchmark-only
 
 ## 提交信息
 
-需要写 commit message 时使用 Conventional Commits，例如：
+需要写 commit message 时使用 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)，例如：
 
 ```text
 docs: update project agent instructions

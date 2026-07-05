@@ -1,7 +1,5 @@
 import { useLayoutEffect } from "react";
-
-const CANVAS_WIDTH = 3840;
-const CANVAS_HEIGHT = 2160;
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../constants";
 
 function update_scale() {
   const scale = Math.min(

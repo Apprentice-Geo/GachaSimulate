@@ -3,12 +3,10 @@ import { use_page_scale } from "./hooks/use_page_scale";
 import { ANIMATION_TOTAL_MS } from "./animation/timeline";
 import { build_animation_progress } from "./animation/progress";
 import { VisualizeScene } from "./VisualizeScene";
+import { VisualizeShell } from "./components/VisualizeShell";
 import { EmptyState } from "./components/EmptyState";
 import { ErrorState } from "./components/ErrorState";
 import { LoadingState } from "./components/LoadingState";
-import { StatisticPanel } from "./components/StatisticPanel";
-import { TerminationBar } from "./components/TerminationBar";
-import { TopBar } from "./components/TopBar";
 import {
   get_input_path_from_url,
   load_input_from_file,
@@ -158,45 +156,26 @@ export default function App() {
   }
 
   return (
-    <main
-      className="visualize-page"
-      data-testid="visualize-root"
-      data-load-state={state.status}
-      data-animation-state={animation_state}
-    >
-      <TopBar
-        data={data}
-        is_animating={is_animating}
-        on_file_import={handle_file_import}
-        on_replay={start_animation}
-      />
-
-      <section className="main-region" aria-label="CDF 可视化主体">
-        <div className="primary-region">
-          <div className="chart-region">
-            {state.status === "idle" && <EmptyState />}
-            {state.status === "loading" && <LoadingState />}
-            {state.status === "error" && (
-              <ErrorState
-                message={state.message}
-                on_file_import={handle_file_import}
-              />
-            )}
-          </div>
-          <TerminationBar
-            data={data}
-            animation_progress={null}
-            is_ready={state.status === "ready"}
-          />
-        </div>
-        <StatisticPanel
-          data={data}
-          animation_progress={null}
-          is_ready={state.status === "ready"}
-        />
-      </section>
-
-      {data?.note && <p className="page-note">{data.note}</p>}
-    </main>
+    <VisualizeShell
+      animation_progress={null}
+      animation_state={animation_state}
+      chart_slot={
+        <>
+          {state.status === "idle" && <EmptyState />}
+          {state.status === "loading" && <LoadingState />}
+          {state.status === "error" && (
+            <ErrorState
+              message={state.message}
+              on_file_import={handle_file_import}
+            />
+          )}
+        </>
+      }
+      data={data}
+      is_animating={is_animating}
+      load_state={state.status}
+      on_file_import={handle_file_import}
+      on_replay={start_animation}
+    />
   );
 }
