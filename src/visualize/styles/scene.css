@@ -170,6 +170,17 @@
   position: relative;
 }
 
+.cdf-chart-shell::before {
+  background: var(--color-nvidia-green);
+  content: "";
+  height: 24px;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 24px;
+  z-index: 2;
+}
+
 .chart-frame-label {
   align-items: center;
   color: var(--color-text-faint);
@@ -502,6 +513,17 @@
   grid-template-columns: 36fr 64fr;
   height: var(--footer-height);
   padding: 48px 56px;
+  position: relative;
+}
+
+.termination-region::before {
+  background: var(--color-nvidia-green);
+  content: "";
+  height: 24px;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 24px;
 }
 
 .termination-copy h2 {
