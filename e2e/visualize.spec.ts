@@ -315,6 +315,7 @@ test("replay button disables while animation is running", async ({ page }) => {
   );
 
   const replay_button = page.getByTestId("replay-animation");
+  await page.getByTestId("cdf-chart").hover();
   await expect(replay_button).toBeEnabled();
   await replay_button.click();
   await expect(replay_button).toBeDisabled();

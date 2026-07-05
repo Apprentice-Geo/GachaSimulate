@@ -324,10 +324,10 @@ test("segment_progress clamps before and after its time window", () => {
 test("build_animation_progress exposes final state at animation end", () => {
   const progress = build_animation_progress(ANIMATION_TOTAL_MS);
 
-  assert.equal(progress.title_area.opacity, 1);
-  assert.equal(progress.title_area.translate_x, 0);
-  assert.equal(progress.metadata.opacity, 1);
-  assert.equal(progress.metadata.translate_x, 0);
+  assert.equal(progress.title_area(2).opacity, 1);
+  assert.equal(progress.title_area(2).translate_x, 0);
+  assert.equal(progress.metadata(2).opacity, 1);
+  assert.equal(progress.metadata(2).translate_x, 0);
   assert.equal(progress.chart_shell.translate_y, 0);
   assert.equal(progress.chart_surface.opacity, 1);
   assert.equal(progress.curve, 1);
@@ -341,6 +341,7 @@ test("build_animation_progress exposes final state at animation end", () => {
 test("title completes before curve and metadata follows statistic panel", () => {
   assert.equal(
     ANIMATION_TIMELINE.TITLE_AREA_DELAY_MS +
+      2 * ANIMATION_TIMELINE.TITLE_AREA_STAGGER_MS +
       ANIMATION_TIMELINE.TITLE_AREA_DURATION_MS <=
       ANIMATION_TIMELINE.CURVE_DELAY_MS,
     true,

@@ -17,8 +17,8 @@ export interface ScaleProgress {
 }
 
 export interface AnimationProgress {
-  title_area: MetricProgress;
-  metadata: MetricProgress;
+  title_area: (index: number) => MetricProgress;
+  metadata: (index: number) => MetricProgress;
   chart_shell: FadeProgress;
   chart_surface: FadeProgress;
   curve: number;
@@ -109,18 +109,22 @@ export function build_animation_progress(
   elapsed_ms: number,
 ): AnimationProgress {
   return {
-    title_area: timed_metric_progress(
-      elapsed_ms,
-      ANIMATION_TIMELINE.TITLE_AREA_DELAY_MS,
-      ANIMATION_TIMELINE.TITLE_AREA_DURATION_MS,
-      32,
-    ),
-    metadata: timed_metric_progress(
-      elapsed_ms,
-      ANIMATION_TIMELINE.METADATA_DELAY_MS,
-      ANIMATION_TIMELINE.METADATA_DURATION_MS,
-      32,
-    ),
+    title_area: (index) =>
+      timed_metric_progress(
+        elapsed_ms,
+        ANIMATION_TIMELINE.TITLE_AREA_DELAY_MS +
+          index * ANIMATION_TIMELINE.TITLE_AREA_STAGGER_MS,
+        ANIMATION_TIMELINE.TITLE_AREA_DURATION_MS,
+        32,
+      ),
+    metadata: (index) =>
+      timed_metric_progress(
+        elapsed_ms,
+        ANIMATION_TIMELINE.METADATA_DELAY_MS +
+          index * ANIMATION_TIMELINE.METADATA_STAGGER_MS,
+        ANIMATION_TIMELINE.METADATA_DURATION_MS,
+        32,
+      ),
     chart_shell: fade_progress(
       elapsed_ms,
       ANIMATION_TIMELINE.CHART_SHELL_DELAY_MS,
