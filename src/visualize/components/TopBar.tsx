@@ -26,24 +26,26 @@ export function TopBar({ data, animation_progress }: TopBarProps) {
       : undefined;
   return (
     <header className="top-bar">
-      <div className="title-stack">
-        <div className="section-kicker" style={title_style(0)}>
-          GACHASIMULATE CDF ANALYSIS
-        </div>
-        <h1 style={title_style(1)}>{data?.title ?? "抽卡模拟 CDF 分析"}</h1>
-        {data && (
-          <p style={title_style(2)}>
-            半数模拟 {data.statistic.P50} 抽内达成，95% 模拟{" "}
-            {data.statistic.P95} 抽内达成。
-          </p>
-        )}
-      </div>
-      <div className="top-meta" aria-label="模拟元信息">
-        {metadata_items.map((item, index) => (
-          <div key={item} style={metadata_style(index)}>
-            {item}
+      <div className="top-bar-inner">
+        <div className="title-stack">
+          <div className="section-kicker" style={title_style(0)}>
+            GACHASIMULATE CDF ANALYSIS
           </div>
-        ))}
+          <h1 style={title_style(1)}>{data?.title ?? "抽卡模拟 CDF 分析"}</h1>
+          {data && (
+            <p className="outline" style={title_style(2)}>
+              半数模拟 {data.statistic.P50} 抽内达成，95% 模拟{" "}
+              {data.statistic.P95} 抽内达成。
+            </p>
+          )}
+        </div>
+        <div className="top-meta" aria-label="模拟元信息">
+          {metadata_items.map((item, index) => (
+            <div key={item} style={metadata_style(index)}>
+              {item}
+            </div>
+          ))}
+        </div>
       </div>
     </header>
   );

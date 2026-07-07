@@ -30,11 +30,12 @@
 .visualize-page::before {
   background: var(--color-nvidia-green);
   content: "";
-  height: 24px;
   left: var(--page-margin);
   position: absolute;
+  margin: 0;
   top: var(--page-top-margin);
-  width: 24px;
+  height: var(--square-length);
+  width: var(--square-length);
   z-index: 1;
 }
 
@@ -49,54 +50,60 @@
 }
 
 .top-bar {
-  align-items: start;
   animation: none;
-  display: grid;
-  gap: 64px;
-  grid-template-columns: minmax(0, 80fr) minmax(0, 20fr);
   height: var(--top-height);
   position: relative;
   z-index: 1;
 }
 
+.top-bar-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 80fr) minmax(0, 20fr);
+  gap: 64px;
+  align-items: stretch;
+}
+
 .title-stack {
   padding-left: 56px;
+  display: grid;
+  gap: 10px;
+  justify-items: start;
 }
 
 .section-kicker {
   color: var(--color-nvidia-green);
-  font-size: 22px;
+  font-size: var(--square-length);
   font-weight: 700;
   letter-spacing: 0.2px;
   line-height: 1;
-  margin-bottom: 18px;
+  margin: 0;
   text-transform: uppercase;
 }
 
 .title-stack h1 {
   color: var(--color-text-primary);
-  font-size: 72px;
+  font-size: 80px;
   font-weight: 700;
   letter-spacing: 0;
-  line-height: 1.12;
+  line-height: 1.2;
   margin: 0;
 }
 
 .title-stack p {
   color: var(--color-text-muted);
-  font-size: 30px;
-  line-height: 1.35;
-  margin: 18px 0 0;
+  font-size: 40px;
+  line-height: 1.2;
+  margin: 0;
 }
 
 .top-meta {
   color: var(--color-text-muted);
   display: grid;
-  font-size: 30px;
-  gap: 14px;
+  font-size: 42px;
+  gap: 20px;
   justify-items: start;
-  line-height: 1.38;
-  margin: 40px 0 0;
+  line-height: 1.2;
+  margin: 0;
   min-width: 0;
   text-align: left;
 }
@@ -208,11 +215,11 @@
 .cdf-chart-shell::before {
   background: var(--color-nvidia-green);
   content: "";
-  height: 24px;
   position: absolute;
   right: 0;
   top: 0;
-  width: 24px;
+  height: var(--square-length);
+  width: var(--square-length);
   z-index: 2;
 }
 
@@ -334,11 +341,11 @@
 .statistic-panel::before {
   background: var(--color-nvidia-green);
   content: "";
-  height: 24px;
   position: absolute;
   right: 0;
   top: 0;
-  width: 24px;
+  height: var(--square-length);
+  width: var(--square-length);
 }
 
 .panel-heading {
@@ -554,11 +561,11 @@
 .termination-region::before {
   background: var(--color-nvidia-green);
   content: "";
-  height: 24px;
   position: absolute;
   right: 0;
   top: 0;
-  width: 24px;
+  height: var(--square-length);
+  width: var(--square-length);
 }
 
 .termination-copy h2 {
