@@ -1,0 +1,56 @@
+retained_items:
+  - fragment0: 1
+  - fragment1: 1
+  - fragment2: 1
+  - fragment3: 1
+  - fragment4: 1
+  - fragment5: 1
+  - fragment6: 1
+  - fragment7: 1
+  - fragment8: 1
+  - fragment9: 1
+  - fragment10: 1
+  - fragment11: 1
+  - fragment12: 1
+  - fragment13: 1
+  - fragment14: 1
+  - fragment15: 1
+  - fragment16: 1
+  - fragment17: 1
+  - fragment18: 1
+  - fragment19: 1
+  - fragment20: 1
+  - fragment21: 1
+  - fragment22: 1
+  - fragment23: 1
+  - fragment24: 1
+termination_rule:
+  condition:
+    op: "&&"
+    children:
+      - check: "fragment0 >= 1"
+      - check: "fragment1 >= 1"
+      - check: "fragment2 >= 1"
+      - check: "fragment3 >= 1"
+      - check: "fragment4 >= 1"
+      - check: "fragment5 >= 1"
+      - check: "fragment6 >= 1"
+      - check: "fragment7 >= 1"
+      - check: "fragment8 >= 1"
+      - check: "fragment9 >= 1"
+      - check: "fragment10 >= 1"
+      - check: "fragment11 >= 1"
+      - check: "fragment12 >= 1"
+      - check: "fragment13 >= 1"
+      - check: "fragment14 >= 1"
+      - check: "fragment15 >= 1"
+      - check: "fragment16 >= 1"
+      - check: "fragment17 >= 1"
+      - check: "fragment18 >= 1"
+      - check: "fragment19 >= 1"
+      - check: "fragment20 >= 1"
+      - check: "fragment21 >= 1"
+      - check: "fragment22 >= 1"
+      - check: "fragment23 >= 1"
+      - check: "fragment24 >= 1"
+    actions: "terminate 集齐25种碎片"
