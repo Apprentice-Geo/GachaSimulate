@@ -1,8 +1,10 @@
+import type { CSSProperties } from "react";
 import { CartesianGrid, LineChart, XAxis, YAxis } from "recharts";
 import { CDFOverlay } from "./CDFOverlay";
 import type { NormalizedVisualizeData } from "../types/visualize_input";
 import { CDF_CHART_VIEW_CONFIG } from "../view/cdf_view_config";
 import { use_element_size } from "../hooks/use_element_size";
+import type { AnimationProgress } from "../animation/progress";
 
 const CHART_MARGIN = {
   top: 116,
@@ -15,8 +17,9 @@ const X_AXIS_HEIGHT = 104; //  X 轴高度
 const Y_CDF_AXIS_TICKS = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1];
 interface CDFChartProps {
   data: NormalizedVisualizeData;
-  animation_key: number;
-  is_animating: boolean;
+  animation_progress: AnimationProgress;
+  fixed_size?: { width: number; height: number };
+  style?: CSSProperties;
 }
 
 function format_percent(value: number): string {
@@ -29,26 +32,35 @@ function format_draw(value: number): string {
   }).format(value);
 }
 
-export function CDFChart({ data, animation_key, is_animating }: CDFChartProps) {
+export function CDFChart({
+  data,
+  animation_progress,
+  fixed_size,
+  style,
+}: CDFChartProps) {
   const [chart_ref, chart_size] = use_element_size<HTMLDivElement>();
+  const render_size = fixed_size ?? chart_size;
 
   return (
     <div
       ref={chart_ref}
       className="cdf-chart-shell"
       data-testid="cdf-chart"
-      data-animating={is_animating}
+      style={style}
     >
       {/* Keep the Y-axis title outside Recharts so its rotated position stays stable in the responsive shell. */}
       <div className="y-axis-title">成功概率</div>
-      {chart_size.width > 0 && chart_size.height > 0 && (
+      {render_size.width > 0 && render_size.height > 0 && (
         <LineChart
           data={data.chart_points}
-          height={chart_size.height}
-          key={`cdf-line-${animation_key}`}
+          height={render_size.height}
           margin={CHART_MARGIN}
           syncId="cdf-chart"
-          width={chart_size.width}
+          width={render_size.width}
+          style={{
+            opacity: animation_progress.chart_surface.opacity,
+            transform: `translateY(${animation_progress.chart_surface.translate_y}px)`,
+          }}
         >
           <CartesianGrid
             stroke={CDF_CHART_VIEW_CONFIG.grid_color}
@@ -84,7 +96,7 @@ export function CDFChart({ data, animation_key, is_animating }: CDFChartProps) {
             type="number"
             width={Y_AXIS_WIDTH}
           />
-          <CDFOverlay data={data} animation_key={animation_key} />
+          <CDFOverlay data={data} animation_progress={animation_progress} />
         </LineChart>
       )}
     </div>

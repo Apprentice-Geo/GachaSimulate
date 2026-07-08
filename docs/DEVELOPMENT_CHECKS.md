@@ -7,8 +7,7 @@
 安装 Python 依赖：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m pip install -e .
+uv sync
 ```
 
 安装 Node 依赖：
@@ -69,7 +68,7 @@ pnpm run format
 - `ruff format --check .`：Python 格式化检查。
 - `ruff check .`：Python lint。
 - `pyright`：Python 类型检查。
-- `python -m build --wheel --no-isolation`：Python wheel 构建检查。
+- `uv build --wheel`：Python wheel 构建检查。
 - `pnpm run format:check`：前端和 schema 格式化检查。
 - `pnpm run lint`：前端 ESLint 检查。
 - `pnpm run typecheck`：TypeScript 类型检查。

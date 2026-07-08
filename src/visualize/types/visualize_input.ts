@@ -3,6 +3,31 @@ export interface TerminationReasonInput {
   proportion: number;
 }
 
+export const VISUALIZE_INPUT_REQUIRED_KEYS = [
+  "title",
+  "target",
+  "draw_counts",
+  "note",
+  "statistic",
+  "termination_reason",
+  "timestamp",
+  "draws",
+  "cumulative",
+] as const;
+
+export const VISUALIZE_STATISTIC_REQUIRED_KEYS = [
+  "P5",
+  "P25",
+  "P50",
+  "P75",
+  "P95",
+  "MIN",
+  "MEAN_LEVEL",
+  "MEAN",
+  "MAX",
+  "COST",
+] as const;
+
 export interface VisualizeStatisticInput {
   P5: number;
   P25: number;

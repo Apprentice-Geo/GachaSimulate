@@ -117,6 +117,63 @@ test("keeps export layout regions present and readable", async ({ page }) => {
   expect(layout_contract!.note_below_main).toBe(true);
 });
 
+test("keeps enlarged preview scrollable from the left edge", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto("/", {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-load-state",
+    "idle",
+  );
+
+  await page.setViewportSize({ width: 1536, height: 864 });
+
+  const scroll_contract = await page.evaluate(() => {
+    const root = document.querySelector("#root");
+    const visualize_root = document.querySelector(
+      '[data-testid="visualize-root"]',
+    );
+    if (
+      !(root instanceof HTMLElement) ||
+      !(visualize_root instanceof HTMLElement)
+    ) {
+      return null;
+    }
+
+    root.scrollLeft = 0;
+    root.scrollTop = 0;
+
+    const root_rect = root.getBoundingClientRect();
+    const visualize_rect = visualize_root.getBoundingClientRect();
+
+    return {
+      root_client_width: root.clientWidth,
+      root_scroll_width: root.scrollWidth,
+      root_client_height: root.clientHeight,
+      root_scroll_height: root.scrollHeight,
+      visualize_left_at_scroll_origin: visualize_rect.left - root_rect.left,
+      visualize_top_at_scroll_origin: visualize_rect.top - root_rect.top,
+    };
+  });
+
+  expect(scroll_contract).not.toBeNull();
+  expect(scroll_contract!.root_scroll_width).toBeGreaterThan(
+    scroll_contract!.root_client_width,
+  );
+  expect(scroll_contract!.root_scroll_height).toBeGreaterThan(
+    scroll_contract!.root_client_height,
+  );
+  expect(
+    scroll_contract!.visualize_left_at_scroll_origin,
+  ).toBeGreaterThanOrEqual(-1);
+  expect(
+    scroll_contract!.visualize_top_at_scroll_origin,
+  ).toBeGreaterThanOrEqual(-1);
+});
+
 test("renders statistic and termination summaries", async ({ page }) => {
   await goto_fixture(page);
 
@@ -258,6 +315,7 @@ test("replay button disables while animation is running", async ({ page }) => {
   );
 
   const replay_button = page.getByTestId("replay-animation");
+  await page.getByTestId("cdf-chart").hover();
   await expect(replay_button).toBeEnabled();
   await replay_button.click();
   await expect(replay_button).toBeDisabled();

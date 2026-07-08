@@ -57,6 +57,37 @@ function clamp_label_x(
   );
 }
 
+export function resolve_marker_label_collisions(
+  views: readonly MarkerView[],
+): MarkerView[] {
+  const adjusted_label_y_by_key = new Map<CDFMarker["key"], number>();
+  const adjusted_sorted_views: MarkerView[] = [];
+
+  [...views]
+    .sort((a, b) => a.label_y - b.label_y)
+    .forEach((view, index) => {
+      const previous_view = adjusted_sorted_views[index - 1];
+      let label_y = view.label_y;
+
+      if (previous_view) {
+        const is_neighboring =
+          Math.abs(view.x - previous_view.x) < 152 &&
+          Math.abs(label_y - previous_view.label_y) < 32;
+        if (is_neighboring) {
+          label_y += index % 2 === 0 ? 24 : -24;
+        }
+      }
+
+      adjusted_label_y_by_key.set(view.marker.key, label_y);
+      adjusted_sorted_views.push({ ...view, label_y });
+    });
+
+  return views.map((view) => ({
+    ...view,
+    label_y: adjusted_label_y_by_key.get(view.marker.key) ?? view.label_y,
+  }));
+}
+
 export function build_marker_views(
   markers: CDFMarker[],
   plot_area: ChartPlotArea | undefined,
@@ -134,22 +165,7 @@ export function build_marker_views(
     };
   });
 
-  const sorted_views = [...views].sort((a, b) => a.label_y - b.label_y);
-  sorted_views.forEach((view, index) => {
-    if (index === 0) {
-      return;
-    }
-
-    const previous_view = sorted_views[index - 1];
-    const is_neighboring =
-      Math.abs(view.x - previous_view.x) < 152 &&
-      Math.abs(view.label_y - previous_view.label_y) < 32;
-    if (is_neighboring) {
-      view.label_y += index % 2 === 0 ? 24 : -24;
-    }
-  });
-
-  return views.map((view) => ({
+  return resolve_marker_label_collisions(views).map((view) => ({
     ...view,
     label_x: clamp_label_x(
       view.label_x,

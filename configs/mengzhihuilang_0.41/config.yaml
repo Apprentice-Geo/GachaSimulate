@@ -1,5 +1,5 @@
 metadata:
-  name: mengzhihuilang_0.93
+  name: mengzhihuilang_0.41
   source: https://www.sanguosha.cn/pc/news-detail-2207.html
   game: 三国杀
   time: "2026_7_4"
@@ -7,9 +7,9 @@ metadata:
   cost_name: 迷迭珠
   amount: 1
   per_cost_to_rmb: 3
+  note: "存在隐藏保底规则，且概率存在异议，即最后一个碎片是24还是25，目前的配置版本是25"
 items:
   - draw_count: Draw count
-  - fragment0
   - fragment1
   - fragment2
   - fragment3
@@ -36,9 +36,6 @@ items:
   - fragment24
   - fragment25
 pools:
-  - pool0:
-      - probability: 1.0
-        actions: fragment0 += 1
   - pool1:
       - probability: 1.0
         actions: fragment1 += 1
@@ -141,11 +138,6 @@ pools:
 every_draw:
   - draw_count += 1
 rules:
-  - switch_to_1:
-      mode: once
-      condition:
-        check: fragment0 >= 1
-        actions: change pool1
   - switch_to_2:
       mode: once
       condition:
@@ -267,4 +259,4 @@ rules:
         check: fragment24 >= 1
         actions: change pool25
 initial:
-  - change pool0
+  - change pool1

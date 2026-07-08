@@ -15,11 +15,11 @@
 
 ## 模块职责
 
-- `simulate.validator`：校验 YAML 配置和终止条件。它负责字段类型、引用合法性、概率和为 1、动作类型、条件类型等静态规则。
-- `simulate.builder`：把 YAML 配置编译为 `RuntimeContext`。编译过程会把 item id、pool id 转换成整数 index，构造 pool CDF、Action 对象、rule 条件树和 termination 条件树。
-- `simulate.runtime`：定义运行期数据结构，包括 `RuntimeContext`、`RuntimeState`、Action、Condition、Rule、Pool、Item。
-- `simulate.engine`：执行单次模拟。`MonteCarlo.run_once()` 在 `RuntimeState` 上执行抽卡循环，直到 termination action 设置终止状态。
-- `simulate.core`：执行批量模拟、并行模拟、结果保存、结果加载和可视化输入生成。
+- `gachasimulate.validator`：校验 YAML 配置和终止条件。它负责字段类型、引用合法性、概率和为 1、动作类型、条件类型等静态规则。
+- `gachasimulate.builder`：把 YAML 配置编译为 `RuntimeContext`。编译过程会把 item id、pool id 转换成整数 index，构造 pool CDF、Action 对象、rule 条件树和 termination 条件树。
+- `gachasimulate.runtime`：定义运行期数据结构，包括 `RuntimeContext`、`RuntimeState`、Action、Condition、Rule、Pool、Item。
+- `gachasimulate.engine`：执行单次模拟。`MonteCarlo.run_once()` 在 `RuntimeState` 上执行抽卡循环，直到 termination action 设置终止状态。
+- `gachasimulate.core`：执行批量模拟、并行模拟、结果保存、结果加载和可视化输入生成。
 
 核心数据流：
 
@@ -45,7 +45,8 @@ builder 构建过程中使用可变的 `RuntimeBuildingContext` 收集列表；�
 - `acquired`：统计用累计获得数量。
 - `reduced`：统计用累计消耗数量。
 - `main_pool_index`：当前主奖池。
-- `rule_execute` 和 `active_rule_indices`：rule 执行状态。
+- `rule_execute`：记录每个 rule 是否曾经触发。
+- `active_rule_indices`：当前仍参与检查的 rule index，`mode: once` 的 rule 触发后会从这里移除。
 - `terminate` 和 `terminate_reason`：终止状态和原因。
 
 `draw_count` 是普通 item，不是 `RuntimeState` 字段或 property。当前 run 已执行抽数通过 `inventory[ctx.draw_count_index]` 读取。
@@ -58,7 +59,7 @@ builder 构建过程中使用可变的 `RuntimeBuildingContext` 收集列表；�
 
 - `AddItem`：增加库存和累计获得。
 - `ReduceItem`：减少库存并增加累计消耗。
-- `SetItem`：直接设置库存，不影响累计获得或累计消耗。
+- `SetItem`：直接设置库存，并按库存差值更新累计获得或累计消耗。
 - `DrawPool`：从指定奖池抽取一次，返回该条目的 actions。
 - `PoolChange`：切换主奖池。
 - `Termination`：设置终止状态和终止原因。
@@ -107,16 +108,19 @@ resolve 用于把超出保留数量的物品分解成其他资源。当前实现
 每次 `AddItem` 增加某个 item 后：
 
 1. 读取当前库存。
-2. 计算保留数量：`max(resolve.retain, retained_items 中的隐式保留 1)`。
-3. 对超出保留数量的每个物品返回一次 resolve actions，由 engine 继续执行。
+2. 计算保留数量：`max(resolve.retain, retained_items)`。
+3. 读取 resolve actions 中唯一的当前 item `-=` 动作数量，作为每批分解消耗量。
+4. 按 `(inventory - retain) // reduce` 计算分解批次数，并返回重复后的 resolve actions tuple，由 engine 继续执行。
 
 重要约束：
 
 - resolve 不是固定点循环。
 - 如果某个 resolve action 产生另一个也需要 resolve 的物品，会在对应 `AddItem` 执行时继续产生后续动作。
+- validator 要求每个 `item_resolve` 的 `actions` 非空，且必须包含且仅包含一个减少当前 item 的 `-=` 动作。
+- validator 会拒绝重复的 `item_resolve.item`，避免 builder 后写覆盖前写导致分解规则依赖列表顺序。
 - 配置仍应避免循环分解链，例如 A 分解产生 B、B 分解又产生 A。
 
-循环分解风险主要由配置作者维护，而不是 validator 强制维护。
+循环分解风险目前仍主要由配置作者维护，而不是 validator 强制维护。
 
 ## Condition Tree
 
@@ -139,9 +143,20 @@ YAML 入口统一使用 `condition` 条件树语法。termination tree 不再有
 
 `simulate_until_total_draw()` 以目标总抽数为停止条件，而不是以目标 run 数为停止条件。单次 run 的抽数可能超过剩余目标，因此最终 `total_draw` 可以大于请求值。
 
+`simulate_fixed_runs()` 以目标 run 数为停止条件。它会执行精确的 `total_runs` 次完整模拟，最终 `total_draw` 是这些 run 的抽数总和。
+
+两种批量入口返回相同的结果结构：
+
+- `seed`：主随机种子。
+- `draw_count`：每次 run 的抽数。
+- `lifetime_acquired`：每次 run 的累计获得数组。
+- `terminate_reasons`：每次 run 的终止原因。
+- `total_draw`：所有 run 的抽数总和。
+- `total_runs`：实际完成的 run 数。
+
 单进程模式直接复用一个 `MonteCarlo` 实例，因此 RNG 会在多次 `run_once()` 之间连续推进。
 
-多进程模式会：
+`simulate_until_total_draw()` 的多进程模式会：
 
 1. 按 worker 数拆分目标抽数。
 2. 用主 seed 生成 `SeedSequence`。
@@ -149,7 +164,14 @@ YAML 入口统一使用 `condition` 条件树语法。termination tree 不再有
 4. 每个 worker 独立构造 `MonteCarlo` 并模拟到自己的目标抽数。
 5. 合并各 worker 的 `draw_count`、`lifetime_acquired`、`terminate_reasons`。
 
+`simulate_fixed_runs()` 的多进程模式会按 worker 数拆分目标 run 数，并使用同样的 `SeedSequence.spawn()` 方式给每个 worker 生成独立随机序列。
+
 并行结果与单进程结果不保证逐 run 相同，但在 seed 固定时应可复现同一并行配置下的结果。
+
+结果保存分两层：
+
+- `save_simulation_result()` 保存 `.npz`，包含 `draw_count`、`lifetime_acquired`、`terminate_reasons`、`total_draw`、`total_runs`、`has_seed`、`seed` 和 `timestamp`。
+- `save_visualize_input()` 保存前端可视化 JSON。它会根据 `draw_count` 生成 CDF、分位数和统计量；终止原因超过 2 类时，保留占比最高的一类，其余合并为 `"其他"`，以满足当前前端展示契约。
 
 ## 当前隐含不变量
 
@@ -186,7 +208,7 @@ Action 类的 `execute()` 允许返回后续 actions。这个协议让 `DrawPool
 
 ### 内存随 run 数增长
 
-批量结果会保存每次 run 的 `draw_count`、`lifetime_acquired` 和 `terminate_reasons`。其中 `lifetime_acquired` 是二维数组，run 数和 item 数都变大时会占用较多内存。
+`simulate_until_total_draw()` 和 `simulate_fixed_runs()` 都会保存每次 run 的 `draw_count`、`lifetime_acquired` 和 `terminate_reasons`。其中 `lifetime_acquired` 是二维数组，run 数和 item 数都变大时会占用较多内存。
 
 如果未来只关心分位数、CDF 和终止原因比例，可以考虑流式聚合或直方图聚合。但当前可视化和统计仍需要 per-run 数据，暂时不建议改。
 

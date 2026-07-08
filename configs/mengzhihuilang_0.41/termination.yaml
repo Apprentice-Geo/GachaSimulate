@@ -1,5 +1,4 @@
 retained_items:
-  - fragment0: 1
   - fragment1: 1
   - fragment2: 1
   - fragment3: 1
@@ -29,7 +28,6 @@ termination_rule:
   condition:
     op: "&&"
     children:
-      - check: "fragment0 >= 1"
       - check: "fragment1 >= 1"
       - check: "fragment2 >= 1"
       - check: "fragment3 >= 1"
@@ -54,4 +52,5 @@ termination_rule:
       - check: "fragment22 >= 1"
       - check: "fragment23 >= 1"
       - check: "fragment24 >= 1"
+      - check: "fragment25 >= 1"
     actions: "terminate 集齐25种碎片"

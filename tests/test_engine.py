@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from io import BytesIO
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 import numpy as np
 import pytest
@@ -37,6 +37,50 @@ from gachasimulate.core import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _load_visualize_input_schema() -> dict[str, Any]:
+    with open(ROOT / "docs/schemas/visualize_input.schema.json", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _matches_json_schema_type(value: Any, expected_type: str) -> bool:
+    if expected_type == "object":
+        return isinstance(value, dict)
+    if expected_type == "array":
+        return isinstance(value, list)
+    if expected_type == "string":
+        return isinstance(value, str)
+    if expected_type == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if expected_type == "number":
+        return isinstance(value, int | float) and not isinstance(value, bool)
+    return True
+
+
+def _assert_matches_schema_subset(value: Any, schema: dict[str, Any], path: str = "$") -> None:
+    expected_type = schema.get("type")
+    if isinstance(expected_type, str):
+        assert _matches_json_schema_type(value, expected_type), (
+            f"{path} expected {expected_type}, got {type(value).__name__}"
+        )
+
+    if isinstance(value, dict):
+        for key in schema.get("required", []):
+            assert key in value, f"{path} missing required key {key}"
+        for key, property_schema in schema.get("properties", {}).items():
+            if key in value:
+                _assert_matches_schema_subset(value[key], property_schema, f"{path}.{key}")
+
+    if isinstance(value, list) and isinstance(schema.get("items"), dict):
+        for index, item in enumerate(value):
+            _assert_matches_schema_subset(item, schema["items"], f"{path}[{index}]")
+
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        if "minimum" in schema:
+            assert value >= schema["minimum"], f"{path} below minimum {schema['minimum']}"
+        if "maximum" in schema:
+            assert value <= schema["maximum"], f"{path} above maximum {schema['maximum']}"
 
 
 def CheckNode(
@@ -822,6 +866,7 @@ def test_saves_visualize_input_json() -> None:
     save_visualize_input(output, result)
     data = json.loads(output.getvalue().decode("utf-8"))
 
+    _assert_matches_schema_subset(data, _load_visualize_input_schema())
     assert data["title"] is not None
     assert data["target"] is not None
     assert data["note"] is not None
@@ -861,6 +906,7 @@ def test_save_visualize_input_accepts_path_and_limits_termination_reasons(tmp_pa
     save_visualize_input(output_path, result)
     data = json.loads(output_path.read_text(encoding="utf-8"))
 
+    _assert_matches_schema_subset(data, _load_visualize_input_schema())
     assert data["termination_reason"] == [
         {"reason": "skin", "proportion": 50},
         {"reason": "其他", "proportion": 50},

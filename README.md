@@ -74,6 +74,13 @@ pnpm run preview
 pnpm run export:cdf -- --input <json文件路径>
 ```
 
+导出使用 [Remotion ](https://github.com/remotion-dev/remotion) 逐帧渲染固定 3840x2160、60fps 的 CDF 画面，默认输出到 `outputs/`：
+
+- `cdf-animation.mp4`
+- `cdf-result.png`
+
+本项目将 Remotion 作为导出层依赖。使用或分发导出功能时，请自行确认符合 Remotion 当前许可证条款。
+
 ## CI 检查
 
 Push 或提交 PR 前检查 [docs/DEVELOPMENT_CHECKS.md](docs/DEVELOPMENT_CHECKS.md) 中的 CI 项目。

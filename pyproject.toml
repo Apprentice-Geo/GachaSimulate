@@ -48,3 +48,6 @@ where = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.pytest.ini_options]
+addopts = "--basetemp=.pytest_tmp"
