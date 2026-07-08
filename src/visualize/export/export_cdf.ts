@@ -52,7 +52,6 @@ async function export_cdf(input_path: string) {
 
   const serve_url = await bundle({
     entryPoint: entry_point,
-    publicDir: path.join(PROJECT_ROOT, "fonts"),
   });
   const input_props = { data };
   const composition = await selectComposition({
