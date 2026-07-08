@@ -74,7 +74,7 @@ pnpm run preview
 pnpm run export:cdf -- --input <json文件路径>
 ```
 
-导出使用 Remotion 逐帧渲染固定 3840x2160、60fps 的 CDF 画面，默认输出到 `outputs/`：
+导出使用 [Remotion ](https://github.com/remotion-dev/remotion) 逐帧渲染固定 3840x2160、60fps 的 CDF 画面，默认输出到 `outputs/`：
 
 - `cdf-animation.mp4`
 - `cdf-result.png`

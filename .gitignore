@@ -13,6 +13,7 @@ results/
 /dist/
 /outputs/
 .pytest_cache/
+.pytest_tmp/
 /test-results/
 .worktrees/
 .coverage
