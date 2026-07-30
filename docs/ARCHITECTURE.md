@@ -35,7 +35,7 @@ config.yaml + termination_*.yaml
 
 ## RuntimeContext 与 RuntimeState
 
-`RuntimeContext` 是单次或多次模拟共享的只读上下文。它包含编译后的物品、奖池、每抽固定动作、规则和终止条件。`draw_count_index` 指向配置中显式声明的 `draw_count` item。
+`RuntimeContext` 是单次或多次模拟共享的只读上下文。它包含编译后的物品、奖池、每抽固定动作、规则和终止条件。`draw_count_index` 指向配置中显式声明的 `draw_count` item；配置声明 `cost` item 时，`cost_index` 指向它，否则为 `None`。
 
 builder 构建过程中使用可变的 `RuntimeBuildingContext` 收集列表；最终产出的 `RuntimeContext` 会把运行期序列冻结为 tuple，包括 `initial_actions`、`every_draw_actions`、`item_list`、`item_resolve_list`、`pool_list`、`pool_draw_list`、`rule_list`、condition actions 和 pool entry actions。`item_resolve_list` 与 `item_list` 按 index 一一对齐，即使某个 item 没有分解规则，也会有一个空的 `ItemResolve` 占位。
 
@@ -49,7 +49,7 @@ builder 构建过程中使用可变的 `RuntimeBuildingContext` 收集列表；�
 - `active_rule_indices`：当前仍参与检查的 rule index，`mode: once` 的 rule 触发后会从这里移除。
 - `terminate` 和 `terminate_reason`：终止状态和原因。
 
-`draw_count` 是普通 item，不是 `RuntimeState` 字段或 property。当前 run 已执行抽数通过 `inventory[ctx.draw_count_index]` 读取。
+`draw_count` 和可选的 `cost` 都是普通 item，不是 `RuntimeState` 字段或 property。当前 run 已执行抽数通过 `inventory[ctx.draw_count_index]` 读取；成本只读取 `inventory[ctx.cost_index]` 的最终值，由配置 actions 自行累计，不根据抽数或 metadata 推导。
 
 这种拆分的好处是：配置编译只做一次，Monte Carlo 热路径只创建轻量 `RuntimeState`，并通过整数 index 访问 NumPy 数组。
 
@@ -149,9 +149,12 @@ YAML 入口统一使用 `condition` 条件树语法。termination tree 不再有
 
 - `seed`：主随机种子。
 - `draw_count`：每次 run 的抽数。
+- `cost`：配置 cost item 时为每次 run 的最终成本，否则为空数组。
 - `lifetime_acquired`：每次 run 的累计获得数组。
 - `terminate_reasons`：每次 run 的终止原因。
 - `total_draw`：所有 run 的抽数总和。
+- `total_cost`：所有 run 的成本总和；未配置 cost 时为 `0`。
+- `has_cost`：配置是否包含 cost item。
 - `total_runs`：实际完成的 run 数。
 
 单进程模式直接复用一个 `MonteCarlo` 实例，因此 RNG 会在多次 `run_once()` 之间连续推进。
@@ -162,7 +165,7 @@ YAML 入口统一使用 `condition` 条件树语法。termination tree 不再有
 2. 用主 seed 生成 `SeedSequence`。
 3. 为每个 worker spawn 子 seed。
 4. 每个 worker 独立构造 `MonteCarlo` 并模拟到自己的目标抽数。
-5. 合并各 worker 的 `draw_count`、`lifetime_acquired`、`terminate_reasons`。
+5. 合并各 worker 的 `draw_count`、`cost`、`lifetime_acquired`、`terminate_reasons` 和总计字段。
 
 `simulate_fixed_runs()` 的多进程模式会按 worker 数拆分目标 run 数，并使用同样的 `SeedSequence.spawn()` 方式给每个 worker 生成独立随机序列。
 
@@ -170,8 +173,8 @@ YAML 入口统一使用 `condition` 条件树语法。termination tree 不再有
 
 结果保存分两层：
 
-- `save_simulation_result()` 保存 `.npz`，包含 `draw_count`、`lifetime_acquired`、`terminate_reasons`、`total_draw`、`total_runs`、`has_seed`、`seed` 和 `timestamp`。
-- `save_visualize_input()` 保存前端可视化 JSON。它会根据 `draw_count` 生成 CDF、分位数和统计量；终止原因超过 2 类时，保留占比最高的一类，其余合并为 `"其他"`，以满足当前前端展示契约。
+- `save_simulation_result()` 保存 `.npz`，包含 `draw_count`、`cost`、`lifetime_acquired`、`terminate_reasons`、`total_draw`、`total_cost`、`total_runs`、`has_cost`、`has_seed`、`seed` 和 `timestamp`。
+- `save_visualize_input()` 根据 `metric` 选择 `draw_count` 或 `cost` 生成 CDF、分位数和统计量。JSON 使用中性字段 `metric`、`total`、`values`，并保留全部终止原因；整数比例使用最大余数法分配，合计始终为 100。`price` 和 `unit` 初始化为空字符串，不读取 config metadata。
 
 ## 当前隐含不变量
 
@@ -208,7 +211,7 @@ Action 类的 `execute()` 允许返回后续 actions。这个协议让 `DrawPool
 
 ### 内存随 run 数增长
 
-`simulate_until_total_draw()` 和 `simulate_fixed_runs()` 都会保存每次 run 的 `draw_count`、`lifetime_acquired` 和 `terminate_reasons`。其中 `lifetime_acquired` 是二维数组，run 数和 item 数都变大时会占用较多内存。
+`simulate_until_total_draw()` 和 `simulate_fixed_runs()` 都会保存每次 run 的 `draw_count`、可选 `cost`、`lifetime_acquired` 和 `terminate_reasons`。其中 `lifetime_acquired` 是二维数组，run 数和 item 数都变大时会占用较多内存。
 
 如果未来只关心分位数、CDF 和终止原因比例，可以考虑流式聚合或直方图聚合。但当前可视化和统计仍需要 per-run 数据，暂时不建议改。
 

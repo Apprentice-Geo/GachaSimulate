@@ -6,8 +6,8 @@ import type {
   StatisticMetric,
 } from "../types/visualize_input";
 import {
-  DISTRIBUTION_STATISTIC_GROUPS,
-  STATISTIC_VIEW_CONFIG,
+  get_distribution_statistic_groups,
+  get_statistic_description,
 } from "../view/statistic_view_config";
 import type { DistributionStatisticKey } from "../view/statistic_view_config";
 
@@ -92,12 +92,17 @@ export function StatisticPanel({
   const metrics_by_key = new Map(
     data?.metrics.map((metric) => [metric.key, metric]),
   );
-  const visible_metric_groups = DISTRIBUTION_STATISTIC_GROUPS.map((group) => ({
-    ...group,
-    keys: order_metric_keys(group.keys, metrics_by_key).filter((key) =>
-      metrics_by_key.has(key),
-    ),
-  })).filter((group) => group.keys.length > 0);
+  const metric_groups = get_distribution_statistic_groups(
+    data?.metric ?? "draw",
+  );
+  const visible_metric_groups = metric_groups
+    .map((group) => ({
+      ...group,
+      keys: order_metric_keys(group.keys, metrics_by_key).filter((key) =>
+        metrics_by_key.has(key),
+      ),
+    }))
+    .filter((group) => group.keys.length > 0);
   let stat_content_index = 0;
   const stat_group_index_by_title = new Map<string, number>();
   const display_index_by_key = new Map<DistributionStatisticKey, number>();
@@ -151,7 +156,7 @@ export function StatisticPanel({
                 return (
                   <MetricRow
                     animation_progress={animation_progress}
-                    description={STATISTIC_VIEW_CONFIG[key].description}
+                    description={get_statistic_description(key, data.metric)}
                     index={display_index_by_key.get(key) ?? 0}
                     key={metric.key}
                     metric={metric}
@@ -163,7 +168,7 @@ export function StatisticPanel({
         </div>
       ) : (
         <div className="metric-placeholder" aria-hidden="true">
-          {DISTRIBUTION_STATISTIC_GROUPS.map((group) => (
+          {metric_groups.map((group) => (
             <div className="metric-placeholder-group" key={group.title}>
               <div className="placeholder-heading" />
               {group.keys.map((key) => (

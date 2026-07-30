@@ -35,8 +35,8 @@ export function get_cdf_level_at_draw(
 }
 
 export function build_chart_points(input: VisualizeInput): CDFPoint[] {
-  return input.draws.map((draw, index) => ({
-    draw,
+  return input.values.map((value, index) => ({
+    draw: value,
     cumulative: input.cumulative[index],
   }));
 }

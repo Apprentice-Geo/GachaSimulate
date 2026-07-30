@@ -67,11 +67,63 @@ test("loads fixture from url input and renders dynamic page regions", async ({
   await expect(page.getByRole("heading", { name: "低抽数区间" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "中抽数区间" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "高抽数区间" })).toBeVisible();
+  await expect(page.getByText("单抽 10 RMB；十连抽 90 RMB")).toBeVisible();
   await expect(page.getByTestId("statistic-panel")).toBeVisible();
   await expect(page.getByTestId("stat-COST")).toHaveCount(0);
   await expect(page.getByTestId("termination-bar")).toBeVisible();
+  await expect(page.locator(".pk-segment")).toHaveCount(3);
+  await expect(page.locator('[data-segment-position="start"]')).toHaveCount(1);
+  await expect(page.locator('[data-segment-position="middle"]')).toHaveCount(1);
+  await expect(page.locator('[data-segment-position="end"]')).toHaveCount(1);
+  const seam_clip_paths = await page
+    .locator('[data-segment-position="middle"], [data-segment-position="end"]')
+    .evaluateAll((segments) =>
+      segments.map((segment) => getComputedStyle(segment).clipPath),
+    );
+  expect(seam_clip_paths).toEqual([
+    "polygon(68px 0px, 100% 0px, 100% 100%, 0px 100%)",
+    "polygon(68px 0px, 100% 0px, 100% 100%, 0px 100%)",
+  ]);
+  await expect(
+    page.getByTestId("stat-P50").locator(".metric-value"),
+  ).toHaveText("39");
   await expect(page.locator(".termination-heading h2")).toBeVisible();
   await expect(page.locator(".page-note")).toBeVisible();
+});
+
+test("renders cost wording, units, and opaque price text", async ({ page }) => {
+  await page.route("**/__visualize_input?**", async (route) => {
+    const response = await route.fetch();
+    const input = await response.json();
+    await route.fulfill({
+      json: {
+        ...input,
+        metric: "cost",
+        total: 1234,
+        price: "单抽 10 RMB；十连抽 90 RMB",
+        unit: "测试币",
+        termination_reason: [{ reason: "达成", proportion: 100 }],
+      },
+    });
+  });
+
+  await goto_fixture(page, { params: { metric: "cost" } });
+
+  await expect(page.getByText("累计成本", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "低成本区间" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "中成本区间" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "高成本区间" })).toBeVisible();
+  await expect(page.getByText("本轮模拟成本：1,234 测试币")).toBeVisible();
+  await expect(
+    page.getByText("单抽 10 RMB；十连抽 90 RMB", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".top-meta")).not.toContainText(
+    "十连抽 90 RMB 测试币",
+  );
+  await expect(
+    page.getByTestId("stat-P50").locator(".metric-value"),
+  ).toHaveText("39");
+  await expect(page.locator('[data-segment-position="single"]')).toHaveCount(1);
 });
 
 test("keeps export layout regions present and readable", async ({ page }) => {

@@ -76,7 +76,7 @@ export function CDFChart({
             tickFormatter={format_draw}
             height={X_AXIS_HEIGHT}
             label={{
-              value: "累计抽数",
+              value: data.axis_title,
               position: "insideBottom",
               offset: -5,
               className: "axis-title",

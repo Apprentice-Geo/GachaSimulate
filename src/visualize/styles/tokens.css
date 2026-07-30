@@ -26,6 +26,12 @@
   --color-text-faint: rgba(247, 243, 255, 0.42);
   --color-pk-a: #6a5fc1;
   --color-pk-b: #fa7faa;
+  --color-pk-c: #22d3ee;
+  --color-pk-d: #76b900;
+  --color-pk-e: #f2c94c;
+  --color-pk-f: #ef9100;
+  --color-pk-g: #4d8dff;
+  --color-pk-h: #e85d75;
   --color-danger: #e52020;
   --color-cdf-line: var(--color-cyan);
   --color-cdf-grid: rgba(247, 243, 255, 0.12);

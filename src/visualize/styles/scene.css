@@ -609,24 +609,35 @@
   width: 100%;
 }
 
-.pk-bar[data-segment-count="2"] {
-  --pk-seam-angle: -45deg;
+.pk-segments {
+  height: 100%;
+  position: relative;
+  transform-origin: left center;
+  width: 100%;
 }
 
 .pk-segment {
   background: var(--segment-color);
   bottom: 0;
-  left: 0;
   position: absolute;
   top: 0;
-  transform-origin: left center;
 }
 
-.pk-segment-diagonal {
+.pk-segment-start {
+  border-radius: 2px 0 0 2px;
+}
+
+.pk-segment-middle,
+.pk-segment-end {
   clip-path: polygon(var(--pk-seam-width) 0, 100% 0, 100% 100%, 0 100%);
-  left: calc(var(--first-segment-width) - var(--pk-seam-width));
-  right: 0;
-  width: auto;
+}
+
+.pk-segment-end {
+  border-radius: 0 2px 2px 0;
+}
+
+.pk-segment-single {
+  border-radius: 2px;
 }
 
 .pk-bar-empty {
@@ -637,6 +648,7 @@
   align-items: center;
   animation: none;
   display: flex;
+  flex-wrap: wrap;
   gap: 36px;
   margin-top: 24px;
 }

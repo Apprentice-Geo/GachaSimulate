@@ -97,6 +97,7 @@ RetainedItemList = [ { ItemId: NonNegativeInteger }, ... ]
 约束：
 
 - `items` 必须包含 `draw_count`。
+- `cost` 是可选 item；需要成本统计时，由配置 actions 按实际规则累计。运行时不会根据抽数或 metadata 推导成本。
 - 同一个 pool 内只能统一使用 `probability` 或统一使用 `weight`。
 - 使用 `probability` 时，单个概率必须大于 `0`，同一个 pool 的概率和必须为 `1`。
 - 使用 `weight` 时，单个权重必须大于 `0`。

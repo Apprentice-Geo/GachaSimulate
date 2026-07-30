@@ -30,27 +30,24 @@ function is_monotonic_non_decreasing(values: number[]): boolean {
 function validate_business_rules(input: VisualizeInput): string[] {
   const errors: string[] = [];
 
-  if (input.draws.length === 0) {
-    errors.push("draws 不能为空。");
+  if (input.values.length === 0) {
+    errors.push("values 不能为空。");
   }
 
-  if (input.draws.length !== input.cumulative.length) {
-    errors.push("draws 与 cumulative 长度必须一致。");
+  if (input.values.length !== input.cumulative.length) {
+    errors.push("values 与 cumulative 长度必须一致。");
   }
 
-  if (!is_monotonic_non_decreasing(input.draws)) {
-    errors.push("draws 必须单调不减。");
+  if (!is_monotonic_non_decreasing(input.values)) {
+    errors.push("values 必须单调不减。");
   }
 
   if (!is_monotonic_non_decreasing(input.cumulative)) {
     errors.push("cumulative 必须单调不减。");
   }
 
-  if (
-    input.termination_reason.length < 1 ||
-    input.termination_reason.length > 2
-  ) {
-    errors.push("termination_reason 至少 1 项，至多 2 项。");
+  if (input.termination_reason.length < 1) {
+    errors.push("termination_reason 至少 1 项。");
   }
 
   const proportion_total = input.termination_reason.reduce(

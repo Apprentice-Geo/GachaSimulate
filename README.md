@@ -37,13 +37,22 @@ uv run gachasimulate --config test --termination termination --total-runs 10
 uv run gachasimulate --config test --termination termination --target-total-draw 100
 ```
 
+按配置中的 `cost` item 生成成本维度可视化：
+
+```powershell
+uv run gachasimulate --config test --termination termination --total-runs 10 --metric cost
+```
+
 默认输出到 `results/`，包括 `.npz` 结果文件和 `_visualize.json` 可视化输入文件。常用参数：
 
 - `--config`：`configs/` 下的配置目录名。
 - `--termination`：终止条件 YAML 文件名，可省略 `.yaml` 后缀。
 - `--seed`：随机种子，默认 `0`。
 - `--workers`：并行 worker 数，默认 `1`。
+- `--metric`：可视化统计维度，可选 `draw` 或 `cost`，默认 `draw`；不改变模拟停止条件。
 - `--results-dir`：输出目录，默认 `results/`。
+
+使用 `--metric cost` 时，配置必须声明 `cost` item 并通过 actions 自行累计。生成的 JSON 中 `price` 和 `unit` 默认为空字符串，可按展示需要直接编辑。
 
 ## 启动可视化
 

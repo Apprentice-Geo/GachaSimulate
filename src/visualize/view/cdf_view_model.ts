@@ -1,7 +1,6 @@
 import { build_marker_data, build_marker_data_from_points } from "../data/cdf";
 import type {
   CDFMarker,
-  CostMetric,
   NormalizedVisualizeData,
   NormalizedVisualizeInputData,
   StatisticKey,
@@ -21,10 +20,9 @@ function format_number(value: number, fraction_digits = 0): string {
 }
 
 function format_metric_value(key: StatisticKey, value: number): string {
-  if (key === "MEAN") {
-    return format_number(value, Number.isInteger(value) ? 0 : 1);
-  }
-  return format_number(value);
+  return key === "MEAN"
+    ? format_number(value, Number.isInteger(value) ? 0 : 1)
+    : format_number(value);
 }
 
 export function build_markers(input: VisualizeInput): CDFMarker[] {
@@ -71,14 +69,6 @@ function build_markers_from_normalized(
   );
 }
 
-function build_cost(input: NormalizedVisualizeInputData): CostMetric {
-  return {
-    value: input.statistic.COST,
-    display_value: format_number(input.statistic.COST),
-    unit: "RMB",
-  };
-}
-
 export function build_visualize_view_model(
   input: NormalizedVisualizeInputData,
 ): NormalizedVisualizeData {
@@ -86,6 +76,5 @@ export function build_visualize_view_model(
     ...input,
     metrics: build_metrics(input),
     markers: build_markers_from_normalized(input),
-    cost: build_cost(input),
   };
 }

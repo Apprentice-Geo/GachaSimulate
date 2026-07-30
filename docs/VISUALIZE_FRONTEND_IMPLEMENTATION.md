@@ -89,7 +89,7 @@
 - `components/TopBar.tsx`：顶部标题、模拟元信息、导入和重放操作。
 - `components/VisualizeShell.tsx`：统一 ready、idle、loading、error 状态的页面主骨架。
 - `constants.ts`：集中定义画布宽高和视频帧率，供预览缩放和 Remotion 规格复用。
-- `data/cdf.ts`：生成 CDF 曲线点，按抽数查询 CDF level，生成 marker 原始数据。
+- `data/cdf.ts`：从中性 `values` 生成 CDF 曲线点，按当前统计值查询 CDF level，生成 marker 原始数据。
 - `data/load_input.ts`：从未知值、文件、项目路径加载输入，并串联校验和规范化。
 - `data/normalize_input.ts`：把 `VisualizeInput` 转为渲染前的 normalized data。
 - `data/validate_input.ts`：使用 `docs/schemas/visualize_input.schema.json` 和业务规则校验输入。
@@ -116,11 +116,13 @@
 
 色彩层级以信息可读性优先。主文字是高对比浅紫白 `#f7f3ff`，次级和弱提示文字使用透明度递减的浅色。CDF 主曲线固定为 Cyan `#22d3ee`，是画面里最强的视觉信号；网格、坐标轴和刻度保持低对比，辅助读数但不抢占曲线。NVIDIA 绿 `#76b900` 没有作为大面积品牌底色使用，只出现在左上角标、标题 kicker、状态图标和部分统计标记上。
 
-CDF 标记采用多色风险谱系，并通过 `view/cdf_view_config.ts` 和 `components/cdf_marker_visuals.ts` 控制颜色与权重。低抽数一侧使用深绿/绿，P50 使用浅绿强调中位数，MEAN 使用紫色，P75/P95/MAX 使用橙到红表达尾部风险。虚线、交点和标签的视觉权重按统计重要性区分：P50 最强，MEAN/P95/MAX 次之，P25/P75 居中，MIN/P5 最弱。
+CDF 标记采用多色风险谱系，并通过 `view/cdf_view_config.ts` 和 `components/cdf_marker_visuals.ts` 控制颜色与权重。低值一侧使用深绿/绿，P50 使用浅绿强调中位数，MEAN 使用紫色，P75/P95/MAX 使用橙到红表达尾部风险。虚线、交点和标签的视觉权重按统计重要性区分：P50 最强，MEAN/P95/MAX 次之，P25/P75 居中，MIN/P5 最弱。
 
-版式是信息密度较高的单页导出画面。顶部标题区左侧显示 `CDF ANALYSIS`、标题和元信息，右侧放置重放与导入操作；主区域使用左侧 CDF 图表、右侧统计面板的布局，当前 CSS 比例为 `80fr / 20fr`。右侧统计面板按低抽数区间、中抽数区间、高抽数区间分组，指标卡用左侧彩色边条对应 marker 颜色，避免大量填色造成噪声。底部只保留达成情况分布条和图例，不再展示额外装饰区块。
+版式是信息密度较高的单页导出画面。顶部标题区左侧显示 `CDF ANALYSIS`、标题和元信息，右侧放置重放与导入操作；主区域使用左侧 CDF 图表、右侧统计面板的布局，当前 CSS 比例为 `80fr / 20fr`。右侧统计面板根据 `metric` 显示低/中/高抽数或成本区间，指标卡用左侧彩色边条对应 marker 颜色，避免大量填色造成噪声。底部只保留达成情况分布条和图例，不再展示额外装饰区块。
 
-终止原因 PK 条延续中性语义约束：颜色固定为 Sentry Violet Link `#6a5fc1` 与 Hot Pink `#fa7faa`，只表达原因对应关系，不表达好坏。两段比例条交界使用左斜 45 度斜切，避免垂直分割线带来的普通报表感。
+终止原因分布条延续中性语义约束：组件按原因 index 从 8 个主题色中循环取色，只表达原因对应关系，不表达好坏。单原因使用完整段样式；多原因按位置使用 start、middle、end 样式，相邻分段使用 `/` 形斜切接缝，图例与分段共用同一颜色映射。
+
+可视化输入通过 `metric: "draw" | "cost"` 切换文案和数值维度。draw 模式固定使用“抽”作为显示单位；cost 模式使用输入的 `unit`，为空时不追加后缀。`price` 是不透明的完整价格文案，页头原样展示且不与 `unit` 拼接；为空时隐藏价格行。旧的 `draw_counts`、`draws` 和 `statistic.COST` 不再兼容。
 
 动画风格同样克制。页面使用淡入、轻微位移、曲线绘制、虚线展开、统计卡片侧向进入和 PK 条填充，不使用夸张弹跳、强粒子、大片 glow 或 sticker/mascot。装饰只服务分析平台的技术感和信息层级。
 
