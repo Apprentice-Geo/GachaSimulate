@@ -43,6 +43,7 @@ def _build_parser() -> argparse.ArgumentParser:
     target_group.add_argument("--total-runs", type=_positive_int)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--workers", type=_positive_int, default=1)
+    parser.add_argument("--metric", choices=("draw", "cost"), default="draw")
     parser.add_argument("--results-dir", type=Path, default=DEFAULT_RESULTS_DIR)
     return parser
 
@@ -60,11 +61,15 @@ def _output_stem(
     termination_name: str,
     goal_kind: str,
     goal_value: int,
+    metric: str,
     seed: int,
     workers: int,
 ) -> str:
     termination_stem = Path(_termination_filename(termination_name)).stem
-    return f"{config_name}_{termination_stem}_{goal_kind}{goal_value}_seed{seed}_workers{workers}"
+    return (
+        f"{config_name}_{termination_stem}_{goal_kind}{goal_value}_"
+        f"metric{metric}_seed{seed}_workers{workers}"
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -78,6 +83,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error(f"termination file not found: {termination_path}")
 
     ctx = build_from_files(config_path, termination_path)
+    if args.metric == "cost" and ctx.cost_index is None:
+        parser.error("metric cost requires a configured cost item")
     simulator = MonteCarlo(ctx, seed=args.seed)
 
     if args.target_total_draw is not None:
@@ -103,6 +110,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         termination_name=args.termination,
         goal_kind=goal_kind,
         goal_value=goal_value,
+        metric=args.metric,
         seed=args.seed,
         workers=args.workers,
     )
@@ -110,11 +118,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     visualize_path = args.results_dir / f"{stem}_visualize.json"
 
     save_simulation_result(result_path, result)
-    save_visualize_input(visualize_path, result)
+    save_visualize_input(visualize_path, result, metric=args.metric)
 
     print(f"config: {config_path}")
     print(f"termination: {termination_path}")
     print(f"target: {goal_kind}={goal_value}")
+    print(f"metric: {args.metric}")
     print(f"total_draw: {int(result['total_draw'])}")
     print(f"total_runs: {int(result['total_runs'])}")
     print(f"npz: {result_path}")

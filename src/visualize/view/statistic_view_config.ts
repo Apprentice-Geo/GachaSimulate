@@ -1,47 +1,61 @@
-import type { StatisticKey } from "../types/visualize_input";
+import type { StatisticKey, VisualizeMetric } from "../types/visualize_input";
 
 export type DistributionStatisticKey = StatisticKey;
 
 interface StatisticViewConfig {
   label: string;
-  description: string;
 }
 
 export const STATISTIC_VIEW_CONFIG: Record<StatisticKey, StatisticViewConfig> =
   {
     P5: {
       label: "P5",
-      description: "5% 模拟在此抽数内达成",
     },
     P25: {
       label: "P25",
-      description: "25% 模拟在此抽数内达成",
     },
     P50: {
       label: "P50",
-      description: "50% 模拟在此抽数内达成",
     },
     P75: {
       label: "P75",
-      description: "75% 模拟在此抽数内达成",
     },
     P95: {
       label: "P95",
-      description: "95% 模拟在此抽数内达成",
     },
     MEAN: {
       label: "MEAN",
-      description: "所有模拟结果的平均抽数",
     },
     MIN: {
       label: "MIN",
-      description: "本轮模拟达成抽数最小值",
     },
     MAX: {
       label: "MAX",
-      description: "本轮模拟达成抽数最大值",
     },
   };
+
+const QUANTILE_PERCENTAGES: Partial<Record<StatisticKey, number>> = {
+  P5: 5,
+  P25: 25,
+  P50: 50,
+  P75: 75,
+  P95: 95,
+};
+
+export function get_statistic_description(
+  key: StatisticKey,
+  metric: VisualizeMetric,
+): string {
+  const metric_label = metric === "draw" ? "抽数" : "成本";
+  const percentage = QUANTILE_PERCENTAGES[key];
+  if (percentage !== undefined) {
+    return `${percentage}% 模拟在此${metric_label}内达成`;
+  }
+  if (key === "MEAN") {
+    return `所有模拟结果的平均${metric_label}`;
+  }
+  return `本轮模拟达成${metric_label}${key === "MIN" ? "最小值" : "最大值"}`;
+}
 
 export const STATISTIC_VIEW_ORDER = [
   "P5",
@@ -54,24 +68,32 @@ export const STATISTIC_VIEW_ORDER = [
   "MAX",
 ] as const satisfies readonly StatisticKey[];
 
-export const DISTRIBUTION_STATISTIC_GROUPS = [
-  {
-    title: "低抽数区间",
-    keys: ["MIN", "P5", "P25"],
-  },
-  {
-    title: "中抽数区间",
-    keys: ["P50", "MEAN"],
-  },
-  {
-    title: "高抽数区间",
-    keys: ["P75", "P95", "MAX"],
-  },
-] as const satisfies readonly {
+const DISTRIBUTION_GROUP_KEYS = [
+  ["MIN", "P5", "P25"],
+  ["P50", "MEAN"],
+  ["P75", "P95", "MAX"],
+] as const satisfies readonly (readonly DistributionStatisticKey[])[];
+
+export function get_distribution_statistic_groups(metric: VisualizeMetric): {
   title: string;
   keys: readonly DistributionStatisticKey[];
-}[];
+}[] {
+  const metric_label = metric === "draw" ? "抽数" : "成本";
+  return ["低", "中", "高"].map((range, index) => ({
+    title: `${range}${metric_label}区间`,
+    keys: DISTRIBUTION_GROUP_KEYS[index],
+  }));
+}
 
 export const TERMINATION_REASON_VIEW_CONFIG = {
-  segment_colors: ["var(--color-pk-a)", "var(--color-pk-b)"],
+  segment_colors: [
+    "var(--color-pk-a)",
+    "var(--color-pk-b)",
+    "var(--color-pk-c)",
+    "var(--color-pk-d)",
+    "var(--color-pk-e)",
+    "var(--color-pk-f)",
+    "var(--color-pk-g)",
+    "var(--color-pk-h)",
+  ],
 } as const;

@@ -1,18 +1,22 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Gacha simulation config",
+  "title": "Gacha simulation visualization input",
   "type": "object",
   "description": "Schema for visualize input json.",
+  "additionalProperties": false,
   "required": [
     "title",
     "target",
-    "draw_counts",
+    "metric",
+    "total",
     "note",
     "statistic",
     "termination_reason",
     "timestamp",
-    "draws",
-    "cumulative"
+    "values",
+    "cumulative",
+    "price",
+    "unit"
   ],
   "properties": {
     "title": {
@@ -21,7 +25,10 @@
     "target": {
       "type": "string"
     },
-    "draw_counts": {
+    "metric": {
+      "enum": ["draw", "cost"]
+    },
+    "total": {
       "type": "integer",
       "minimum": 0
     },
@@ -30,6 +37,7 @@
     },
     "statistic": {
       "type": "object",
+      "additionalProperties": false,
       "required": [
         "P5",
         "P25",
@@ -39,8 +47,7 @@
         "MIN",
         "MEAN_LEVEL",
         "MEAN",
-        "MAX",
-        "COST"
+        "MAX"
       ],
       "properties": {
         "P5": {
@@ -79,17 +86,15 @@
         "MAX": {
           "type": "integer",
           "minimum": 0
-        },
-        "COST": {
-          "type": "integer",
-          "minimum": 0
         }
       }
     },
     "termination_reason": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["reason", "proportion"],
         "properties": {
           "reason": {
@@ -106,7 +111,7 @@
     "timestamp": {
       "type": "integer"
     },
-    "draws": {
+    "values": {
       "type": "array",
       "items": {
         "type": "integer",
@@ -120,6 +125,12 @@
         "minimum": 0,
         "maximum": 1
       }
+    },
+    "price": {
+      "type": "string"
+    },
+    "unit": {
+      "type": "string"
     }
   }
 }

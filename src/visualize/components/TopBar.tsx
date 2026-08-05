@@ -7,12 +7,19 @@ interface TopBarProps {
   animation_progress: AnimationProgress | null;
 }
 
+function format_statistic(value: number, unit: string): string {
+  const formatted = new Intl.NumberFormat("zh-CN", {
+    maximumFractionDigits: Number.isInteger(value) ? 0 : 1,
+  }).format(value);
+  return unit ? `${formatted} ${unit}` : formatted;
+}
+
 export function TopBar({ data, animation_progress }: TopBarProps) {
   const metadata_items = data
     ? [
         `模拟目标：${data.target}`,
-        `本轮模拟抽数：${data.draw_counts_display}`,
-        `单抽成本：${data.cost.display_value} ${data.cost.unit}`,
+        `本轮模拟${data.metric_label}：${data.total_display}`,
+        ...(data.price ? [data.price] : []),
       ]
     : ["导入模拟器输出 JSON 后生成结果页面"];
   const title_style = (index: number) =>
@@ -34,8 +41,10 @@ export function TopBar({ data, animation_progress }: TopBarProps) {
           <h1 style={title_style(1)}>{data?.title ?? "抽卡模拟 CDF 分析"}</h1>
           {data && (
             <p className="outline" style={title_style(2)}>
-              半数模拟 {data.statistic.P50} 抽内达成，95% 模拟{" "}
-              {data.statistic.P95} 抽内达成。
+              半数模拟 {format_statistic(data.statistic.P50, data.display_unit)}
+              内达成，95% 模拟{" "}
+              {format_statistic(data.statistic.P95, data.display_unit)}
+              内达成。
             </p>
           )}
         </div>

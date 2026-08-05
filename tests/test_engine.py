@@ -185,6 +185,7 @@ def _runtime_context(
     rule_id_index,
     rule_list,
     termination_tree,
+    cost_index=None,
 ) -> RuntimeContext:
     item_list = tuple(item_list)
     item_resolve_list = tuple(
@@ -213,6 +214,7 @@ def _runtime_context(
             Rule(condition=_freeze_condition(rule.condition), mode=rule.mode) for rule in rule_list
         ),
         termination_tree=_freeze_condition(termination_tree),
+        cost_index=cost_index,
     )
 
 
@@ -850,6 +852,9 @@ def test_saves_and_loads_simulation_result(sanliou_ctx: RuntimeContext) -> None:
     assert restored["seed"] == 0
     assert restored["lifetime_acquired"].shape[1] == len(ctx.item_list)
     assert len(restored["terminate_reasons"]) == restored["total_runs"]
+    assert restored["has_cost"] is False
+    assert restored["cost"].size == 0
+    assert restored["total_cost"] == 0
 
 
 def test_saves_visualize_input_json() -> None:
@@ -860,6 +865,9 @@ def test_saves_visualize_input_json() -> None:
         "terminate_reasons": np.array(["skin", "exchange", "skin", "skin"], dtype="U32"),
         "total_draw": np.int64(11),
         "total_runs": np.int32(4),
+        "cost": np.array([], dtype=np.int32),
+        "total_cost": np.int64(0),
+        "has_cost": False,
     }
     output = BytesIO()
 
@@ -870,9 +878,13 @@ def test_saves_visualize_input_json() -> None:
     assert data["title"] is not None
     assert data["target"] is not None
     assert data["note"] is not None
-    assert data["draws"] == [1, 2, 4]
+    assert data["metric"] == "draw"
+    assert data["total"] == 11
+    assert data["values"] == [1, 2, 4]
     assert data["cumulative"] == [0.25, 0.5, 1.0]
-    assert len(data["draws"]) == len(data["cumulative"])
+    assert len(data["values"]) == len(data["cumulative"])
+    assert data["price"] == ""
+    assert data["unit"] == ""
     assert data["statistic"] == {
         "P5": 1,
         "P25": 1,
@@ -883,7 +895,6 @@ def test_saves_visualize_input_json() -> None:
         "MEAN_LEVEL": 0.5,
         "MEAN": 2,
         "MAX": 4,
-        "COST": 0,
     }
     assert data["termination_reason"] == [
         {"reason": "exchange", "proportion": 25},
@@ -892,7 +903,7 @@ def test_saves_visualize_input_json() -> None:
     assert isinstance(data["timestamp"], int)
 
 
-def test_save_visualize_input_accepts_path_and_limits_termination_reasons(tmp_path: Path) -> None:
+def test_save_visualize_input_preserves_all_termination_reasons(tmp_path: Path) -> None:
     result = {
         "seed": 0,
         "draw_count": np.array([1, 2, 3, 4], dtype=np.int32),
@@ -900,6 +911,9 @@ def test_save_visualize_input_accepts_path_and_limits_termination_reasons(tmp_pa
         "terminate_reasons": np.array(["skin", "exchange", "skin", "other"], dtype="U32"),
         "total_draw": np.int64(10),
         "total_runs": np.int32(4),
+        "cost": np.array([], dtype=np.int32),
+        "total_cost": np.int64(0),
+        "has_cost": False,
     }
     output_path = tmp_path / "visualize.json"
 
@@ -908,10 +922,91 @@ def test_save_visualize_input_accepts_path_and_limits_termination_reasons(tmp_pa
 
     _assert_matches_schema_subset(data, _load_visualize_input_schema())
     assert data["termination_reason"] == [
+        {"reason": "exchange", "proportion": 25},
+        {"reason": "other", "proportion": 25},
         {"reason": "skin", "proportion": 50},
-        {"reason": "其他", "proportion": 50},
     ]
     assert sum(item["proportion"] for item in data["termination_reason"]) == 100
+
+
+def test_termination_reason_proportions_use_largest_remainder() -> None:
+    result = {
+        "seed": 0,
+        "draw_count": np.ones(6, dtype=np.int32),
+        "lifetime_acquired": np.zeros((6, 1), dtype=np.int32),
+        "terminate_reasons": np.array(["a", "b", "c", "d", "e", "f"], dtype="U32"),
+        "total_draw": np.int64(6),
+        "total_runs": np.int32(6),
+        "cost": np.array([], dtype=np.int32),
+        "total_cost": np.int64(0),
+        "has_cost": False,
+    }
+    output = BytesIO()
+
+    save_visualize_input(output, result)
+    data = json.loads(output.getvalue().decode("utf-8"))
+
+    assert data["termination_reason"] == [
+        {"reason": "a", "proportion": 17},
+        {"reason": "b", "proportion": 17},
+        {"reason": "c", "proportion": 17},
+        {"reason": "d", "proportion": 17},
+        {"reason": "e", "proportion": 16},
+        {"reason": "f", "proportion": 16},
+    ]
+
+
+def test_cost_metric_uses_recorded_cost_values() -> None:
+    item_list = [
+        Item(id="draw_count", name="Draw count"),
+        Item(id="cost", name="Cost"),
+    ]
+    item_id_index = {item.id: i for i, item in enumerate(item_list)}
+    ctx = _runtime_context(
+        initial_actions=[],
+        every_draw_actions=[
+            AddItem(item_index=item_id_index["draw_count"], amount=1),
+            AddItem(item_index=item_id_index["cost"], amount=10),
+        ],
+        item_id_index=item_id_index,
+        draw_count_index=item_id_index["draw_count"],
+        cost_index=item_id_index["cost"],
+        item_list=item_list,
+        item_resolve_list=[],
+        pool_id_index={"main": 0},
+        pool_list=[
+            Pool(
+                cdf=[0.5, 1.0],
+                actions=[
+                    [AddItem(item_index=item_id_index["cost"], amount=1)],
+                    [AddItem(item_index=item_id_index["cost"], amount=3)],
+                ],
+            )
+        ],
+        pool_draw_list=[DrawPool(pool_index=0)],
+        rule_id_index={},
+        rule_list=[],
+        termination_tree=CheckNode(
+            item_index=item_id_index["draw_count"],
+            op=RuntimeOpCode.GE,
+            value=2,
+            actions=[Termination(reason="done")],
+        ),
+    )
+
+    result = simulate_fixed_runs(MonteCarlo(ctx, seed=0), total_runs=8, workers=2)
+
+    assert result["has_cost"] is True
+    assert set(result["cost"].tolist()) <= {22, 24, 26}
+    assert len(set(result["cost"].tolist())) > 1
+    assert result["total_cost"] == int(np.sum(result["cost"]))
+
+    output = BytesIO()
+    save_visualize_input(output, result, metric="cost")
+    data = json.loads(output.getvalue().decode("utf-8"))
+    assert data["metric"] == "cost"
+    assert data["total"] == result["total_cost"]
+    assert data["values"] == sorted(set(result["cost"].tolist()))
 
 
 def test_save_simulation_result_accepts_path(tmp_path: Path) -> None:
@@ -922,6 +1017,9 @@ def test_save_simulation_result_accepts_path(tmp_path: Path) -> None:
         "terminate_reasons": np.array(["done", "done"], dtype="U32"),
         "total_draw": np.int64(3),
         "total_runs": np.int32(2),
+        "cost": np.array([7, 9], dtype=np.int32),
+        "total_cost": np.int64(16),
+        "has_cost": True,
     }
     output_path = tmp_path / "result.npz"
 
@@ -931,6 +1029,9 @@ def test_save_simulation_result_accepts_path(tmp_path: Path) -> None:
     assert restored["seed"] == 123
     assert restored["total_draw"] == 3
     assert restored["total_runs"] == 2
+    assert restored["has_cost"] is True
+    assert restored["cost"].tolist() == [7, 9]
+    assert restored["total_cost"] == 16
 
 
 def test_fixed_runs_returns_exact_run_count() -> None:
@@ -971,6 +1072,9 @@ def test_fixed_runs_returns_exact_run_count() -> None:
     assert result["draw_count"].tolist() == [1] * 5
     assert result["lifetime_acquired"].shape == (5, 2)
     assert result["terminate_reasons"].tolist() == ["done"] * 5
+    assert result["has_cost"] is False
+    assert result["cost"].size == 0
+    assert result["total_cost"] == 0
 
 
 def test_fixed_runs_rejects_non_positive_total_runs(sanliou_ctx: RuntimeContext) -> None:
@@ -1016,6 +1120,7 @@ def test_parallel_simulation_merges_worker_results() -> None:
     assert result["draw_count"].tolist() == [1] * 8
     assert result["lifetime_acquired"].shape == (8, 2)
     assert result["terminate_reasons"].tolist() == ["done"] * 8
+    assert result["has_cost"] is False
 
 
 def test_parallel_fixed_runs_merges_worker_results() -> None:
@@ -1056,3 +1161,4 @@ def test_parallel_fixed_runs_merges_worker_results() -> None:
     assert result["draw_count"].tolist() == [1] * 8
     assert result["lifetime_acquired"].shape == (8, 2)
     assert result["terminate_reasons"].tolist() == ["done"] * 8
+    assert result["has_cost"] is False

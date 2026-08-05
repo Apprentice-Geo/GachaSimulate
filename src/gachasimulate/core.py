@@ -13,9 +13,7 @@ from .engine import MonteCarlo
 
 DEFAULT_VISUALIZE_TITLE = "模拟结果"
 DEFAULT_VISUALIZE_TARGET = "未设置"
-DEFAULT_VISUALIZE_NOTE = "MEAN 受极端抽数影响，P50 更接近“典型体验”，P95 更适合衡量高风险预算。MIN、MAX 受模拟次数影响，不代表理论极限抽数。"
-DEFAULT_VISUALIZE_COST = 0
-OTHER_TERMINATION_REASON = "其他"
+DEFAULT_VISUALIZE_NOTE = "MEAN 受极端值影响，P50 更接近“典型体验”，P95 更适合衡量高风险预算。MIN、MAX 受模拟次数影响，不代表理论极限。"
 type SavePath = str | os.PathLike[str] | BinaryIO
 
 
@@ -31,6 +29,7 @@ def _simulate_until_total_draw_serial(
     """
 
     draw_count = []
+    cost = []
     acquired_records = []
     terminate_reasons = []
 
@@ -50,6 +49,8 @@ def _simulate_until_total_draw_serial(
             run_draw_count = int(state.inventory[sim.ctx.draw_count_index])
 
             draw_count.append(run_draw_count)
+            if sim.ctx.cost_index is not None:
+                cost.append(int(state.inventory[sim.ctx.cost_index]))
             acquired_records.append(state.acquired.copy())
             terminate_reasons.append(state.terminate_reason)
 
@@ -76,10 +77,13 @@ def _simulate_until_total_draw_serial(
     return {
         "seed": sim.seed,
         "draw_count": np.asarray(draw_count, dtype=np.int32),
+        "cost": np.asarray(cost, dtype=np.int32),
         "lifetime_acquired": np.vstack(acquired_records).astype(np.int32),
         "terminate_reasons": np.array(terminate_reasons, dtype="U32"),
         "total_draw": np.int64(total_draw),
+        "total_cost": np.int64(sum(cost)),
         "total_runs": np.int32(total_runs),
+        "has_cost": sim.ctx.cost_index is not None,
     }
 
 
@@ -119,13 +123,16 @@ def _merge_simulation_results(results: list[dict], seed):
         # 直接拼接各个结果的数组，draw_count和terminate_reasons是一维的，而lifetime_acquired是二维的
         # concatenate不指定axis默认是axis=0，即在第0维上拼接
         "draw_count": np.concatenate([result["draw_count"] for result in results]),
+        "cost": np.concatenate([result["cost"] for result in results]),
         # vstack是专门用于拼接二维数组的函数，这里的效果和concatenate(..., axis=0)一样
         "lifetime_acquired": np.vstack([result["lifetime_acquired"] for result in results]).astype(
             np.int32
         ),
         "terminate_reasons": np.concatenate([result["terminate_reasons"] for result in results]),
         "total_draw": np.int64(sum(int(result["total_draw"]) for result in results)),
+        "total_cost": np.int64(sum(int(result["total_cost"]) for result in results)),
         "total_runs": np.int32(sum(int(result["total_runs"]) for result in results)),
+        "has_cost": bool(results[0]["has_cost"]),
     }
 
 
@@ -191,6 +198,7 @@ def _simulate_until_total_draw_parallel(sim: MonteCarlo, target_total_draw: int,
 
 def _simulate_fixed_runs_serial(sim: MonteCarlo, total_runs: int):
     draw_count = []
+    cost = []
     acquired_records = []
     terminate_reasons = []
 
@@ -200,6 +208,8 @@ def _simulate_fixed_runs_serial(sim: MonteCarlo, total_runs: int):
         run_draw_count = int(state.inventory[sim.ctx.draw_count_index])
 
         draw_count.append(run_draw_count)
+        if sim.ctx.cost_index is not None:
+            cost.append(int(state.inventory[sim.ctx.cost_index]))
         acquired_records.append(state.acquired.copy())
         terminate_reasons.append(state.terminate_reason)
 
@@ -208,10 +218,13 @@ def _simulate_fixed_runs_serial(sim: MonteCarlo, total_runs: int):
     return {
         "seed": sim.seed,
         "draw_count": np.asarray(draw_count, dtype=np.int32),
+        "cost": np.asarray(cost, dtype=np.int32),
         "lifetime_acquired": np.vstack(acquired_records).astype(np.int32),
         "terminate_reasons": np.array(terminate_reasons, dtype="U32"),
         "total_draw": np.int64(total_draw),
+        "total_cost": np.int64(sum(cost)),
         "total_runs": np.int32(total_runs),
+        "has_cost": sim.ctx.cost_index is not None,
     }
 
 
@@ -274,10 +287,13 @@ def save_simulation_result(path: SavePath, result: dict):
     np.savez_compressed(
         path,
         draw_count=result["draw_count"],
+        cost=result["cost"],
         lifetime_acquired=result["lifetime_acquired"],
         terminate_reasons=result["terminate_reasons"],
         total_draw=result["total_draw"],
+        total_cost=result["total_cost"],
         total_runs=result["total_runs"],
+        has_cost=result["has_cost"],
         has_seed=result["seed"] is not None,
         seed=0 if result["seed"] is None else int(result["seed"]),
         timestamp=str(datetime.now()),
@@ -298,42 +314,49 @@ def _build_reason_proportions(terminate_reasons: np.ndarray) -> list[dict[str, i
     )
     total_count = sum(int(item["count"]) for item in reason_entries)
 
-    if len(reason_entries) > 2:
-        reason_entries = sorted(
-            reason_entries,
-            key=lambda item: (-int(item["count"]), str(item["reason"])),
-        )
-        reason_entries = [
-            reason_entries[0],
-            {
-                "reason": OTHER_TERMINATION_REASON,
-                "count": sum(int(item["count"]) for item in reason_entries[1:]),
-            },
-        ]
+    exact_proportions = [int(item["count"]) * 100 / total_count for item in reason_entries]
+    proportions = [int(proportion) for proportion in exact_proportions]
+    remainder = 100 - sum(proportions)
+    remainder_order = sorted(
+        range(len(reason_entries)),
+        key=lambda index: (
+            -(exact_proportions[index] - proportions[index]),
+            str(reason_entries[index]["reason"]),
+        ),
+    )
+    for index in remainder_order[:remainder]:
+        proportions[index] += 1
 
-    if len(reason_entries) == 1:
-        return [{"reason": str(reason_entries[0]["reason"]), "proportion": 100}]
-
-    first_proportion = int(round(int(reason_entries[0]["count"]) / total_count * 100))
     return [
-        {"reason": str(reason_entries[0]["reason"]), "proportion": first_proportion},
-        {"reason": str(reason_entries[1]["reason"]), "proportion": 100 - first_proportion},
+        {
+            "reason": str(item["reason"]),
+            "proportion": proportions[index],
+        }
+        for index, item in enumerate(reason_entries)
     ]
 
 
-def _build_visualize_input(result: dict) -> dict:
-    values = np.sort(np.asarray(result["draw_count"]))
+def _build_visualize_input(result: dict, metric: str = "draw") -> dict:
+    if metric not in {"draw", "cost"}:
+        raise ValueError("metric must be 'draw' or 'cost'")
+    if metric == "cost" and not bool(result["has_cost"]):
+        raise ValueError("cost metric requires a configured cost item")
+
+    source_key = "draw_count" if metric == "draw" else "cost"
+    total_key = "total_draw" if metric == "draw" else "total_cost"
+    values = np.sort(np.asarray(result[source_key]))
     count = len(values)
     # 去重，counts是每个唯一值的出现次数，因此下面的前缀和除的是 count
-    draws, draw_counts = np.unique(values, return_counts=True)
+    unique_values, value_counts = np.unique(values, return_counts=True)
     # cumsum: cumulative sum，做前缀和
-    cumulative = np.cumsum(draw_counts) / count
-    mean_draw = int(np.mean(values))
+    cumulative = np.cumsum(value_counts) / count
+    mean_value = int(np.mean(values))
 
     return {
         "title": DEFAULT_VISUALIZE_TITLE,
         "target": DEFAULT_VISUALIZE_TARGET,
-        "draw_counts": int(result["total_draw"]),
+        "metric": metric,
+        "total": int(result[total_key]),
         "note": DEFAULT_VISUALIZE_NOTE,
         "statistic": {
             "P5": int(np.percentile(values, 5)),
@@ -342,20 +365,21 @@ def _build_visualize_input(result: dict) -> dict:
             "P75": int(np.percentile(values, 75)),
             "P95": int(np.percentile(values, 95)),
             "MIN": int(np.min(values)),
-            "MEAN_LEVEL": float(np.searchsorted(values, mean_draw, side="right") / count),
-            "MEAN": mean_draw,
+            "MEAN_LEVEL": float(np.searchsorted(values, mean_value, side="right") / count),
+            "MEAN": mean_value,
             "MAX": int(np.max(values)),
-            "COST": DEFAULT_VISUALIZE_COST,
         },
         "termination_reason": _build_reason_proportions(np.asarray(result["terminate_reasons"])),
         "timestamp": int(datetime.now().timestamp()),
-        "draws": draws.astype(int).tolist(),
+        "values": unique_values.astype(int).tolist(),
         "cumulative": cumulative.astype(float).tolist(),
+        "price": "",
+        "unit": "",
     }
 
 
-def save_visualize_input(path: SavePath, result: dict):
-    visualize_input = _build_visualize_input(result)
+def save_visualize_input(path: SavePath, result: dict, metric: str = "draw"):
+    visualize_input = _build_visualize_input(result, metric=metric)
     content = json.dumps(visualize_input, ensure_ascii=False, indent=4) + "\n"
 
     if isinstance(path, str | os.PathLike):
@@ -371,10 +395,13 @@ def load_simulation_result(path: SavePath):
 
     return {
         "draw_count": data["draw_count"],
+        "cost": data["cost"],
         "lifetime_acquired": data["lifetime_acquired"],
         "terminate_reasons": data["terminate_reasons"],
         "total_draw": int(data["total_draw"]),
+        "total_cost": int(data["total_cost"]),
         "total_runs": int(data["total_runs"]),
+        "has_cost": bool(data["has_cost"]),
         "has_seed": bool(data["has_seed"]),
         "seed": int(data["seed"]) if data["has_seed"] else None,
         "timestamp": str(data["timestamp"]),

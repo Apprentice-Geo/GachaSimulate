@@ -1,7 +1,10 @@
 import type { CSSProperties } from "react";
 import { fade_style } from "../animation/progress";
 import type { AnimationProgress } from "../animation/progress";
-import type { NormalizedVisualizeData } from "../types/visualize_input";
+import type {
+  NormalizedVisualizeData,
+  TerminationReasonInput,
+} from "../types/visualize_input";
 import { TERMINATION_REASON_VIEW_CONFIG } from "../view/statistic_view_config";
 
 interface TerminationBarProps {
@@ -11,10 +14,38 @@ interface TerminationBarProps {
 }
 
 function get_segment_color(index: number): string {
-  return (
-    TERMINATION_REASON_VIEW_CONFIG.segment_colors[index] ??
-    TERMINATION_REASON_VIEW_CONFIG.segment_colors[0]
-  );
+  const colors = TERMINATION_REASON_VIEW_CONFIG.segment_colors;
+  return colors[index % colors.length];
+}
+
+function get_segment_position(
+  index: number,
+  segment_count: number,
+): "single" | "start" | "middle" | "end" {
+  if (segment_count === 1) {
+    return "single";
+  }
+  if (index === 0) {
+    return "start";
+  }
+  if (index === segment_count - 1) {
+    return "end";
+  }
+  return "middle";
+}
+
+function build_segment_layout(reasons: readonly TerminationReasonInput[]) {
+  let cumulative_proportion = 0;
+  return reasons.map((item, index) => {
+    const start = cumulative_proportion;
+    cumulative_proportion += item.proportion;
+    return {
+      item,
+      index,
+      start,
+      position: get_segment_position(index, reasons.length),
+    };
+  });
 }
 
 export function TerminationBar({
@@ -22,6 +53,10 @@ export function TerminationBar({
   animation_progress,
   is_ready,
 }: TerminationBarProps) {
+  const segment_layout = data
+    ? build_segment_layout(data.termination_reason)
+    : [];
+
   return (
     <footer
       className="termination-region"
@@ -44,31 +79,41 @@ export function TerminationBar({
               aria-label="终止原因比例"
               style={
                 {
-                  "--first-segment-width": `${data.termination_reason[0].proportion}%`,
                   opacity: animation_progress?.pk_fill ?? 1,
                 } as CSSProperties
               }
             >
-              {data.termination_reason.map((item, index) => (
-                <div
-                  className={
-                    data.termination_reason.length === 2 && index === 1
-                      ? "pk-segment pk-segment-diagonal"
-                      : "pk-segment"
-                  }
-                  key={item.reason}
-                  style={
-                    {
-                      "--segment-color": get_segment_color(index),
-                      transform: `scaleX(${animation_progress?.pk_fill ?? 1})`,
-                      width:
-                        data.termination_reason.length === 2 && index === 1
-                          ? undefined
-                          : `${item.proportion}%`,
-                    } as CSSProperties
-                  }
-                />
-              ))}
+              <div
+                className="pk-segments"
+                style={{
+                  transform: `scaleX(${animation_progress?.pk_fill ?? 1})`,
+                }}
+              >
+                {segment_layout.map(({ item, index, position, start }) => {
+                  const has_leading_seam =
+                    position === "middle" || position === "end";
+                  return (
+                    <div
+                      className={`pk-segment pk-segment-${position}`}
+                      data-segment-position={position}
+                      key={item.reason}
+                      style={
+                        {
+                          "--segment-color": get_segment_color(index),
+                          display: item.proportion === 0 ? "none" : undefined,
+                          left: has_leading_seam
+                            ? `calc(${start}% - var(--pk-seam-width))`
+                            : `${start}%`,
+                          width: has_leading_seam
+                            ? `calc(${item.proportion}% + var(--pk-seam-width))`
+                            : `${item.proportion}%`,
+                          zIndex: index,
+                        } as CSSProperties
+                      }
+                    />
+                  );
+                })}
+              </div>
             </div>
             <div
               className="reason-list"

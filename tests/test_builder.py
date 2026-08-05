@@ -191,6 +191,17 @@ def test_build_context_uses_probability_pools_directly() -> None:
     np.testing.assert_allclose(ctx.pool_list[0].cdf, np.asarray([0.25, 1.0]))
 
 
+def test_build_context_sets_optional_cost_index() -> None:
+    config = _minimal_config()
+    config["items"].append({"cost": "成本"})
+
+    ctx_with_cost = build_context(config, _minimal_termination())
+    ctx_without_cost = build_context(_minimal_config(), _minimal_termination())
+
+    assert ctx_with_cost.cost_index == ctx_with_cost.item_id_index["cost"]
+    assert ctx_without_cost.cost_index is None
+
+
 def test_build_context_maps_rule_modes_to_rules() -> None:
     config = _minimal_config()
     config["rules"] = [

@@ -42,11 +42,14 @@ function make_valid_input(
   const base_input: VisualizeInput = {
     title: "核心模拟结果",
     target: "target",
-    draw_counts: 3,
+    metric: "draw",
+    total: 3,
     note: "",
     timestamp: 0,
-    draws: [1, 2, 3],
+    values: [1, 2, 3],
     cumulative: [0.25, 0.75, 1],
+    price: "",
+    unit: "",
     statistic: {
       P5: 1,
       P25: 1,
@@ -57,7 +60,6 @@ function make_valid_input(
       MEAN_LEVEL: 0.75,
       MEAN: 2,
       MAX: 3,
-      COST: 0,
     },
     termination_reason: [{ reason: "success", proportion: 100 }],
   };
@@ -147,7 +149,7 @@ test("validate_input enforces termination reason contract", () => {
     true,
   );
 
-  const too_many_reasons = validate_input(
+  const many_reasons = validate_input(
     make_valid_input({
       termination_reason: [
         { reason: "success", proportion: 40 },
@@ -156,8 +158,7 @@ test("validate_input enforces termination reason contract", () => {
       ],
     }),
   );
-  assert.equal(too_many_reasons.valid, false);
-  assert.match(too_many_reasons.errors.join("\n"), /至多 2 项/);
+  assert.equal(many_reasons.valid, true);
 
   const invalid_total = validate_input(
     make_valid_input({
@@ -169,6 +170,33 @@ test("validate_input enforces termination reason contract", () => {
   );
   assert.equal(invalid_total.valid, false);
   assert.match(invalid_total.errors.join("\n"), /合计必须为 100/);
+});
+
+test("validate_input rejects the old draw-specific contract", () => {
+  const old_input = {
+    title: "旧输入",
+    target: "target",
+    draw_counts: 3,
+    note: "",
+    timestamp: 0,
+    draws: [1, 2, 3],
+    cumulative: [0.25, 0.75, 1],
+    statistic: {
+      P5: 1,
+      P25: 1,
+      P50: 2,
+      P75: 2,
+      P95: 3,
+      MIN: 1,
+      MEAN_LEVEL: 0.75,
+      MEAN: 2,
+      MAX: 3,
+      COST: 0,
+    },
+    termination_reason: [{ reason: "success", proportion: 100 }],
+  };
+
+  assert.equal(validate_input(old_input).valid, false);
 });
 
 test("build_marker_views positions labels for p50 and mean", () => {
@@ -274,15 +302,18 @@ test("build_curve_path clamps cumulative values", () => {
   );
 });
 
-test("build_visualize_view_model derives metrics cost and marker weights", () => {
+test("build_visualize_view_model derives metric-aware values and markers", () => {
   const input: VisualizeInput = {
     title: "核心模拟结果",
     target: "target",
-    draw_counts: 100,
+    metric: "cost",
+    total: 100,
     note: "",
     timestamp: 0,
-    draws: [1, 2],
+    values: [1, 2],
     cumulative: [0.5, 1],
+    price: "单抽 10 RMB；十连抽 90 RMB",
+    unit: "测试币",
     statistic: {
       P5: 1,
       P25: 1,
@@ -293,7 +324,6 @@ test("build_visualize_view_model derives metrics cost and marker weights", () =>
       MEAN_LEVEL: 0.75,
       MEAN: 1.5,
       MAX: 2,
-      COST: 6,
     },
     termination_reason: [{ reason: "success", proportion: 100 }],
   };
@@ -301,17 +331,42 @@ test("build_visualize_view_model derives metrics cost and marker weights", () =>
   const normalized_input = normalize_input(input);
   assert.equal("metrics" in normalized_input, false);
   assert.equal("markers" in normalized_input, false);
+  assert.equal(normalized_input.metric, "cost");
+  assert.equal(normalized_input.total_display, "100 测试币");
+  assert.equal(normalized_input.axis_title, "累计成本");
+  assert.equal(normalized_input.price, "单抽 10 RMB；十连抽 90 RMB");
 
   const view_model = build_visualize_view_model(normalized_input);
   assert.deepEqual(
     view_model.metrics.map((metric) => metric.key),
     STATISTIC_VIEW_ORDER,
   );
-  assert.equal(view_model.cost.display_value, "6");
-  assert.equal(view_model.cost.unit, "RMB");
+  assert.equal(
+    view_model.metrics.find((metric) => metric.key === "P50")?.display_value,
+    "1",
+  );
   assert.equal(
     view_model.markers.find((marker) => marker.key === "P50")?.weight,
     "primary",
+  );
+});
+
+test("cost metric omits suffixes when unit and price are empty", () => {
+  const normalized_input = normalize_input(
+    make_valid_input({
+      metric: "cost",
+      price: "",
+      unit: "",
+    }),
+  );
+  const view_model = build_visualize_view_model(normalized_input);
+
+  assert.equal(normalized_input.total_display, "3");
+  assert.equal(normalized_input.axis_title, "累计成本");
+  assert.equal(normalized_input.price, "");
+  assert.equal(
+    view_model.metrics.find((metric) => metric.key === "P50")?.display_value,
+    "2",
   );
 });
 

@@ -72,6 +72,7 @@ class RuntimeContext:
     rule_id_index: dict[str, int]  # 对规则进行编号
     rule_list: tuple[Rule, ...]
     termination_tree: RuntimeCondition
+    cost_index: int | None = None
 
 
 class RuntimeState:

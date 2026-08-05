@@ -1,3 +1,5 @@
+export type VisualizeMetric = "draw" | "cost";
+
 export interface TerminationReasonInput {
   reason: string;
   proportion: number;
@@ -6,13 +8,16 @@ export interface TerminationReasonInput {
 export const VISUALIZE_INPUT_REQUIRED_KEYS = [
   "title",
   "target",
-  "draw_counts",
+  "metric",
+  "total",
   "note",
   "statistic",
   "termination_reason",
   "timestamp",
-  "draws",
+  "values",
   "cumulative",
+  "price",
+  "unit",
 ] as const;
 
 export const VISUALIZE_STATISTIC_REQUIRED_KEYS = [
@@ -25,7 +30,6 @@ export const VISUALIZE_STATISTIC_REQUIRED_KEYS = [
   "MEAN_LEVEL",
   "MEAN",
   "MAX",
-  "COST",
 ] as const;
 
 export interface VisualizeStatisticInput {
@@ -38,19 +42,21 @@ export interface VisualizeStatisticInput {
   MEAN_LEVEL: number;
   MEAN: number;
   MAX: number;
-  COST: number;
 }
 
 export interface VisualizeInput {
   title: string;
   target: string;
-  draw_counts: number;
+  metric: VisualizeMetric;
+  total: number;
   note: string;
   statistic: VisualizeStatisticInput;
   termination_reason: TerminationReasonInput[];
   timestamp: number;
-  draws: number[];
+  values: number[];
   cumulative: number[];
+  price: string;
+  unit: string;
 }
 
 export type StatisticKey =
@@ -86,12 +92,6 @@ export interface StatisticMetric {
   color: string;
 }
 
-export interface CostMetric {
-  value: number;
-  display_value: string;
-  unit: "RMB";
-}
-
 export interface CDFMarker {
   key: MarkerKey;
   label: string;
@@ -110,8 +110,14 @@ export interface CDFMarkerDatum {
 export interface NormalizedVisualizeInputData {
   title: string;
   target: string;
-  draw_counts: number;
-  draw_counts_display: string;
+  metric: VisualizeMetric;
+  metric_label: "抽数" | "成本";
+  total: number;
+  total_display: string;
+  display_unit: string;
+  axis_title: string;
+  price: string;
+  unit: string;
   note: string;
   timestamp: number;
   chart_points: CDFPoint[];
@@ -123,5 +129,4 @@ export interface NormalizedVisualizeInputData {
 export interface NormalizedVisualizeData extends NormalizedVisualizeInputData {
   metrics: StatisticMetric[];
   markers: CDFMarker[];
-  cost: CostMetric;
 }
