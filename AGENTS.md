@@ -1,6 +1,4 @@
-# GachaSimulate 开发说明
-
-本文档只记录本仓库的项目约定。通用编码协作原则已经迁移到 skill，不在这里重复维护。
+# AGENTS.md
 
 ## 项目结构
 
@@ -16,7 +14,7 @@
 - `benchmark/`：基准配置与 `pytest-benchmark` 性能测试。
 - `src/visualize/`：React/Vite 可视化前端。
 - `docs/schemas/visualize_input.schema.json`：前端可视化输入 JSON schema。
-- `docs/ARCHITECTURE.md`：模拟核心架构和运行语义说明。
+- `docs/ARCHITECTURE.md`：项目核心架构说明。
 - `docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md`：可视化前端实现和维护边界。
 - `docs/DEVELOPMENT_CHECKS.md`：push 前完整检查清单。
 
@@ -110,8 +108,10 @@ uv run pytest benchmark --benchmark-only
 
 ## 提交信息
 
-需要写 commit message 时使用 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)，例如：
+需要写 commit message 遵循 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) 规范：
 
 ```text
-docs: update project agent instructions
+<type>(<scope>): <简短描述>
+
+[可选的详细说明]
 ```
