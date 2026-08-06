@@ -1,5 +1,9 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import { join } from "node:path";
+import {
+  initialize_installed_configs,
+  scan_installed_configs,
+} from "./config_manager";
 
 function create_window(): void {
   const window = new BrowserWindow({
@@ -19,6 +23,14 @@ function create_window(): void {
 }
 
 app.whenReady().then(() => {
+  const installed_dir = join(app.getPath("userData"), "configs", "installed");
+  initialize_installed_configs(
+    installed_dir,
+    join(process.cwd(), "configs", "presets"),
+  );
+  ipcMain.handle("list-installed-configs", () =>
+    scan_installed_configs(installed_dir),
+  );
   create_window();
 
   app.on("activate", () => {

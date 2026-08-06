@@ -1,0 +1,6 @@
+id: point_exchange
+name: 积分兑换样例
+description: 展示 cost、积分累计和兑换终止路径
+terminations:
+  - file: termination.yaml
+    name: 完成积分兑换

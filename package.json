@@ -46,7 +46,8 @@
     "react-dom": "^19.2.6",
     "react-is": "^19.2.6",
     "recharts": "^3.8.1",
-    "remotion": "^4.0.484"
+    "remotion": "^4.0.484",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

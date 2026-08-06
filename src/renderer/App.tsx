@@ -2,11 +2,13 @@ import { BarChart3, Play, Store } from "lucide-react";
 import {
   useRef,
   useState,
+  useEffect,
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
 } from "react";
 import VisualizeApp from "../visualize/App";
+import type { InstalledConfig } from "../shared/installed_config";
 
 type Page = "simulation" | "config-store" | "results";
 
@@ -40,22 +42,90 @@ const SIDEBAR_MIN_WIDTH = 72;
 const SIDEBAR_MAX_WIDTH = 320;
 const SIDEBAR_LABEL_WIDTH = 176;
 
-function Placeholder({ page }: { page: "simulation" | "config-store" }) {
-  const is_simulation = page === "simulation";
+function SimulationPage() {
+  const [configs, set_configs] = useState<InstalledConfig[]>([]);
+  const [selected_id, set_selected_id] = useState("");
+  const [loading, set_loading] = useState(true);
+  const [error, set_error] = useState<string | null>(null);
+  const selected =
+    configs.find((config) => config.id === selected_id) ?? configs[0];
+
+  useEffect(() => {
+    if (!window.desktopApi) {
+      set_error("配置扫描 API 不可用，请从 Electron 启动。");
+      set_loading(false);
+      return;
+    }
+    window.desktopApi
+      .listInstalledConfigs()
+      .then((value) => {
+        set_configs(value);
+        set_selected_id(value[0]?.id ?? "");
+      })
+      .catch(() => set_error("配置扫描失败，请检查本地配置目录。"))
+      .finally(() => set_loading(false));
+  }, []);
+
+  return (
+    <section
+      className="renderer-placeholder"
+      aria-labelledby="simulation-title"
+    >
+      <div className="renderer-placeholder-mark" aria-hidden="true">
+        <Play size={24} />
+      </div>
+      <p className="renderer-eyebrow">SIMULATION CONSOLE</p>
+      <h1 id="simulation-title">运行模拟</h1>
+      {loading ? (
+        <p>正在扫描已安装配置…</p>
+      ) : error ? (
+        <p role="alert">{error}</p>
+      ) : configs.length === 0 ? (
+        <p>暂无可用配置，请先安装配置。</p>
+      ) : (
+        <div className="renderer-config-form">
+          <label>
+            配置
+            <select
+              value={selected?.id ?? ""}
+              onChange={(event) => set_selected_id(event.target.value)}
+            >
+              {configs.map((config) => (
+                <option key={config.id} value={config.id}>
+                  {config.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            终止条件
+            <select
+              key={selected?.id}
+              defaultValue={selected?.terminations[0]?.file ?? ""}
+            >
+              {selected?.terminations.map((termination) => (
+                <option key={termination.file} value={termination.file}>
+                  {termination.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p>{selected?.description}</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Placeholder({ page }: { page: "config-store" }) {
   return (
     <section className="renderer-placeholder" aria-labelledby={`${page}-title`}>
       <div className="renderer-placeholder-mark" aria-hidden="true">
-        {is_simulation ? <Play size={24} /> : <Store size={24} />}
+        <Store size={24} />
       </div>
-      <p className="renderer-eyebrow">
-        {is_simulation ? "SIMULATION CONSOLE" : "CONFIGURATION CATALOG"}
-      </p>
-      <h1 id={`${page}-title`}>{is_simulation ? "运行模拟" : "配置商店"}</h1>
-      <p>
-        {is_simulation
-          ? "模拟任务表单将在后续阶段接入。"
-          : "配置商店正在准备中，后续将提供配置浏览与安装。"}
-      </p>
+      <p className="renderer-eyebrow">CONFIGURATION CATALOG</p>
+      <h1 id={`${page}-title`}>配置商店</h1>
+      <p>配置商店正在准备中，后续将提供配置浏览与安装。</p>
     </section>
   );
 }
@@ -175,8 +245,10 @@ export default function App() {
         <div className="renderer-content">
           {active_page === "results" ? (
             <VisualizeApp />
+          ) : active_page === "simulation" ? (
+            <SimulationPage />
           ) : (
-            <Placeholder page={active_page} />
+            <Placeholder page="config-store" />
           )}
         </div>
       </main>
