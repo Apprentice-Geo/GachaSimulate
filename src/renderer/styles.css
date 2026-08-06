@@ -222,6 +222,94 @@ button:focus-visible {
   margin: 0;
 }
 
+.simulation-page {
+  justify-content: flex-start;
+  max-width: 900px;
+}
+
+.renderer-config-form {
+  display: grid;
+  gap: 18px;
+  max-width: 680px;
+  width: 100%;
+}
+
+.renderer-config-form label,
+.renderer-config-form fieldset {
+  color: var(--color-text-muted);
+  display: grid;
+  gap: 7px;
+}
+
+.renderer-config-form select,
+.renderer-config-form input {
+  background: var(--color-panel);
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: var(--radius-button);
+  color: var(--color-text-primary);
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.renderer-config-form fieldset {
+  border: 1px solid var(--color-hairline);
+  padding: 14px;
+}
+
+.renderer-config-form legend {
+  padding: 0 5px;
+}
+
+.simulation-radio {
+  display: inline-flex !important;
+  align-items: center;
+  grid-template-columns: auto 1fr;
+}
+
+.simulation-radio input {
+  min-height: auto;
+}
+
+.simulation-fields {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.simulation-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.simulation-actions button {
+  align-items: center;
+  background: var(--color-nvidia-green);
+  border: 0;
+  border-radius: var(--radius-button);
+  color: var(--color-canvas);
+  display: inline-flex;
+  gap: 7px;
+  padding: 10px 15px;
+}
+
+.simulation-actions button:last-child {
+  background: var(--color-panel);
+  border: 1px solid var(--color-hairline-strong);
+  color: var(--color-text-primary);
+}
+
+.simulation-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.simulation-status {
+  color: var(--color-text-muted);
+  display: grid;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

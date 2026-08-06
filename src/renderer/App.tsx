@@ -9,6 +9,7 @@ import {
 } from "react";
 import VisualizeApp from "../visualize/App";
 import type { InstalledConfig } from "../shared/installed_config";
+import type { SimulationRequest, SimulationStatus } from "../shared/simulation";
 
 type Page = "simulation" | "config-store" | "results";
 
@@ -47,6 +48,15 @@ function SimulationPage() {
   const [selected_id, set_selected_id] = useState("");
   const [loading, set_loading] = useState(true);
   const [error, set_error] = useState<string | null>(null);
+  const [termination, set_termination] = useState("");
+  const [target_kind, set_target_kind] = useState<"totalRuns" | "targetTotalDraw">("totalRuns");
+  const [target_value, set_target_value] = useState("10");
+  const [seed, set_seed] = useState("0");
+  const [workers, set_workers] = useState("1");
+  const [metric, set_metric] = useState<"draw" | "cost">("draw");
+  const [status, set_status] = useState<SimulationStatus>("idle");
+  const [progress, set_progress] = useState<{ completed: number; total: number; unit: string } | null>(null);
+  const [result_path, set_result_path] = useState("");
   const selected =
     configs.find((config) => config.id === selected_id) ?? configs[0];
 
@@ -61,16 +71,48 @@ function SimulationPage() {
       .then((value) => {
         set_configs(value);
         set_selected_id(value[0]?.id ?? "");
+        set_termination(value[0]?.terminations[0]?.file ?? "");
       })
       .catch(() => set_error("配置扫描失败，请检查本地配置目录。"))
       .finally(() => set_loading(false));
   }, []);
 
+  useEffect(() => {
+    if (!window.desktopApi) return;
+    return window.desktopApi.onSimulationEvent(({ status: next_status, event, message }) => {
+      set_status(next_status);
+      if (event?.type === "progress") set_progress(event);
+      if (event?.type === "completed") set_result_path(event.result_path);
+      if (message) set_error(message);
+    });
+  }, []);
+
+  useEffect(() => {
+    set_termination(selected?.terminations[0]?.file ?? "");
+  }, [selected_id, selected]);
+
+  const busy = ["starting", "running", "saving", "cancelling"].includes(status);
+  const start = async () => {
+    set_error(null);
+    set_result_path("");
+    const request: SimulationRequest = {
+      configId: selected?.id ?? "",
+      termination,
+      target: { kind: target_kind, value: Number(target_value) } as SimulationRequest["target"],
+      seed: Number(seed),
+      workers: Number(workers),
+      metric,
+    };
+    try {
+      await window.desktopApi.startSimulation(request);
+    } catch (reason) {
+      set_status("failed");
+      set_error(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
   return (
-    <section
-      className="renderer-placeholder"
-      aria-labelledby="simulation-title"
-    >
+    <section className="renderer-placeholder simulation-page" aria-labelledby="simulation-title">
       <div className="renderer-placeholder-mark" aria-hidden="true">
         <Play size={24} />
       </div>
@@ -87,6 +129,7 @@ function SimulationPage() {
           <label>
             配置
             <select
+              disabled={busy}
               value={selected?.id ?? ""}
               onChange={(event) => set_selected_id(event.target.value)}
             >
@@ -100,8 +143,9 @@ function SimulationPage() {
           <label>
             终止条件
             <select
-              key={selected?.id}
-              defaultValue={selected?.terminations[0]?.file ?? ""}
+              disabled={busy}
+              value={termination}
+              onChange={(event) => set_termination(event.target.value)}
             >
               {selected?.terminations.map((termination) => (
                 <option key={termination.file} value={termination.file}>
@@ -111,6 +155,27 @@ function SimulationPage() {
             </select>
           </label>
           <p>{selected?.description}</p>
+          <fieldset disabled={busy}>
+            <legend>目标</legend>
+            <label className="simulation-radio"><input type="radio" checked={target_kind === "totalRuns"} onChange={() => set_target_kind("totalRuns")} />固定次数</label>
+            <label className="simulation-radio"><input type="radio" checked={target_kind === "targetTotalDraw"} onChange={() => set_target_kind("targetTotalDraw")} />累计抽数</label>
+            <input aria-label="目标值" type="number" min="1" value={target_value} onChange={(event) => set_target_value(event.target.value)} />
+          </fieldset>
+          <div className="simulation-fields">
+            <label>Seed<input disabled={busy} type="number" step="1" value={seed} onChange={(event) => set_seed(event.target.value)} /></label>
+            <label>Workers<input disabled={busy} type="number" min="1" step="1" value={workers} onChange={(event) => set_workers(event.target.value)} /></label>
+            <label>Metric<select disabled={busy} value={metric} onChange={(event) => set_metric(event.target.value as "draw" | "cost")}><option value="draw">抽数</option><option value="cost">成本</option></select></label>
+          </div>
+          <div className="simulation-actions">
+            <button type="button" disabled={busy} onClick={() => void start()}><Play size={16} aria-hidden="true" />启动模拟</button>
+            <button type="button" disabled={!busy || status === "cancelling"} onClick={() => void window.desktopApi.cancelSimulation()}>取消</button>
+          </div>
+          <div className="simulation-status" role="status">
+            <span>状态：{status}</span>
+            {progress && <span>进度：{progress.completed}/{progress.total} {progress.unit}</span>}
+            {result_path && <span>结果：{result_path}</span>}
+            {error && <span role="alert">错误：{error}</span>}
+          </div>
         </div>
       )}
     </section>

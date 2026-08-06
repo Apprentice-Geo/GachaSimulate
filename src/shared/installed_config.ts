@@ -7,6 +7,11 @@ export type InstalledConfig = {
 };
 export type DesktopApi = {
   listInstalledConfigs: () => Promise<InstalledConfig[]>;
+  startSimulation: (request: import("./simulation").SimulationRequest) => Promise<void>;
+  cancelSimulation: () => Promise<void>;
+  onSimulationEvent: (
+    listener: (event: import("./simulation").DesktopSimulationEvent) => void,
+  ) => () => void;
 };
 
 declare global {
