@@ -1,4 +1,5 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   initialize_installed_configs,
@@ -22,17 +23,19 @@ function create_window(): void {
   window.on("close", (event) => {
     if (!simulation?.active || quitting) return;
     event.preventDefault();
-    void dialog.showMessageBox(window, {
-      type: "warning",
-      buttons: ["继续运行", "关闭并取消任务"],
-      defaultId: 0,
-      cancelId: 0,
-      message: "模拟仍在运行，确定要关闭窗口吗？",
-    }).then(({ response }) => {
-      if (response !== 1) return;
-      quitting = true;
-      void simulation.cancel_and_wait().then(() => window.destroy());
-    });
+    void dialog
+      .showMessageBox(window, {
+        type: "warning",
+        buttons: ["继续运行", "关闭并取消任务"],
+        defaultId: 0,
+        cancelId: 0,
+        message: "模拟仍在运行，确定要关闭窗口吗？",
+      })
+      .then(({ response }) => {
+        if (response !== 1) return;
+        quitting = true;
+        void simulation.cancel_and_wait().then(() => window.destroy());
+      });
   });
 
   const renderer_url = process.env.ELECTRON_RENDERER_URL;
@@ -58,11 +61,30 @@ app.whenReady().then(() => {
     scan_installed_configs(installed_dir),
   );
   ipcMain.handle("start-simulation", (_event, request: SimulationRequest) => {
-    if (!scan_installed_configs(installed_dir).some((config) => config.id === request.configId))
+    if (
+      !scan_installed_configs(installed_dir).some(
+        (config) => config.id === request.configId,
+      )
+    )
       throw new Error("installed config not found");
     simulation.start(request);
   });
   ipcMain.handle("cancel-simulation", () => simulation.cancel());
+  ipcMain.handle("select-visualize-file", async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ["openFile"],
+      filters: [{ name: "可视化结果", extensions: ["json"] }],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    const path = result.filePaths[0];
+    if (!path.endsWith("_visualize.json"))
+      throw new Error("请选择以 _visualize.json 结尾的文件");
+    return { path, text: readFileSync(path, "utf8") };
+  });
+  ipcMain.handle("open-results-directory", async () => {
+    const error = await shell.openPath(results_dir);
+    if (error) throw new Error(error);
+  });
   create_window();
 
   app.on("activate", () => {

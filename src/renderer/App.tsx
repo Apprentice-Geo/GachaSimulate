@@ -1,4 +1,4 @@
-import { BarChart3, Play, Store } from "lucide-react";
+import { BarChart3, FolderOpen, Play, Store } from "lucide-react";
 import {
   useRef,
   useState,
@@ -49,13 +49,19 @@ function SimulationPage() {
   const [loading, set_loading] = useState(true);
   const [error, set_error] = useState<string | null>(null);
   const [termination, set_termination] = useState("");
-  const [target_kind, set_target_kind] = useState<"totalRuns" | "targetTotalDraw">("totalRuns");
+  const [target_kind, set_target_kind] = useState<
+    "totalRuns" | "targetTotalDraw"
+  >("totalRuns");
   const [target_value, set_target_value] = useState("10");
   const [seed, set_seed] = useState("0");
   const [workers, set_workers] = useState("1");
   const [metric, set_metric] = useState<"draw" | "cost">("draw");
   const [status, set_status] = useState<SimulationStatus>("idle");
-  const [progress, set_progress] = useState<{ completed: number; total: number; unit: string } | null>(null);
+  const [progress, set_progress] = useState<{
+    completed: number;
+    total: number;
+    unit: string;
+  } | null>(null);
   const [result_path, set_result_path] = useState("");
   const selected =
     configs.find((config) => config.id === selected_id) ?? configs[0];
@@ -79,12 +85,14 @@ function SimulationPage() {
 
   useEffect(() => {
     if (!window.desktopApi) return;
-    return window.desktopApi.onSimulationEvent(({ status: next_status, event, message }) => {
-      set_status(next_status);
-      if (event?.type === "progress") set_progress(event);
-      if (event?.type === "completed") set_result_path(event.result_path);
-      if (message) set_error(message);
-    });
+    return window.desktopApi.onSimulationEvent(
+      ({ status: next_status, event, message }) => {
+        set_status(next_status);
+        if (event?.type === "progress") set_progress(event);
+        if (event?.type === "completed") set_result_path(event.result_path);
+        if (message) set_error(message);
+      },
+    );
   }, []);
 
   useEffect(() => {
@@ -98,7 +106,10 @@ function SimulationPage() {
     const request: SimulationRequest = {
       configId: selected?.id ?? "",
       termination,
-      target: { kind: target_kind, value: Number(target_value) } as SimulationRequest["target"],
+      target: {
+        kind: target_kind,
+        value: Number(target_value),
+      } as SimulationRequest["target"],
       seed: Number(seed),
       workers: Number(workers),
       metric,
@@ -111,8 +122,19 @@ function SimulationPage() {
     }
   };
 
+  const open_results = async () => {
+    try {
+      await window.desktopApi.openResultsDirectory();
+    } catch (reason) {
+      set_error(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
   return (
-    <section className="renderer-placeholder simulation-page" aria-labelledby="simulation-title">
+    <section
+      className="renderer-placeholder simulation-page"
+      aria-labelledby="simulation-title"
+    >
       <div className="renderer-placeholder-mark" aria-hidden="true">
         <Play size={24} />
       </div>
@@ -157,23 +179,93 @@ function SimulationPage() {
           <p>{selected?.description}</p>
           <fieldset disabled={busy}>
             <legend>目标</legend>
-            <label className="simulation-radio"><input type="radio" checked={target_kind === "totalRuns"} onChange={() => set_target_kind("totalRuns")} />固定次数</label>
-            <label className="simulation-radio"><input type="radio" checked={target_kind === "targetTotalDraw"} onChange={() => set_target_kind("targetTotalDraw")} />累计抽数</label>
-            <input aria-label="目标值" type="number" min="1" value={target_value} onChange={(event) => set_target_value(event.target.value)} />
+            <label className="simulation-radio">
+              <input
+                type="radio"
+                checked={target_kind === "totalRuns"}
+                onChange={() => set_target_kind("totalRuns")}
+              />
+              固定次数
+            </label>
+            <label className="simulation-radio">
+              <input
+                type="radio"
+                checked={target_kind === "targetTotalDraw"}
+                onChange={() => set_target_kind("targetTotalDraw")}
+              />
+              累计抽数
+            </label>
+            <input
+              aria-label="目标值"
+              type="number"
+              min="1"
+              value={target_value}
+              onChange={(event) => set_target_value(event.target.value)}
+            />
           </fieldset>
           <div className="simulation-fields">
-            <label>Seed<input disabled={busy} type="number" step="1" value={seed} onChange={(event) => set_seed(event.target.value)} /></label>
-            <label>Workers<input disabled={busy} type="number" min="1" step="1" value={workers} onChange={(event) => set_workers(event.target.value)} /></label>
-            <label>Metric<select disabled={busy} value={metric} onChange={(event) => set_metric(event.target.value as "draw" | "cost")}><option value="draw">抽数</option><option value="cost">成本</option></select></label>
+            <label>
+              Seed
+              <input
+                disabled={busy}
+                type="number"
+                step="1"
+                value={seed}
+                onChange={(event) => set_seed(event.target.value)}
+              />
+            </label>
+            <label>
+              Workers
+              <input
+                disabled={busy}
+                type="number"
+                min="1"
+                step="1"
+                value={workers}
+                onChange={(event) => set_workers(event.target.value)}
+              />
+            </label>
+            <label>
+              Metric
+              <select
+                disabled={busy}
+                value={metric}
+                onChange={(event) =>
+                  set_metric(event.target.value as "draw" | "cost")
+                }
+              >
+                <option value="draw">抽数</option>
+                <option value="cost">成本</option>
+              </select>
+            </label>
           </div>
           <div className="simulation-actions">
-            <button type="button" disabled={busy} onClick={() => void start()}><Play size={16} aria-hidden="true" />启动模拟</button>
-            <button type="button" disabled={!busy || status === "cancelling"} onClick={() => void window.desktopApi.cancelSimulation()}>取消</button>
+            <button type="button" disabled={busy} onClick={() => void start()}>
+              <Play size={16} aria-hidden="true" />
+              启动模拟
+            </button>
+            <button
+              type="button"
+              disabled={!busy || status === "cancelling"}
+              onClick={() => void window.desktopApi.cancelSimulation()}
+            >
+              取消
+            </button>
           </div>
           <div className="simulation-status" role="status">
             <span>状态：{status}</span>
-            {progress && <span>进度：{progress.completed}/{progress.total} {progress.unit}</span>}
+            {progress && (
+              <span>
+                进度：{progress.completed}/{progress.total} {progress.unit}
+              </span>
+            )}
             {result_path && <span>结果：{result_path}</span>}
+            {result_path && (
+              <button type="button" onClick={() => void open_results()}>
+                <FolderOpen size={16} aria-hidden="true" />
+                打开结果目录
+              </button>
+            )}
             {error && <span role="alert">错误：{error}</span>}
           </div>
         </div>
@@ -309,7 +401,9 @@ export default function App() {
       <main className="renderer-main">
         <div className="renderer-content">
           {active_page === "results" ? (
-            <VisualizeApp />
+            <VisualizeApp
+              on_select_file={window.desktopApi?.selectVisualizeFile}
+            />
           ) : active_page === "simulation" ? (
             <SimulationPage />
           ) : (

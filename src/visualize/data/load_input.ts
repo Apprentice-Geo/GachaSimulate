@@ -18,7 +18,12 @@ export async function load_input_from_value(
 export async function load_input_from_file(
   file: File,
 ): Promise<NormalizedVisualizeInputData> {
-  const text = await file.text();
+  return load_input_from_text(await file.text());
+}
+
+export async function load_input_from_text(
+  text: string,
+): Promise<NormalizedVisualizeInputData> {
   const parsed = JSON.parse(text) as unknown;
   return load_input_from_value(parsed);
 }

@@ -11,6 +11,7 @@ import {
   get_input_path_from_url,
   load_input_from_file,
   load_input_from_project_path,
+  load_input_from_text,
 } from "./data/load_input";
 import type { NormalizedVisualizeInputData } from "./types/visualize_input";
 import { build_visualize_view_model } from "./view/cdf_view_model";
@@ -25,7 +26,11 @@ function get_error_message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export default function App() {
+export default function App({
+  on_select_file,
+}: {
+  on_select_file?: () => Promise<{ path: string; text: string } | null>;
+}) {
   const [state, set_state] = useState<AppState>({ status: "idle" });
   const [animation_elapsed_ms, set_animation_elapsed_ms] =
     useState(ANIMATION_TOTAL_MS);
@@ -84,6 +89,24 @@ export default function App() {
       set_state({ status: "error", message: get_error_message(error) });
     }
   }, []);
+
+  const handle_desktop_file_select = useCallback(async () => {
+    if (!on_select_file) return;
+    set_state({ status: "loading" });
+    try {
+      const selected = await on_select_file();
+      if (!selected) {
+        set_state({ status: "idle" });
+        return;
+      }
+      set_state({
+        status: "ready",
+        data: await load_input_from_text(selected.text),
+      });
+    } catch (error) {
+      set_state({ status: "error", message: get_error_message(error) });
+    }
+  }, [on_select_file]);
 
   useEffect(() => {
     const input_path = get_input_path_from_url();
@@ -150,6 +173,9 @@ export default function App() {
         data={data}
         is_animating={is_animating}
         on_file_import={handle_file_import}
+        on_select_file={
+          on_select_file ? () => void handle_desktop_file_select() : undefined
+        }
         on_replay={start_animation}
       />
     );
@@ -175,6 +201,9 @@ export default function App() {
       is_animating={is_animating}
       load_state={state.status}
       on_file_import={handle_file_import}
+      on_select_file={
+        on_select_file ? () => void handle_desktop_file_select() : undefined
+      }
       on_replay={start_animation}
     />
   );
