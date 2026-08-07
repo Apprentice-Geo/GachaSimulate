@@ -330,9 +330,6 @@ export default function App() {
       <aside className="renderer-sidebar">
         <div className="renderer-brand">
           <span className="renderer-brand-mark" aria-hidden="true" />
-          <div className="renderer-brand-copy">
-            <strong>GachaSimulate</strong>
-          </div>
         </div>
         <nav aria-label="主导航">
           <p className="renderer-nav-label">工作台</p>

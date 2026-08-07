@@ -16,7 +16,7 @@ button:focus-visible {
 
 .renderer-shell {
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
+  grid-template-columns: 90px minmax(0, 1fr);
   height: 100%;
   min-width: 680px;
   width: 100%;

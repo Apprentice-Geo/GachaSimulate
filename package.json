@@ -1,9 +1,10 @@
 {
-  "name": "montecarlo-gachasimulate",
+  "name": "gachasimulate",
   "version": "1.0.0",
   "packageManager": "pnpm@11.3.0",
   "description": "",
   "main": "out/main/index.js",
+  "private": true,
   "directories": {
     "doc": "docs",
     "test": "tests"
@@ -25,16 +26,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Apprentice-Geo/MonteCarlo-GachaSimulate.git"
+    "url": "git+https://github.com/Apprentice-Geo/GachaSimulate.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/Apprentice-Geo/MonteCarlo-GachaSimulate/issues"
+    "url": "https://github.com/Apprentice-Geo/GachaSimulate/issues"
   },
-  "homepage": "https://github.com/Apprentice-Geo/MonteCarlo-GachaSimulate#readme",
+  "homepage": "https://github.com/Apprentice-Geo/GachaSimulate#readme",
   "dependencies": {
     "@remotion/bundler": "^4.0.484",
     "@remotion/renderer": "^4.0.484",
