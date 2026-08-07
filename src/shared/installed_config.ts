@@ -7,6 +7,7 @@ export type InstalledConfig = {
 };
 export type DesktopApi = {
   listInstalledConfigs: () => Promise<InstalledConfig[]>;
+  getLogicalCpuCount: () => Promise<number>;
   startSimulation: (
     request: import("./simulation").SimulationRequest,
   ) => Promise<void>;

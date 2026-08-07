@@ -227,6 +227,9 @@ jobs:
       - name: Run visualize CDF tests
         run: pnpm run test:visualize:cdf
 
+      - name: Run simulation tests
+        run: pnpm run test:simulation
+
   e2e:
     name: Playwright e2e
     runs-on: ubuntu-latest

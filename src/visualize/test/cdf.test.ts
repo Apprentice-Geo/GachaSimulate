@@ -5,6 +5,7 @@ import test from "node:test";
 import schema from "../../../docs/schemas/visualize_input.schema.json";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../constants";
 import { normalize_input } from "../data/normalize_input";
+import { load_input_from_text } from "../data/load_input";
 import { get_cdf_level_at_draw } from "../data/cdf";
 import { validate_input } from "../data/validate_input";
 import example_input from "../fixtures/example_input.json";
@@ -133,6 +134,17 @@ test("fixture visualize input satisfies schema and business rules", () => {
 
   assert.equal(result.valid, true);
   assert.deepEqual(result.errors, []);
+});
+
+test("selected file text passes through JSON, schema, and normalization", async () => {
+  const normalized = await load_input_from_text(
+    JSON.stringify(make_valid_input()),
+  );
+  assert.equal(normalized.metric_label, "抽数");
+  assert.equal(normalized.total_display, "3 抽");
+
+  await assert.rejects(load_input_from_text("not json"), SyntaxError);
+  await assert.rejects(load_input_from_text('{"title":"missing fields"}'));
 });
 
 test("validate_input enforces termination reason contract", () => {

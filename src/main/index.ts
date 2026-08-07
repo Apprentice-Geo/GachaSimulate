@@ -1,9 +1,11 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { readFileSync } from "node:fs";
+import { cpus } from "node:os";
 import { join } from "node:path";
 import {
   initialize_installed_configs,
   scan_installed_configs,
+  validate_installed_config_selection,
 } from "./config_manager";
 import { SimulationTask } from "./simulation";
 import type { SimulationRequest } from "../shared/simulation";
@@ -21,8 +23,10 @@ function create_window(): void {
   });
 
   window.on("close", (event) => {
-    if (!simulation?.active || quitting) return;
+    if (!simulation?.active) return;
     event.preventDefault();
+    if (quitting) return;
+    quitting = true;
     void dialog
       .showMessageBox(window, {
         type: "warning",
@@ -32,12 +36,13 @@ function create_window(): void {
         message: "模拟仍在运行，确定要关闭窗口吗？",
       })
       .then(async ({ response }) => {
-        if (response !== 1) return;
-        quitting = true;
+        if (response !== 1) {
+          quitting = false;
+          return;
+        }
         try {
           await simulation.cancel();
           window.destroy();
-          quitting = false;
         } catch (error) {
           quitting = false;
           await dialog.showMessageBox(window, {
@@ -72,13 +77,13 @@ app.whenReady().then(() => {
   ipcMain.handle("list-installed-configs", () =>
     scan_installed_configs(installed_dir),
   );
+  ipcMain.handle("get-logical-cpu-count", () => cpus().length);
   ipcMain.handle("start-simulation", (_event, request: SimulationRequest) => {
-    if (
-      !scan_installed_configs(installed_dir).some(
-        (config) => config.id === request.configId,
-      )
-    )
-      throw new Error("installed config not found");
+    validate_installed_config_selection(
+      installed_dir,
+      request.configId,
+      request.termination,
+    );
     simulation.start(request);
   });
   ipcMain.handle("cancel-simulation", () => simulation.cancel());

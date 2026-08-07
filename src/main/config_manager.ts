@@ -34,6 +34,7 @@ function read_manifest(path: string, directory_name: string): InstalledConfig {
       typeof value.file !== "string" ||
       isAbsolute(value.file) ||
       value.file.includes("\\") ||
+      value.file.includes("/") ||
       typeof value.name !== "string" ||
       !value.name.trim()
     )
@@ -74,6 +75,19 @@ export function scan_installed_configs(
     }
   }
   return configs.sort((left, right) => left.id.localeCompare(right.id));
+}
+
+export function validate_installed_config_selection(
+  installed_dir: string,
+  config_id: string,
+  termination: string,
+): void {
+  const config = scan_installed_configs(installed_dir).find(
+    (installed) => installed.id === config_id,
+  );
+  if (!config) throw new Error("installed config not found");
+  if (!config.terminations.some((item) => item.file === termination))
+    throw new Error("termination is not declared by the installed config");
 }
 
 export function initialize_installed_configs(

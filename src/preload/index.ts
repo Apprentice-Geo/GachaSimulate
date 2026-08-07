@@ -6,6 +6,7 @@ import type {
 
 contextBridge.exposeInMainWorld("desktopApi", {
   listInstalledConfigs: () => ipcRenderer.invoke("list-installed-configs"),
+  getLogicalCpuCount: () => ipcRenderer.invoke("get-logical-cpu-count"),
   startSimulation: (request: SimulationRequest) =>
     ipcRenderer.invoke("start-simulation", request),
   cancelSimulation: () => ipcRenderer.invoke("cancel-simulation"),

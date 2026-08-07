@@ -53,10 +53,10 @@ async function terminate_process_tree(child: ChildProcess): Promise<void> {
       { timeout: TERMINATION_TIMEOUT_MS },
       (error, _stdout, stderr) => {
         const detail = stderr.trim();
-        if (error || detail) {
+        if (error) {
           reject(
             new Error(
-              `failed to terminate simulation: ${detail || error?.message || "taskkill failed"}`,
+              `failed to terminate simulation: ${detail || error.message}`,
             ),
           );
         } else {

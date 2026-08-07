@@ -50,7 +50,13 @@ export type DesktopSimulationEvent = {
 };
 
 const stages = new Set(["loading_config", "simulating", "saving"]);
-const event_types = new Set(["started", "stage", "progress", "completed", "error"]);
+const event_types = new Set([
+  "started",
+  "stage",
+  "progress",
+  "completed",
+  "error",
+]);
 
 function object_value(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -65,7 +71,8 @@ function integer(value: unknown, name: string, minimum = 0): number {
 }
 
 function text(value: unknown, name: string): string {
-  if (typeof value !== "string" || !value.trim()) throw new Error(`${name} must be a non-empty string`);
+  if (typeof value !== "string" || !value.trim())
+    throw new Error(`${name} must be a non-empty string`);
   return value;
 }
 
@@ -73,34 +80,54 @@ export function validate_simulation_request(
   request: SimulationRequest,
   logical_cpu_count = 1,
 ): void {
-  if (!/^[A-Za-z0-9_-]+$/.test(request.configId)) throw new Error("invalid config id");
-  if (!request.termination || request.termination.includes("\\") || request.termination.includes("/"))
+  if (!/^[A-Za-z0-9_-]+$/.test(request.configId))
+    throw new Error("invalid config id");
+  if (
+    !request.termination ||
+    request.termination.includes("\\") ||
+    request.termination.includes("/")
+  )
     throw new Error("termination must be a filename");
-  if (!Number.isInteger(request.seed)) throw new Error("seed must be an integer");
+  if (!Number.isInteger(request.seed))
+    throw new Error("seed must be an integer");
   integer(request.workers, "workers", 1);
-  if (request.workers > logical_cpu_count) throw new Error(`workers must be <= ${logical_cpu_count}`);
-  if (request.metric !== "draw" && request.metric !== "cost") throw new Error("invalid metric");
-  if (request.target.kind !== "totalRuns" && request.target.kind !== "targetTotalDraw")
+  if (request.workers > logical_cpu_count)
+    throw new Error(`workers must be <= ${logical_cpu_count}`);
+  if (request.metric !== "draw" && request.metric !== "cost")
+    throw new Error("invalid metric");
+  if (
+    request.target.kind !== "totalRuns" &&
+    request.target.kind !== "targetTotalDraw"
+  )
     throw new Error("exactly one target is required");
   integer(request.target.value, "target", 1);
 }
 
-export function validate_config_yaml(config_text: string, metric: SimulationRequest["metric"]): void {
+export function validate_config_yaml(
+  config_text: string,
+  metric: SimulationRequest["metric"],
+): void {
   const config = object_value(parse(config_text));
   const items = config.items;
   const item_id = (item: unknown): string =>
-    typeof item === "string" ? item : Object.keys(object_value(item))[0] ?? "";
-  if (!Array.isArray(items) || !items.some((item) =>
-    item_id(item) === "draw_count"))
+    typeof item === "string"
+      ? item
+      : (Object.keys(object_value(item))[0] ?? "");
+  if (
+    !Array.isArray(items) ||
+    !items.some((item) => item_id(item) === "draw_count")
+  )
     throw new Error("config must define draw_count item");
-  if (metric === "cost" && !items.some((item) =>
-    item_id(item) === "cost"))
+  if (metric === "cost" && !items.some((item) => item_id(item) === "cost"))
     throw new Error("metric cost requires a configured cost item");
 }
 
 export function validate_termination_yaml(termination_text: string): void {
   const termination = object_value(parse(termination_text));
-  if (!termination.termination_rule || typeof termination.termination_rule !== "object")
+  if (
+    !termination.termination_rule ||
+    typeof termination.termination_rule !== "object"
+  )
     throw new Error("termination_rule is required");
 }
 
@@ -122,7 +149,8 @@ export function parse_simulation_line(
     return null;
   }
   switch (event.type) {
-    case "started": return { type: "started" };
+    case "started":
+      return { type: "started" };
     case "stage": {
       const stage = text(event.stage, "stage");
       if (!stages.has(stage)) throw new Error("invalid stage");
@@ -131,7 +159,10 @@ export function parse_simulation_line(
     case "progress": {
       const completed = integer(event.completed, "completed");
       const total = integer(event.total, "total", 1);
-      if (completed > total || (event.unit !== "runs" && event.unit !== "draws"))
+      if (
+        completed > total ||
+        (event.unit !== "runs" && event.unit !== "draws")
+      )
         throw new Error("invalid progress event");
       return { type: "progress", completed, total, unit: event.unit };
     }
@@ -143,7 +174,8 @@ export function parse_simulation_line(
         total_runs: integer(event.total_runs, "total_runs", 1),
         total_draw: integer(event.total_draw, "total_draw", 1),
       };
-    case "error": return { type: "error", message: text(event.message, "message") };
+    case "error":
+      return { type: "error", message: text(event.message, "message") };
   }
   throw new Error("unsupported event type");
 }

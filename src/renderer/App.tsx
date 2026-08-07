@@ -9,9 +9,13 @@ import {
 } from "react";
 import VisualizeApp from "../visualize/App";
 import type { InstalledConfig } from "../shared/installed_config";
-import type { SimulationRequest, SimulationStatus } from "../shared/simulation";
+import {
+  validate_simulation_request,
+  type SimulationRequest,
+  type SimulationStatus,
+} from "../shared/simulation";
 
-type Page = "simulation" | "config-store" | "results";
+type Page = "simulation" | "config-repository" | "results";
 
 const pages: Array<{
   id: Page;
@@ -26,8 +30,8 @@ const pages: Array<{
     icon: <Play aria-hidden="true" size={18} />,
   },
   {
-    id: "config-store",
-    label: "配置商店",
+    id: "config-repository",
+    label: "配置仓库",
     description: "浏览可用配置",
     icon: <Store aria-hidden="true" size={18} />,
   },
@@ -56,6 +60,7 @@ function SimulationPage() {
   const [target_value, set_target_value] = useState("10");
   const [seed, set_seed] = useState("0");
   const [workers, set_workers] = useState("1");
+  const [logical_cpu_count, set_logical_cpu_count] = useState(1);
   const [metric, set_metric] = useState<"draw" | "cost">("draw");
   const [status, set_status] = useState<SimulationStatus>("idle");
   const [progress, set_progress] = useState<{
@@ -73,10 +78,13 @@ function SimulationPage() {
       set_loading(false);
       return;
     }
-    window.desktopApi
-      .listInstalledConfigs()
-      .then((value) => {
+    Promise.all([
+      window.desktopApi.listInstalledConfigs(),
+      window.desktopApi.getLogicalCpuCount(),
+    ])
+      .then(([value, cpu_count]) => {
         set_configs(value);
+        set_logical_cpu_count(cpu_count);
         set_selected_id(value[0]?.id ?? "");
         set_termination(value[0]?.terminations[0]?.file ?? "");
       })
@@ -117,6 +125,7 @@ function SimulationPage() {
       metric,
     };
     try {
+      validate_simulation_request(request, logical_cpu_count);
       await window.desktopApi.startSimulation(request);
     } catch (reason) {
       set_status("failed");
@@ -232,11 +241,12 @@ function SimulationPage() {
               />
             </label>
             <label>
-              Workers
+              Workers（1–{logical_cpu_count}）
               <input
                 disabled={busy}
                 type="number"
                 min="1"
+                max={logical_cpu_count}
                 step="1"
                 value={workers}
                 onChange={(event) => set_workers(event.target.value)}
@@ -295,15 +305,15 @@ function SimulationPage() {
   );
 }
 
-function Placeholder({ page }: { page: "config-store" }) {
+function Placeholder({ page }: { page: "config-repository" }) {
   return (
     <section className="renderer-placeholder" aria-labelledby={`${page}-title`}>
       <div className="renderer-placeholder-mark" aria-hidden="true">
         <Store size={24} />
       </div>
       <p className="renderer-eyebrow">CONFIGURATION CATALOG</p>
-      <h1 id={`${page}-title`}>配置商店</h1>
-      <p>配置商店正在准备中，后续将提供配置浏览与安装。</p>
+      <h1 id={`${page}-title`}>配置仓库</h1>
+      <p>配置仓库正在准备中，后续将提供配置浏览与安装。</p>
     </section>
   );
 }
@@ -428,7 +438,7 @@ export default function App() {
           ) : active_page === "simulation" ? (
             <SimulationPage />
           ) : (
-            <Placeholder page="config-store" />
+            <Placeholder page="config-repository" />
           )}
         </div>
       </main>

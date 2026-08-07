@@ -35,6 +35,7 @@ pnpm run format:check
 pnpm run lint
 pnpm run typecheck
 pnpm run build
+pnpm run test:simulation
 pnpm run test:visualize:cdf
 pnpm run test:e2e
 ```
@@ -73,4 +74,4 @@ pnpm run format
 - `pnpm run lint`：前端 ESLint 检查。
 - `pnpm run typecheck`：TypeScript 类型检查。
 - `pnpm run build`：前端生产构建检查。
-- `pytest`、`test:visualize:cdf`、`test:e2e`：测试门禁。
+- `pytest`、`test:simulation`、`test:visualize:cdf`、`test:e2e`：测试门禁。

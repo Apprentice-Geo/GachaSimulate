@@ -12,7 +12,7 @@
 - uv
 - GachaSimulate 仓库源码
 
-本计划完成后，配置商店仍然只是占位页面。远端配置仓库、下载、校验、安装和卸载由后续 `electron_config_store_mvp_plan.md` 单独规划。
+本计划完成后，配置仓库仍然只是占位页面。远端配置仓库、下载、校验、安装和卸载由后续 `electron_config_repository_mvp_plan.md` 单独规划。
 
 ## 2. 范围
 
@@ -20,7 +20,7 @@
 
 - 使用 electron-vite 启动 Electron main、preload 和 React renderer。
 - 单个 `BrowserWindow` 和侧边栏导航。
-- 运行模拟、配置商店占位、结果可视化三个页面。
+- 运行模拟、配置仓库占位、结果可视化三个页面。
 - 从 Electron 用户数据目录扫描已安装配置。
 - 开发模式首次启动时放置匿名的典型预置配置。
 - 模拟参数填写、校验、启动、进度、取消和结果状态。
@@ -32,7 +32,7 @@
 
 ### 2.2 不包含
 
-- 配置仓库和配置商店实际功能。
+- 配置仓库实际功能。
 - 配置下载、SHA-256、ZIP 解压、安装、卸载和更新。
 - 本地配置导入功能。
 - React Router。
@@ -69,7 +69,7 @@ src/
 - renderer 顶层使用简单页面状态切换。
 - 使用侧边栏切换三个固定页面。
 - 模拟完成后停留在运行模拟页面。
-- 配置商店页面显示后续提供的空状态。
+- 配置仓库页面显示后续提供的空状态。
 
 出现深层链接、浏览历史或多个详情页需求后，再评估路由库。
 
@@ -111,7 +111,7 @@ preload 只暴露明确的 `desktopApi`，不暴露通用 IPC channel、Node API
 
 ### 4.1 目的
 
-模拟 MVP 尚无配置商店。如果首次启动后没有配置，桌面模拟流程无法验收。因此仓库提供几个不指涉现实作品或卡池的典型预置配置。
+模拟 MVP 尚无配置仓库。如果首次启动后没有配置，桌面模拟流程无法验收。因此仓库提供几个不指涉现实作品或卡池的典型预置配置。
 
 建议最小集合：
 
@@ -139,7 +139,7 @@ tests/fixtures/configs/
 
 开发模式启动时，如果 `<userData>/configs/installed/` 为空，则复制预置配置。目录非空时不覆盖、不补齐，避免修改用户已有数据。测试专用配置不复制到用户数据目录。
 
-后续配置商店计划再决定预置配置能否卸载和更新。
+后续配置仓库计划再决定预置配置能否卸载和更新。
 
 ### 4.3 最小 manifest 契约
 
@@ -316,6 +316,7 @@ Renderer 只获得以下最小能力：
 ```ts
 interface DesktopApi {
   listInstalledConfigs(): Promise<InstalledConfig[]>;
+  getLogicalCpuCount(): Promise<number>;
   startSimulation(request: SimulationRequest): Promise<void>;
   cancelSimulation(): Promise<void>;
   selectVisualizeFile(): Promise<SelectedVisualizeInput | null>;
@@ -383,7 +384,7 @@ Renderer 请求选择文件
 4. 将 `pnpm dev` 切换为 Electron，增加 `pnpm dev:web`。
 5. 创建安全配置的单个 `BrowserWindow`。
 
-不在本阶段建立配置商店、模拟或文件 IPC 空壳。
+不在本阶段建立配置仓库、模拟或文件 IPC 空壳。
 
 验收：
 
@@ -397,7 +398,7 @@ Renderer 请求选择文件
 工作：
 
 1. 实现侧边栏和三个页面状态。
-2. 配置商店页只显示占位空状态。
+2. 配置仓库页只显示占位空状态。
 3. 把现有可视化能力作为结果页内容复用。
 4. 保持现有深色数据监控台视觉方向和基础可访问性。
 
@@ -481,7 +482,7 @@ Renderer 请求选择文件
 
 1. 更新 README、架构说明、前端实现边界和开发检查命令。
 2. 明确 Electron 仍只支持开发环境。
-3. 将配置商店未实现能力链接到独立后续计划。
+3. 将配置仓库未实现能力链接到独立后续计划。
 4. 运行影响范围内的完整检查。
 
 ## 12. 测试策略
@@ -551,7 +552,7 @@ pnpm run test:e2e
 满足以下条件即完成模拟 MVP：
 
 - `pnpm dev` 可以启动 Electron。
-- 单窗口内可以切换运行模拟、配置商店占位和结果可视化页面。
+- 单窗口内可以切换运行模拟、配置仓库占位和结果可视化页面。
 - 开发环境首次启动可获得匿名预置配置。
 - 能扫描合法配置及终止条件，跳过损坏配置。
 - 能填写和校验两种互斥模拟目标、种子、worker 和统计维度。
@@ -566,11 +567,11 @@ pnpm run test:e2e
 
 ## 15. 后置计划边界
 
-模拟 MVP 只产生和消费本地已安装配置目录，不实现配置来源管理。后续配置商店 MVP 复用以下既有契约：
+模拟 MVP 只产生和消费本地已安装配置目录，不实现配置来源管理。后续配置仓库 MVP 复用以下既有契约：
 
 - `<userData>/configs/installed/<id>/`
 - `manifest.yaml`
 - `config.yaml`
 - manifest 中声明的 termination 文件
 
-配置商店计划负责远端索引、下载、SHA-256、安全解压、原子安装、卸载、离线行为，以及预置配置的更新和卸载策略。不得把这些能力提前塞入模拟 MVP。
+配置仓库计划负责远端索引、下载、SHA-256、安全解压、原子安装、卸载、离线行为，以及预置配置的更新和卸载策略。不得把这些能力提前塞入模拟 MVP。
