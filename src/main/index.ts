@@ -31,10 +31,22 @@ function create_window(): void {
         cancelId: 0,
         message: "模拟仍在运行，确定要关闭窗口吗？",
       })
-      .then(({ response }) => {
+      .then(async ({ response }) => {
         if (response !== 1) return;
         quitting = true;
-        void simulation.cancel_and_wait().then(() => window.destroy());
+        try {
+          await simulation.cancel();
+          window.destroy();
+          quitting = false;
+        } catch (error) {
+          quitting = false;
+          await dialog.showMessageBox(window, {
+            type: "error",
+            buttons: ["确定"],
+            message: "无法终止模拟进程",
+            detail: error instanceof Error ? error.message : String(error),
+          });
+        }
       });
   });
 

@@ -47,7 +47,8 @@ function SimulationPage() {
   const [configs, set_configs] = useState<InstalledConfig[]>([]);
   const [selected_id, set_selected_id] = useState("");
   const [loading, set_loading] = useState(true);
-  const [error, set_error] = useState<string | null>(null);
+  const [config_error, set_config_error] = useState<string | null>(null);
+  const [operation_error, set_operation_error] = useState<string | null>(null);
   const [termination, set_termination] = useState("");
   const [target_kind, set_target_kind] = useState<
     "totalRuns" | "targetTotalDraw"
@@ -68,7 +69,7 @@ function SimulationPage() {
 
   useEffect(() => {
     if (!window.desktopApi) {
-      set_error("配置扫描 API 不可用，请从 Electron 启动。");
+      set_config_error("配置扫描 API 不可用，请从 Electron 启动。");
       set_loading(false);
       return;
     }
@@ -79,7 +80,7 @@ function SimulationPage() {
         set_selected_id(value[0]?.id ?? "");
         set_termination(value[0]?.terminations[0]?.file ?? "");
       })
-      .catch(() => set_error("配置扫描失败，请检查本地配置目录。"))
+      .catch(() => set_config_error("配置扫描失败，请检查本地配置目录。"))
       .finally(() => set_loading(false));
   }, []);
 
@@ -90,7 +91,7 @@ function SimulationPage() {
         set_status(next_status);
         if (event?.type === "progress") set_progress(event);
         if (event?.type === "completed") set_result_path(event.result_path);
-        if (message) set_error(message);
+        if (message) set_operation_error(message);
       },
     );
   }, []);
@@ -101,7 +102,8 @@ function SimulationPage() {
 
   const busy = ["starting", "running", "saving", "cancelling"].includes(status);
   const start = async () => {
-    set_error(null);
+    set_operation_error(null);
+    set_progress(null);
     set_result_path("");
     const request: SimulationRequest = {
       configId: selected?.id ?? "",
@@ -118,7 +120,20 @@ function SimulationPage() {
       await window.desktopApi.startSimulation(request);
     } catch (reason) {
       set_status("failed");
-      set_error(reason instanceof Error ? reason.message : String(reason));
+      set_operation_error(
+        reason instanceof Error ? reason.message : String(reason),
+      );
+    }
+  };
+
+  const cancel = async () => {
+    set_operation_error(null);
+    try {
+      await window.desktopApi.cancelSimulation();
+    } catch (reason) {
+      set_operation_error(
+        reason instanceof Error ? reason.message : String(reason),
+      );
     }
   };
 
@@ -126,7 +141,9 @@ function SimulationPage() {
     try {
       await window.desktopApi.openResultsDirectory();
     } catch (reason) {
-      set_error(reason instanceof Error ? reason.message : String(reason));
+      set_operation_error(
+        reason instanceof Error ? reason.message : String(reason),
+      );
     }
   };
 
@@ -142,8 +159,8 @@ function SimulationPage() {
       <h1 id="simulation-title">运行模拟</h1>
       {loading ? (
         <p>正在扫描已安装配置…</p>
-      ) : error ? (
-        <p role="alert">{error}</p>
+      ) : config_error ? (
+        <p role="alert">{config_error}</p>
       ) : configs.length === 0 ? (
         <p>暂无可用配置，请先安装配置。</p>
       ) : (
@@ -247,11 +264,16 @@ function SimulationPage() {
             <button
               type="button"
               disabled={!busy || status === "cancelling"}
-              onClick={() => void window.desktopApi.cancelSimulation()}
+              onClick={() => void cancel()}
             >
               取消
             </button>
           </div>
+          {operation_error && (
+            <div className="simulation-error" role="alert">
+              错误：{operation_error}
+            </div>
+          )}
           <div className="simulation-status" role="status">
             <span>状态：{status}</span>
             {progress && (
@@ -266,7 +288,6 @@ function SimulationPage() {
                 打开结果目录
               </button>
             )}
-            {error && <span role="alert">错误：{error}</span>}
           </div>
         </div>
       )}

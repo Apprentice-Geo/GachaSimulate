@@ -310,6 +310,14 @@ button:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.simulation-error {
+  background: var(--color-panel-soft);
+  border: 1px solid var(--color-hairline-strong);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+  padding: 12px 14px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
