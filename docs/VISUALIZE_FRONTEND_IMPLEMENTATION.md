@@ -1,138 +1,69 @@
 # Visualize Frontend Implementation
 
-本文档记录 `src/visualize` 当前前端实现，面向后续维护。
+本文档记录 `src/visualize/` 的稳定职责、设计决策和维护边界。具体组件、动画时长和样式数值以源码为准，不在这里维护逐文件镜像。
 
-## 运行入口
+## 定位
 
-- `main.tsx`：React 入口，挂载 `App`，加载 `tokens.css`、`preview.css`、`scene.css`。
-- `App.tsx`：页面编排层。负责输入加载状态、文件导入、URL 参数输入、动画重放状态，以及把 normalized input 转成 view model 后传给组件。
+`src/visualize/` 是平台无关的结果可视化层。它把未知的可视化输入转换为经过校验的展示模型，再由共享画面用于 Electron 展示和素材导出。
 
-## CLI
+素材导出是长期保留能力。当前独立浏览器入口用于开发和调试，不保证长期存在；删除浏览器入口不应影响 Electron 结果页或导出链路。
 
-- `pnpm run dev`
-  - 启动 Vite dev server。
-
-- `pnpm run typecheck`
-  - 执行 TypeScript 类型检查，不生成构建产物。
-
-- `pnpm run build`
-  - 先执行 TypeScript 类型检查，再使用 Vite 生成生产构建产物。
-
-- `pnpm run preview`
-  - 启动 Vite preview server，预览 `build` 后的 `dist/` 产物。
-
-- `pnpm run test:e2e`
-  - 执行 Playwright 端到端测试。
-
-- `pnpm run export:cdf -- --input <json文件路径>`
-  - 执行 CDF 可视化素材导出。
-  - 默认输出 `cdf-result.png` 和 `cdf-animation.mp4` 到 `outputs/`。
-  - 使用 Remotion 逐帧渲染固定 3840x2160、60fps 的 CDF composition，不再通过 Playwright 录屏生成视频。
+Electron 的导航、模拟表单、文件对话框和进程状态属于 `src/renderer/`、`src/preload/` 与 `src/main/`，不得进入 `src/visualize/`。反过来，`src/visualize/` 不依赖 Electron 或 Node.js API。
 
 ## 数据流
 
-1. `App` 从 URL 的 `input` 参数或用户选择的 JSON 文件读取数据。
-2. `data/load_input.ts` 调用 `validate_input` 做 schema 校验和业务规则校验。
-3. `data/normalize_input.ts` 把原始输入转为 `NormalizedVisualizeInputData`，生成 CDF 点和 X 轴范围。
-4. `view/cdf_view_model.ts` 补充展示用的 metrics、markers、cost，形成 `NormalizedVisualizeData`。
-5. 页面组件只消费 `NormalizedVisualizeData` 或其子集，不直接解析原始输入。
+稳定的数据流是：
 
-## 动画进度映射
+```text
+unknown input
+    -> schema / business validation
+    -> normalized input
+    -> view model
+    -> shared scene
+    -> Electron display or Remotion export
+```
 
-`animation/progress.ts` 以 elapsed ms 为唯一输入，按 `animation/timeline.ts` 的阶段输出组件需要的样式进度。当前映射如下：
+原始输入不能绕过校验直接进入组件。组件消费 normalized data 或 view model，不承担 schema 校验、CDF 计算或展示规则编排。
 
-| 阶段 | 时间段 | 目标属性 |
-| --- | --- | --- |
-| top bar | 100ms-300ms | `opacity`、`translateY` |
-| chart shell | 200ms-400ms | `opacity`、`translateY` |
-| chart surface | 400ms-600ms | Recharts surface 的 `opacity`、`translateY` |
-| CDF curve | 600ms-2000ms | SVG path `strokeDashoffset` |
-| marker line | 1200ms 起，按 marker 50ms 错峰，单条持续 800ms | marker line 的 `opacity`、`scaleY` |
-| marker point/label | 1500ms 起，按 marker 50ms 错峰，单组持续 200ms | point/label 的 `opacity`、`translateY` |
-| mean line | 1800ms-2000ms | horizontal line 的 `opacity`、`scaleX` |
-| termination panel | 2000ms-2200ms | footer panel 的 `opacity`、`translateY` |
-| PK fill | 2000ms-2500ms | PK segment 的 `scaleX` |
-| termination detail | 2200ms-2500ms | reason list 的 `opacity`、`translateY` |
-| stat panel | 2000ms-2300ms | statistic panel 的 `opacity`、`translateY` |
-| stat content | 2200ms 起，按 row 50ms 错峰，单项持续 200ms | group heading/metric row 的 `opacity`、`translateX` |
-| note | 2800ms-3000ms | page note 的 `opacity`、`translateY` |
+Electron 选择文件时，由 main 打开系统对话框并读取 UTF-8 文本；Renderer 把文本交给既有可视化输入链路。浏览器入口可以使用 URL 或浏览器文件对象，但不能形成另一套校验和计算实现。
 
-## 目录职责
+## 模块地图
 
-- `animation/`：动画时间轴常量和 frame-driven progress 计算。页面重放和 Remotion 导出共用同一套进度计算。
-- `components/`：React 组件。组件负责渲染和交互，不应包含输入校验或业务数据规范化。
-- `data/`：输入读取、schema 校验、业务规则校验、CDF 基础数据构造和 normalized input 生成。
-- `export/`：Remotion renderer 导出脚本，负责读取输入 JSON 并生成 PNG、MP4 产物。
-- `fixtures/`：示例输入 JSON。
-- `hooks/`：可复用 React hook。目前包含图表容器尺寸测量。
-- `remotion/`：CDF Remotion composition、root 注册和固定视频规格。
-- `styles/`：设计 token、浏览器预览壳样式和导出画面样式。Remotion 只加载 `tokens.css` 与 `scene.css`，不加载 `preview.css`。
-- `test/`：轻量单测和 e2e 启动脚本。
-- `types/`：前端 TypeScript 类型定义。
-- `view/`：展示模型、展示顺序、颜色、marker 布局等与视图相关但不直接渲染 DOM 的逻辑。
+- `data/`：输入校验、规范化和 CDF 基础数据。
+- `view/`：展示模型、统计配置和与画面有关的布局计算。
+- `components/`：共享画面与交互组件，保持偏渲染。
+- `animation/`：交互展示和逐帧导出共用的时间轴与进度计算。
+- `styles/`：共享设计 token、画面样式和宿主外壳样式。
+- `remotion/` 与 `export/`：当前素材导出实现。
+- `types/`：原始输入、normalized data 和 view model 类型。
 
-## 文件职责
+重要符号包括 `VisualizeInput`、`NormalizedVisualizeInputData`、`NormalizedVisualizeData` 和 `VisualizeScene`。需要定位具体实现时，优先搜索这些符号及上述模块，而不是依赖本文档中的文件清单。
 
-- `VisualizeScene.tsx`：ready 状态下的主视觉组件，供网页预览和 Remotion composition 共用。
-- `animation/progress.ts`：把 elapsed ms 转成各动画段的 opacity、transform、scale 和曲线绘制进度。
-- `animation/timeline.ts`：定义页面动画每个阶段的延迟和时长。
-- `components/CDFChart.tsx`：CDF 图表外壳，配置 Recharts 坐标轴、网格、尺寸和坐标格式化。
-- `components/CDFOverlay.tsx`：在 Recharts 图表内渲染自定义 SVG CDF 阶梯曲线、marker 线、点和标签。
-- `components/cdf_marker_visuals.ts`：按 marker 权重集中定义线宽、点半径、字号、透明度。
-- `components/EmptyState.tsx`：无输入时的占位状态。
-- `components/ErrorState.tsx`：输入读取或校验失败时的错误展示和重新导入入口。
-- `components/ImportButton.tsx`：JSON 文件选择按钮。
-- `components/LoadingState.tsx`：输入读取中的状态展示。
-- `components/ReplayButton.tsx`：动画重放按钮。
-- `components/StatisticPanel.tsx`：右侧统计量面板，按统计分组渲染 metric row。
-- `components/TerminationBar.tsx`：底部达成情况分布条和终止原因图例。
-- `components/TopBar.tsx`：顶部标题、模拟元信息、导入和重放操作。
-- `components/VisualizeShell.tsx`：统一 ready、idle、loading、error 状态的页面主骨架。
-- `constants.ts`：集中定义画布宽高和视频帧率，供预览缩放和 Remotion 规格复用。
-- `data/cdf.ts`：从中性 `values` 生成 CDF 曲线点，按当前统计值查询 CDF level，生成 marker 原始数据。
-- `data/load_input.ts`：从未知值、文件、项目路径加载输入，并串联校验和规范化。
-- `data/normalize_input.ts`：把 `VisualizeInput` 转为渲染前的 normalized data。
-- `data/validate_input.ts`：使用 `docs/schemas/visualize_input.schema.json` 和业务规则校验输入。
-- `export/export_cdf.ts`：读取输入 JSON，构建 view model，调用 Remotion `bundle`、`selectComposition`、`renderMedia` 和 `renderStill` 导出 MP4/PNG。
-- `export/paths.ts`：解析项目内路径、创建输出目录、清理旧导出产物。
-- `hooks/use_element_size.ts`：基于 `ResizeObserver` 测量元素尺寸。
-- `remotion/CdfComposition.tsx`：根据 Remotion frame/fps 计算 elapsed ms 并渲染 `VisualizeScene`。
-- `remotion/Root.tsx`：注册固定 3840x2160、60fps、CDF composition。
-- `remotion/constants.ts`：定义 Remotion composition ID、持帧时长和导出总帧数；尺寸和帧率来自 `constants.ts`。
-- `test/cdf.test.ts`：覆盖 CDF 查询、曲线路径、marker 布局、输入契约、规格 token 同步和 view model。
-- `test/run_e2e.ts`：启动 Vite dev server 后运行 Playwright 测试。
-- `types/visualize_input.ts`：原始输入、normalized input、view model、marker、metric 等类型。
-- `view/cdf_overlay_layout.ts`：根据 Recharts scale 计算 overlay 坐标、标签位置和阶梯曲线路径。
-- `view/cdf_view_config.ts`：CDF marker 和图表坐标轴展示配置。
-- `view/cdf_view_model.ts`：把 normalized input 组装成组件消费的完整展示模型。
-- `view/statistic_view_config.ts`：统计量展示顺序、分组、描述和终止原因颜色配置。
-- `vite-env.d.ts`：Vite 环境类型声明。
+## 设计决策
 
-## 视觉风格
+### 展示与导出共享
 
-当前实现的视觉风格是深色数据监控台，而不是营销页、游戏 HUD 或通用 BI 后台。整体方向为 “Sentry 深色监控台 + 少量 NVIDIA 科技终端细节”，并借用了 `reference/Sentry.md` 的深紫黑画布、细边框暗色卡片、克制高亮，以及 `reference/NVIDIA.md` 的工程化几何、绿色角标和低装饰密度。
+Electron 展示和素材导出复用同一套输入处理、视图模型、画面组件和动画进度。交互页面以 elapsed time 驱动动画，逐帧导出将 frame 换算为同一时间输入，避免维护两套视觉行为。
 
-主画布固定为 3840x2160，使用 `#120d1f` 深紫黑背景和 96px 网格纹理。页面采用小圆角、细边框、暗色面板和轻量内高光来建立层级：主面板背景为 `#1b142b`，次级面板为 `#211936`，边框主要来自 `#362d59` / `#51436f`。阴影存在但较克制，用于让图表、统计面板和底部达成情况区域从暗色背景中略微抬起。
+导出能力是架构要求，Remotion 是当前实现。修改宿主入口时不得破坏导出；替换导出实现时也应保留相同的输入契约和展示语义。
 
-色彩层级以信息可读性优先。主文字是高对比浅紫白 `#f7f3ff`，次级和弱提示文字使用透明度递减的浅色。CDF 主曲线固定为 Cyan `#22d3ee`，是画面里最强的视觉信号；网格、坐标轴和刻度保持低对比，辅助读数但不抢占曲线。NVIDIA 绿 `#76b900` 没有作为大面积品牌底色使用，只出现在左上角标、标题 kicker、状态图标和部分统计标记上。
+### 视觉语义
 
-CDF 标记采用多色风险谱系，并通过 `view/cdf_view_config.ts` 和 `components/cdf_marker_visuals.ts` 控制颜色与权重。低值一侧使用深绿/绿，P50 使用浅绿强调中位数，MEAN 使用紫色，P75/P95/MAX 使用橙到红表达尾部风险。虚线、交点和标签的视觉权重按统计重要性区分：P50 最强，MEAN/P95/MAX 次之，P25/P75 居中，MIN/P5 最弱。
+可视化采用深色数据监控台方向，强调高信息密度和分析可读性，不采用营销页、游戏 HUD 或高装饰性视觉。CDF 曲线是主视觉信号，网格、坐标轴和动画保持克制。
 
-版式是信息密度较高的单页导出画面。顶部标题区左侧显示 `CDF ANALYSIS`、标题和元信息，右侧放置重放与导入操作；主区域使用左侧 CDF 图表、右侧统计面板的布局，当前 CSS 比例为 `80fr / 20fr`。右侧统计面板根据 `metric` 显示低/中/高抽数或成本区间，指标卡用左侧彩色边条对应 marker 颜色，避免大量填色造成噪声。底部只保留达成情况分布条和图例，不再展示额外装饰区块。
+统计 marker 使用颜色和视觉权重表达分位位置及尾部风险。终止原因颜色只表示原因之间的对应关系，不表达好坏。`draw` 与 `cost` 共用数据和画面结构，只切换数值维度及对应文案。
 
-终止原因分布条延续中性语义约束：组件按原因 index 从 8 个主题色中循环取色，只表达原因对应关系，不表达好坏。单原因使用完整段样式；多原因按位置使用 start、middle、end 样式，相邻分段使用 `/` 形斜切接缝，图例与分段共用同一颜色映射。
+### 输入契约
 
-可视化输入通过 `metric: "draw" | "cost"` 切换文案和数值维度。draw 模式固定使用“抽”作为显示单位；cost 模式使用输入的 `unit`，为空时不追加后缀。`price` 是不透明的完整价格文案，页头原样展示且不与 `unit` 拼接；为空时隐藏价格行。旧的 `draw_counts`、`draws` 和 `statistic.COST` 不再兼容。
-
-动画风格同样克制。页面使用淡入、轻微位移、曲线绘制、虚线展开、统计卡片侧向进入和 PK 条填充，不使用夸张弹跳、强粒子、大片 glow 或 sticker/mascot。装饰只服务分析平台的技术感和信息层级。
+`docs/schemas/visualize_input.schema.json` 是生产方和消费方共享的结构契约。TypeScript 还会检查 schema 无法完整表达的业务规则。旧字段不做隐式兼容；需要兼容时应明确修改契约和迁移策略。
 
 ## 维护边界
 
-- 修改输入结构时，同步更新 `docs/schemas/visualize_input.schema.json`、`types/visualize_input.ts`、`data/validate_input.ts` 的业务规则和相关测试。
-- 修改统计量展示顺序或分组时，优先改 `view/statistic_view_config.ts`。
-- 修改 CDF marker 的颜色或权重时，优先改 `view/cdf_view_config.ts`；修改线宽、字号、点大小时，优先改 `components/cdf_marker_visuals.ts`。
-- 修改 marker 标签避让或阶梯曲线路径时，优先改 `view/cdf_overlay_layout.ts`，并补充 `test/cdf.test.ts`。
-- 修改动画节奏时，优先改 `animation/timeline.ts` 和 `animation/progress.ts`，避免在组件或 CSS 中新增散落的时间常量。
-- 修改导出规格时，同步更新 `constants.ts`、`styles/tokens.css`、README 和本文档；首版导出不暴露 codec、crf、concurrency 等高级 CLI 参数。
-- Remotion 是导出层依赖；分发或复用导出功能前，需要确认使用场景符合 Remotion 当前许可证条款。
-- 组件中新增逻辑前先判断是否属于 `data/`、`view/` 或 `hooks/`，保持组件偏渲染、低业务耦合。
+- 修改输入结构时，同步更新 JSON schema、`types/`、`data/` 中的校验规则和相关测试。
+- 修改 CDF、marker、统计分组或布局计算时，优先在 `data/` 或 `view/` 维护，不把计算散入组件。
+- 修改动画节奏时，集中修改 `animation/`，保证 Electron 展示和导出继续使用同一时间轴。
+- 修改画布规格或共享视觉 token 时，同时检查交互展示、Remotion composition、导出结果和相关文档。
+- Electron 接入只负责提供输入和承载共享画面，不复制输入校验、normalize、view model 或导出逻辑。
+- 当前 Remotion 是导出层依赖；使用或分发导出功能前，需要确认使用场景符合其许可证条款。
+
+开发、构建、导出和检查命令统一记录在 `README.md` 与 `docs/DEVELOPMENT_CHECKS.md`。
