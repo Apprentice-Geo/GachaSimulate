@@ -16,8 +16,9 @@ button:focus-visible {
 
 .renderer-shell {
   display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
   height: 100%;
-  min-width: 720px;
+  min-width: 680px;
   width: 100%;
 }
 
@@ -27,69 +28,18 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 40px;
-  padding: 28px 18px 20px;
+  padding: 28px 12px 20px;
   min-width: 0;
   overflow: hidden;
-}
-
-.renderer-sidebar.is-collapsed {
-  align-items: stretch;
-  gap: 40px;
-  padding-left: 12px;
-  padding-right: 12px;
-}
-
-.renderer-sidebar.is-collapsed .renderer-brand {
-  justify-content: center;
-  padding-left: 0;
-  padding-right: 0;
-}
-
-.renderer-sidebar.is-collapsed .renderer-brand-copy,
-.renderer-sidebar.is-collapsed .renderer-nav-label,
-.renderer-sidebar.is-collapsed .renderer-nav-copy,
-.renderer-sidebar.is-collapsed .renderer-sidebar-footer {
-  display: none;
-}
-
-.renderer-sidebar.is-collapsed .renderer-nav-button {
-  justify-content: center;
-  padding-left: 0;
-  padding-right: 0;
-}
-
-.renderer-sidebar-separator {
-  background: var(--color-hairline);
-  cursor: col-resize;
-  position: relative;
-  touch-action: none;
-  width: 8px;
-}
-
-.renderer-sidebar-separator::after {
-  background: transparent;
-  content: "";
-  inset: 0 3px;
-  position: absolute;
-  transition: background 120ms ease;
-}
-
-.renderer-sidebar-separator:hover::after,
-.renderer-sidebar-separator:active::after,
-.renderer-sidebar-separator:focus-visible::after {
-  background: var(--color-cyan);
-}
-
-.renderer-sidebar-separator:focus-visible {
-  outline: 0;
 }
 
 .renderer-brand {
   align-items: center;
   border-bottom: 1px solid var(--color-hairline);
   display: flex;
+  flex-direction: column;
   gap: 12px;
-  padding: 4px 8px 28px;
+  padding: 4px 0 28px;
 }
 
 .renderer-brand-mark,
@@ -117,7 +67,6 @@ button:focus-visible {
 }
 
 .renderer-brand span,
-.renderer-sidebar-footer,
 .renderer-nav-label,
 .renderer-eyebrow {
   color: var(--color-text-faint);
@@ -139,9 +88,10 @@ button:focus-visible {
   border-radius: var(--radius-button);
   color: var(--color-text-muted);
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 7px;
   padding: 12px 10px;
-  text-align: left;
+  text-align: center;
   width: 100%;
 }
 
@@ -165,16 +115,7 @@ button:focus-visible {
   color: var(--color-text-primary);
   font-size: 13px;
   font-weight: 600;
-}
-
-.renderer-nav-button small {
-  color: var(--color-text-faint);
-  font-size: 10px;
-}
-
-.renderer-sidebar-footer {
-  margin-top: auto;
-  padding: 0 8px;
+  white-space: nowrap;
 }
 
 .renderer-main {
@@ -209,7 +150,7 @@ button:focus-visible {
 
 .renderer-placeholder h1 {
   color: var(--color-text-primary);
-  font-size: clamp(42px, 5vw, 76px);
+  font-size: clamp(32px, 3vw, 48px);
   letter-spacing: -0.04em;
   line-height: 1;
   margin: 14px 0 22px;
@@ -230,8 +171,29 @@ button:focus-visible {
 .renderer-config-form {
   display: grid;
   gap: 18px;
-  max-width: 680px;
+  max-width: 760px;
   width: 100%;
+}
+
+.simulation-primary-fields {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.8fr);
+}
+
+.simulation-primary-fields > *,
+.simulation-fields > * {
+  min-width: 0;
+}
+
+.simulation-config-fields {
+  display: grid;
+  gap: 18px;
+}
+
+.simulation-config-fields p {
+  color: var(--color-text-muted);
+  margin: 0;
 }
 
 .renderer-config-form label,
@@ -246,9 +208,11 @@ button:focus-visible {
   background: var(--color-panel);
   border: 1px solid var(--color-hairline-strong);
   border-radius: var(--radius-button);
+  box-sizing: border-box;
   color: var(--color-text-primary);
   min-height: 38px;
   padding: 8px 10px;
+  width: 100%;
 }
 
 .renderer-config-form fieldset {
@@ -268,6 +232,7 @@ button:focus-visible {
 
 .simulation-radio input {
   min-height: auto;
+  width: auto;
 }
 
 .simulation-fields {
