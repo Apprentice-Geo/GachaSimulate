@@ -1,0 +1,6 @@
+id: duplicate_resolve
+name: 重复物分解样例
+description: 展示 item_resolve、保留数量和二级兑换池
+terminations:
+  - file: termination.yaml
+    name: 收集完成

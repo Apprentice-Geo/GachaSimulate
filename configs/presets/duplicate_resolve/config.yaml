@@ -1,0 +1,32 @@
+items:
+  - draw_count: 抽数
+  - shard: 碎片
+  - token: 兑换代币
+  - reward: 奖励
+pools:
+  - main:
+      - probability: 0.25
+        actions: shard += 1
+      - probability: 0.75
+        actions: token += 1
+  - exchange:
+      - probability: 1
+        actions: reward += 1
+every_draw:
+  - draw_count += 1
+item_resolve:
+  - item: shard
+    retain: 1
+    actions:
+      - shard -= 1
+      - token += 1
+initial:
+  - change main
+rules:
+  - redeem:
+      mode: repeat
+      condition:
+        check: token >= 4
+        actions:
+          - token -= 4
+          - draw exchange

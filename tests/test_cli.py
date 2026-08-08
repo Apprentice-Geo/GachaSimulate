@@ -147,3 +147,99 @@ def test_cli_rejects_cost_metric_when_config_has_no_cost(
 def test_cli_requires_exactly_one_target(args: list[str]) -> None:
     with pytest.raises(SystemExit):
         main(args)
+
+
+@pytest.mark.parametrize(
+    ("target", "workers", "unit"),
+    [
+        (["--total-runs", "4"], 1, "runs"),
+        (["--total-runs", "4"], 2, "runs"),
+        (["--target-total-draw", "4"], 1, "draws"),
+        (["--target-total-draw", "4"], 2, "draws"),
+    ],
+)
+def test_cli_jsonl_reports_monotonic_progress(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    target: list[str],
+    workers: int,
+    unit: str,
+) -> None:
+    exit_code = main(
+        [
+            "--config",
+            "test",
+            "--termination",
+            "termination",
+            *target,
+            "--workers",
+            str(workers),
+            "--output-format",
+            "jsonl",
+            "--results-dir",
+            str(tmp_path),
+        ]
+    )
+
+    assert exit_code == 0
+    events = [json.loads(line) for line in capsys.readouterr().out.splitlines() if line]
+    assert events[0] == {"type": "started"}
+    assert [event["stage"] for event in events if event["type"] == "stage"] == [
+        "loading_config",
+        "simulating",
+        "saving",
+    ]
+    progress = [event for event in events if event["type"] == "progress"]
+    assert progress
+    assert [event["completed"] for event in progress] == sorted(
+        event["completed"] for event in progress
+    )
+    assert progress[-1]["completed"] == progress[-1]["total"]
+    assert progress[-1]["unit"] == unit
+    assert events[-1]["type"] == "completed"
+
+
+def test_cli_jsonl_config_dir_and_errors(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config_dir = Path(__file__).parents[1] / "configs" / "test"
+    assert (
+        main(
+            [
+                "--config-dir",
+                str(config_dir),
+                "--termination",
+                "termination.yaml",
+                "--total-runs",
+                "1",
+                "--output-format",
+                "jsonl",
+                "--results-dir",
+                str(tmp_path),
+            ]
+        )
+        == 0
+    )
+    success_events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert Path(success_events[-1]["result_path"]).is_absolute()
+    assert Path(success_events[-1]["visualize_path"]).exists()
+
+    assert (
+        main(
+            [
+                "--config-dir",
+                str(config_dir),
+                "--termination",
+                "..\\outside.yaml",
+                "--total-runs",
+                "1",
+                "--output-format",
+                "jsonl",
+                "--results-dir",
+                str(tmp_path),
+            ]
+        )
+        == 1
+    )
+    error_events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert error_events[-1]["type"] == "error"

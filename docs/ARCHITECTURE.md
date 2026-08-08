@@ -1,87 +1,73 @@
 # Architecture
 
-本文档是项目的高层地图，帮助维护者定位代码和理解模块边界。它只记录相对稳定的结构，不作为逐行实现说明；具体配置语法、前端细节和运行语义以各自文档、源码和测试为准。
+本文档是 GachaSimulate 的高层地图，帮助维护者判断某类改动应从哪里开始。它只记录不易频繁变化的模块、边界和决策；具体行为以源码、测试及专项文档为准。
 
 ## 项目概览
 
-GachaSimulate 是一个基于 YAML 配置的 Monte Carlo 抽卡模拟器。项目分为两个主要部分：
+GachaSimulate 使用 YAML 描述抽卡规则，通过模拟核心执行 Monte Carlo 模拟，并生成 `.npz` 结果和 `_visualize.json`。桌面应用负责配置选择、任务控制和结果加载；平台无关的可视化层负责校验结果输入、计算展示模型和导出画面。
 
-- Python 模拟器：加载并校验配置，编译运行上下文，执行单次和批量模拟，输出结果。
-- TypeScript 可视化器：读取模拟结果 JSON，计算展示数据，并渲染网页和 CDF 导出素材。
-
-Python 和 TypeScript 通过可视化输入 JSON 连接。Python 负责模拟和结果生成，前端不重新解释抽卡规则。
-
-## 系统地图
+系统的稳定数据流是：
 
 ```text
 YAML 配置
-    -> validator
-    -> builder
-    -> RuntimeContext
-    -> engine 执行单次模拟
-    -> core 批量聚合 / 保存结果
+    -> 模拟核心
     -> .npz + visualize JSON
-                         -> 前端加载与校验
-                         -> normalize / view model
-                         -> React 预览或 Remotion 导出
+                         -> 可视化输入校验
+                         -> normalized data / view model
+                         -> Electron 展示或素材导出
 ```
 
-## Python 模拟核心
+## 代码地图
 
-主要代码位于 `src/gachasimulate/`：
+### 模拟核心
 
-- `validator`：在配置进入运行时前检查结构、引用和静态约束。
-- `builder`：把 YAML 配置转换为运行时可直接使用的 `RuntimeContext`。
-- `runtime`：定义运行上下文、单次运行状态以及 Action、Condition、Rule、Pool、Item 等运行时类型。
-- `engine`：使用一个 `RuntimeContext` 执行单次模拟，产生单次运行状态。
-- `core`：组织固定 run 数或总抽数目标的批量模拟，处理并行执行、结果聚合和结果保存。
-- `cli`：提供命令行入口，负责参数解析和调用批量模拟流程。
-- `visualize`：提供 Python 侧的统计或绘图辅助，不属于核心抽卡执行路径。
+`src/gachasimulate/` 是当前 Python 模拟核心：
 
-核心依赖方向是：
+- `validator` 和 `builder` 负责把 YAML 配置校验并编译为运行期结构。
+- `runtime` 和 `engine` 定义并执行单次模拟语义。
+- `core` 负责批量执行、并行聚合、进度和结果生命周期。
+- `cli` 是外部调用边界，供命令行用户和桌面应用启动模拟。
 
-```text
-配置 -> validator -> builder -> runtime / engine -> core -> 输出
-```
+`configs/` 保存项目配置和开发预置，`tests/` 保护模拟语义与输入契约，`benchmark/` 测量完整批量模拟路径。
 
-运行时不应反向读取 YAML；批量层不应复制单次模拟规则；CLI 不应承载模拟语义。
+### Electron 桌面层
 
-## 前端可视化
+Electron 按运行权限分为三层：
 
-主要代码位于 `src/visualize/`：
+- `src/main/` 拥有操作系统能力，负责用户数据目录、配置扫描、文件对话框和模拟子进程。
+- `src/preload/` 只向 Renderer 暴露明确的桌面 API。
+- `src/renderer/` 负责桌面页面、表单和任务反馈，不直接使用 Node.js 能力。
 
-- `data/`：读取、校验和规范化可视化输入，并计算 CDF 基础数据。
-- `view/`：生成展示模型、统计展示配置和图表布局数据。
-- `components/`：React 页面和图表组件，负责渲染与交互。
-- `animation/`：网页预览和视频导出共用的动画时间轴与进度计算。
-- `remotion/`、`export/`：将同一套展示场景导出为静态图片或视频。
-- `types/`：输入数据、规范化数据和展示模型的 TypeScript 类型。
-- `styles/`：预览和导出的视觉样式。
+跨进程共享的请求和事件类型位于 `src/shared/`。Electron 通过 CLI 和 JSONL 事件协议调用模拟核心，不依赖 Python 内部类型。
 
-前端的数据流是：
+### 可视化与导出
 
-```text
-visualize JSON -> load / validate -> normalized input -> view model -> scene / export
-```
+`src/visualize/` 是平台无关的可视化层，包含输入校验、数据规范化、视图模型、画面组件、动画和导出实现。Electron Renderer 组合这些能力，但桌面导航、文件系统和任务管理不进入该目录。
 
-组件不应直接解析原始输入，也不应承担配置校验、CDF 计算或展示规则编排。
+素材导出是长期能力。独立浏览器入口目前用于开发和调试，属于可移除的过渡能力，不是架构不变量。
 
-## 重要边界
+可视化输入 schema 位于 `docs/schemas/`，它是模拟输出与 TypeScript 消费方之间的共享契约。
 
-- 配置格式属于输入契约；validator 是配置进入运行时前的边界。
-- `RuntimeContext` 描述共享的编译结果；单次运行状态只能保存在 `RuntimeState` 中。
-- `engine` 负责单次模拟；`core` 负责批量执行和结果生命周期。
-- `.npz` 是 Python 侧结果保存格式；可视化 JSON 是 Python 与前端之间的共享契约。
-- 前端只消费可视化输入，不依赖 Python 内部运行时类型或抽卡规则实现。
-- 前端组件偏渲染；输入处理、数据计算和视图编排分别位于 `data/`、`view/` 和 `animation/`。
+## 长期边界与决策
+
+- 模拟语义只存在于模拟核心。Electron 和可视化层不得复制抽卡规则、termination 或 resolve 语义。
+- 桌面端通过独立进程协议调用模拟核心。这一边界允许未来用编译语言替换当前 Python 实现，而不要求 TypeScript 承担模拟任务。
+- 配置仓库与应用代码仓库长期分离，以便社区独立贡献配置，并让配置更新不受应用版本发布节奏约束。配置仓库功能当前尚未实现。
+- Electron main 是操作系统信任边界；Renderer 不直接接触文件系统、任意 IPC channel 或子进程能力。
+- `src/visualize/` 保持平台无关，必须继续支持结果展示和素材导出；任何宿主特有的交互留在宿主层。
 
 ## 稳定不变量
 
 - 配置必须先通过 validator，再由 builder 构建运行时上下文。
 - 同一个 `RuntimeContext` 可以被多个 run 使用，但每个 run 必须拥有独立的 `RuntimeState`。
-- 配置对象顺序可能具有语义，例如 item 索引和 rule 执行顺序；改变顺序需要视为行为变化。
+- 配置对象顺序可能具有语义，例如 item 索引和 rule 执行顺序；改变顺序应视为行为变化。
 - 单次模拟必须能够到达 termination；配置不能依赖无法结束的规则或 resolve 循环。
+- `engine` 负责单次模拟，`core` 负责批量执行；CLI 和桌面层不承载模拟语义。
+- `.npz` 与 `_visualize.json` 是同一次结果保存的成对产物。
 - 修改可视化输入结构时，必须同步更新 JSON schema、TypeScript 类型、校验逻辑和相关测试。
-- 修改抽卡执行顺序、配置语义或结果格式时，应同时检查对应文档和跨层测试。
 
-详细信息不放在本文件中：YAML 语法和执行语义见 `docs/YAML_CONFIG_SYNTAX.md`，前端目录和展示维护边界见 `docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md`。
+## 横切关注点
+
+来自 YAML、manifest、Renderer IPC 和可视化 JSON 的数据都跨越信任边界，必须在拥有该边界的层重新校验。模拟任务的启动、取消和应用退出共同拥有子进程生命周期，不能遗留 worker。共享契约发生变化时，应同时检查生产方、消费方和跨层测试。
+
+YAML 语法和执行语义见 `docs/YAML_CONFIG_SYNTAX.md`；可视化维护边界见 `docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md`；检查矩阵见 `docs/DEVELOPMENT_CHECKS.md`。

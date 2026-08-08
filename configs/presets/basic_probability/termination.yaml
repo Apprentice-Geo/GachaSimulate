@@ -1,0 +1,10 @@
+retained_items:
+  - target: 1
+termination_rule:
+  condition:
+    op: OR
+    children:
+      - check: target >= 1
+        actions: terminate target_acquired
+      - check: draw_count >= 100
+        actions: terminate draw_cap

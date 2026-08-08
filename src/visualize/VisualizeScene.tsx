@@ -16,6 +16,7 @@ interface VisualizeSceneProps {
   animation_state: "playing" | "primed" | "idle";
   is_animating: boolean;
   on_file_import?: (file: File) => void;
+  on_select_file?: () => void;
   on_replay?: () => void;
   show_controls?: boolean;
   use_fixed_chart_size?: boolean;
@@ -28,6 +29,7 @@ export function VisualizeScene({
   animation_state,
   is_animating,
   on_file_import,
+  on_select_file,
   on_replay,
   show_controls = true,
   use_fixed_chart_size = false,
@@ -49,6 +51,7 @@ export function VisualizeScene({
       is_animating={is_animating}
       load_state="ready"
       on_file_import={on_file_import}
+      on_select_file={on_select_file}
       on_replay={on_replay}
       show_controls={show_controls}
       style={style}

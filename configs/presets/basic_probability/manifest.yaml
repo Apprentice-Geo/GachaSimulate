@@ -1,0 +1,6 @@
+id: basic_probability
+name: 基础概率样例
+description: 展示基础概率池和单目标终止
+terminations:
+  - file: termination.yaml
+    name: 获得目标物品

@@ -1,3 +1,4 @@
+import { FolderOpen } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { fade_style } from "../animation/progress";
 import type { AnimationProgress } from "../animation/progress";
@@ -16,6 +17,7 @@ interface VisualizeShellProps {
   is_animating: boolean;
   load_state: "idle" | "loading" | "error" | "ready";
   on_file_import?: (file: File) => void;
+  on_select_file?: () => void;
   on_replay?: () => void;
   show_controls?: boolean;
   style?: CSSProperties;
@@ -29,6 +31,7 @@ export function VisualizeShell({
   is_animating,
   load_state,
   on_file_import,
+  on_select_file,
   on_replay,
   show_controls = true,
   style,
@@ -61,6 +64,16 @@ export function VisualizeShell({
                   disabled={is_animating}
                   on_file_import={on_file_import}
                 />
+                {on_select_file && (
+                  <button
+                    className="command-button"
+                    type="button"
+                    onClick={on_select_file}
+                  >
+                    <FolderOpen aria-hidden="true" size={18} />
+                    <span>选择结果</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
