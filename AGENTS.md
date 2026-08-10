@@ -8,6 +8,8 @@
 - 可视化设计决策和维护边界：[Visualize Frontend Implementation](<docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md>)。
 - 按影响范围选择检查及 push 前完整矩阵：[Development Checks](<docs/DEVELOPMENT_CHECKS.md>)。
 
+C++ 日常开发与 CI 使用 WSL2/Linux + Clang + Ninja；Windows 最终构建留给打包/CD 流程。具体环境和检查按 Development Checks 执行。
+
 不要在本文件复制这些文档中的详细命令、配置语法或实现清单。文档与实现冲突时，以源码和行为测试为准，并修正对应文档。
 
 ## 修改边界

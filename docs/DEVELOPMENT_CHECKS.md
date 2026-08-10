@@ -16,16 +16,37 @@ uv sync
 pnpm install --frozen-lockfile
 ```
 
-C++ Runtime（在 Visual Studio x64 Developer PowerShell，或先执行 `VsDevCmd.bat -arch=x64 -host_arch=x64`）：
+C++ Runtime 的日常开发和 CI 使用 WSL2/Linux + Clang + Ninja。安装工具：
 
-```powershell
-cmake -S cpp -B build/cpp -A x64
-cmake --build build/cpp --config Debug
-ctest --test-dir build/cpp -C Debug --output-on-failure
-cmake --build build/cpp --config Release
-ctest --test-dir build/cpp -C Release --output-on-failure
-cmake --install build/cpp --config Release --prefix build/native
+```bash
+sudo apt-get update
+sudo apt-get install -y clang clang-format clang-tidy cmake ninja-build
 ```
+
+运行与 CI 相同的构建、测试和质量检查：
+
+```bash
+find cpp/include cpp/src cpp/tests -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 | xargs -0 clang-format --dry-run --Werror
+
+cd cpp
+cmake --preset linux-debug
+cmake --build --preset linux-debug
+ctest --preset linux-debug
+find src tests -name '*.cpp' -print0 | xargs -0 clang-tidy -p ../build/cpp/linux-debug
+
+cmake --preset linux-release
+cmake --build --preset linux-release
+ctest --preset linux-release
+cmake --install ../build/cpp/linux-release --prefix ../build/native
+cd ..
+
+smoke_dir="$(mktemp -d)"
+ir="$(realpath cpp/tests/batch_fixture_ir.json)"
+build/native/bin/gachasimulate-core --ir "$ir" --total-runs 10 --seed 0 --threads 1 --output "$smoke_dir/fixed.gsr"
+build/native/bin/gachasimulate-core --ir "$ir" --target-total-draw 100 --seed 0 --threads 1 --output "$smoke_dir/target.gsr"
+```
+
+若 CMake 在 `FetchContent` 下载 `nlohmann_json` 或 GoogleTest 时失败，先检查网络或依赖源可达性。
 
 ## Push 前全量检查
 
@@ -59,7 +80,7 @@ pnpm run test:e2e
 - Electron 配置扫描、IPC、任务状态或进程生命周期：运行 `pnpm run test:simulation`、`pnpm run typecheck` 和 `pnpm run build`。
 - 可视化输入、CDF、marker、统计展示或动画：运行 `pnpm run test:visualize:cdf` 和 `pnpm run test:e2e`。
 - 独立浏览器入口：额外运行 `pnpm run build:web`。该入口目前用于开发和调试，不属于长期产品能力。
-- C++ Runtime 或 JSON IR：运行上述 Debug/Release CTest；Release install 后用 `build/native/bin/gachasimulate-core --ir <IR路径> --single-run --seed <int64>` 做诊断验证。
+- C++ Runtime 或 JSON IR：运行上述 clang-format、clang-tidy、Debug/Release CTest，并完成 Release install 和两种 CLI 冒烟。
 - 导出规格或画面：运行可视化检查，并使用代表性输入执行 `pnpm run export:cdf -- --input <json文件路径>` 检查 PNG 和 MP4。
 - 仅修改文档：人工检查内容、命令和链接；若文档描述跨层完成状态，仍按其影响范围运行对应检查。
 

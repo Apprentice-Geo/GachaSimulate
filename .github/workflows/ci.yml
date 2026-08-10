@@ -9,6 +9,43 @@ permissions:
   contents: read
 
 jobs:
+  cpp:
+    name: C++ build and quality
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install C++ tools
+        run: sudo apt-get update && sudo apt-get install -y clang clang-format clang-tidy ninja-build
+
+      - name: Check C++ formatting
+        run: find cpp/include cpp/src cpp/tests -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 | xargs -0 clang-format --dry-run --Werror
+
+      - name: Build and test Debug
+        working-directory: cpp
+        run: |
+          cmake --preset linux-debug
+          cmake --build --preset linux-debug
+          ctest --preset linux-debug
+
+      - name: Run clang-tidy
+        working-directory: cpp
+        run: find src tests -name '*.cpp' -print0 | xargs -0 clang-tidy -p ../build/cpp/linux-debug
+
+      - name: Build, test, and smoke Release
+        working-directory: cpp
+        run: |
+          cmake --preset linux-release
+          cmake --build --preset linux-release
+          ctest --preset linux-release
+          cmake --install ../build/cpp/linux-release --prefix ../build/native
+          smoke_dir="$(mktemp -d)"
+          ir="$(realpath tests/batch_fixture_ir.json)"
+          ../build/native/bin/gachasimulate-core --ir "$ir" --total-runs 10 --seed 0 --threads 1 --output "$smoke_dir/fixed.gsr"
+          ../build/native/bin/gachasimulate-core --ir "$ir" --target-total-draw 100 --seed 0 --threads 1 --output "$smoke_dir/target.gsr"
+
   python-format:
     name: Python format
     runs-on: ubuntu-latest
