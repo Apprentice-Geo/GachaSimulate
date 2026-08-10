@@ -95,7 +95,7 @@ RetainedItemList = [ { ItemId: NonNegativeInteger }, ... ]
 约束：
 
 - 用户 `items` 不得声明 `draw_count`。编译器会在索引 0 注入只读的合成槽位。
-- `cost` 是可选 item；需要成本统计时，由配置 actions 按实际规则累计。运行时不会根据抽数或 metadata 推导成本。
+- `cost_count` 是可选 item；仅当 `manifest.yaml` 的 `metrics` 包含 `cost` 时必须声明它。成本由配置 actions 按实际规则累计，运行时不会根据抽数或 metadata 推导。
 - 同一个 pool 内只能统一使用 `probability` 或统一使用 `weight`。
 - 使用 `probability` 时，单个概率必须大于 `0`，同一个 pool 的概率和必须为 `1`。
 - 使用 `weight` 时，单个权重必须大于 `0`。

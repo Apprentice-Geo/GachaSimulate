@@ -1,5 +1,5 @@
+schema_version: 1
 items:
-  - draw_count: Draw count
   - phase_token
   - target
   - filler
@@ -12,8 +12,6 @@ pools:
         actions: target += 1
       - probability: 0.5
         actions: filler += 1
-every_draw:
-  - draw_count += 1
 rules:
   - switch_to_second:
       mode: once

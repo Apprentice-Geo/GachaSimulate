@@ -1,6 +1,7 @@
 id: banjiahezi_xiadanzhonhun
 name: test
 description: test
+metrics: [draw]
 terminations:
 - file: termination_quan1.yaml
   name: termination_quan1

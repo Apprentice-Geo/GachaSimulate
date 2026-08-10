@@ -1,6 +1,7 @@
 id: sunwukong_wuxiang
 name: sunwukong_wuxiang
 description: sunwukong_wuxiang
+metrics: [draw]
 terminations:
 - file: termination_all.yaml
   name: termination_all

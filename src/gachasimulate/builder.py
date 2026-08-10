@@ -109,7 +109,7 @@ def build_context(config: dict[str, Any], termination: dict[str, Any]) -> Runtim
         rule_id_index=context.rule_id_index,
         rule_list=tuple(context.rule_list),
         termination_tree=termination_tree,
-        cost_index=context.item_id_index.get("cost"),
+        cost_index=context.item_id_index.get("cost_count"),
     )
 
 

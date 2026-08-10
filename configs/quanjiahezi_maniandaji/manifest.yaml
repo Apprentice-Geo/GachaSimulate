@@ -1,6 +1,7 @@
 id: quanjiahezi_maniandaji
 name: test
 description: test
+metrics: [draw]
 terminations:
 - file: termination_mouzhugeliang.yaml
   name: termination_mouzhugeliang

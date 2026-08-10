@@ -48,3 +48,10 @@ test("rejects duplicate YAML keys and draw_count writes", () => {
     /read-only/,
   );
 });
+
+test("emits cost_item only when manifest metrics and cost_count agree", () => {
+  const withCost = config.replace("items: [target]", "items: [target, cost_count]");
+  assert.equal((compile_yaml(withCost, termination, "metrics: [draw, cost]").ir as { cost_item: number }).cost_item, 2);
+  assert.throws(() => compile_yaml(config, termination, "metrics: [cost]"), /cost_count/);
+  assert.throws(() => compile_yaml(withCost, termination, "metrics: [draw]"), /cost requires/);
+});

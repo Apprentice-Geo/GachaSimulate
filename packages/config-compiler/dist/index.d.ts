@@ -10,5 +10,5 @@ export type CompiledProgram = {
     ir: Record<string, unknown>;
 };
 /** Compiles the v1 YAML contract to a JSON-serializable, flat arena IR. */
-export declare function compile_yaml(config_text: string, termination_text: string): CompiledProgram;
-export declare function compile(configValue: unknown, terminationValue: unknown): CompiledProgram;
+export declare function compile_yaml(config_text: string, termination_text: string, manifest_text?: string): CompiledProgram;
+export declare function compile(configValue: unknown, terminationValue: unknown, manifestValue?: unknown): CompiledProgram;

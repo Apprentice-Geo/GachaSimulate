@@ -1003,17 +1003,17 @@ def test_termination_reason_proportions_use_largest_remainder() -> None:
 def test_cost_metric_uses_recorded_cost_values() -> None:
     item_list = [
         Item(id="draw_count", name="Draw count"),
-        Item(id="cost", name="Cost"),
+        Item(id="cost_count", name="Cost"),
     ]
     item_id_index = {item.id: i for i, item in enumerate(item_list)}
     ctx = _runtime_context(
         initial_actions=[],
         every_draw_actions=[
-            AddItem(item_index=item_id_index["cost"], amount=10),
+            AddItem(item_index=item_id_index["cost_count"], amount=10),
         ],
         item_id_index=item_id_index,
         draw_count_index=item_id_index["draw_count"],
-        cost_index=item_id_index["cost"],
+        cost_index=item_id_index["cost_count"],
         item_list=item_list,
         item_resolve_list=[],
         pool_id_index={"main": 0},
@@ -1021,8 +1021,8 @@ def test_cost_metric_uses_recorded_cost_values() -> None:
             Pool(
                 cdf=[0.5, 1.0],
                 actions=[
-                    [AddItem(item_index=item_id_index["cost"], amount=1)],
-                    [AddItem(item_index=item_id_index["cost"], amount=3)],
+                    [AddItem(item_index=item_id_index["cost_count"], amount=1)],
+                    [AddItem(item_index=item_id_index["cost_count"], amount=3)],
                 ],
             )
         ],

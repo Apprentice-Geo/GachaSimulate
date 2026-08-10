@@ -1,5 +1,5 @@
+schema_version: 1
 items:
-  - draw_count: Draw count
   - token
   - bonus
   - target
@@ -7,8 +7,6 @@ pools:
   - main:
       - probability: 1.0
         actions: token += 2
-every_draw:
-  - draw_count += 1
 rules:
   - grant_bonus:
       mode: per_draw

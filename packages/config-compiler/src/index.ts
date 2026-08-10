@@ -43,18 +43,19 @@ function actions(value: unknown, path: string): string[] {
 }
 
 /** Compiles the v1 YAML contract to a JSON-serializable, flat arena IR. */
-export function compile_yaml(config_text: string, termination_text: string): CompiledProgram {
+export function compile_yaml(config_text: string, termination_text: string, manifest_text?: string): CompiledProgram {
   const parse = (text: string, name: string): Record<string, unknown> => {
     const document = parseDocument(text, { uniqueKeys: true });
     if (document.errors.length) fail(name, document.errors[0].message.replace(/\n.*/s, ""));
     return map(document.toJS(), name);
   };
-  return compile(parse(config_text, "config"), parse(termination_text, "termination"));
+  return compile(parse(config_text, "config"), parse(termination_text, "termination"), manifest_text == null ? undefined : parse(manifest_text, "manifest"));
 }
 
-export function compile(configValue: unknown, terminationValue: unknown): CompiledProgram {
+export function compile(configValue: unknown, terminationValue: unknown, manifestValue?: unknown): CompiledProgram {
   const config = map(configValue, "config");
   const termination = map(terminationValue, "termination");
+  const manifest = manifestValue == null ? undefined : map(manifestValue, "manifest");
   keys(config, "config", ["schema_version", "items", "pools", "initial", "every_draw", "rules", "item_resolve"]);
   if (config.schema_version !== 1) fail("config.schema_version", "must be 1");
   keys(termination, "termination", ["retained_items", "termination_rule"]);
@@ -112,5 +113,11 @@ export function compile(configValue: unknown, terminationValue: unknown): Compil
   const rules: Record<string, unknown>[] = []; const rawRules = config.rules == null ? [] : list(config.rules, "config.rules"); rawRules.forEach((raw, index) => { const value = map(raw, `config.rules[${index}]`); if (Object.keys(value).length !== 1) fail(`config.rules[${index}]`, "must be a single-key mapping"); const [id, body] = Object.entries(value)[0]; const rule = map(body, `config.rules[${index}].${id}`); keys(rule, `config.rules[${index}].${id}`, ["mode", "condition"]); const mode = rule.mode ?? "once"; if (!["once", "per_draw", "repeat"].includes(mode as string)) fail(`config.rules[${index}].${id}.mode`, "unsupported mode"); if (mode === "repeat" && !everyPathHasAction(rule.condition, `config.rules[${index}].${id}.condition`)) fail(`config.rules[${index}].${id}.condition`, "every repeat path must contain at least one action"); rules.push({ id: stringId(id), mode, condition: condition(rule.condition, `config.rules[${index}].${id}.condition`) }); });
   const everyPathTerminates = (raw: unknown, path: string): boolean => { const node = map(raw, path); if (actions(node.actions, `${path}.actions`).some((entry) => entry.trim().startsWith("terminate "))) return true; if ("check" in node) return false; const children = list(node.children, `${path}.children`); return ["OR", "||"].includes(node.op as string) ? children.every((child, index) => everyPathTerminates(child, `${path}.children[${index}]`)) : children.some((child, index) => everyPathTerminates(child, `${path}.children[${index}]`)); };
   const termRule = map(termination.termination_rule, "termination.termination_rule"); keys(termRule, "termination.termination_rule", ["condition"]); if (!everyPathTerminates(termRule.condition, "termination.termination_rule.condition")) fail("termination.termination_rule.condition", "every termination path must contain a terminate action");
-  return { ir: { ir_version: 1, draw_count_item: 0, items, strings, actions: actionArena, pools, pool_entries, rules, condition_nodes: conditions, condition_children, item_resolve: resolve, initial: range(actions(config.initial, "config.initial"), "config.initial"), every_draw: range(actions(config.every_draw, "config.every_draw"), "config.every_draw"), termination: range([], "termination"), termination_condition: condition(termRule.condition, "termination.termination_rule.condition") } };
+  const wantsCost = manifest != null && (manifest.metrics == null ? false : list(manifest.metrics, "manifest.metrics").some((metric, index) => {
+    if (typeof metric !== "string") fail(`manifest.metrics[${index}]`, "must be a string");
+    return metric === "cost";
+  }));
+  const costItem = itemIds.get("cost_count");
+  if (wantsCost !== (costItem != null)) fail("manifest.metrics", "cost requires exactly one config item named cost_count");
+  return { ir: { ir_version: 1, draw_count_item: 0, ...(costItem == null ? {} : { cost_item: costItem }), items, strings, actions: actionArena, pools, pool_entries, rules, condition_nodes: conditions, condition_children, item_resolve: resolve, initial: range(actions(config.initial, "config.initial"), "config.initial"), every_draw: range(actions(config.every_draw, "config.every_draw"), "config.every_draw"), termination: range([], "termination"), termination_condition: condition(termRule.condition, "termination.termination_rule.condition") } };
 }

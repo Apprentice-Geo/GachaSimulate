@@ -1,6 +1,7 @@
 id: point_exchange
 name: point_exchange
 description: point_exchange
+metrics: [draw, cost]
 terminations:
 - file: termination.yaml
   name: 完成积分兑换

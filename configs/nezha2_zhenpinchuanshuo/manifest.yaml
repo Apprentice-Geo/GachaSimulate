@@ -1,6 +1,7 @@
 id: nezha2_zhenpinchuanshuo
 name: nezha2_zhenpinchuanshuo
 description: nezha2_zhenpinchuanshuo
+metrics: [draw]
 terminations:
 - file: termination_skin.yaml
   name: termination_skin

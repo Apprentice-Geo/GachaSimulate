@@ -11,7 +11,7 @@ items:
 - ordinary_item_2: 普通物品_2
 - ordinary_item_3: 普通物品_3
 - general_fragment: 通用碎片
-- cost: Cost
+- cost_count: Cost
 pools:
 - begin_pool:
   - probability: 0.01
@@ -55,7 +55,7 @@ pools:
   - probability: 0.6
     actions: ordinary_item_3 += 1
 every_draw:
-- cost += 10
+- cost_count += 10
 - general_fragment += 1
 rules:
 - have_target_item_1:

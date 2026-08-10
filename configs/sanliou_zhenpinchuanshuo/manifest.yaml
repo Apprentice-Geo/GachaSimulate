@@ -1,6 +1,7 @@
 id: sanliou_zhenpinchuanshuo
 name: sanliou_zhenpinchuanshuo
 description: sanliou_zhenpinchuanshuo
+metrics: [draw]
 terminations:
 - file: termination_fanchangtianmu.yaml
   name: termination_fanchangtianmu

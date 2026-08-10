@@ -1,5 +1,5 @@
+schema_version: 1
 items:
-  - draw_count: Draw count
   - gift
   - target
   - shard
@@ -12,8 +12,6 @@ pools:
         actions: target += 1
       - weight: 4
         actions: shard += 1
-every_draw:
-  - draw_count += 1
 item_resolve:
   - item: gift
     retain: 0

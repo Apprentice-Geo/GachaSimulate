@@ -45,18 +45,19 @@ function actions(value, path) {
     return result;
 }
 /** Compiles the v1 YAML contract to a JSON-serializable, flat arena IR. */
-export function compile_yaml(config_text, termination_text) {
+export function compile_yaml(config_text, termination_text, manifest_text) {
     const parse = (text, name) => {
         const document = parseDocument(text, { uniqueKeys: true });
         if (document.errors.length)
             fail(name, document.errors[0].message.replace(/\n.*/s, ""));
         return map(document.toJS(), name);
     };
-    return compile(parse(config_text, "config"), parse(termination_text, "termination"));
+    return compile(parse(config_text, "config"), parse(termination_text, "termination"), manifest_text == null ? undefined : parse(manifest_text, "manifest"));
 }
-export function compile(configValue, terminationValue) {
+export function compile(configValue, terminationValue, manifestValue) {
     const config = map(configValue, "config");
     const termination = map(terminationValue, "termination");
+    const manifest = manifestValue == null ? undefined : map(manifestValue, "manifest");
     keys(config, "config", ["schema_version", "items", "pools", "initial", "every_draw", "rules", "item_resolve"]);
     if (config.schema_version !== 1)
         fail("config.schema_version", "must be 1");
@@ -191,5 +192,13 @@ export function compile(configValue, terminationValue) {
     keys(termRule, "termination.termination_rule", ["condition"]);
     if (!everyPathTerminates(termRule.condition, "termination.termination_rule.condition"))
         fail("termination.termination_rule.condition", "every termination path must contain a terminate action");
-    return { ir: { ir_version: 1, draw_count_item: 0, items, strings, actions: actionArena, pools, pool_entries, rules, condition_nodes: conditions, condition_children, item_resolve: resolve, initial: range(actions(config.initial, "config.initial"), "config.initial"), every_draw: range(actions(config.every_draw, "config.every_draw"), "config.every_draw"), termination: range([], "termination"), termination_condition: condition(termRule.condition, "termination.termination_rule.condition") } };
+    const wantsCost = manifest != null && (manifest.metrics == null ? false : list(manifest.metrics, "manifest.metrics").some((metric, index) => {
+        if (typeof metric !== "string")
+            fail(`manifest.metrics[${index}]`, "must be a string");
+        return metric === "cost";
+    }));
+    const costItem = itemIds.get("cost_count");
+    if (wantsCost !== (costItem != null))
+        fail("manifest.metrics", "cost requires exactly one config item named cost_count");
+    return { ir: { ir_version: 1, draw_count_item: 0, ...(costItem == null ? {} : { cost_item: costItem }), items, strings, actions: actionArena, pools, pool_entries, rules, condition_nodes: conditions, condition_children, item_resolve: resolve, initial: range(actions(config.initial, "config.initial"), "config.initial"), every_draw: range(actions(config.every_draw, "config.every_draw"), "config.every_draw"), termination: range([], "termination"), termination_condition: condition(termRule.condition, "termination.termination_rule.condition") } };
 }

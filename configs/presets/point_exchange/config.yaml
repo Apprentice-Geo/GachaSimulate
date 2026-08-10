@@ -1,5 +1,5 @@
 items:
-- cost: 消耗
+- cost_count: 消耗
 - point: 积分
 - exchange: 兑换物
 pools:
@@ -9,7 +9,7 @@ pools:
   - probability: 0.5
     actions: point += 2
 every_draw:
-- cost += 1
+- cost_count += 1
 rules:
 - exchange_points:
     mode: repeat

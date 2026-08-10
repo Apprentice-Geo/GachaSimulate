@@ -32,5 +32,11 @@ if(BUILD_TESTING)
   include(GoogleTest)
   add_executable(gachasimulate_runtime_tests tests/runtime_test.cpp)
   target_link_libraries(gachasimulate_runtime_tests PRIVATE gachasimulate_runtime GTest::gtest_main)
+  target_compile_definitions(gachasimulate_runtime_tests PRIVATE
+    GACHASIMULATE_TEST_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_fixture_ir.json"
+    GACHASIMULATE_TEST_COST_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_cost_fixture_ir.json")
   gtest_discover_tests(gachasimulate_runtime_tests)
 endif()
+
+add_executable(gachasimulate-benchmark src/benchmark.cpp)
+target_link_libraries(gachasimulate-benchmark PRIVATE gachasimulate_runtime)
