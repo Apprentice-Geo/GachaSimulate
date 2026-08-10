@@ -13,8 +13,8 @@ from gachasimulate.validator import (
 
 def _valid_config() -> dict:
     return {
+        "schema_version": 1,
         "items": [
-            {"draw_count": "抽数"},
             "token",
             "target",
             "shard",
@@ -29,7 +29,6 @@ def _valid_config() -> dict:
             {"bonus": [{"weight": 1, "actions": "shard += 1"}]},
         ],
         "initial": "change main",
-        "every_draw": "draw_count += 1",
         "rules": [
             {
                 "and_rule": {
@@ -167,11 +166,11 @@ def test_validate_config_rejects_empty_item_mapping_names(name: object) -> None:
         validate_config(config)
 
 
-def test_validate_config_requires_draw_count() -> None:
+def test_validate_config_rejects_declared_draw_count() -> None:
     config = _valid_config()
-    config["items"] = ["token", "target"]
+    config["items"].append("draw_count")
 
-    with pytest.raises(ValidationError, match="draw_count is required"):
+    with pytest.raises(ValidationError, match="draw_count is reserved"):
         validate_config(config)
 
 
@@ -183,12 +182,9 @@ def test_validate_config_rejects_old_dict_action_shape() -> None:
         validate_config(config)
 
 
-def test_validate_config_requires_every_draw_to_increment_draw_count() -> None:
+def test_validate_config_allows_missing_every_draw() -> None:
     config = _valid_config()
-    del config["every_draw"]
-
-    with pytest.raises(ValidationError, match="every_draw must increment draw_count"):
-        validate_config(config)
+    validate_config(config)
 
 
 def test_validate_config_rejects_bad_logic_operator() -> None:

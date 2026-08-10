@@ -23,8 +23,8 @@ from gachasimulate.runtime import (
 
 def _minimal_config() -> dict:
     return {
+        "schema_version": 1,
         "items": [
-            {"draw_count": "抽数"},
             "token",
             {"target": "目标"},
             "shard",
@@ -37,7 +37,6 @@ def _minimal_config() -> dict:
                 ]
             }
         ],
-        "every_draw": "draw_count += 1",
     }
 
 
@@ -329,16 +328,14 @@ def test_build_from_files_loads_yaml(tmp_path: Path) -> None:
     termination_path = tmp_path / "termination.yaml"
     config_path.write_text(
         """
+schema_version: 1
 items:
-  - draw_count: 抽数
   - token
   - target
 pools:
   - main:
       - probability: 1.0
         actions: target += 1
-every_draw:
-  - draw_count += 1
 """,
         encoding="utf-8",
     )
@@ -358,7 +355,7 @@ termination_rule:
 
     assert ctx.pool_id_index == {"main": 0}
     assert ctx.item_id_index["draw_count"] == 0
-    assert ctx.every_draw_actions == (AddItem(item_index=0, amount=1),)
+    assert ctx.every_draw_actions == ()
 
 
 def test_build_from_files_rejects_json_extension(tmp_path: Path) -> None:

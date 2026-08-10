@@ -23,6 +23,21 @@ test("compiles v1 YAML with the compiler-owned draw slot", () => {
   assert.deepEqual((ir.items as { id: number }[]).length, 2);
 });
 
+test("emits the resolve batch reduction without making consumers rescan actions", () => {
+  const { ir } = compile_yaml(
+    config.replace("target += 1", "target += 3").replace(
+      "pools:\n",
+      "item_resolve:\n  - item: target\n    retain: 1\n    actions: target -= 2\npools:\n",
+    ),
+    termination,
+  );
+  const resolves = ir.item_resolve as { retain: number; reduce_per_batch: number }[];
+  assert.deepEqual(resolves.map(({ retain, reduce_per_batch }) => ({ retain, reduce_per_batch })), [
+    { retain: 0, reduce_per_batch: 0 },
+    { retain: 1, reduce_per_batch: 2 },
+  ]);
+});
+
 test("rejects duplicate YAML keys and draw_count writes", () => {
   assert.throws(
     () => compile_yaml(config.replace("items: [target]", "items: [target]\nitems: [other]"), termination),

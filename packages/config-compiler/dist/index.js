@@ -165,11 +165,11 @@ export function compile(configValue, terminationValue) {
     } keys(node, path, ["op", "children", "actions"]); if (!["AND", "OR", "&&", "||"].includes(node.op))
         fail(`${path}.op`, "unsupported logic op"); const children = list(node.children, `${path}.children`); if (!children.length)
         fail(`${path}.children`, "must be non-empty"); const begin = condition_children.length; children.forEach((child, index) => condition_children.push(condition(child, `${path}.children[${index}]`))); return conditions.push({ kind: "logic", op: node.op === "&&" ? "AND" : node.op === "||" ? "OR" : node.op, children: { begin, count: children.length }, actions: own }) - 1; };
-    const resolve = Array.from({ length: items.length }, () => ({ retain: 0, actions: { begin: 0, count: 0 } }));
+    const resolve = Array.from({ length: items.length }, () => ({ retain: 0, reduce_per_batch: 0, actions: { begin: 0, count: 0 } }));
     const resolves = config.item_resolve == null ? [] : list(config.item_resolve, "config.item_resolve");
     resolves.forEach((raw, index) => { const path = `config.item_resolve[${index}]`; const value = map(raw, path); keys(value, path, ["item", "retain", "actions"]); const item = typeof value.item === "string" ? itemIds.get(value.item) : undefined; if (!item || resolve[item].actions.count)
-        fail(`${path}.item`, "unknown, reserved, or duplicate resolved item"); const values = actions(value.actions, `${path}.actions`); if (!values.length || values.filter((entry) => new RegExp(`^${value.item}\\s*-=`).test(entry.trim())).length !== 1)
-        fail(`${path}.actions`, "must contain exactly one reduce action for the resolved item"); resolve[item] = { retain: integer(value.retain, `${path}.retain`), actions: range(values, `${path}.actions`) }; });
+        fail(`${path}.item`, "unknown, reserved, or duplicate resolved item"); const values = actions(value.actions, `${path}.actions`); const reduce = values.map((entry) => ACTION.exec(entry.trim())).filter((match) => match != null && match[1] === value.item && match[2] === "-="); if (!values.length || reduce.length !== 1)
+        fail(`${path}.actions`, "must contain exactly one reduce action for the resolved item"); resolve[item] = { retain: integer(value.retain, `${path}.retain`), reduce_per_batch: integer(Number(reduce[0][3]), `${path}.actions`, true), actions: range(values, `${path}.actions`) }; });
     const retained = list(termination.retained_items, "termination.retained_items");
     const retainedIds = new Set();
     retained.forEach((raw, index) => { const value = map(raw, `termination.retained_items[${index}]`); if (Object.keys(value).length !== 1)

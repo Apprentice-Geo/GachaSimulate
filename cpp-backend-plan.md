@@ -84,6 +84,8 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
 
 ## 4. 阶段一：冻结契约与共享 Compiler
 
+**完成状态：已完成。** 已建立独立的 `@gachasimulate/config-compiler`，冻结 YAML v1 到 JSON IR 的基础契约，并将 `draw_count` 固定为 Compiler-owned 只读槽位。IR 已使用平坦 arena、整数 ID、ActionRange、CDF 和有效 retain；`item_resolve` 额外输出 `reduce_per_batch`，供 Runtime 无需重新解释 action DSL 即可计算分解批次。
+
 ### 目标
 
 先把 YAML、manifest、IR、GSR 和 JSONL 的边界固定为可测试契约，并建立唯一的 TS 编译实现。此阶段不实现 C++ 模拟语义。
@@ -108,6 +110,8 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
 - `config-compiler` 的打包产物能从工作区外真实导入。
 
 ## 5. 阶段二：C++ 单线程语义闭环
+
+**完成状态：已完成最小单线程闭环。** `cpp/` 现提供 C++20 Runtime 库、严格 JSON IR Loader、`gachasimulate-core --ir <utf8-path> --single-run --seed <int64>` 诊断 CLI 与 CTest。Runtime 覆盖 initial、every_draw、pool draw/change、嵌套 draw、resolve、once/per_draw/repeat 规则、AND/OR 条件及 terminate；MSVC Release 构建、CTest 和 install 已验证，安装产物位于 `build/native/bin/`。当前仅完成 C++ Runtime、Loader 与基础 CTest 闭环；C++ 单次和批量结果与 Python 参考统计的正式对照，待阶段四 TS GSR reader/统计能力完成后实施。
 
 ### 目标
 
