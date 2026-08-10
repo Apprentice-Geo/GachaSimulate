@@ -1,0 +1,15 @@
+id: xinyuanjifengbaoxiang
+name: test
+description: test
+terminations:
+- file: termination.yaml
+  name: termination
+metadata:
+  name: test
+  source: https://mp.weixin.qq.com/s/geByodTqXB60NdY9f5JFFg
+  game: sanguoshayidonban
+  time: '2026_4_13'
+  cost_id: xinyuanjifeng
+  cost_name: 心愿积分
+  amount: 5
+  per_cost_to_rmb: null

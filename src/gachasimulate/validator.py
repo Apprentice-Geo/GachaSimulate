@@ -65,7 +65,10 @@ def _require_positive_number(value: Any, path: str) -> float:
 def _require_number(value: Any, path: str) -> float:
     if not isinstance(value, (int, float)) or isinstance(value, bool):
         _fail(path, "must be a number")
-    return float(value)
+    number = float(value)
+    if not math.isfinite(number):
+        _fail(path, "must be finite")
+    return number
 
 
 def _validate_id(value: str, path: str) -> None:
@@ -168,6 +171,8 @@ def _validate_action(
     match = _ACTION_RE.fullmatch(action)
     if match is not None:
         item_id, op, amount = match.groups()
+        if item_id == "draw_count":
+            _fail(path, "draw_count is read-only")
         if item_id not in item_ids:
             _fail(path, f"unknown item id: {item_id}")
         if op != "=" and int(amount) <= 0:
@@ -287,23 +292,22 @@ def _actions_have_terminate(actions: Any) -> bool:
     )
 
 
-def _actions_increment_draw_count(actions: Any) -> bool:
-    for action in _normalize_actions(actions, "actions", allow_empty=True):
-        match = _ACTION_RE.fullmatch(action.strip())
-        if match is None:
-            continue
-        item_id, op, amount = match.groups()
-        if item_id == "draw_count" and op == "+=" and int(amount) > 0:
-            return True
-    return False
-
-
 def _condition_has_any_action(node: dict[str, Any]) -> bool:
     if _actions_have_any_action(node.get("actions")):
         return True
     if "check" in node:
         return False
     return any(_condition_has_any_action(child) for child in node["children"])
+
+
+def _condition_all_paths_have_action(node: dict[str, Any]) -> bool:
+    if _actions_have_any_action(node.get("actions")):
+        return True
+    if "check" in node:
+        return False
+    if node["op"] in {"OR", "||"}:
+        return all(_condition_all_paths_have_action(child) for child in node["children"])
+    return any(_condition_all_paths_have_action(child) for child in node["children"])
 
 
 def _condition_all_paths_have_terminate(node: dict[str, Any]) -> bool:
@@ -318,11 +322,19 @@ def _condition_all_paths_have_terminate(node: dict[str, Any]) -> bool:
 
 def validate_config(config: dict[str, Any]) -> None:
     config = _require_mapping(config, "config")
+    _reject_unknown_keys(
+        config,
+        "config",
+        {"schema_version", "items", "pools", "initial", "every_draw", "rules", "item_resolve"},
+    )
+    if config.get("schema_version") != 1:
+        _fail("config.schema_version", "must be 1")
 
     items = _parse_items(config.get("items"))
     item_ids = {item_id for item_id, _ in items}
-    if "draw_count" not in item_ids:
-        _fail("config.items", "draw_count is required")
+    if "draw_count" in item_ids:
+        _fail("config.items", "draw_count is reserved")
+    item_ids.add("draw_count")
 
     pools = _parse_pools(config.get("pools"))
     pool_ids = {pool_id for pool_id, _ in pools}
@@ -381,17 +393,13 @@ def validate_config(config: dict[str, Any]) -> None:
             allow_empty=True,
         )
 
-    if "every_draw" not in config:
-        _fail("config.every_draw", "every_draw must increment draw_count")
     _validate_actions(
-        config["every_draw"],
+        config.get("every_draw"),
         "config.every_draw",
         item_ids=item_ids,
         pool_ids=pool_ids,
         allow_empty=True,
     )
-    if not _actions_increment_draw_count(config["every_draw"]):
-        _fail("config.every_draw", "every_draw must increment draw_count")
 
     item_resolves = config.get("item_resolve", [])
     if "item_resolve" in config:
@@ -404,6 +412,8 @@ def validate_config(config: dict[str, Any]) -> None:
         item_id = resolve.get("item")
         if not isinstance(item_id, str):
             _fail(path + ".item", "must be an item id")
+        if item_id == "draw_count":
+            _fail(path + ".item", "draw_count is reserved")
         if item_id not in item_ids:
             _fail(path + ".item", f"unknown item id: {item_id}")
         if item_id in seen_item_resolve_items:
@@ -458,18 +468,25 @@ def validate_config(config: dict[str, Any]) -> None:
                 path + f".{rule_id}.condition",
                 "rule condition must contain at least one action",
             )
+        if mode == "repeat" and not _condition_all_paths_have_action(rule["condition"]):
+            _fail(
+                path + f".{rule_id}.condition",
+                "every repeat path must contain at least one action",
+            )
 
 
 def validate_termination(termination: dict[str, Any], config: dict[str, Any]) -> None:
     termination = _require_mapping(termination, "termination")
     config = _require_mapping(config, "config")
-    item_ids = _item_ids(config)
+    _reject_unknown_keys(termination, "termination", {"retained_items", "termination_rule"})
+    item_ids = _item_ids(config) | {"draw_count"}
     pool_ids = _pool_ids(config)
 
     retained_items = _require_list(
         termination.get("retained_items"),
         "termination.retained_items",
     )
+    seen_retained: set[str] = set()
     for index, retained in enumerate(retained_items):
         item_id, count = _require_single_key_mapping(
             retained,
@@ -477,6 +494,9 @@ def validate_termination(termination: dict[str, Any], config: dict[str, Any]) ->
         )
         if item_id not in item_ids:
             _fail(f"termination.retained_items[{index}]", f"unknown item id: {item_id}")
+        if item_id in seen_retained:
+            _fail(f"termination.retained_items[{index}]", f"duplicate retained item: {item_id}")
+        seen_retained.add(item_id)
         _require_non_negative_int(count, f"termination.retained_items[{index}].{item_id}")
 
     rule = _require_mapping(

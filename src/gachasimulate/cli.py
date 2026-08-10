@@ -190,7 +190,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                 {
                     "type": "completed",
                     "result_path": str(result_path),
-                    "visualize_path": str(visualize_path),
                     "total_runs": int(result["total_runs"]),
                     "total_draw": int(result["total_draw"]),
                 }

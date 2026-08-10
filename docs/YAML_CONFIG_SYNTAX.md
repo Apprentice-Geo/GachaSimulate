@@ -36,14 +36,13 @@ PositiveNumber = Number where value > 0
 
 ```ebnf
 Config = {
+  "schema_version": 1,
   "items": ItemList,
   "pools": PoolList,
   "initial"?: Actions,
-  "every_draw": EveryDrawList,
+  "every_draw"?: EveryDrawList,
   "rules"?: RuleList,
   "item_resolve"?: ItemResolveList,
-  "metadata"?: Any,
-  ...metadata
 }
 ```
 
@@ -55,12 +54,11 @@ TerminationConfig = {
   "termination_rule": {
     "condition": ConditionNode
   },
-  "metadata"?: Any,
-  ...metadata
 }
 ```
 
-未参与模拟的 metadata 只允许出现在根对象顶层，builder 会忽略它们。推荐统一使用 `metadata` 字段；其他顶层未知字段也按 metadata 处理，但不作为稳定语法扩展。已定义结构内部不允许未知字段。
+根对象仅允许上述字段；展示信息放在同目录 `manifest.yaml`。`config.yaml` 必须声明
+`schema_version: 1`；termination 继承该版本且不得重复声明。
 
 ## 基础结构
 
@@ -96,14 +94,14 @@ RetainedItemList = [ { ItemId: NonNegativeInteger }, ... ]
 
 约束：
 
-- `items` 必须包含 `draw_count`。
+- 用户 `items` 不得声明 `draw_count`。编译器会在索引 0 注入只读的合成槽位。
 - `cost` 是可选 item；需要成本统计时，由配置 actions 按实际规则累计。运行时不会根据抽数或 metadata 推导成本。
 - 同一个 pool 内只能统一使用 `probability` 或统一使用 `weight`。
 - 使用 `probability` 时，单个概率必须大于 `0`，同一个 pool 的概率和必须为 `1`。
 - 使用 `weight` 时，单个权重必须大于 `0`。
 - pool entry 的 `actions` 可省略，省略等价空动作。
 - `RuleId` 必须唯一。
-- `EveryDrawList`  中必须包含一个 `"draw_count Padding += Padding PositiveNumber"` 
+- `every_draw` 可省略。每轮会先自动递增 `draw_count`，再执行用户 actions。
 - `ItemResolve.actions` 必须出现，且必须是非空 action 或非空 action 列表；不能省略、不能为 `null`、不能为空列表。
 - `ItemResolve.actions` 必须包含且仅包含一个 `item -= n` 动作，且该动作必须减少当前 `ItemResolve.item`；不能包含减少其他 item 的 `-=` 动作。
 - `mode` 省略时等价 `once`。
@@ -137,7 +135,7 @@ Action =
 
 约束：
 
-- 所有 action 引用的 `item` 和 `pool_id` 必须已定义。
+- 所有 action 引用的 `item` 和 `pool_id` 必须已定义；任何 action 和 `item_resolve` 都不得写入或声明 `draw_count`。
 - `Actions` 可为 `null`、单个 action 字符串、或 action 字符串列表；普通 actions 的空列表等价空动作。
 - `ResolveActions` 不能为 `null` 或空列表。
 - `terminate` 后续 action 不再执行。
@@ -186,7 +184,7 @@ CheckExpression =
 
 1. 创建空状态，主 pool 初始为 `pools` 列表中的第一个 pool。
 2. 执行 `initial` actions。
-3. 每轮抽取先执行 `every_draw` actions。
+3. 每轮先递增合成 `draw_count`，再执行 `every_draw` actions。
 4. 从当前主 pool 抽取一次，并执行抽中 entry 的 actions。
 5. 按 `rules` 声明顺序执行 rule 阶段。
 6. 检查 `termination_rule`；命中后执行收集到的 termination actions。
@@ -204,7 +202,7 @@ rule 的 `mode`：
 
 `item_resolve` 用于描述获得可分解物品后的即时处理：
 
-- `item += n` 增加库存后，如果该 item 配置了 `item_resolve`，会立即根据库存和 `retain` 执行分解 actions。
+- `item += n` 或 `item = n` 后，如果该 item 配置了 `item_resolve`，会立即根据库存和 `retain` 执行分解 actions；`item -= n` 不触发。
 - `retain` 表示至少保留的库存数量。
 - 分解批次数量由当前库存、`retain` 和 `ResolveActions` 中唯一的 `item -= n` 决定。
 - `termination*.yaml` 的 `retained_items` 会并入 `item_resolve` 的保留数量；同一 item 实际保留值取两者较大值。

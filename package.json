@@ -22,7 +22,8 @@
     "test:visualize:cdf": "tsx src/visualize/test/cdf.test.ts",
     "test:simulation": "tsx --test src/main/config_manager.test.ts src/main/simulation.test.ts",
     "test:e2e": "tsx src/visualize/test/run_e2e.ts",
-    "export:cdf": "tsx src/visualize/export/export_cdf.ts"
+    "export:cdf": "tsx src/visualize/export/export_cdf.ts",
+    "test:compiler": "pnpm --dir packages/config-compiler test"
   },
   "repository": {
     "type": "git",

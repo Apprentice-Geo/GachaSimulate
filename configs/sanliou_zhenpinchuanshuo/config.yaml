@@ -1,12 +1,3 @@
-metadata:
-  name: sanliou_zhenpinchuanshuo
-  source: https://pvp.qq.com/web201706/newsdetail.shtml?tid=801291
-  game: 王者荣耀
-  time: '2026_5_20'
-  cost_id: sanliouqiyuanbi
-  cost_name: 三丽鸥祈愿币
-  amount: 6
-  per_cost_to_rmb: 1
 items:
 - sanliouduihuanbi: 三丽鸥兑换币
 - teshuhuizhangbaodijishu: 特殊徽章保底计数
@@ -26,7 +17,6 @@ items:
 - pifusuipian: 皮肤碎片
 - dianbotonpinqinmidudaoju: 电波同频亲密度道具
 - gexingchuochuodaergouzhimeng: 个性戳戳大耳狗之梦
-- draw_count: Draw count
 pools:
 - begin_pool:
   - probability: 0.001
@@ -88,7 +78,6 @@ pools:
   - probability: 0.005
     actions: sanliouduihuanbi += 198
 every_draw:
-- draw_count += 1
 - teshuhuizhangbaodijishu += 1
 rules:
 - teshuhuizhang_gain:
@@ -201,3 +190,4 @@ item_resolve:
   - sanliouduihuanbi += 98
 initial:
 - change begin_pool
+schema_version: 1

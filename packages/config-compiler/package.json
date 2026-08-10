@@ -1,0 +1,20 @@
+{
+  "name": "@gachasimulate/config-compiler",
+  "version": "1.0.0",
+  "description": "GachaSimulate YAML configuration compiler",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsx --test test/*.test.ts",
+    "prepack": "pnpm build"
+  },
+  "dependencies": { "yaml": "^2.9.0" },
+  "devDependencies": { "tsx": "^4.21.0", "typescript": "^6.0.3" }
+}

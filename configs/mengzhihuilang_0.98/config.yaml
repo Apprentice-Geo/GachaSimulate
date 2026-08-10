@@ -1,271 +1,259 @@
-metadata:
-  name: mengzhihuilang_0.98
-  source: https://www.sanguosha.cn/pc/news-detail-2341.html
-  game: 三国杀
-  time: "2026_7_4"
-  cost_id: midiezhu
-  cost_name: 迷迭珠
-  amount: 1
-  per_cost_to_rmb: 3
-  note: "存在隐藏保底规则，且概率存在异议，即最后一个碎片是24还是25，目前的配置版本是24，因此文件名是0.98"
 items:
-  - draw_count: Draw count
-  - fragment0
-  - fragment1
-  - fragment2
-  - fragment3
-  - fragment4
-  - fragment5
-  - fragment6
-  - fragment7
-  - fragment8
-  - fragment9
-  - fragment10
-  - fragment11
-  - fragment12
-  - fragment13
-  - fragment14
-  - fragment15
-  - fragment16
-  - fragment17
-  - fragment18
-  - fragment19
-  - fragment20
-  - fragment21
-  - fragment22
-  - fragment23
-  - fragment24
-  - fragment25
+- fragment0
+- fragment1
+- fragment2
+- fragment3
+- fragment4
+- fragment5
+- fragment6
+- fragment7
+- fragment8
+- fragment9
+- fragment10
+- fragment11
+- fragment12
+- fragment13
+- fragment14
+- fragment15
+- fragment16
+- fragment17
+- fragment18
+- fragment19
+- fragment20
+- fragment21
+- fragment22
+- fragment23
+- fragment24
+- fragment25
 pools:
-  - pool0:
-      - probability: 1.0
-        actions: fragment0 += 1
-  - pool1:
-      - probability: 1.0
-        actions: fragment1 += 1
-  - pool2:
-      - probability: 0.96
-        actions: fragment2 += 1
-      - probability: 0.04
-  - pool3:
-      - probability: 0.92
-        actions: fragment3 += 1
-      - probability: 0.08
-  - pool4:
-      - probability: 0.88
-        actions: fragment4 += 1
-      - probability: 0.12
-  - pool5:
-      - probability: 0.84
-        actions: fragment5 += 1
-      - probability: 0.16
-  - pool6:
-      - probability: 0.80
-        actions: fragment6 += 1
-      - probability: 0.20
-  - pool7:
-      - probability: 0.76
-        actions: fragment7 += 1
-      - probability: 0.24
-  - pool8:
-      - probability: 0.72
-        actions: fragment8 += 1
-      - probability: 0.28
-  - pool9:
-      - probability: 0.68
-        actions: fragment9 += 1
-      - probability: 0.32
-  - pool10:
-      - probability: 0.64
-        actions: fragment10 += 1
-      - probability: 0.36
-  - pool11:
-      - probability: 0.4286
-        actions: fragment11 += 1
-      - probability: 0.5714
-  - pool12:
-      - probability: 0.40
-        actions: fragment12 += 1
-      - probability: 0.60
-  - pool13:
-      - probability: 0.3714
-        actions: fragment13 += 1
-      - probability: 0.6286
-  - pool14:
-      - probability: 0.3429
-        actions: fragment14 += 1
-      - probability: 0.6571
-  - pool15:
-      - probability: 0.3143
-        actions: fragment15 += 1
-      - probability: 0.6857
-  - pool16:
-      - probability: 0.25
-        actions: fragment16 += 1
-      - probability: 0.75
-  - pool17:
-      - probability: 0.225
-        actions: fragment17 += 1
-      - probability: 0.775
-  - pool18:
-      - probability: 0.20
-        actions: fragment18 += 1
-      - probability: 0.80
-  - pool19:
-      - probability: 0.175
-        actions: fragment19 += 1
-      - probability: 0.825
-  - pool20:
-      - probability: 0.15
-        actions: fragment20 += 1
-      - probability: 0.85
-  - pool21:
-      - probability: 0.0244
-        actions: fragment21 += 1
-      - probability: 0.9756
-  - pool22:
-      - probability: 0.0195
-        actions: fragment22 += 1
-      - probability: 0.9805
-  - pool23:
-      - probability: 0.0146
-        actions: fragment23 += 1
-      - probability: 0.9854
-  - pool24:
-      - probability: 0.0098
-        actions: fragment24 += 1
-      - probability: 0.9902
-  - pool25:
-      - probability: 0.0029
-        actions: fragment25 += 1
-      - probability: 0.9971
-every_draw:
-  - draw_count += 1
+- pool0:
+  - probability: 1.0
+    actions: fragment0 += 1
+- pool1:
+  - probability: 1.0
+    actions: fragment1 += 1
+- pool2:
+  - probability: 0.96
+    actions: fragment2 += 1
+  - probability: 0.04
+- pool3:
+  - probability: 0.92
+    actions: fragment3 += 1
+  - probability: 0.08
+- pool4:
+  - probability: 0.88
+    actions: fragment4 += 1
+  - probability: 0.12
+- pool5:
+  - probability: 0.84
+    actions: fragment5 += 1
+  - probability: 0.16
+- pool6:
+  - probability: 0.8
+    actions: fragment6 += 1
+  - probability: 0.2
+- pool7:
+  - probability: 0.76
+    actions: fragment7 += 1
+  - probability: 0.24
+- pool8:
+  - probability: 0.72
+    actions: fragment8 += 1
+  - probability: 0.28
+- pool9:
+  - probability: 0.68
+    actions: fragment9 += 1
+  - probability: 0.32
+- pool10:
+  - probability: 0.64
+    actions: fragment10 += 1
+  - probability: 0.36
+- pool11:
+  - probability: 0.4286
+    actions: fragment11 += 1
+  - probability: 0.5714
+- pool12:
+  - probability: 0.4
+    actions: fragment12 += 1
+  - probability: 0.6
+- pool13:
+  - probability: 0.3714
+    actions: fragment13 += 1
+  - probability: 0.6286
+- pool14:
+  - probability: 0.3429
+    actions: fragment14 += 1
+  - probability: 0.6571
+- pool15:
+  - probability: 0.3143
+    actions: fragment15 += 1
+  - probability: 0.6857
+- pool16:
+  - probability: 0.25
+    actions: fragment16 += 1
+  - probability: 0.75
+- pool17:
+  - probability: 0.225
+    actions: fragment17 += 1
+  - probability: 0.775
+- pool18:
+  - probability: 0.2
+    actions: fragment18 += 1
+  - probability: 0.8
+- pool19:
+  - probability: 0.175
+    actions: fragment19 += 1
+  - probability: 0.825
+- pool20:
+  - probability: 0.15
+    actions: fragment20 += 1
+  - probability: 0.85
+- pool21:
+  - probability: 0.0244
+    actions: fragment21 += 1
+  - probability: 0.9756
+- pool22:
+  - probability: 0.0195
+    actions: fragment22 += 1
+  - probability: 0.9805
+- pool23:
+  - probability: 0.0146
+    actions: fragment23 += 1
+  - probability: 0.9854
+- pool24:
+  - probability: 0.0098
+    actions: fragment24 += 1
+  - probability: 0.9902
+- pool25:
+  - probability: 0.0029
+    actions: fragment25 += 1
+  - probability: 0.9971
 rules:
-  - switch_to_1:
-      mode: once
-      condition:
-        check: fragment0 >= 1
-        actions: change pool1
-  - switch_to_2:
-      mode: once
-      condition:
-        check: fragment1 >= 1
-        actions: change pool2
-  - switch_to_3:
-      mode: once
-      condition:
-        check: fragment2 >= 1
-        actions: change pool3
-  - switch_to_4:
-      mode: once
-      condition:
-        check: fragment3 >= 1
-        actions: change pool4
-  - switch_to_5:
-      mode: once
-      condition:
-        check: fragment4 >= 1
-        actions: change pool5
-  - switch_to_6:
-      mode: once
-      condition:
-        check: fragment5 >= 1
-        actions: change pool6
-  - switch_to_7:
-      mode: once
-      condition:
-        check: fragment6 >= 1
-        actions: change pool7
-  - switch_to_8:
-      mode: once
-      condition:
-        check: fragment7 >= 1
-        actions: change pool8
-  - switch_to_9:
-      mode: once
-      condition:
-        check: fragment8 >= 1
-        actions: change pool9
-  - switch_to_10:
-      mode: once
-      condition:
-        check: fragment9 >= 1
-        actions: change pool10
-  - switch_to_11:
-      mode: once
-      condition:
-        check: fragment10 >= 1
-        actions: change pool11
-  - switch_to_12:
-      mode: once
-      condition:
-        check: fragment11 >= 1
-        actions: change pool12
-  - switch_to_13:
-      mode: once
-      condition:
-        check: fragment12 >= 1
-        actions: change pool13
-  - switch_to_14:
-      mode: once
-      condition:
-        check: fragment13 >= 1
-        actions: change pool14
-  - switch_to_15:
-      mode: once
-      condition:
-        check: fragment14 >= 1
-        actions: change pool15
-  - switch_to_16:
-      mode: once
-      condition:
-        check: fragment15 >= 1
-        actions: change pool16
-  - switch_to_17:
-      mode: once
-      condition:
-        check: fragment16 >= 1
-        actions: change pool17
-  - switch_to_18:
-      mode: once
-      condition:
-        check: fragment17 >= 1
-        actions: change pool18
-  - switch_to_19:
-      mode: once
-      condition:
-        check: fragment18 >= 1
-        actions: change pool19
-  - switch_to_20:
-      mode: once
-      condition:
-        check: fragment19 >= 1
-        actions: change pool20
-  - switch_to_21:
-      mode: once
-      condition:
-        check: fragment20 >= 1
-        actions: change pool21
-  - switch_to_22:
-      mode: once
-      condition:
-        check: fragment21 >= 1
-        actions: change pool22
-  - switch_to_23:
-      mode: once
-      condition:
-        check: fragment22 >= 1
-        actions: change pool23
-  - switch_to_24:
-      mode: once
-      condition:
-        check: fragment23 >= 1
-        actions: change pool24
-  - switch_to_25:
-      mode: once
-      condition:
-        check: fragment24 >= 1
-        actions: change pool25
+- switch_to_1:
+    mode: once
+    condition:
+      check: fragment0 >= 1
+      actions: change pool1
+- switch_to_2:
+    mode: once
+    condition:
+      check: fragment1 >= 1
+      actions: change pool2
+- switch_to_3:
+    mode: once
+    condition:
+      check: fragment2 >= 1
+      actions: change pool3
+- switch_to_4:
+    mode: once
+    condition:
+      check: fragment3 >= 1
+      actions: change pool4
+- switch_to_5:
+    mode: once
+    condition:
+      check: fragment4 >= 1
+      actions: change pool5
+- switch_to_6:
+    mode: once
+    condition:
+      check: fragment5 >= 1
+      actions: change pool6
+- switch_to_7:
+    mode: once
+    condition:
+      check: fragment6 >= 1
+      actions: change pool7
+- switch_to_8:
+    mode: once
+    condition:
+      check: fragment7 >= 1
+      actions: change pool8
+- switch_to_9:
+    mode: once
+    condition:
+      check: fragment8 >= 1
+      actions: change pool9
+- switch_to_10:
+    mode: once
+    condition:
+      check: fragment9 >= 1
+      actions: change pool10
+- switch_to_11:
+    mode: once
+    condition:
+      check: fragment10 >= 1
+      actions: change pool11
+- switch_to_12:
+    mode: once
+    condition:
+      check: fragment11 >= 1
+      actions: change pool12
+- switch_to_13:
+    mode: once
+    condition:
+      check: fragment12 >= 1
+      actions: change pool13
+- switch_to_14:
+    mode: once
+    condition:
+      check: fragment13 >= 1
+      actions: change pool14
+- switch_to_15:
+    mode: once
+    condition:
+      check: fragment14 >= 1
+      actions: change pool15
+- switch_to_16:
+    mode: once
+    condition:
+      check: fragment15 >= 1
+      actions: change pool16
+- switch_to_17:
+    mode: once
+    condition:
+      check: fragment16 >= 1
+      actions: change pool17
+- switch_to_18:
+    mode: once
+    condition:
+      check: fragment17 >= 1
+      actions: change pool18
+- switch_to_19:
+    mode: once
+    condition:
+      check: fragment18 >= 1
+      actions: change pool19
+- switch_to_20:
+    mode: once
+    condition:
+      check: fragment19 >= 1
+      actions: change pool20
+- switch_to_21:
+    mode: once
+    condition:
+      check: fragment20 >= 1
+      actions: change pool21
+- switch_to_22:
+    mode: once
+    condition:
+      check: fragment21 >= 1
+      actions: change pool22
+- switch_to_23:
+    mode: once
+    condition:
+      check: fragment22 >= 1
+      actions: change pool23
+- switch_to_24:
+    mode: once
+    condition:
+      check: fragment23 >= 1
+      actions: change pool24
+- switch_to_25:
+    mode: once
+    condition:
+      check: fragment24 >= 1
+      actions: change pool25
 initial:
-  - change pool0
+- change pool0
+schema_version: 1

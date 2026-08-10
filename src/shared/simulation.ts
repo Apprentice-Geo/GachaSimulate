@@ -37,7 +37,6 @@ export type SimulationEvent =
   | {
       type: "completed";
       result_path: string;
-      visualize_path: string;
       total_runs: number;
       total_draw: number;
     }
@@ -170,7 +169,6 @@ export function parse_simulation_line(
       return {
         type: "completed",
         result_path: text(event.result_path, "result_path"),
-        visualize_path: text(event.visualize_path, "visualize_path"),
         total_runs: integer(event.total_runs, "total_runs", 1),
         total_draw: integer(event.total_draw, "total_draw", 1),
       };

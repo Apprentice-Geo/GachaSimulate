@@ -169,7 +169,10 @@ class SetItem(Action):
             0, runtime_state.inventory[self.item_index] - self.amount
         )
         runtime_state.inventory[self.item_index] = self.amount
-        return EMPTY_ACTIONS
+        resolve = runtime_context.item_resolve_list[self.item_index]
+        if not resolve.actions:
+            return EMPTY_ACTIONS
+        return resolve.actions * ((runtime_state.inventory[self.item_index] - resolve.retain) // resolve.reduce)
 
 
 @dataclass(frozen=True, slots=True)

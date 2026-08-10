@@ -1,12 +1,3 @@
-metadata:
-  name: sunwukong_wuxiang
-  source: https://pvp.qq.com/web201706/newsdetail.shtml?tid=791287
-  game: 王者荣耀
-  time: '2026_1_1'
-  cost_id: wuxiang_coin
-  cost_name: 无相祈愿币
-  amount: 10
-  per_cost_to_rmb: 1
 items:
 - wuxiang_point: 无相积分
 - random_limited_skin: 随机限定皮肤礼
@@ -24,7 +15,6 @@ items:
 - epic_skin: 史诗皮肤
 - brave_skin: 勇者皮肤
 - companion_skin: 伴生皮肤
-- draw_count: Draw count
 pools:
 - begin_pool:
   - probability: 0.004
@@ -67,8 +57,6 @@ pools:
     actions: brave_skin += 1
   - probability: 0.6
     actions: companion_skin += 1
-every_draw:
-- draw_count += 1
 rules:
 - draw_5:
     mode: once
@@ -220,3 +208,4 @@ item_resolve:
   - wuxiang_point += 20
 initial:
 - change begin_pool
+schema_version: 1

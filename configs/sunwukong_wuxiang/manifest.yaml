@@ -1,0 +1,21 @@
+id: sunwukong_wuxiang
+name: sunwukong_wuxiang
+description: sunwukong_wuxiang
+terminations:
+- file: termination_all.yaml
+  name: termination_all
+- file: termination_all_exchange.yaml
+  name: termination_all_exchange
+- file: termination_skin.yaml
+  name: termination_skin
+- file: termination_skin_exchange.yaml
+  name: termination_skin_exchange
+metadata:
+  name: sunwukong_wuxiang
+  source: https://pvp.qq.com/web201706/newsdetail.shtml?tid=791287
+  game: 王者荣耀
+  time: '2026_1_1'
+  cost_id: wuxiang_coin
+  cost_name: 无相祈愿币
+  amount: 10
+  per_cost_to_rmb: 1

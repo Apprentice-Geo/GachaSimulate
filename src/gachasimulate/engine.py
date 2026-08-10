@@ -44,6 +44,9 @@ class MonteCarlo:
         """
         执行一次主卡池的抽取,并检查 rule 和 terminate 条件树
         """
+        # draw_count is a compiler-owned read-only slot, incremented before user actions.
+        state.inventory[self.ctx.draw_count_index] += 1
+        state.acquired[self.ctx.draw_count_index] += 1
         self._execute_actions(state, self.ctx.every_draw_actions)
 
         # 这里所有池子的单次抽取都被构造成了 Action，需要抽取直接调用

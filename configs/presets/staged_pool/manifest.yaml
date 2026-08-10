@@ -1,6 +1,6 @@
 id: staged_pool
-name: 阶段切换样例
-description: 展示权重池、计数器和阶段规则
+name: staged_pool
+description: staged_pool
 terminations:
-  - file: termination.yaml
-    name: 达到阶段目标
+- file: termination.yaml
+  name: 达到阶段目标

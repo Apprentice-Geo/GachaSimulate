@@ -1,0 +1,15 @@
+id: test
+name: test
+description: test
+terminations:
+- file: termination.yaml
+  name: termination
+metadata:
+  name: test
+  source: null
+  game: null
+  time: '2026_4_13'
+  cost_id: test_coin
+  cost_name: 测试币
+  amount: 10
+  per_cost_to_rmb: 1

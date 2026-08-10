@@ -1,24 +1,23 @@
 items:
-  - draw_count: 抽数
-  - cost: 消耗
-  - point: 积分
-  - exchange: 兑换物
+- cost: 消耗
+- point: 积分
+- exchange: 兑换物
 pools:
-  - main:
-      - probability: 0.5
-        actions: point += 1
-      - probability: 0.5
-        actions: point += 2
+- main:
+  - probability: 0.5
+    actions: point += 1
+  - probability: 0.5
+    actions: point += 2
 every_draw:
-  - draw_count += 1
-  - cost += 1
+- cost += 1
 rules:
-  - exchange_points:
-      mode: repeat
-      condition:
-        check: point >= 5
-        actions:
-          - point -= 5
-          - exchange += 1
+- exchange_points:
+    mode: repeat
+    condition:
+      check: point >= 5
+      actions:
+      - point -= 5
+      - exchange += 1
 initial:
-  - change main
+- change main
+schema_version: 1
