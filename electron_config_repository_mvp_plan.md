@@ -119,8 +119,8 @@ packages/config-compiler/
 
 共享包提供两层入口：
 
-- 模拟语言校验只处理 config 和 termination，与当前 Python validator 保持一致，包括暂时允许根级 metadata。
-- 仓库包校验组合模拟语言校验与 manifest、文件白名单等严格规则，并拒绝模拟 YAML 中的根级 metadata。
+- 模拟语言校验只处理 config 和 termination，拒绝 `metadata` 和其它未知根字段。
+- 仓库包校验组合模拟语言校验与 manifest、文件白名单等严格规则。
 
 未来基础编译和版本化 IR 继续在同一包中演进，但不属于本阶段。
 
@@ -131,7 +131,7 @@ packages/config-compiler/
 - 配置仓库构建在 TypeScript 校验后，对每个 termination 调用当前 Python builder，阻止发布当前运行时无法构建的配置。
 - 模拟启动时继续由 Python validator/builder 校验已安装文件，防止安装后篡改或 TypeScript/Python 行为漂移。
 
-对于 config 和 termination 的模拟语言静态规则，两种实现必须针对同一组语言无关的合法和非法 fixture 给出一致结果。manifest、包布局和 metadata 迁移属于 TypeScript 包级约束，不要求现有 Python validator 重复实现。
+对于 config 和 termination 的模拟语言静态规则，两种实现必须针对同一组语言无关的合法和非法 fixture 给出一致结果，包括拒绝根级 metadata 和未知字段。manifest 与包布局属于 TypeScript 包级约束，不要求现有 Python validator 重复实现。
 
 Python 仍是当前执行运行时，因此过渡期以 Python validator/builder 的行为测试为执行权威；TS 结果不一致时阻断发布和客户端合入，修正 TS 或被测试证明错误的 Python 实现，并同步更新 YAML 语法文档。切换执行权威必须作为未来 TS/C++ 迁移的明确决策，不能在配置仓库改动中隐式发生。
 
@@ -150,6 +150,14 @@ format_version: "0.1.0"
 - `0.y.z` 期间允许破坏性修改；破坏性修改至少提升次版本。
 - 共享 npm 包版本与配置格式版本独立管理。
 - index 与配置包确实需要独立演进后，再拆分两种格式版本。
+
+模拟 DSL 另有独立版本：
+
+```yaml
+schema_version: 1
+```
+
+`schema_version` 是 `config.yaml` 的必填整数，termination 继承同目录 config 的版本。它管理 config / termination 的语法和执行语义，不替代 manifest / index 的 `format_version`；共享 npm 包版本也继续独立管理。
 
 ## 7. Manifest 契约
 
@@ -204,7 +212,7 @@ metadata:
 - 需要用于筛选或 UI 的字段应在后续格式版本中提升为正式字段。
 - `name`、`description`、`metrics` 和 termination 展示信息不得在 metadata 中维护第二份。
 
-配置仓库包中，名称、描述、metrics 和 termination 展示名称迁入 manifest 的正式字段；来源、采集时间、备注及旧配置中的成本说明可以原样迁入可选 `metadata`，但不获得运行语义。共享包对仓库配置执行更严格的包级约束，拒绝模拟 YAML 中残留的根级 metadata。当前 Python 本地 YAML 语法暂时保持不变，直至真实配置迁移和旧配置清理完成。
+配置仓库包中，名称、描述、metrics 和 termination 展示名称迁入 manifest 的正式字段；来源、采集时间、备注及旧配置中的成本说明可以原样迁入可选 `metadata`，但不获得运行语义。config 和 termination 中不再允许 metadata；迁移时必须先把仍需保留的信息移动到 manifest，再删除模拟 YAML 中的旧字段。
 
 ## 8. 配置包结构
 
@@ -229,7 +237,7 @@ ZIP 安全由 Electron main 负责，至少拒绝：
 
 首版安全上限为：index 响应 `1 MiB`、ZIP 下载 `10 MiB`、ZIP 条目 `64` 个、单条目解压后 `2 MiB`、总解压大小 `20 MiB`。这些是客户端运行限制，不属于配置格式；调整时必须同步行为测试。
 
-index、manifest、metrics 项和 termination 声明拒绝未知字段；`metadata` 内部字段例外。仓库包模式还拒绝 config 和 termination 根级的未知字段或 metadata，当前本地模拟语言模式继续遵循既有 Python 规则。
+index、manifest、metrics 项和 termination 声明拒绝未知字段；`metadata` 内部字段例外。config 和 termination 在所有调用模式下都拒绝未知根字段和 metadata。
 
 ## 9. 远端 Index
 
@@ -518,9 +526,10 @@ type DesktopApi = {
 
 1. 建立独立 workspace 包和公共 API。
 2. 定义 `0.1.0` index、manifest、metrics 和包结构。
-3. 迁移 Python 静态 validator 规则。
-4. 建立 Python/TypeScript 共用 fixture 和一致性测试。
-5. 发布公共 `0.x` npm 包。
+3. 定义模拟 DSL `schema_version`，并把模拟 YAML metadata 迁入 manifest。
+4. 迁移 Python 静态 validator 规则。
+5. 建立 Python/TypeScript 共用 fixture 和一致性测试。
+6. 发布公共 `0.x` npm 包。
 
 验收：
 
@@ -586,7 +595,8 @@ type DesktopApi = {
 - SemVer 格式及不支持版本；
 - manifest 必填字段、ID、metrics 和 termination；
 - `cost` item 与 metrics 一致性；
-- 根级 metadata 的包级迁移约束；
+- config / termination 根级 metadata 与未知字段拒绝；
+- manifest metadata 的迁移和 JSON 兼容值约束；
 - 当前 Python validator 的合法和非法语义；
 - 未知字段、重复 ID 和路径边界；
 - npm 打包后从真实入口导入。
