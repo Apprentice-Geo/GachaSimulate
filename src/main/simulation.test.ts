@@ -9,6 +9,7 @@ import {
   parse_simulation_line,
   resolve_process_outcome,
   type DesktopSimulationEvent,
+  validate_config_yaml,
   validate_simulation_request,
 } from "../shared/simulation";
 
@@ -70,6 +71,16 @@ test("validates exclusive positive targets and worker limit", () => {
       { ...request, target: { kind: "totalRuns", value: 0 } },
       2,
     ),
+  );
+});
+
+test("validates synthetic draw count and configured cost metric", () => {
+  const config = "items: [target, cost_count]\n";
+  assert.doesNotThrow(() => validate_config_yaml(config, "draw"));
+  assert.doesNotThrow(() => validate_config_yaml(config, "cost"));
+  assert.throws(
+    () => validate_config_yaml("items: [target]\n", "cost"),
+    /cost_count/,
   );
 });
 

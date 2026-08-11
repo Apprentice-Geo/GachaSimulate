@@ -8,7 +8,7 @@ __pycache__/
 *.egg-info/
 /images/
 results/
-/node_modules/
+node_modules/
 /.pnpm-store/
 /dist/
 /out/

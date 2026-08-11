@@ -112,13 +112,12 @@ export function validate_config_yaml(
     typeof item === "string"
       ? item
       : (Object.keys(object_value(item))[0] ?? "");
+  if (!Array.isArray(items)) throw new Error("config items must be an array");
   if (
-    !Array.isArray(items) ||
-    !items.some((item) => item_id(item) === "draw_count")
+    metric === "cost" &&
+    !items.some((item) => item_id(item) === "cost_count")
   )
-    throw new Error("config must define draw_count item");
-  if (metric === "cost" && !items.some((item) => item_id(item) === "cost"))
-    throw new Error("metric cost requires a configured cost item");
+    throw new Error("metric cost requires a configured cost_count item");
 }
 
 export function validate_termination_yaml(termination_text: string): void {
