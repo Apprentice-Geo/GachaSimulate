@@ -2,17 +2,19 @@
 
 本文档记录 push 前建议执行的检查。先运行与改动直接相关的检查，准备提交或完成跨层改动时再运行全量矩阵。
 
+除非命令中明确切换目录，以下命令均默认在仓库根目录的 WSL2/Linux bash 中执行。使用 WSL 内安装的工具和依赖，不要复用 Windows 侧的可执行文件、虚拟环境或 `node_modules`。
+
 ## 前置准备
 
 安装 Python 依赖：
 
-```powershell
-uv sync
+```bash
+uv sync --locked
 ```
 
 安装 Node 依赖：
 
-```powershell
+```bash
 pnpm install --frozen-lockfile
 ```
 
@@ -52,7 +54,7 @@ build/native/bin/gachasimulate-core --ir "$ir" --target-total-draw 100 --seed 0 
 
 Python 检查：
 
-```powershell
+```bash
 uv run ruff format --check .
 uv run ruff check .
 uv run pyright
@@ -62,7 +64,7 @@ uv run pytest
 
 Electron、TypeScript 和可视化检查：
 
-```powershell
+```bash
 pnpm run format:check
 pnpm run lint
 pnpm run typecheck
@@ -99,19 +101,19 @@ pnpm run test:e2e
 
 如果 Python 格式检查失败，执行：
 
-```powershell
+```bash
 uv run ruff format .
 ```
 
 如果 Python lint 失败，先查看 `ruff check` 输出。部分安全的自动修复可以用：
 
-```powershell
+```bash
 uv run ruff check . --fix
 ```
 
 如果 Node 侧格式检查失败，执行：
 
-```powershell
+```bash
 pnpm run format
 ```
 

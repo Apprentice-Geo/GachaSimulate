@@ -1,42 +1,33 @@
-# GachaSimulate
+/s# GachaSimulate
 
 Monte Carlo 抽卡模拟器。项目使用 YAML 描述抽卡规则，输出 `.npz` 模拟结果和 `_visualize.json` 可视化输入。
 
-## 环境配置
+## WSL2/Linux 快速开始
 
-运行 Python CLI 需要：
+日常开发和 CI 以 WSL2/Linux 为准。所有命令都从仓库根目录的 bash 执行；不要混用 Windows 侧的 Node、Python、pnpm、uv 或 `node_modules`。Electron 图形界面需要 WSLg，启动前应确保 `DISPLAY` 或 `WAYLAND_DISPLAY` 已由 WSLg 设置。
+
+开发环境需要：
 
 - Python 3.12 或更高版本
 - uv
-
-Electron、可视化和导出还需要：
-
-- Node.js
+- Node.js 24
 - pnpm 11.3.0
 
-安装 Python 依赖：
+首次安装依赖并启动 Electron：
 
-```powershell
-uv sync
-```
-
-安装 Node 依赖：
-
-```powershell
+```bash
+uv sync --locked
 pnpm install --frozen-lockfile
-```
-
-## Electron 开发环境
-
-启动桌面应用：
-
-```powershell
 pnpm run dev
 ```
 
-桌面应用可以选择已安装配置、运行或取消模拟、打开结果目录，以及加载 `_visualize.json`。每次开发启动时，如果安装目录为空，应用会复制 `configs/presets/` 中的预置配置。
+后续开发通常只需执行 `pnpm run dev`；仅在 lockfile 变化后重新同步对应依赖。Electron main 会从当前 WSL 环境的 `PATH` 调用 `uv run gachasimulate`，不需要另开 Python 服务。
 
-Electron 当前只支持从仓库源码启动的开发环境，并以 Windows 11 作为桌面 MVP 验收环境。它不包含安装包、内置 Python、代码签名、自动更新或无开发环境运行能力。配置仓库尚未实现。
+## Electron 开发说明
+
+桌面应用可以选择已安装配置、运行或取消模拟、打开结果目录，以及加载 `_visualize.json`。每次开发启动时，如果安装目录为空，应用会复制 `configs/presets/` 中的预置配置。WSL/Linux 下的用户数据目录通常是 `${XDG_CONFIG_HOME:-$HOME/.config}/gachasimulate/`。
+
+Electron 当前只支持从仓库源码启动的开发环境。日常开发和人工验收使用 WSL2/Linux + WSLg；Windows 最终构建留给打包/CD 流程。当前不包含安装包、内置 Python、代码签名、自动更新或无开发环境运行能力。配置仓库尚未实现。
 
 桌面运行数据由 Electron 写入 `app.getPath("userData")`：
 
@@ -52,19 +43,19 @@ Electron 当前只支持从仓库源码启动的开发环境，并以 Windows 11
 
 按固定模拟次数运行：
 
-```powershell
+```bash
 uv run gachasimulate --config test --termination termination --total-runs 10
 ```
 
 按总抽数目标运行：
 
-```powershell
+```bash
 uv run gachasimulate --config test --termination termination --target-total-draw 100
 ```
 
 按配置中的 `cost` item 生成成本维度可视化：
 
-```powershell
+```bash
 uv run gachasimulate --config test --termination termination --total-runs 10 --metric cost
 ```
 
@@ -85,7 +76,7 @@ uv run gachasimulate --config test --termination termination --total-runs 10 --m
 
 当前仍保留独立浏览器入口，主要用于开发和调试，不作为长期产品能力承诺：
 
-```powershell
+```bash
 pnpm run dev:web
 ```
 
@@ -97,7 +88,7 @@ http://127.0.0.1:5173/?input=results/<file>_visualize.json
 
 浏览器构建和预览：
 
-```powershell
+```bash
 pnpm run build:web
 pnpm run preview
 ```
@@ -106,7 +97,7 @@ pnpm run preview
 
 导出 CDF 可视化素材：
 
-```powershell
+```bash
 pnpm run export:cdf -- --input <json文件路径>
 ```
 

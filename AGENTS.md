@@ -8,9 +8,15 @@
 - 可视化设计决策和维护边界：[Visualize Frontend Implementation](<docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md>)。
 - 按影响范围选择检查及 push 前完整矩阵：[Development Checks](<docs/DEVELOPMENT_CHECKS.md>)。
 
-C++ 日常开发与 CI 使用 WSL2/Linux + Clang + Ninja；Windows 最终构建留给打包/CD 流程。具体环境和检查按 Development Checks 执行。
+## 默认开发环境与启动入口
 
-不要在本文件复制这些文档中的详细命令、配置语法或实现清单。文档与实现冲突时，以源码和行为测试为准，并修正对应文档。
+- 默认在仓库根目录使用 WSL2/Linux bash 开发；Electron 界面通过 WSLg 运行。Node、pnpm、Python 和 uv 都必须使用 WSL 内安装的版本，不要混用 Windows 可执行文件或 `node_modules`。
+- 首次准备环境：`uv sync --locked`，然后执行 `pnpm install --frozen-lockfile`。
+- 启动 Electron 桌面应用：`pnpm run dev`。Electron 会从同一个 WSL 环境调用 `uv run gachasimulate`，无需单独启动 Python 服务。
+- `pnpm run dev:web` 只启动独立浏览器可视化入口，不是桌面应用。
+- C++ 日常开发与 CI 使用 WSL2/Linux + Clang + Ninja；Windows 最终构建留给打包/CD 流程。完整环境说明和检查矩阵见 Development Checks。
+
+除上述默认入口外，不要在本文件复制链接文档中的详细命令、配置语法或实现清单。文档与实现冲突时，以源码和行为测试为准，并修正对应文档。
 
 ## 修改边界
 
