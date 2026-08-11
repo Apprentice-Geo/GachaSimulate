@@ -10,7 +10,11 @@ contextBridge.exposeInMainWorld("desktopApi", {
   startSimulation: (request: SimulationRequest) =>
     ipcRenderer.invoke("start-simulation", request),
   cancelSimulation: () => ipcRenderer.invoke("cancel-simulation"),
-  selectVisualizeFile: () => ipcRenderer.invoke("select-visualize-file"),
+  selectGsrResult: () => ipcRenderer.invoke("select-gsr-result"),
+  switchResultMetric: (metric: "draw" | "cost") =>
+    ipcRenderer.invoke("switch-result-metric", metric),
+  saveResultFields: (fields: import("../shared/result_editor").DisplayFields) =>
+    ipcRenderer.invoke("save-result-fields", fields),
   openResultsDirectory: () => ipcRenderer.invoke("open-results-directory"),
   onSimulationEvent: (listener: (event: DesktopSimulationEvent) => void) => {
     const handler = (

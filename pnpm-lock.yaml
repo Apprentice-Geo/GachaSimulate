@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@gachasimulate/config-compiler':
+        specifier: workspace:*
+        version: link:packages/config-compiler
       '@remotion/bundler':
         specifier: ^4.0.484
         version: 4.0.484(postcss@8.5.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)

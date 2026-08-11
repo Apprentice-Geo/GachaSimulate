@@ -4,11 +4,11 @@
 
 ## 定位
 
-`src/visualize/` 是平台无关的结果可视化层。它把未知的可视化输入转换为经过校验的展示模型，再由共享画面用于 Electron 展示和素材导出。
+`src/visualize/` 是平台无关的结果可视化层。它把未知的 `VisualizeInput` 转换为经过校验的展示模型，供独立浏览器入口和素材导出使用。
 
-素材导出是长期保留能力。当前独立浏览器入口用于开发和调试，不保证长期存在；删除浏览器入口不应影响 Electron 结果页或导出链路。
+素材导出是长期保留能力。当前独立浏览器入口用于开发和调试，不保证长期存在。
 
-Electron 的导航、模拟表单、文件对话框和进程状态属于 `src/renderer/`、`src/preload/` 与 `src/main/`，不得进入 `src/visualize/`。反过来，`src/visualize/` 不依赖 Electron 或 Node.js API。
+Electron 的导航、模拟表单、GSR 对话框、analyzer 进程和五个展示字段编辑属于 `src/renderer/`、`src/preload/` 与 `src/main/`，不得进入 `src/visualize/`。反过来，`src/visualize/` 不依赖 Electron 或 Node.js API。
 
 ## 数据流
 
@@ -25,7 +25,7 @@ unknown input
 
 原始输入不能绕过校验直接进入组件。组件消费 normalized data 或 view model，不承担 schema 校验、CDF 计算或展示规则编排。
 
-Electron 选择文件时，由 main 打开系统对话框并读取 UTF-8 文本；Renderer 把文本交给既有可视化输入链路。浏览器入口可以使用 URL 或浏览器文件对象，但不能形成另一套校验和计算实现。
+Electron 由 main 选择 GSR、调用 C++ analyzer、校验 Analysis v1 并复用 `analysis_to_visualize`。按 metric 的 sidecar 保存完整 `VisualizeInput`，重新打开时只恢复五个展示字段。浏览器入口继续读取完整 JSON，但不能形成另一套校验和计算实现。
 
 ## 模块地图
 

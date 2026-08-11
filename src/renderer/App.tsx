@@ -1,7 +1,8 @@
 import { BarChart3, FolderOpen, Play, Store } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
-import VisualizeApp from "../visualize/App";
 import type { InstalledConfig } from "../shared/installed_config";
+import type { DisplayFields, ResultEditorState } from "../shared/result_editor";
+import type { VisualizeMetric } from "../visualize/types/visualize_input";
 import {
   validate_simulation_request,
   type SimulationRequest,
@@ -55,9 +56,8 @@ function SimulationPage() {
   >("totalRuns");
   const [target_value, set_target_value] = useState("10");
   const [seed, set_seed] = useState("0");
-  const [workers, set_workers] = useState("1");
+  const [threads, set_threads] = useState("1");
   const [logical_cpu_count, set_logical_cpu_count] = useState(1);
-  const [metric, set_metric] = useState<"draw" | "cost">("draw");
   const [status, set_status] = useState<SimulationStatus>("idle");
   const [progress, set_progress] = useState<{
     completed: number;
@@ -117,8 +117,7 @@ function SimulationPage() {
         value: Number(target_value),
       } as SimulationRequest["target"],
       seed: Number(seed),
-      workers: Number(workers),
-      metric,
+      threads: Number(threads),
     };
     try {
       validate_simulation_request(request, logical_cpu_count);
@@ -241,29 +240,16 @@ function SimulationPage() {
               />
             </label>
             <label>
-              工作进程数（1–{logical_cpu_count}）
+              线程数（1–{logical_cpu_count}）
               <input
                 disabled={busy}
                 type="number"
                 min="1"
                 max={logical_cpu_count}
                 step="1"
-                value={workers}
-                onChange={(event) => set_workers(event.target.value)}
+                value={threads}
+                onChange={(event) => set_threads(event.target.value)}
               />
-            </label>
-            <label>
-              统计维度
-              <select
-                disabled={busy}
-                value={metric}
-                onChange={(event) =>
-                  set_metric(event.target.value as "draw" | "cost")
-                }
-              >
-                <option value="draw">抽数</option>
-                <option value="cost">成本</option>
-              </select>
             </label>
           </div>
           <div className="simulation-actions">
@@ -304,6 +290,152 @@ function SimulationPage() {
             )}
           </div>
         </div>
+      )}
+    </section>
+  );
+}
+
+function ResultEditorPage() {
+  const [state, set_state] = useState<ResultEditorState | null>(null);
+  const [fields, set_fields] = useState<DisplayFields | null>(null);
+  const [status, set_status] = useState("请选择 GSR 文件。");
+  const [busy, set_busy] = useState(false);
+  const [error, set_error] = useState<string | null>(null);
+
+  const apply_state = (next: ResultEditorState) => {
+    set_state(next);
+    set_fields(next.fields);
+  };
+
+  const select = async () => {
+    set_busy(true);
+    set_error(null);
+    set_status("正在分析 draw…");
+    try {
+      const next = await window.desktopApi.selectGsrResult();
+      if (next) {
+        apply_state(next);
+        set_status("分析完成，尚无未保存更改。");
+      } else {
+        set_status("未选择文件。");
+      }
+    } catch (reason) {
+      set_error(reason instanceof Error ? reason.message : String(reason));
+      set_status("分析失败。");
+    } finally {
+      set_busy(false);
+    }
+  };
+
+  const switch_metric = async (metric: VisualizeMetric) => {
+    set_busy(true);
+    set_error(null);
+    set_status(`正在分析 ${metric}…`);
+    try {
+      const next = await window.desktopApi.switchResultMetric(metric);
+      apply_state(next);
+      set_status("分析完成，尚无未保存更改。");
+    } catch (reason) {
+      set_error(reason instanceof Error ? reason.message : String(reason));
+      set_status("分析失败。");
+    } finally {
+      set_busy(false);
+    }
+  };
+
+  const save = async () => {
+    if (!fields) return;
+    set_busy(true);
+    set_error(null);
+    set_status("正在保存…");
+    try {
+      apply_state(await window.desktopApi.saveResultFields(fields));
+      set_status("已保存。");
+    } catch (reason) {
+      set_error(reason instanceof Error ? reason.message : String(reason));
+      set_status("保存失败，现有 sidecar 未被覆盖。");
+    } finally {
+      set_busy(false);
+    }
+  };
+
+  const field = (
+    key: keyof DisplayFields,
+    label: string,
+    multiline = false,
+  ) => (
+    <label>
+      {label}
+      {multiline ? (
+        <textarea
+          disabled={busy}
+          value={fields?.[key] ?? ""}
+          onBlur={() => void save()}
+          onChange={(event) =>
+            set_fields((current) =>
+              current ? { ...current, [key]: event.target.value } : current,
+            )
+          }
+        />
+      ) : (
+        <input
+          disabled={busy}
+          value={fields?.[key] ?? ""}
+          onBlur={() => void save()}
+          onChange={(event) =>
+            set_fields((current) =>
+              current ? { ...current, [key]: event.target.value } : current,
+            )
+          }
+        />
+      )}
+    </label>
+  );
+
+  return (
+    <section
+      className="renderer-placeholder result-editor"
+      aria-labelledby="result-title"
+    >
+      <div className="renderer-placeholder-mark" aria-hidden="true">
+        <BarChart3 size={24} />
+      </div>
+      <p className="renderer-eyebrow">GSR RESULT EDITOR</p>
+      <h1 id="result-title">结果展示信息</h1>
+      <button type="button" disabled={busy} onClick={() => void select()}>
+        选择 GSR
+      </button>
+      {state && fields && (
+        <div className="result-editor-form">
+          <p title={state.path}>文件：{state.filename}</p>
+          <label>
+            统计维度
+            <select
+              disabled={busy}
+              value={state.metric}
+              onChange={(event) =>
+                void switch_metric(event.target.value as VisualizeMetric)
+              }
+            >
+              <option value="draw">抽数</option>
+              <option value="cost">成本</option>
+            </select>
+          </label>
+          {field("title", "标题")}
+          {field("target", "目标")}
+          {field("note", "说明", true)}
+          {field("price", "价格")}
+          {field("unit", "单位")}
+          <p title={state.sidecar_path}>
+            sidecar：{state.sidecar_path.split(/[\\/]/).pop()}
+          </p>
+        </div>
+      )}
+      <p role="status">{status}</p>
+      {error && (
+        <p className="simulation-error" role="alert">
+          错误：{error}
+        </p>
       )}
     </section>
   );
@@ -353,9 +485,7 @@ export default function App() {
       <main className="renderer-main">
         <div className="renderer-content">
           {active_page === "results" ? (
-            <VisualizeApp
-              on_select_file={window.desktopApi?.selectVisualizeFile}
-            />
+            <ResultEditorPage />
           ) : active_page === "simulation" ? (
             <SimulationPage />
           ) : (

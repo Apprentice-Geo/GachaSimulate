@@ -2,7 +2,7 @@
 
 本文档定义 `config.yaml` 和 `termination*.yaml` 的配置语法。
 
-配置文件使用 YAML mapping/list 结构，运行前由 validator 校验，再由 builder 编译为运行时结构。
+配置文件使用 YAML mapping/list 结构，由 `@gachasimulate/config-compiler` 校验并编译为 JSON IR；C++ Runtime 只执行 IR，不解析 YAML。
 
 ## 词法约定
 

@@ -283,6 +283,63 @@ button:focus-visible {
   padding: 12px 14px;
 }
 
+.result-editor {
+  justify-content: flex-start;
+  max-width: 760px;
+}
+
+.result-editor > button {
+  background: var(--color-nvidia-green);
+  border: 0;
+  border-radius: var(--radius-button);
+  color: var(--color-canvas);
+  padding: 10px 15px;
+}
+
+.result-editor > button:disabled {
+  opacity: 0.45;
+}
+
+.result-editor-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+  width: 100%;
+}
+
+.result-editor-form label {
+  color: var(--color-text-muted);
+  display: grid;
+  gap: 7px;
+}
+
+.result-editor-form input,
+.result-editor-form select,
+.result-editor-form textarea {
+  background: var(--color-panel);
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: var(--radius-button);
+  color: var(--color-text-primary);
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.result-editor-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.result-editor-form p,
+.result-editor > [role="status"] {
+  color: var(--color-text-muted);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.result-editor > [role="status"] {
+  margin-top: 18px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

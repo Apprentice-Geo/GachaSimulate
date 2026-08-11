@@ -1,17 +1,23 @@
+import { compile_yaml } from "@gachasimulate/config-compiler";
 import { spawn, execFile } from "node:child_process";
-import { cpus } from "node:os";
-import { existsSync, readFileSync } from "node:fs";
-import { isAbsolute, join, relative, resolve } from "node:path";
 import type { ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { cpus, tmpdir } from "node:os";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import {
   parse_simulation_line,
   resolve_process_outcome,
-  validate_config_yaml,
-  validate_termination_yaml,
   validate_simulation_request,
   type DesktopSimulationEvent,
   type SimulationEvent,
-  type SimulationRequest,
   type SimulationStatus,
 } from "../shared/simulation";
 
@@ -26,26 +32,31 @@ type SimulationTaskDependencies = {
   ) => ChildProcess;
   terminate_process_tree?: (child: ChildProcess) => Promise<void>;
   close_timeout_ms?: number;
+  native_dir?: string;
+  now?: () => Date;
+  random_uuid?: () => string;
 };
 
 function readable_error(reason: unknown): Error {
   return reason instanceof Error ? reason : new Error(String(reason));
 }
 
-async function terminate_process_tree(child: ChildProcess): Promise<void> {
+export async function terminate_process_tree(
+  child: ChildProcess,
+): Promise<void> {
   if (process.platform !== "win32") {
     try {
       if (!child.kill("SIGTERM")) throw new Error("process was not running");
       return;
     } catch (error) {
       throw new Error(
-        `failed to terminate simulation: ${readable_error(error).message}`,
+        `failed to terminate native process: ${readable_error(error).message}`,
         { cause: error },
       );
     }
   }
   if (!child.pid)
-    throw new Error("failed to terminate simulation: process has no PID");
+    throw new Error("failed to terminate native process: process has no PID");
   await new Promise<void>((resolve, reject) => {
     execFile(
       "taskkill",
@@ -56,7 +67,7 @@ async function terminate_process_tree(child: ChildProcess): Promise<void> {
         if (error) {
           reject(
             new Error(
-              `failed to terminate simulation: ${detail || error.message}`,
+              `failed to terminate native process: ${detail || error.message}`,
             ),
           );
         } else {
@@ -76,10 +87,12 @@ export class SimulationTask {
   private saw_completed = false;
   private saw_error = false;
   private protocol_error: string | null = null;
-  private python_error: string | null = null;
+  private core_error: string | null = null;
   private process_error: string | null = null;
   private protocol_stop_started = false;
   private stderr = "";
+  private temporary_dir: string | null = null;
+  private expected_output = "";
 
   constructor(
     private readonly installed_dir: string,
@@ -97,9 +110,10 @@ export class SimulationTask {
     this.emit(event);
   }
 
-  start(request: SimulationRequest): void {
+  start(value: unknown): void {
     if (this.active) throw new Error("a simulation is already running");
-    validate_simulation_request(request, cpus().length);
+    validate_simulation_request(value, cpus().length);
+    const request = value;
     const config_dir = resolve(this.installed_dir, request.configId);
     if (
       !relative(resolve(this.installed_dir), config_dir) ||
@@ -113,50 +127,82 @@ export class SimulationTask {
     const termination_path = resolve(config_dir, termination);
     if (
       isAbsolute(request.termination) ||
+      basename(termination) !== termination ||
       relative(config_dir, termination_path).startsWith("..")
     )
       throw new Error("termination must be inside config directory");
     const config_path = join(config_dir, "config.yaml");
+    const manifest_path = join(config_dir, "manifest.yaml");
     if (!existsSync(config_path) || !existsSync(termination_path))
       throw new Error("configuration files not found");
-    validate_config_yaml(readFileSync(config_path, "utf8"), request.metric);
-    validate_termination_yaml(readFileSync(termination_path, "utf8"));
+    const program = compile_yaml(
+      readFileSync(config_path, "utf8"),
+      readFileSync(termination_path, "utf8"),
+      existsSync(manifest_path)
+        ? readFileSync(manifest_path, "utf8")
+        : undefined,
+    );
 
+    mkdirSync(this.results_dir, { recursive: true });
+    const timestamp = (this.dependencies.now ?? (() => new Date()))()
+      .toISOString()
+      .replace(/[-:.]/g, "");
+    const id = (this.dependencies.random_uuid ?? randomUUID)();
+    const termination_stem = termination
+      .replace(/\.yaml$/i, "")
+      .replace(/[^A-Za-z0-9_-]/g, "_");
+    this.expected_output = join(
+      this.results_dir,
+      `${request.configId}-${termination_stem}-${request.target.kind}-${request.target.value}-seed${request.seed}-threads${request.threads}-${timestamp}-${id}.gsr`,
+    );
+    this.temporary_dir = mkdtempSync(join(tmpdir(), "gachasimulate-electron-"));
+    const ir = join(this.temporary_dir, "program.json");
+    writeFileSync(ir, JSON.stringify(program.ir));
+    const native_dir = resolve(
+      this.dependencies.native_dir ??
+        join(process.cwd(), "build", "native", "bin"),
+    );
+    const command = join(
+      native_dir,
+      `gachasimulate-core${process.platform === "win32" ? ".exe" : ""}`,
+    );
+    if (!existsSync(command)) {
+      this.cleanup_temporary_ir();
+      throw new Error(`native core not found: ${command}`);
+    }
     const args = [
-      "run",
-      "gachasimulate",
-      "--config-dir",
-      config_dir,
-      "--termination",
-      termination,
+      "--ir",
+      ir,
       request.target.kind === "totalRuns"
         ? "--total-runs"
         : "--target-total-draw",
       String(request.target.value),
       "--seed",
       String(request.seed),
-      "--workers",
-      String(request.workers),
-      "--metric",
-      request.metric,
-      "--results-dir",
-      this.results_dir,
-      "--output-format",
-      "jsonl",
+      "--threads",
+      String(request.threads),
+      "--output",
+      this.expected_output,
     ];
     this.cancelled = false;
     this.saw_completed = false;
     this.saw_error = false;
     this.protocol_error = null;
-    this.python_error = null;
+    this.core_error = null;
     this.process_error = null;
     this.protocol_stop_started = false;
     this.stderr = "";
     this.notify({ status: "starting" });
-    const child = (this.dependencies.spawn ?? spawn)("uv", args, {
-      cwd: process.cwd(),
-      windowsHide: true,
-    });
+    let child: ChildProcess;
+    try {
+      child = (this.dependencies.spawn ?? spawn)(command, args, {
+        cwd: native_dir,
+        windowsHide: true,
+      });
+    } catch (error) {
+      this.cleanup_temporary_ir();
+      throw error;
+    }
     this.child = child;
     let resolve_close!: () => void;
     this.child_close = new Promise<void>((resolve) => {
@@ -183,6 +229,7 @@ export class SimulationTask {
       if (stdout.trim()) this.handle_line(stdout);
       this.child = null;
       this.child_close = null;
+      this.cleanup_temporary_ir();
       resolve_close();
       const outcome = resolve_process_outcome(
         code,
@@ -198,12 +245,18 @@ export class SimulationTask {
         this.notify({
           status: "failed",
           message:
-            this.python_error ||
+            this.core_error ||
             this.stderr.trim() ||
             this.process_error ||
             "simulation process failed",
         });
     });
+  }
+
+  private cleanup_temporary_ir(): void {
+    if (!this.temporary_dir) return;
+    rmSync(this.temporary_dir, { recursive: true, force: true });
+    this.temporary_dir = null;
   }
 
   private handle_line(line: string): void {
@@ -243,10 +296,14 @@ export class SimulationTask {
   }
 
   private handle_event(event: SimulationEvent): void {
-    if (event.type === "completed") this.saw_completed = true;
+    if (event.type === "completed") {
+      if (resolve(event.result_path) !== resolve(this.expected_output))
+        throw new Error("core returned an unexpected result path");
+      this.saw_completed = true;
+    }
     if (event.type === "error") {
       this.saw_error = true;
-      if (!this.python_error) this.python_error = event.message;
+      if (!this.core_error) this.core_error = event.message;
     }
     const status: SimulationStatus =
       this.status === "cancelling"

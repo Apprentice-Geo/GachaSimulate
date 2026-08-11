@@ -1,5 +1,4 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import { readFileSync } from "node:fs";
 import { cpus } from "node:os";
 import { join } from "node:path";
 import {
@@ -7,10 +6,13 @@ import {
   scan_installed_configs,
   validate_installed_config_selection,
 } from "./config_manager";
+import { ResultEditor } from "./result_editor";
 import { SimulationTask } from "./simulation";
-import type { SimulationRequest } from "../shared/simulation";
+import { validate_simulation_request } from "../shared/simulation";
+import type { DisplayFields } from "../shared/result_editor";
 
 let simulation: SimulationTask;
+let result_editor: ResultEditor;
 let quitting = false;
 
 function create_window(): void {
@@ -23,6 +25,18 @@ function create_window(): void {
   });
 
   window.on("close", (event) => {
+    if (result_editor?.active && !simulation?.active) {
+      event.preventDefault();
+      if (quitting) return;
+      quitting = true;
+      void result_editor.cancel().then(
+        () => window.destroy(),
+        () => {
+          quitting = false;
+        },
+      );
+      return;
+    }
     if (!simulation?.active) return;
     event.preventDefault();
     if (quitting) return;
@@ -41,7 +55,10 @@ function create_window(): void {
           return;
         }
         try {
-          await simulation.cancel();
+          await Promise.all([
+            simulation.cancel(),
+            result_editor.active ? result_editor.cancel() : Promise.resolve(),
+          ]);
           window.destroy();
         } catch (error) {
           quitting = false;
@@ -70,6 +87,7 @@ app.whenReady().then(() => {
     join(process.cwd(), "configs", "presets"),
   );
   const results_dir = join(app.getPath("userData"), "results");
+  result_editor = new ResultEditor();
   simulation = new SimulationTask(installed_dir, results_dir, (event) => {
     for (const window of BrowserWindow.getAllWindows())
       window.webContents.send("simulation-event", event);
@@ -78,7 +96,8 @@ app.whenReady().then(() => {
     scan_installed_configs(installed_dir),
   );
   ipcMain.handle("get-logical-cpu-count", () => cpus().length);
-  ipcMain.handle("start-simulation", (_event, request: SimulationRequest) => {
+  ipcMain.handle("start-simulation", (_event, request: unknown) => {
+    validate_simulation_request(request, cpus().length);
     validate_installed_config_selection(
       installed_dir,
       request.configId,
@@ -87,17 +106,20 @@ app.whenReady().then(() => {
     simulation.start(request);
   });
   ipcMain.handle("cancel-simulation", () => simulation.cancel());
-  ipcMain.handle("select-visualize-file", async () => {
+  ipcMain.handle("select-gsr-result", async () => {
     const result = await dialog.showOpenDialog({
       properties: ["openFile"],
-      filters: [{ name: "可视化结果", extensions: ["json"] }],
+      filters: [{ name: "GachaSimulate 结果", extensions: ["gsr"] }],
     });
     if (result.canceled || result.filePaths.length === 0) return null;
-    const path = result.filePaths[0];
-    if (!path.endsWith("_visualize.json"))
-      throw new Error("请选择以 _visualize.json 结尾的文件");
-    return { path, text: readFileSync(path, "utf8") };
+    return result_editor.open(result.filePaths[0], "draw");
   });
+  ipcMain.handle("switch-result-metric", (_event, metric: unknown) =>
+    result_editor.switch_metric(metric),
+  );
+  ipcMain.handle("save-result-fields", (_event, fields: DisplayFields) =>
+    result_editor.save(fields),
+  );
   ipcMain.handle("open-results-directory", async () => {
     const error = await shell.openPath(results_dir);
     if (error) throw new Error(error);

@@ -1,5 +1,7 @@
 # GachaSimulate Electron 配置仓库 MVP 实施计划
 
+> 该功能仍后置。本文早期 Python 兼容门禁已失效；未来实现必须直接复用 TS Compiler 与 C++ Runtime，不恢复 Python 依赖。
+
 ## 1. 状态与目标
 
 本文是 Electron 开发的第二阶段实施计划，状态为**设计已确认，尚未实现**。

@@ -2,7 +2,7 @@
 
 ## 1. 状态与目标
 
-本文是 [C++ Backend / TypeScript Compiler Design](cpp-backend-draft.md) 的实施计划，当前**阶段一至四已完成，阶段五尚未开始**。
+本文是 [C++ Backend / TypeScript Compiler Design](cpp-backend-draft.md) 的实施计划，当前**阶段一至五均已完成**。
 
 目标是用共享 TypeScript Compiler 和 C++ Runtime 替换当前 Python 模拟后端，同时保持配置仓库、Electron、CLI 和可视化之间清晰的契约边界。实施只分五个可验收阶段；阶段内可以拆任务，但不再把每个文件或组件提升为独立里程碑。
 
@@ -194,13 +194,15 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
 
 让 Electron 默认使用 TS Compiler、C++ core 和 C++ analyzer，完成生命周期、配置仓库和文档迁移后移除旧产品路径。
 
+**完成状态：已完成。** Electron 直接编译临时 IR 并运行受信任的 core；结果页按 draw/cost 调用 analyzer 并原子保存完整展示 sidecar。Python 实现、测试、benchmark 工具和依赖已删除，最终验收记录见 [迁移收尾报告](docs/archived/CPP_MIGRATION_FINAL.md)。
+
 ### 工作
 
 - SimulationTask 使用共享 compiler 和 CLI/core 进程协议，保持 main、preload、renderer 信任边界。
 - 开发安装和最终应用打包同时包含 `gachasimulate-core` 与 `gachasimulate-analyze`，并从同一受信任的原生程序目录解析二者，不接受 Renderer 提供的可执行文件路径。
-- 把 Renderer 的 workers 请求映射为 C++ threads，并保持任务互斥、取消、关闭应用和异常退出行为。
+- Renderer 请求只保留受 CPU 数限制的 threads，并保持任务互斥、取消、关闭应用和异常退出行为。
 - 配置仓库构建与安装继续使用同一个 compiler 包；manifest metadata 不进入 IR。
-- 更新结果目录、GSR 选择、状态反馈和错误信息，删除 NPZ / visualize sidecar 假设。
+- 更新结果目录、GSR 选择、状态反馈和错误信息，使用按 metric 区分的完整 visualize sidecar。
 - 运行完整检查、Electron 人工验收和代表性 benchmark；只根据 profile 结果决定后续优化。
 - C++ 成为默认执行权威后，删除不再使用的 Python CLI/批量后端和旧结果保存代码；保留仍被开发工具或对照测试明确需要的最小部分。
 - 同步 README、Architecture、YAML Config Syntax、Visualize Frontend Implementation 和 Development Checks。
@@ -210,7 +212,7 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
 - Electron 可以安装或选择配置，完成两种目标模式，取消任务并打开 GSR 结果；退出后没有残留进程。
 - config repository、Electron 和 CLI 使用同一 compiler 公共入口。
 - main 不接受 Renderer 提供的任意命令、IR 路径或结果路径。
-- 当前 Python、TypeScript、Electron、可视化和新增 C++ 检查矩阵全部通过。
+- 删除前 Python 全量检查通过；删除后 TypeScript、Electron、可视化和 C++ 检查矩阵通过。
 - 文档不再把 `.npz + _visualize.json`、Python runtime 或模拟 YAML metadata 描述为当前契约。
 
 ## 9. 完成标准

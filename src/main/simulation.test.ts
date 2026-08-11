@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
@@ -9,7 +10,6 @@ import {
   parse_simulation_line,
   resolve_process_outcome,
   type DesktopSimulationEvent,
-  validate_config_yaml,
   validate_simulation_request,
 } from "../shared/simulation";
 
@@ -18,8 +18,7 @@ const request = {
   termination: "termination.yaml",
   target: { kind: "totalRuns" as const, value: 1 },
   seed: 0,
-  workers: 1,
-  metric: "draw" as const,
+  threads: 1,
 };
 
 class FakeChild extends EventEmitter {
@@ -46,41 +45,43 @@ function create_task(
 ) {
   const child = new FakeChild();
   const events: DesktopSimulationEvent[] = [];
+  let command = "";
+  let args: string[] = [];
   const task = new SimulationTask(
     resolve("configs"),
     resolve("results"),
     (event) => events.push(event),
     {
-      spawn: () => child as unknown as ChildProcess,
+      spawn: (next_command, next_args) => {
+        command = next_command;
+        args = next_args;
+        return child as unknown as ChildProcess;
+      },
       terminate_process_tree: terminate,
       close_timeout_ms,
     },
   );
   task.start(request);
   child.stdout.write('{"type":"started"}\n');
-  return { child, events, task };
+  return { args, child, command, events, task };
 }
 
-test("validates exclusive positive targets and worker limit", () => {
+test("validates strict requests, positive targets, and thread limit", () => {
   validate_simulation_request(request, 2);
   assert.throws(() =>
-    validate_simulation_request({ ...request, workers: 3 }, 2),
+    validate_simulation_request({ ...request, threads: 3 }, 2),
+  );
+  assert.throws(() =>
+    validate_simulation_request({ ...request, workers: 1 }, 2),
+  );
+  assert.throws(() =>
+    validate_simulation_request({ ...request, metric: "draw" }, 2),
   );
   assert.throws(() =>
     validate_simulation_request(
       { ...request, target: { kind: "totalRuns", value: 0 } },
       2,
     ),
-  );
-});
-
-test("validates synthetic draw count and configured cost metric", () => {
-  const config = "items: [target, cost_count]\n";
-  assert.doesNotThrow(() => validate_config_yaml(config, "draw"));
-  assert.doesNotThrow(() => validate_config_yaml(config, "cost"));
-  assert.throws(
-    () => validate_config_yaml("items: [target]\n", "cost"),
-    /cost_count/,
   );
 });
 
@@ -201,7 +202,7 @@ test("protocol termination failure remains retryable and preserves the protocol 
   assert.equal(task.active, false);
 });
 
-test("Python error event becomes terminal only after close", () => {
+test("core error event becomes terminal only after close", () => {
   const { child, events, task } = create_task(async () => {});
 
   child.stdout.write('{"type":"error","message":"bad config"}\n');
@@ -216,16 +217,8 @@ test("Python error event becomes terminal only after close", () => {
 
 test("requires a matching terminal event and exit code", () => {
   const cases = [
-    {
-      line: '{"type":"completed","result_path":"result.npz","visualize_path":"result_visualize.json","total_runs":1,"total_draw":1}',
-      code: 0,
-      status: "completed",
-    },
-    {
-      line: '{"type":"completed","result_path":"result.npz","visualize_path":"result_visualize.json","total_runs":1,"total_draw":1}',
-      code: 1,
-      status: "failed",
-    },
+    { line: "completed", code: 0, status: "completed" },
+    { line: "completed", code: 1, status: "failed" },
     {
       line: '{"type":"error","message":"bad config"}',
       code: 0,
@@ -236,9 +229,39 @@ test("requires a matching terminal event and exit code", () => {
   ] as const;
 
   for (const scenario of cases) {
-    const { child, events } = create_task(async () => {});
-    if (scenario.line) child.stdout.write(`${scenario.line}\n`);
+    const { args, child, events } = create_task(async () => {});
+    if (scenario.line === "completed")
+      child.stdout.write(
+        `${JSON.stringify({
+          type: "completed",
+          result_path: args.at(-1),
+          total_runs: 1,
+          total_draw: 1,
+        })}\n`,
+      );
+    else if (scenario.line) child.stdout.write(`${scenario.line}\n`);
     child.close(scenario.code);
     assert.equal(events.at(-1)?.status, scenario.status);
   }
+});
+
+test("uses only trusted native paths and removes temporary IR on close", () => {
+  const { args, child, command } = create_task(async () => {});
+  assert.equal(command, resolve("build/native/bin/gachasimulate-core"));
+  assert.deepEqual(args.slice(2, -2), [
+    "--total-runs",
+    "1",
+    "--seed",
+    "0",
+    "--threads",
+    "1",
+  ]);
+  const ir = args[1];
+  assert.equal(existsSync(ir), true);
+  assert.match(
+    args.at(-1) ?? "",
+    /results\/test-termination-totalRuns-1-seed0-threads1-.*\.gsr$/,
+  );
+  child.close(1);
+  assert.equal(existsSync(ir), false);
 });

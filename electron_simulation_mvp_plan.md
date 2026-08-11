@@ -1,5 +1,7 @@
 # GachaSimulate Electron 模拟 MVP 完成记录
 
+> 历史记录：其中 Python、worker、NPZ 和旧 sidecar 描述已被 `cpp-backend-plan.md` 第五阶段替代，不代表当前契约。
+
 ## 1. 状态
 
 Electron 开发第一阶段已经完成。本文不再作为待执行计划，只记录当前实现基线、稳定契约和仍有效的后续事项。

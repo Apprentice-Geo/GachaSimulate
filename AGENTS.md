@@ -10,9 +10,9 @@
 
 ## 默认开发环境与启动入口
 
-- 默认在仓库根目录使用 WSL2/Linux bash 开发；Electron 界面通过 WSLg 运行。Node、pnpm、Python 和 uv 都必须使用 WSL 内安装的版本，不要混用 Windows 可执行文件或 `node_modules`。
-- 首次准备环境：`uv sync --locked`，然后执行 `pnpm install --frozen-lockfile`。
-- 启动 Electron 桌面应用：`pnpm run dev`。Electron 会从同一个 WSL 环境调用 `uv run gachasimulate`，无需单独启动 Python 服务。
+- 默认在仓库根目录使用 WSL2/Linux bash 开发；Electron 界面通过 WSLg 运行。Node、pnpm、Clang、CMake 和 Ninja 都使用 WSL 内安装的版本，不要混用 Windows 可执行文件或 `node_modules`。
+- 首次准备环境：`pnpm install --frozen-lockfile`，再按 Development Checks 完成 C++ Release install。
+- 启动 Electron 桌面应用：`pnpm run dev`。Electron 直接调用 `build/native/bin` 中的 core 和 analyzer。
 - `pnpm run dev:web` 只启动独立浏览器可视化入口，不是桌面应用。
 - C++ 日常开发与 CI 使用 WSL2/Linux + Clang + Ninja；Windows 最终构建留给打包/CD 流程。完整环境说明和检查矩阵见 Development Checks。
 
@@ -20,9 +20,9 @@
 
 ## 修改边界
 
-- 修改 YAML 语法或配置合法性时，按 `docs/YAML_CONFIG_SYNTAX.md` 同步检查 `validator.py`、`builder.py` 和相关测试。
-- 修改单次模拟语义时，先对齐 `docs/YAML_CONFIG_SYNTAX.md` 中的执行顺序，再检查 `runtime.py`、`engine.py` 和行为测试。
-- 修改 CLI 或保存结果时，确认 `.npz` 与 `_visualize.json` 成对输出，并验证可视化输入消费方仍能读取生成的 JSON。
+- 修改 YAML 语法或配置合法性时，按 `docs/YAML_CONFIG_SYNTAX.md` 同步检查 TS Compiler、C++ IR loader 和相关测试。
+- 修改单次模拟语义时，先对齐 `docs/YAML_CONFIG_SYNTAX.md` 中的执行顺序，再检查 C++ Runtime 和行为测试。
+- 修改 CLI 或保存结果时，确认 GSR、Analysis v1 和按 metric 的完整 `*.visualize.json` sidecar 契约，并验证独立可视化消费方仍能读取 JSON。
 - 修改 Electron IPC、配置扫描或模拟任务生命周期时，保持 `docs/ARCHITECTURE.md` 中的 main、preload、renderer 信任边界，并更新共享类型和 Electron 行为测试。
 - 修改可视化输入、CDF、marker、统计展示、动画或导出时，遵循 `docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md` 的维护边界和共享契约。
 - 修改 benchmark 时，优先覆盖完整批量模拟路径；跨 case 对比性能时注意不同配置的 `total_draw` 可能不同。
