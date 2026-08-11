@@ -19,11 +19,12 @@
     "build": "tsc --noEmit && electron-vite build",
     "build:web": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test:visualize:cdf": "tsx src/visualize/test/cdf.test.ts",
+    "test:visualize:cdf": "tsx --test src/visualize/test/cdf.test.ts src/visualize/test/analysis.test.ts",
     "test:simulation": "tsx --test src/main/config_manager.test.ts src/main/simulation.test.ts",
     "test:e2e": "tsx src/visualize/test/run_e2e.ts",
     "export:cdf": "tsx src/visualize/export/export_cdf.ts",
-    "test:compiler": "pnpm --dir packages/config-compiler test"
+    "test:compiler": "pnpm --dir packages/config-compiler test",
+    "test:cli": "pnpm --dir packages/cli test"
   },
   "repository": {
     "type": "git",
@@ -53,6 +54,7 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@gachasimulate/cli": "workspace:*",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "1.61.0",
     "@types/node": "^25.7.0",

@@ -2,16 +2,16 @@
 
 ## 1. 状态与目标
 
-本文是 [C++ Backend / TypeScript Compiler Design](<cpp-backend-draft.md>) 的实施计划，当前**阶段一至三已完成，阶段四尚未开始**。
+本文是 [C++ Backend / TypeScript Compiler Design](cpp-backend-draft.md) 的实施计划，当前**阶段一至四已完成，阶段五尚未开始**。
 
 目标是用共享 TypeScript Compiler 和 C++ Runtime 替换当前 Python 模拟后端，同时保持配置仓库、Electron、CLI 和可视化之间清晰的契约边界。实施只分五个可验收阶段；阶段内可以拆任务，但不再把每个文件或组件提升为独立里程碑。
 
 相关边界：
 
-- 当前代码地图和信任边界：[Architecture](<docs/ARCHITECTURE.md>)。
-- 当前 YAML 行为基线：[YAML Config Syntax](<docs/YAML_CONFIG_SYNTAX.md>)。
-- 配置仓库与 manifest：[Electron Config Repository MVP Plan](<electron_config_repository_mvp_plan.md>)。
-- 检查矩阵：[Development Checks](<docs/DEVELOPMENT_CHECKS.md>)。
+- 当前代码地图和信任边界：[Architecture](docs/ARCHITECTURE.md)。
+- 当前 YAML 行为基线：[YAML Config Syntax](docs/YAML_CONFIG_SYNTAX.md)。
+- 配置仓库与 manifest：[Electron Config Repository MVP Plan](electron_config_repository_mvp_plan.md)。
+- 检查矩阵：[Development Checks](docs/DEVELOPMENT_CHECKS.md)。
 
 ## 2. 已确认决策
 
@@ -78,6 +78,7 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
   ctest --test-dir build/cpp -C Release --output-on-failure
   cmake --install build/cpp --config Release --prefix build/native
   ```
+
 - MSVC 构建静态链接对应配置的 C/C++ Runtime（Release 使用 `/MT`，Debug 使用 `/MTd`）。不得启用 `/fp:fast`、`-ffast-math` 或面向本机 CPU 的指令集选项。
 - JSON parser 使用 CMake `FetchContent` 获取固定版本的成熟库，下载归档必须校验 `URL_HASH`；首版不引入 vcpkg、Conan 或自研依赖包装。只有实际出现离线构建需求时才改为 vendoring。
 - C++ 测试使用 GoogleTest 提供断言、fixture 和参数化能力，由 CTest 通过 `gtest_discover_tests` 发现并运行。GoogleTest 仅在 `BUILD_TESTING` 启用时通过 `FetchContent` 获取固定版本和校验哈希，沿用项目的 `/MT`、`/MTd` 设置；测试目标不安装，首版不使用 GoogleMock。
@@ -161,6 +162,8 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
 
 ## 7. 阶段四：C++ 结果分析与 TS CLI
 
+**完成状态：已完成。** 独立 `gachasimulate_result` 统一维护 GSR writer、严格 reader 和 draw/cost 统计，`gachasimulate-analyze` 输出 analysis v1 JSON。`@gachasimulate/cli` 已打通 YAML Compiler、临时 IR、core 与 analyzer；TypeScript 适配器严格校验整数边界并复用现有 `VisualizeInput` 校验。本阶段未切换 Electron 或修改其文件选择流程。
+
 ### 目标
 
 从 YAML 到 GSR、纯分析 JSON 再到现有可视化视图模型，形成不依赖 Electron 的完整命令行链路。
@@ -174,7 +177,7 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
 - 在转为 `VisualizeInput` 前拒绝超出 JavaScript 安全整数范围的 totals、CDF 值和统计量，避免 `u64` 静默丢失精度。
 - 建立 CLI 包装层：调用 config-compiler、写临时 IR、启动 C++ core、转发 JSONL，并管理临时文件生命周期。
 - 同步共享 SimulationEvent 类型，completed 删除 `visualize_path`，保留 totals。
-- 更新 GSR 文件选择和错误展示；React 组件不解析二进制、调用进程或计算统计。
+- 保持 React 组件不解析二进制、调用进程或计算统计；Electron 的 GSR 文件选择和错误展示留到阶段五统一切换。
 
 ### 门禁
 
@@ -182,7 +185,7 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
 - C++ reader 能读取 writer 生成的 GSR 和语言无关 fixture，并拒绝损坏、超版本和超限文件。
 - 同一 GSR 的 draw / cost 统计与 Python 参考算法在数值规则上相同。
 - analyzer 只接受 `draw` 和 GSR 实际包含的 `cost`，不接受 TS 提供的任意物品索引；其 JSON 输出通过版本、字段、未知字段和数值范围校验后才能进入可视化层。
-- Electron 与素材导出共用同一份分析结果和视图模型，不形成第二套统计实现。
+- TypeScript 适配器与素材导出可共用现有视图模型；Electron 接入留到阶段五，不形成第二套统计实现。
 - 代表性 GSR 未证明一次内存排序不可接受前，不引入 mmap、分段架构或额外缓存。
 
 ## 8. 阶段五：Electron 切换与收尾

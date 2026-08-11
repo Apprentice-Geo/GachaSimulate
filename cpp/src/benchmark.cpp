@@ -1,3 +1,4 @@
+#include "gachasimulate/result.hpp"
 #include "gachasimulate/runtime.hpp"
 
 #include <charconv>

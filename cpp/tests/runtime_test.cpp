@@ -1,3 +1,4 @@
+#include "gachasimulate/result.hpp"
 #include "gachasimulate/runtime.hpp"
 
 #include <gtest/gtest.h>
@@ -29,6 +30,15 @@ template <class T> T read(const std::vector<unsigned char> &bytes, size_t offset
 std::vector<unsigned char> bytes(const std::filesystem::path &path) {
   std::ifstream input(path, std::ios::binary);
   return {std::istreambuf_iterator<char>(input), {}};
+}
+void write_bytes(const std::filesystem::path &path, const std::vector<unsigned char> &data) {
+  std::ofstream output(path, std::ios::binary | std::ios::trunc);
+  output.write(reinterpret_cast<const char *>(data.data()),
+               static_cast<std::streamsize>(data.size()));
+}
+template <class T> void set(std::vector<unsigned char> &data, size_t offset, T value) {
+  for (size_t index = 0; index < sizeof(T); ++index)
+    data[offset + index] = static_cast<unsigned char>(value >> (8 * index));
 }
 std::string hex(const std::vector<unsigned char> &data) {
   constexpr char digits[] = "0123456789abcdef";
@@ -147,5 +157,72 @@ TEST(Gsr, RejectsInconsistentBatchData) {
   EXPECT_THROW(gachasimulate::write_gsr_v1(output_path("invalid_reason_test").string(), program,
                                            result, 123),
                std::runtime_error);
+}
+
+TEST(Gsr, ReadsFixtureAndMatchesReferenceStatistics) {
+  const auto path = output_path("analysis_test");
+  std::filesystem::remove(path);
+  auto program = gachasimulate::load_ir_file(fixture_path().string());
+  const auto exchange = static_cast<uint32_t>(program.strings.size());
+  program.strings.push_back("exchange");
+  const auto skin = static_cast<uint32_t>(program.strings.size());
+  program.strings.push_back("skin");
+  gachasimulate::BatchResult result{{1, 2, 4, 4}, {}, {exchange, skin, skin, skin}, 11, 0};
+  gachasimulate::write_gsr_v1(path.string(), program, result, 0);
+  const auto analysis =
+      gachasimulate::analyze_gsr_v1(path.string(), gachasimulate::ResultMetric::Draw);
+  EXPECT_EQ(analysis.at("values"), nlohmann::json({"1", "2", "4"}));
+  EXPECT_EQ(analysis.at("cumulative"), nlohmann::json({0.25, 0.5, 1.0}));
+  EXPECT_EQ(analysis.at("statistic").at("P50"), "3");
+  EXPECT_EQ(analysis.at("statistic").at("MEAN"), "2");
+  EXPECT_EQ(analysis.at("statistic").at("MEAN_LEVEL"), 0.5);
+  EXPECT_EQ(analysis.at("termination_reason"),
+            nlohmann::json({{{"reason", "exchange"}, {"proportion", 25}},
+                            {{"reason", "skin"}, {"proportion", 75}}}));
+  EXPECT_THROW(gachasimulate::analyze_gsr_v1(path.string(), gachasimulate::ResultMetric::Cost),
+               std::runtime_error);
+  std::filesystem::remove(path);
+}
+
+TEST(Gsr, RejectsMalformedHeadersSectionsReasonsAndUtf8) {
+  const auto valid_path = output_path("valid_reader_test");
+  const auto invalid_path = output_path("invalid_reader_test");
+  std::filesystem::remove(valid_path);
+  auto program = gachasimulate::load_ir_file(fixture_path().string());
+  gachasimulate::write_gsr_v1(valid_path.string(), program,
+                              gachasimulate::simulate_fixed_runs(program, 3, 123, 1), 123);
+  const auto valid = bytes(valid_path);
+  auto rejected = [&](const std::vector<unsigned char> &data) {
+    write_bytes(invalid_path, data);
+    EXPECT_THROW(
+        gachasimulate::analyze_gsr_v1(invalid_path.string(), gachasimulate::ResultMetric::Draw),
+        std::runtime_error);
+  };
+  auto changed = valid;
+  changed[0] = 'X';
+  rejected(changed);
+  for (const auto [offset, value] : std::array<std::pair<size_t, uint32_t>, 5>{
+           {{4, 2}, {8, 95}, {12, 2}, {48, 65'537}, {52, 1}}}) {
+    changed = valid;
+    set(changed, offset, value);
+    rejected(changed);
+  }
+  changed = valid;
+  set<uint64_t>(changed, 16, 500'000'001);
+  rejected(changed);
+  changed = valid;
+  set<uint64_t>(changed, 72, 97);
+  rejected(changed);
+  changed = valid;
+  changed.pop_back();
+  rejected(changed);
+  changed = valid;
+  set<uint32_t>(changed, static_cast<size_t>(read<uint64_t>(changed, 72)), 1);
+  rejected(changed);
+  changed = valid;
+  changed.back() = 0xFF;
+  rejected(changed);
+  std::filesystem::remove(valid_path);
+  std::filesystem::remove(invalid_path);
 }
 } // namespace

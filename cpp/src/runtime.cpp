@@ -14,7 +14,6 @@
 #include <random>
 #include <stdexcept>
 #include <thread>
-#include <type_traits>
 
 namespace gachasimulate {
 namespace {
@@ -550,11 +549,6 @@ BatchResult batches(const RuntimeProgram &p, uint64_t work, int64_t seed, uint32
   finish(result, p);
   return result;
 }
-template <class T> void put(std::ofstream &out, T value) {
-  static_assert(std::is_integral_v<T>);
-  for (size_t i = 0; i < sizeof(T); ++i)
-    out.put(static_cast<char>(static_cast<std::make_unsigned_t<T>>(value) >> (8 * i)));
-}
 } // namespace
 
 BatchResult simulate_fixed_runs(const RuntimeProgram &p, uint64_t total_runs, int64_t seed,
@@ -597,68 +591,4 @@ BatchResult simulate_until_total_draw(const RuntimeProgram &p, uint64_t target, 
       progress);
 }
 
-void write_gsr_v1(const std::string &path, const RuntimeProgram &p, const BatchResult &r,
-                  int64_t seed) {
-  if (r.draws.size() != r.reasons.size() || (p.cost_item && r.costs.size() != r.draws.size()) ||
-      (!p.cost_item && !r.costs.empty()))
-    throw std::runtime_error("invalid batch result");
-  std::vector<uint32_t> raw = r.reasons;
-  std::sort(raw.begin(), raw.end());
-  raw.erase(std::unique(raw.begin(), raw.end()), raw.end());
-  if (raw.size() > 65'536)
-    throw std::runtime_error("too many reasons");
-  std::vector<uint32_t> reasons;
-  reasons.reserve(r.reasons.size());
-  for (auto id : r.reasons) {
-    if (id >= p.strings.size())
-      throw std::runtime_error("invalid reason id");
-    reasons.push_back(
-        static_cast<uint32_t>(std::lower_bound(raw.begin(), raw.end(), id) - raw.begin()));
-  }
-  uint64_t strings_size{};
-  for (auto id : raw) {
-    const auto size = p.strings[id].size();
-    if (size > 1024 * 1024)
-      throw std::runtime_error("reason too long");
-    strings_size += 4 + size;
-  }
-  const uint64_t draw_off = 96, cost_off = p.cost_item ? draw_off + r.draws.size() * 8 : 0,
-                 reason_off =
-                     (p.cost_item ? cost_off + r.costs.size() * 8 : draw_off + r.draws.size() * 8),
-                 string_off = reason_off + reasons.size() * 4,
-                 file_size = string_off + strings_size;
-  if (file_size > 4ULL * 1024 * 1024 * 1024)
-    throw std::runtime_error("GSR exceeds 4 GiB");
-  std::ofstream out(std::filesystem::u8path(path), std::ios::binary | std::ios::trunc);
-  if (!out)
-    throw std::runtime_error("cannot create output");
-  out.write("GSR\0", 4);
-  put<uint32_t>(out, 1);
-  put<uint32_t>(out, 96);
-  put<uint32_t>(out, p.cost_item ? 1 : 0);
-  put<uint64_t>(out, r.draws.size());
-  put<uint64_t>(out, r.total_draw);
-  put<int64_t>(out, r.total_cost);
-  put<int64_t>(out, seed);
-  put<uint32_t>(out, raw.size());
-  put<uint32_t>(out, 0);
-  put<uint64_t>(out, draw_off);
-  put<uint64_t>(out, cost_off);
-  put<uint64_t>(out, reason_off);
-  put<uint64_t>(out, string_off);
-  put<uint64_t>(out, file_size);
-  for (auto v : r.draws)
-    put<uint64_t>(out, v);
-  if (p.cost_item)
-    for (auto v : r.costs)
-      put<int64_t>(out, v);
-  for (auto v : reasons)
-    put<uint32_t>(out, v);
-  for (auto id : raw) {
-    put<uint32_t>(out, static_cast<uint32_t>(p.strings[id].size()));
-    out.write(p.strings[id].data(), static_cast<std::streamsize>(p.strings[id].size()));
-  }
-  if (!out)
-    throw std::runtime_error("failed writing GSR");
-}
 } // namespace gachasimulate

@@ -222,7 +222,8 @@ def test_cli_jsonl_config_dir_and_errors(
     )
     success_events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
     assert Path(success_events[-1]["result_path"]).is_absolute()
-    assert Path(success_events[-1]["visualize_path"]).exists()
+    assert "visualize_path" not in success_events[-1]
+    assert list(tmp_path.glob("*_visualize.json"))
 
     assert (
         main(

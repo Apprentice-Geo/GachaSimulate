@@ -19,9 +19,15 @@ add_library(gachasimulate_runtime src/runtime.cpp)
 target_include_directories(gachasimulate_runtime PUBLIC include)
 target_link_libraries(gachasimulate_runtime PUBLIC nlohmann_json::nlohmann_json)
 
+add_library(gachasimulate_result src/result.cpp)
+target_include_directories(gachasimulate_result PUBLIC include)
+target_link_libraries(gachasimulate_result PUBLIC gachasimulate_runtime nlohmann_json::nlohmann_json)
+
 add_executable(gachasimulate-core src/main.cpp)
-target_link_libraries(gachasimulate-core PRIVATE gachasimulate_runtime)
-install(TARGETS gachasimulate-core RUNTIME DESTINATION bin)
+target_link_libraries(gachasimulate-core PRIVATE gachasimulate_runtime gachasimulate_result)
+add_executable(gachasimulate-analyze src/analyze.cpp)
+target_link_libraries(gachasimulate-analyze PRIVATE gachasimulate_result)
+install(TARGETS gachasimulate-core gachasimulate-analyze RUNTIME DESTINATION bin)
 
 if(BUILD_TESTING)
   FetchContent_Declare(googletest
@@ -31,7 +37,7 @@ if(BUILD_TESTING)
   FetchContent_MakeAvailable(googletest)
   include(GoogleTest)
   add_executable(gachasimulate_runtime_tests tests/runtime_test.cpp)
-  target_link_libraries(gachasimulate_runtime_tests PRIVATE gachasimulate_runtime GTest::gtest_main)
+  target_link_libraries(gachasimulate_runtime_tests PRIVATE gachasimulate_runtime gachasimulate_result GTest::gtest_main)
   target_compile_definitions(gachasimulate_runtime_tests PRIVATE
     GACHASIMULATE_TEST_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_fixture_ir.json"
     GACHASIMULATE_TEST_COST_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_cost_fixture_ir.json"
@@ -46,4 +52,4 @@ if(BUILD_TESTING)
 endif()
 
 add_executable(gachasimulate-benchmark src/benchmark.cpp)
-target_link_libraries(gachasimulate-benchmark PRIVATE gachasimulate_runtime)
+target_link_libraries(gachasimulate-benchmark PRIVATE gachasimulate_runtime gachasimulate_result)

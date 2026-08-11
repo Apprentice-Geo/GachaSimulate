@@ -84,6 +84,4 @@ BatchResult simulate_until_total_draw(const RuntimeProgram &program, uint64_t ta
                                       int64_t seed, uint32_t threads,
                                       const std::function<void(uint64_t)> &progress = {},
                                       uint32_t chunks = 0);
-void write_gsr_v1(const std::string &utf8_path, const RuntimeProgram &program,
-                  const BatchResult &result, int64_t seed);
 } // namespace gachasimulate

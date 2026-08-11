@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GachaSimulate analysis v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "analysis_version",
+    "metric",
+    "totals",
+    "values",
+    "cumulative",
+    "statistic",
+    "termination_reason"
+  ],
+  "properties": {
+    "analysis_version": { "const": 1 },
+    "metric": { "enum": ["draw", "cost"] },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runs", "draw", "cost"],
+      "properties": {
+        "runs": { "$ref": "#/$defs/positive" },
+        "draw": { "$ref": "#/$defs/unsigned" },
+        "cost": {
+          "anyOf": [{ "$ref": "#/$defs/integer" }, { "type": "null" }]
+        }
+      }
+    },
+    "values": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/integer" }
+    },
+    "cumulative": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+    },
+    "statistic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "P5",
+        "P25",
+        "P50",
+        "P75",
+        "P95",
+        "MIN",
+        "MEAN",
+        "MEAN_LEVEL",
+        "MAX"
+      ],
+      "properties": {
+        "P5": { "$ref": "#/$defs/integer" },
+        "P25": { "$ref": "#/$defs/integer" },
+        "P50": { "$ref": "#/$defs/integer" },
+        "P75": { "$ref": "#/$defs/integer" },
+        "P95": { "$ref": "#/$defs/integer" },
+        "MIN": { "$ref": "#/$defs/integer" },
+        "MEAN": { "$ref": "#/$defs/integer" },
+        "MEAN_LEVEL": { "type": "number", "minimum": 0, "maximum": 1 },
+        "MAX": { "$ref": "#/$defs/integer" }
+      }
+    },
+    "termination_reason": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reason", "proportion"],
+        "properties": {
+          "reason": { "type": "string" },
+          "proportion": { "type": "integer", "minimum": 0, "maximum": 100 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "positive": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+    "unsigned": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)$" },
+    "integer": { "type": "string", "pattern": "^(?:0|-?[1-9][0-9]*)$" }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@gachasimulate/cli",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "gachasimulate": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && tsx --test test/*.test.ts",
+    "prepack": "pnpm build"
+  },
+  "dependencies": {
+    "@gachasimulate/config-compiler": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.7.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}

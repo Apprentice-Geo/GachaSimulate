@@ -37,9 +37,32 @@ Electron 当前只支持从仓库源码启动的开发环境。日常开发和�
 └─ results/
 ```
 
-桌面进程边界和配置仓库的长期决策见 [Architecture](<docs/ARCHITECTURE.md>)。
+桌面进程边界和配置仓库的长期决策见 [Architecture](docs/ARCHITECTURE.md)。
 
 ## 命令行模拟
+
+Electron 在第五阶段切换前仍使用下面的 Python CLI。第四阶段新增的独立 C++ 链路先安装原生产物并构建 workspace CLI：
+
+```bash
+cd cpp
+cmake --preset linux-release
+cmake --build --preset linux-release
+cmake --install ../build/cpp/linux-release --prefix ../build/native
+cd ..
+pnpm --dir packages/config-compiler build
+pnpm --dir packages/cli build
+```
+
+然后可以直接从 YAML 生成单一 GSR，并按需输出 analysis JSON：
+
+```bash
+pnpm exec gachasimulate simulate --config-dir configs/presets/basic_probability --termination termination.yaml --total-runs 10 --output results/example.gsr
+pnpm exec gachasimulate analyze --input results/example.gsr --metric draw
+```
+
+`simulate` 也支持 `--target-total-draw`，以及可选的 `--seed`（默认 `0`）和 `--threads`（默认 `1`）。输出文件必须是尚不存在的 `.gsr`；`analyze` 的 stdout 只有一个符合 [Analysis v1](docs/ANALYSIS_V1.md) 的 JSON 对象。
+
+现有 Python CLI：
 
 按固定模拟次数运行：
 
@@ -101,13 +124,13 @@ pnpm run preview
 pnpm run export:cdf -- --input <json文件路径>
 ```
 
-导出当前使用 [Remotion](<https://github.com/remotion-dev/remotion>) 逐帧渲染固定 3840x2160、60fps 的 CDF 画面，默认输出到 `outputs/`：
+导出当前使用 [Remotion](https://github.com/remotion-dev/remotion) 逐帧渲染固定 3840x2160、60fps 的 CDF 画面，默认输出到 `outputs/`：
 
 - `cdf-animation.mp4`
 - `cdf-result.png`
 
-使用或分发当前 Remotion 导出实现时，请自行确认符合其许可证条款。可视化与导出的设计边界见 [Visualize Frontend Implementation](<docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md>)。
+使用或分发当前 Remotion 导出实现时，请自行确认符合其许可证条款。可视化与导出的设计边界见 [Visualize Frontend Implementation](docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md)。
 
 ## 开发检查
 
-Push 或提交 PR 前，按 [Development Checks](<docs/DEVELOPMENT_CHECKS.md>) 执行与改动范围匹配的检查。
+Push 或提交 PR 前，按 [Development Checks](docs/DEVELOPMENT_CHECKS.md) 执行与改动范围匹配的检查。
