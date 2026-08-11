@@ -2,11 +2,14 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
+#include <condition_variable>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <random>
 #include <stdexcept>
@@ -486,18 +489,57 @@ void finish(BatchResult &r, const RuntimeProgram &p) {
 }
 template <class Work>
 BatchResult batches(const RuntimeProgram &p, uint64_t work, int64_t seed, uint32_t threads,
-                    Work &&do_chunk, const std::function<void(uint64_t)> &progress) {
-  const auto chunks = effective_threads(work, threads);
+                    uint32_t requested_chunks, Work &&do_chunk,
+                    const std::function<void(uint64_t)> &progress) {
+  const auto chunks = effective_threads(work, requested_chunks ? requested_chunks : threads);
+  const auto workers = effective_threads(chunks, threads);
   std::vector<BatchResult> parts(chunks);
+  std::atomic<uint32_t> next_chunk{}, finished_workers{};
   std::atomic<uint64_t> done{};
-  auto worker = [&](uint32_t chunk) { do_chunk(chunk, chunks, parts[chunk], done); };
+  std::atomic<bool> stop{};
+  std::exception_ptr error;
+  std::mutex mutex;
+  std::condition_variable finished;
+  auto worker = [&] {
+    try {
+      while (!stop) {
+        const auto chunk = next_chunk.fetch_add(1);
+        if (chunk >= chunks)
+          break;
+        do_chunk(chunk, chunks, parts[chunk], done);
+      }
+    } catch (...) {
+      std::lock_guard lock(mutex);
+      if (!error)
+        error = std::current_exception();
+      stop = true;
+    }
+    ++finished_workers;
+    finished.notify_one();
+  };
   std::vector<std::thread> pool;
-  pool.reserve(chunks - 1);
-  for (uint32_t i = 1; i < chunks; ++i)
-    pool.emplace_back(worker, i);
-  worker(0);
+  pool.reserve(workers);
+  for (uint32_t i = 0; i < workers; ++i)
+    pool.emplace_back(worker);
+  uint64_t reported{};
+  std::unique_lock lock(mutex);
+  while (finished_workers < workers) {
+    finished.wait_for(lock, std::chrono::milliseconds(50));
+    const auto current = done.load();
+    if (progress && current != reported) {
+      lock.unlock();
+      progress(current);
+      lock.lock();
+      reported = current;
+    }
+  }
+  lock.unlock();
   for (auto &t : pool)
     t.join();
+  if (error)
+    std::rethrow_exception(error);
+  if (progress && done != reported)
+    progress(done.load());
   BatchResult result;
   for (auto &part : parts) {
     result.draws.insert(result.draws.end(), part.draws.begin(), part.draws.end());
@@ -506,8 +548,6 @@ BatchResult batches(const RuntimeProgram &p, uint64_t work, int64_t seed, uint32
       result.costs.insert(result.costs.end(), part.costs.begin(), part.costs.end());
   }
   finish(result, p);
-  if (progress)
-    progress(done.load());
   return result;
 }
 template <class T> void put(std::ofstream &out, T value) {
@@ -518,11 +558,12 @@ template <class T> void put(std::ofstream &out, T value) {
 } // namespace
 
 BatchResult simulate_fixed_runs(const RuntimeProgram &p, uint64_t total_runs, int64_t seed,
-                                uint32_t threads, const std::function<void(uint64_t)> &progress) {
+                                uint32_t threads, const std::function<void(uint64_t)> &progress,
+                                uint32_t chunks) {
   if (!total_runs || total_runs > 500'000'000)
     throw std::runtime_error("total-runs out of range");
   return batches(
-      p, total_runs, seed, threads,
+      p, total_runs, seed, threads, chunks,
       [&](uint32_t chunk, uint32_t chunks, BatchResult &part, std::atomic<uint64_t> &done) {
         const auto begin = total_runs * chunk / chunks, end = total_runs * (chunk + 1) / chunks;
         std::mt19937_64 rng(mix_seed(seed, chunk));
@@ -536,13 +577,14 @@ BatchResult simulate_fixed_runs(const RuntimeProgram &p, uint64_t total_runs, in
 
 BatchResult simulate_until_total_draw(const RuntimeProgram &p, uint64_t target, int64_t seed,
                                       uint32_t threads,
-                                      const std::function<void(uint64_t)> &progress) {
+                                      const std::function<void(uint64_t)> &progress,
+                                      uint32_t chunks) {
   if (!target)
     throw std::runtime_error("target-total-draw must be positive");
   return batches(
-      p, target, seed, threads,
+      p, target, seed, threads, chunks,
       [&](uint32_t chunk, uint32_t chunks, BatchResult &part, std::atomic<uint64_t> &done) {
-        const auto goal = target * (chunk + 1) / chunks - target * chunk / chunks;
+        const auto goal = target / chunks + (chunk < target % chunks);
         std::mt19937_64 rng(mix_seed(seed, chunk));
         uint64_t draws{};
         while (draws < goal) {

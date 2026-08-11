@@ -1083,7 +1083,7 @@ C++ 内部所有线程随进程一起退出。
 result.gsr
 ```
 
-C++ 只保存原始模拟结果。展示统计由共享 TypeScript GSR reader / analyzer 按需生成，不属于模拟后端职责。
+C++ core 只保存原始模拟结果。独立 C++ result 模块统一维护 GSR 编解码和统计，`gachasimulate-analyze` 按需生成纯分析 JSON；统计不进入 core 的执行路径。
 
 ------
 
@@ -1270,9 +1270,9 @@ uint32[]
 
 ------
 
-# 23. TypeScript GSR Reader / Analyzer
+# 23. C++ GSR Result Module / Analyzer
 
-C++ 后端不生成展示专用 JSON。共享 TypeScript 数据层读取 GSR 中的 draw count、可选 cost 和 terminate reason sections，按需计算：
+独立 C++ result 模块统一维护 GSR v1 writer、reader 和统计。`gachasimulate-core` 只使用 writer；`gachasimulate-analyze` 读取 GSR 中的 draw count、可选 cost 和 terminate reason sections，按需计算：
 
 - CDF；
 - P5 / P25 / P50 / P75 / P95；
@@ -1281,9 +1281,11 @@ C++ 后端不生成展示专用 JSON。共享 TypeScript 数据层读取 GSR 中
 - termination reason distribution；
 - total runs / total draw / total cost。
 
-分析结果直接形成内存中的 `VisualizeInput`，继续进入既有 validate、normalize、view model、Electron 展示和素材导出链路。React 组件不解析 GSR，也不自行计算统计。
+analyzer 只接受 `draw` 或 `cost`，不接收 TS 推导的任意物品索引。GSR 自身固定统计 section 的身份；首版不保存或统计任意运行时物品。
 
-首版优先使用 typed arrays 和一次性分析；只有代表性 GSR 的测量证明主线程阻塞不可接受后，才增加 Worker 或分段读取。GSR reader 必须执行与 C++ Loader 风险相称的 magic、version、长度、偏移和资源上限校验。
+analyzer 把单个版本化纯分析 JSON 写到 stdout，普通诊断写到 stderr。TypeScript 结果适配器校验其版本、字段、未知字段和数值范围，合并通用标题、固定说明、空价格/单位和 GSR 文件修改时间，形成内存中的 `VisualizeInput`，继续进入既有 validate、normalize、view model、Electron 展示和素材导出链路。GSR 不保存展示元数据；首版不生成 sidecar，结果展示信息编辑及其持久化协议后置。
+
+GSR reader 必须执行与 C++ Loader 风险相称的 magic、version、长度、偏移、UTF-8 和资源上限校验。统计保持现有 Python 的线性 percentile 后取整、mean 取整及 termination 百分比最大余数分配规则；转为 `VisualizeInput` 前必须拒绝超出 JavaScript 安全整数范围的 totals、CDF 值和统计量。首版只对所选 metric 做一次内存排序；只有代表性 GSR 的测量证明必要后，才增加 mmap、分段读取或额外缓存。
 
 ------
 
@@ -1457,7 +1459,13 @@ config.yaml + termination.yaml
          result.gsr
              │
              ▼
- TypeScript GSR Reader / Analyzer
+     C++ GSR Analyzer
+             │
+             ▼
+       analysis JSON
+             │
+             ▼
+ TypeScript Result Adapter
              │
              ▼
    in-memory VisualizeInput

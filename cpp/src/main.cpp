@@ -25,9 +25,10 @@ template <class T> T integer(const std::string &value, const char *name) {
 }
 void event(const char *name, const Json &extra = Json::object()) {
   Json line = extra;
-  line["event"] = name;
+  line["type"] = name;
   std::cout << line.dump() << '\n' << std::flush;
 }
+void stage(const char *name) { event("stage", {{"stage", name}}); }
 #ifdef _WIN32
 std::string utf8(const wchar_t *value) {
   const int size =
@@ -99,13 +100,20 @@ int main(int argc, char **argv) {
         std::filesystem::exists(resultPath))
       usage();
     event("started");
-    event("loading_config");
+    stage("loading_config");
     const auto program = gachasimulate::load_ir_file(ir);
-    event("simulating");
+    stage("simulating");
+    const auto total = runs ? runs : draws;
+    const auto unit = runs ? "runs" : "draws";
+    const auto report_progress = [&](uint64_t completed) {
+      event("progress",
+            {{"completed", std::min(completed, total)}, {"total", total}, {"unit", unit}});
+    };
     const auto result =
-        runs ? gachasimulate::simulate_fixed_runs(program, runs, seed, threads)
-             : gachasimulate::simulate_until_total_draw(program, draws, seed, threads);
-    event("saving");
+        runs ? gachasimulate::simulate_fixed_runs(program, runs, seed, threads, report_progress)
+             : gachasimulate::simulate_until_total_draw(program, draws, seed, threads,
+                                                        report_progress);
+    stage("saving");
     gachasimulate::write_gsr_v1(output, program, result, seed);
     event("completed", {{"result_path", output},
                         {"total_runs", result.draws.size()},

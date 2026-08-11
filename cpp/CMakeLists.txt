@@ -34,8 +34,15 @@ if(BUILD_TESTING)
   target_link_libraries(gachasimulate_runtime_tests PRIVATE gachasimulate_runtime GTest::gtest_main)
   target_compile_definitions(gachasimulate_runtime_tests PRIVATE
     GACHASIMULATE_TEST_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_fixture_ir.json"
-    GACHASIMULATE_TEST_COST_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_cost_fixture_ir.json")
+    GACHASIMULATE_TEST_COST_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_cost_fixture_ir.json"
+    GACHASIMULATE_TEST_RANDOM_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_random_fixture_ir.json"
+    GACHASIMULATE_TEST_GSR_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/gsr_v1_fixture.hex")
   gtest_discover_tests(gachasimulate_runtime_tests)
+  add_test(NAME Cli.EmitsJsonlProtocol COMMAND ${CMAKE_COMMAND}
+    -DCORE=$<TARGET_FILE:gachasimulate-core>
+    -DFIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_fixture_ir.json
+    -DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/cli_protocol_test.gsr
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli_protocol_test.cmake)
 endif()
 
 add_executable(gachasimulate-benchmark src/benchmark.cpp)

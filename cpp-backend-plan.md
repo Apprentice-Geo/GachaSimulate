@@ -2,7 +2,7 @@
 
 ## 1. 状态与目标
 
-本文是 [C++ Backend / TypeScript Compiler Design](<cpp-backend-draft.md>) 的实施计划，状态为**设计已确认，尚未实现**。
+本文是 [C++ Backend / TypeScript Compiler Design](<cpp-backend-draft.md>) 的实施计划，当前**阶段一至三已完成，阶段四尚未开始**。
 
 目标是用共享 TypeScript Compiler 和 C++ Runtime 替换当前 Python 模拟后端，同时保持配置仓库、Electron、CLI 和可视化之间清晰的契约边界。实施只分五个可验收阶段；阶段内可以拆任务，但不再把每个文件或组件提升为独立里程碑。
 
@@ -24,7 +24,8 @@
 - `AddItem` 和 `SetItem` 在修改库存后立即触发完整批次 resolve；`ReduceItem` 不触发。
 - C++ 同时支持固定 run 数和累计抽数目标；后者允许最终 `total_draw` 超过请求值。
 - C++ 只输出 GSR，不双写 NPZ 或 `_visualize.json`。
-- TypeScript GSR reader / analyzer 生成内存中的 `VisualizeInput`，既有展示和导出层继续消费规范化后的数据。
+- 独立 C++ result 模块统一负责 GSR 编解码和 draw / cost 统计；`gachasimulate-analyze` 读取 GSR 并输出纯分析 JSON，统计不进入 `gachasimulate-core` 的执行路径。
+- TypeScript 只向 analyzer 传递 `draw` 或 `cost`，不传递物品索引；随后合并通用展示信息并生成内存中的 `VisualizeInput`，既有展示和导出层继续消费规范化后的数据。
 - JSONL completed 事件包含 `result_path`、`total_runs` 和 `total_draw`，不包含 `visualize_path`。
 - Python/C++ 不承诺相同 seed 逐样本一致；同一 C++ core 构建在相同 seed、线程数和 chunk 策略下必须可复现，不承诺跨编译器或跨 core 版本逐样本一致。
 
@@ -43,7 +44,7 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
 - YAML 增加 `schema_version`，移除模拟 YAML metadata 和显式 `draw_count` 维护。
 - `SetItem` 开始触发 item resolve。
 - `.gsr` 替换 `.npz`，不再保存 `lifetime_acquired`。
-- 可视化改为读取 GSR 后在 TS 数据层统计。
+- 可视化改为通过独立 C++ analyzer 读取并统计 GSR，再由 TS 数据层适配为 `VisualizeInput`。
 - completed JSONL 事件移除 `visualize_path`。
 
 迁移在同一阶段机械更新仓库内配置、fixture、共享类型和文档，不让新旧契约长期共存。
@@ -55,11 +56,12 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
 - Protobuf、FlatBuffers、自定义 Binary IR 或 GSR 压缩。
 - 不同线程数之间的逐样本一致。
 - GSR 到 JSON 的持久化导出。
-- 未经测量证明必要的 Worker、分段读取或额外缓存层。
+- 任意物品统计、结果展示信息编辑及其持久化协议。
+- 未经测量证明必要的分段读取或额外缓存层。
 
 ### 3.4 本地 C++ 构建约定
 
-- C++ core 位于 `cpp/`，使用 CMake 3.25 及以上版本构建独立可执行文件，语言标准为 C++20。CMake 工程不得写死编译器或生成器。
+- C++ 原生模块位于 `cpp/`，使用 CMake 3.25 及以上版本构建独立可执行文件，语言标准为 C++20。CMake 工程不得写死编译器或生成器。
 - 首个已验证的开发环境是 Windows x64 + MSVC；当前本机为 MSVC 19.50、CMake 4.2.3。MSVC 专用参数必须放在 `if(MSVC)` 分支中，Windows 专用入口和路径处理必须与 Runtime core 隔离，因此首阶段不承诺 Linux 支持，也不主动阻止其它编译器构建。
 - 本机从 Visual Studio x64 Developer PowerShell 或 Native Tools Command Prompt 构建，默认使用 Visual Studio 生成器：
 
@@ -69,7 +71,7 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
   ctest --test-dir build/cpp -C Debug --output-on-failure
   ```
 
-- Release 构建通过 `cmake --install` 安装到稳定的 `build/native/` 前缀，core 位于其 `bin/` 子目录；Electron 本地开发只依赖该安装布局，不解析生成器内部目录：
+- Release 构建通过 `cmake --install` 安装到稳定的 `build/native/` 前缀，core 和 analyzer 位于其 `bin/` 子目录；Electron 本地开发只依赖该安装布局，不解析生成器内部目录：
 
   ```powershell
   cmake --build build/cpp --config Release
@@ -111,7 +113,7 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
 
 ## 5. 阶段二：C++ 单线程语义闭环
 
-**完成状态：已完成最小单线程闭环。** `cpp/` 现提供 C++20 Runtime 库、严格 JSON IR Loader、`gachasimulate-core --ir <utf8-path> --single-run --seed <int64>` 诊断 CLI 与 CTest。Runtime 覆盖 initial、every_draw、pool draw/change、嵌套 draw、resolve、once/per_draw/repeat 规则、AND/OR 条件及 terminate；MSVC Release 构建、CTest 和 install 已验证，安装产物位于 `build/native/bin/`。当前仅完成 C++ Runtime、Loader 与基础 CTest 闭环；C++ 单次和批量结果与 Python 参考统计的正式对照，待阶段四 TS GSR reader/统计能力完成后实施。
+**完成状态：已完成最小单线程闭环。** `cpp/` 现提供 C++20 Runtime 库、严格 JSON IR Loader、`single_run()` 与 CTest；阶段三已将诊断 CLI 替换为批量任务 CLI。Runtime 覆盖 initial、every_draw、pool draw/change、嵌套 draw、resolve、once/per_draw/repeat 规则、AND/OR 条件及 terminate。C++ 单次和批量结果与 Python 参考统计的正式对照，待阶段四 C++ GSR reader 和统计能力完成后实施。
 
 ### 目标
 
@@ -134,6 +136,8 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
 
 ## 6. 阶段三：批量、并行与 GSR
 
+**完成状态：已完成。** Runtime 支持 fixed runs 和 target total draw，chunk 定义与 worker 数可独立控制，使用稳定 chunk seed 和按 index 归并保证调度无关的可复现结果。core 输出严格 JSONL stage/progress/completed/error 事件并写入 GSR v1；CTest 覆盖两种目标、固定 chunk 的串并行一致性、重复执行、可选 cost、协议事件和语言无关的 GSR 字节 fixture。完整路径 benchmark 已覆盖 IR 加载、批量模拟和 GSR 写入，并保留按 run、按 draw 的性能基线。
+
 ### 目标
 
 完成可复现的批量模拟、进度、结果归并和 GSR 写入，并用完整模拟路径衡量性能。
@@ -155,38 +159,42 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
 - GSR writer 通过阶段一固定的字节 fixture、截断检查和边界值测试。
 - 代表性 benchmark 证明新后端具备切换价值；未达到目标时先 profile 已实现路径，不提前引入暂缓优化。
 
-## 7. 阶段四：TS 结果链路与 CLI
+## 7. 阶段四：C++ 结果分析与 TS CLI
 
 ### 目标
 
-从 YAML 到 GSR 再到现有可视化视图模型形成不依赖 Electron 的完整命令行链路。
+从 YAML 到 GSR、纯分析 JSON 再到现有可视化视图模型，形成不依赖 Electron 的完整命令行链路。
 
 ### 工作
 
-- 实现共享 TS GSR reader，对 magic、version、section、长度、偏移和资源上限重新校验。
-- 使用 typed arrays 计算 draw / cost CDF、分位数、mean level 和 termination reason distribution。
-- 生成内存中的 `VisualizeInput`，复用既有 validate、normalize、view model 和素材导出。
+- 建立独立 C++ result 模块，统一维护 GSR v1 writer、reader 和统计；core 只调用 writer，统计不进入 core 的执行路径。
+- 先固定 analysis JSON 的版本、字段、数值范围和错误边界，再新增并安装 `gachasimulate-analyze`；它接收 GSR 路径和 `draw | cost`，对 magic、version、section、长度、偏移、UTF-8 和资源上限重新校验，并把单个纯分析 JSON 写到 stdout，普通诊断写到 stderr。
+- analyzer 计算 draw / cost CDF、分位数、mean level 和 termination reason distribution，并保持现有 Python 的线性 percentile 后取整、mean 取整及 termination 百分比最大余数分配规则；首版只对所选 metric 做一次内存排序，不实现任意物品统计、mmap 或分段算法。
+- TS 结果适配器校验 analyzer 输出，合并通用标题、固定说明、空价格/单位和 GSR 文件修改时间，生成内存中的 `VisualizeInput`；不写回 GSR，也不生成 sidecar。
+- 在转为 `VisualizeInput` 前拒绝超出 JavaScript 安全整数范围的 totals、CDF 值和统计量，避免 `u64` 静默丢失精度。
 - 建立 CLI 包装层：调用 config-compiler、写临时 IR、启动 C++ core、转发 JSONL，并管理临时文件生命周期。
 - 同步共享 SimulationEvent 类型，completed 删除 `visualize_path`，保留 totals。
-- 更新 GSR 文件选择和错误展示；React 组件不解析二进制或计算统计。
+- 更新 GSR 文件选择和错误展示；React 组件不解析二进制、调用进程或计算统计。
 
 ### 门禁
 
 - CLI 的两种目标模式都只产生一个 GSR，并输出合法 completed 事件。
-- TS reader 能读取 C++ writer 生成的 GSR，并拒绝损坏、超版本和超限文件。
+- C++ reader 能读取 writer 生成的 GSR 和语言无关 fixture，并拒绝损坏、超版本和超限文件。
 - 同一 GSR 的 draw / cost 统计与 Python 参考算法在数值规则上相同。
+- analyzer 只接受 `draw` 和 GSR 实际包含的 `cost`，不接受 TS 提供的任意物品索引；其 JSON 输出通过版本、字段、未知字段和数值范围校验后才能进入可视化层。
 - Electron 与素材导出共用同一份分析结果和视图模型，不形成第二套统计实现。
-- 代表性 GSR 未证明主线程不可接受前，不引入 Worker 或分段架构。
+- 代表性 GSR 未证明一次内存排序不可接受前，不引入 mmap、分段架构或额外缓存。
 
 ## 8. 阶段五：Electron 切换与收尾
 
 ### 目标
 
-让 Electron 默认使用 TS Compiler + C++ core，完成生命周期、配置仓库和文档迁移后移除旧产品路径。
+让 Electron 默认使用 TS Compiler、C++ core 和 C++ analyzer，完成生命周期、配置仓库和文档迁移后移除旧产品路径。
 
 ### 工作
 
 - SimulationTask 使用共享 compiler 和 CLI/core 进程协议，保持 main、preload、renderer 信任边界。
+- 开发安装和最终应用打包同时包含 `gachasimulate-core` 与 `gachasimulate-analyze`，并从同一受信任的原生程序目录解析二者，不接受 Renderer 提供的可执行文件路径。
 - 把 Renderer 的 workers 请求映射为 C++ threads，并保持任务互斥、取消、关闭应用和异常退出行为。
 - 配置仓库构建与安装继续使用同一个 compiler 包；manifest metadata 不进入 IR。
 - 更新结果目录、GSR 选择、状态反馈和错误信息，删除 NPZ / visualize sidecar 假设。
@@ -209,6 +217,7 @@ Python 在前三个阶段继续作为现有行为参考，不在 C++ 单线程�
 - YAML 只承载模拟语义，manifest 只承载包和展示信息。
 - TS Compiler 是 YAML 到 IR 的唯一实现，并被主仓库与配置仓库复用。
 - C++ Runtime 是默认模拟执行权威，支持单线程、多线程和两种目标模式。
-- GSR 是唯一持久化模拟结果，TS 数据层能安全读取并生成现有可视化模型。
+- GSR 是唯一持久化模拟结果，C++ analyzer 能安全读取，TS 数据层能校验分析结果并生成现有可视化模型。
+- GSR 编解码和统计只有一份 C++ result 模块实现，core 与 analyzer 保持独立可执行入口。
 - JSONL、取消和 Electron 进程生命周期行为通过自动化和人工验收。
 - 性能结论来自完整路径 benchmark；未证明必要的优化仍未实现。

@@ -27,3 +27,5 @@ The fixed header is 96 bytes:
 `u32 UTF-8 byte length` followed by bytes. Readers reject files above 4 GiB,
 more than 500,000,000 runs, more than 65,536 reasons, or a reason longer than
 1 MiB. Offsets must be monotonic, non-overlapping, and exactly in range.
+
+`cpp/tests/gsr_v1_fixture.hex` 是语言无关的有效字节 fixture；C++ writer 必须逐字节匹配，后续 reader 也复用同一 fixture。
