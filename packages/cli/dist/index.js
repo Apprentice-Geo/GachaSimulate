@@ -123,7 +123,7 @@ async function simulate(args) {
             ir,
             ...(runs == null
                 ? ["--target-total-draw", positive(draws, "target-total-draw")]
-                : ["--total-runs", positive(runs, "total-runs", 500000000n)]),
+                : ["--total-runs", positive(runs, "total-runs", 100000000n)]),
             "--seed",
             seed(values.get("--seed") ?? "0"),
             "--threads",

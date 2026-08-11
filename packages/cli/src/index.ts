@@ -147,7 +147,7 @@ async function simulate(args: string[]): Promise<number> {
       ir,
       ...(runs == null
         ? ["--target-total-draw", positive(draws!, "target-total-draw")]
-        : ["--total-runs", positive(runs, "total-runs", 500_000_000n)]),
+        : ["--total-runs", positive(runs, "total-runs", 100_000_000n)]),
       "--seed",
       seed(values.get("--seed") ?? "0"),
       "--threads",

@@ -83,6 +83,12 @@ test("validates strict requests, positive targets, and thread limit", () => {
       2,
     ),
   );
+  assert.throws(() =>
+    validate_simulation_request(
+      { ...request, target: { kind: "totalRuns", value: 100_000_001 } },
+      2,
+    ),
+  );
 });
 
 test("parses JSONL and ignores unknown events", () => {

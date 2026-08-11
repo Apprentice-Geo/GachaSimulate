@@ -79,6 +79,17 @@ terminations:
     run(["simulate", ...common, "--total-runs", "1", "--output", fixed]).status,
     0,
   );
+  assert.notEqual(
+    run([
+      "simulate",
+      ...common,
+      "--total-runs",
+      "100000001",
+      "--output",
+      join(root, "too-many.gsr"),
+    ]).status,
+    0,
+  );
   assert.deepEqual(readdirSync(temporary), []);
 });
 

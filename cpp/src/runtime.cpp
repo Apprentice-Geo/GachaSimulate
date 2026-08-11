@@ -293,6 +293,10 @@ RuntimeProgram load_ir_file(const std::string &path) {
       fail("empty pool");
     p.pools.push_back({u32(field(value, "id"), "pool id"), r});
   }
+  for (const auto &action : p.actions)
+    if ((action.kind == ActionKind::Draw || action.kind == ActionKind::Change) &&
+        action.target >= p.pools.size())
+      fail("invalid pool reference");
   for (const auto &pool : p.pools) {
     if (pool.id >= p.strings.size())
       fail("invalid pool string id");
@@ -516,7 +520,7 @@ BatchResult batches(const RuntimeProgram &p, uint64_t work, int64_t seed, uint32
     ++finished_workers;
     finished.notify_one();
   };
-  std::vector<std::thread> pool;
+  std::vector<std::jthread> pool;
   pool.reserve(workers);
   for (uint32_t i = 0; i < workers; ++i)
     pool.emplace_back(worker);
@@ -554,7 +558,7 @@ BatchResult batches(const RuntimeProgram &p, uint64_t work, int64_t seed, uint32
 BatchResult simulate_fixed_runs(const RuntimeProgram &p, uint64_t total_runs, int64_t seed,
                                 uint32_t threads, const std::function<void(uint64_t)> &progress,
                                 uint32_t chunks) {
-  if (!total_runs || total_runs > 500'000'000)
+  if (!total_runs || total_runs > 100'000'000)
     throw std::runtime_error("total-runs out of range");
   return batches(
       p, total_runs, seed, threads, chunks,

@@ -91,6 +91,16 @@ TEST(Runtime, RunsPoolResolveAndTerminationFixture) {
   EXPECT_EQ(result.reason, "done");
 }
 
+TEST(Runtime, RejectsInvalidPoolReference) {
+  const auto path = std::filesystem::temp_directory_path() / "gachasimulate_invalid_pool_ir.json";
+  std::ifstream input(random_fixture_path());
+  auto ir = nlohmann::json::parse(input);
+  ir["actions"][2]["pool"] = 1;
+  std::ofstream(path) << ir;
+  EXPECT_THROW(gachasimulate::load_ir_file(path.string()), std::runtime_error);
+  std::filesystem::remove(path);
+}
+
 TEST(Batch, FixedRunsCountsAndIsRepeatable) {
   const auto program = gachasimulate::load_ir_file(random_fixture_path().string());
   const auto serial = gachasimulate::simulate_fixed_runs(program, 100, 123, 1, {}, 3);
@@ -125,6 +135,12 @@ TEST(Batch, TargetTotalDrawReachesTarget) {
 TEST(Batch, RejectsZeroWorkersWithExplicitChunks) {
   const auto program = gachasimulate::load_ir_file(random_fixture_path().string());
   EXPECT_THROW(gachasimulate::simulate_fixed_runs(program, 1, 123, 0, {}, 1), std::runtime_error);
+}
+
+TEST(Batch, RejectsMoreThanOneHundredMillionRuns) {
+  const auto program = gachasimulate::load_ir_file(random_fixture_path().string());
+  EXPECT_THROW(gachasimulate::simulate_fixed_runs(program, 100'000'001, 123, 1),
+               std::runtime_error);
 }
 
 TEST(Gsr, WritesHeaderArraysReasonRemapAndOptionalCost) {

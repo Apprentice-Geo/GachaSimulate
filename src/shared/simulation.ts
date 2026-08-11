@@ -116,7 +116,9 @@ export function validate_simulation_request(
   exact_keys(target, ["kind", "value"], "target");
   if (target.kind !== "totalRuns" && target.kind !== "targetTotalDraw")
     throw new Error("exactly one target is required");
-  integer(target.value, "target", 1);
+  const target_value = integer(target.value, "target", 1);
+  if (target.kind === "totalRuns" && target_value > 100_000_000)
+    throw new Error("totalRuns must be <= 100000000");
 }
 
 export function parse_simulation_line(
