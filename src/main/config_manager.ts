@@ -6,6 +6,7 @@ import {
   readdirSync,
 } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
+import { read_config_items } from "@gachasimulate/config-compiler";
 import { parse } from "yaml";
 import type { InstalledConfig } from "../shared/installed_config";
 
@@ -44,13 +45,15 @@ function read_manifest(path: string, directory_name: string): InstalledConfig {
       throw new Error("invalid termination path");
     return { file: value.file, name: value.name };
   });
-  if (!existsSync(join(root, "config.yaml")))
-    throw new Error("config.yaml is missing");
+  const config_path = join(root, "config.yaml");
+  if (!existsSync(config_path)) throw new Error("config.yaml is missing");
+  const items = read_config_items(readFileSync(config_path, "utf8"));
   return {
     id: manifest.id,
     name: manifest.name,
     description: manifest.description,
     terminations,
+    items,
   };
 }
 

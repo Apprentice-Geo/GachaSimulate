@@ -28,7 +28,10 @@ function write_config(
   const directory = join(root, directory_name);
   mkdirSync(directory, { recursive: true });
   writeFileSync(join(directory, "manifest.yaml"), manifest);
-  writeFileSync(join(directory, "config.yaml"), "items: [draw_count]\n");
+  writeFileSync(
+    join(directory, "config.yaml"),
+    "items: [{draw_count: 抽数}, target]\n",
+  );
   writeFileSync(join(directory, "termination.yaml"), "termination_rule: {}\n");
   return directory;
 }
@@ -60,8 +63,23 @@ test("scans valid manifests and skips invalid installed configs", () => {
         name: "Test",
         description: "Test config",
         terminations: [{ file: "termination.yaml", name: "Done" }],
+        items: [
+          { id: "draw_count", name: "抽数" },
+          { id: "target", name: "target" },
+        ],
       },
     ]);
+  } finally {
+    rmSync(installed, { recursive: true, force: true });
+  }
+});
+
+test("skips configs with invalid items", () => {
+  const installed = temporary_directory();
+  try {
+    const invalid = write_config(installed, "invalid");
+    writeFileSync(join(invalid, "config.yaml"), "items: [same, same]\n");
+    assert.deepEqual(scan_installed_configs(installed), []);
   } finally {
     rmSync(installed, { recursive: true, force: true });
   }

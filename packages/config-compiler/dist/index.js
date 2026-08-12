@@ -50,15 +50,43 @@ function actions(value, path) {
     });
     return result;
 }
+function parse_yaml(text, name) {
+    const document = parseDocument(text, { uniqueKeys: true });
+    if (document.errors.length)
+        fail(name, document.errors[0].message.replace(/\n.*/s, ""));
+    return map(document.toJS(), name);
+}
+function config_items(value) {
+    const rawItems = list(value, "config.items");
+    if (!rawItems.length)
+        fail("config.items", "must be non-empty");
+    const itemIds = new Set();
+    return rawItems.map((entry, index) => {
+        let id, name;
+        if (typeof entry === "string")
+            id = name = entry;
+        else {
+            const single = map(entry, `config.items[${index}]`);
+            if (Object.keys(single).length !== 1)
+                fail(`config.items[${index}]`, "must be a single-key mapping");
+            [id, name] = Object.entries(single)[0];
+        }
+        if (!ID.test(id))
+            fail(`config.items[${index}]`, "invalid item id");
+        if (itemIds.has(id))
+            fail(`config.items[${index}]`, `duplicate item id: ${id}`);
+        if (typeof name !== "string" || !name)
+            fail(`config.items[${index}]`, "name must be a non-empty string");
+        itemIds.add(id);
+        return { id, name };
+    });
+}
+export function read_config_items(config_text) {
+    return config_items(parse_yaml(config_text, "config").items);
+}
 /** Compiles the v2 YAML contract to a JSON-serializable, flat arena IR. */
 export function compile_yaml(config_text, termination_text, manifest_text, result_item) {
-    const parse = (text, name) => {
-        const document = parseDocument(text, { uniqueKeys: true });
-        if (document.errors.length)
-            fail(name, document.errors[0].message.replace(/\n.*/s, ""));
-        return map(document.toJS(), name);
-    };
-    return compile(parse(config_text, "config"), parse(termination_text, "termination"), parse(manifest_text, "manifest"), result_item);
+    return compile(parse_yaml(config_text, "config"), parse_yaml(termination_text, "termination"), parse_yaml(manifest_text, "manifest"), result_item);
 }
 export function compile(configValue, terminationValue, manifestValue, result_item) {
     const config = map(configValue, "config");
@@ -93,27 +121,9 @@ export function compile(configValue, terminationValue, manifestValue, result_ite
         strings.push(value);
         return strings.length - 1;
     };
-    const rawItems = list(config.items, "config.items");
-    if (!rawItems.length)
-        fail("config.items", "must be non-empty");
     const itemIds = new Map();
     const items = [];
-    rawItems.forEach((entry, index) => {
-        let id, name;
-        if (typeof entry === "string")
-            id = name = entry;
-        else {
-            const single = map(entry, `config.items[${index}]`);
-            if (Object.keys(single).length !== 1)
-                fail(`config.items[${index}]`, "must be a single-key mapping");
-            [id, name] = Object.entries(single)[0];
-        }
-        if (!ID.test(id))
-            fail(`config.items[${index}]`, "invalid item id");
-        if (itemIds.has(id))
-            fail(`config.items[${index}]`, `duplicate item id: ${id}`);
-        if (typeof name !== "string" || !name)
-            fail(`config.items[${index}]`, "name must be a non-empty string");
+    config_items(config.items).forEach(({ id, name }) => {
         itemIds.set(id, items.length);
         items.push({ id: stringId(id), name: stringId(name) });
     });

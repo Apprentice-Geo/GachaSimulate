@@ -22,14 +22,13 @@
 
 - 修改 YAML 语法或配置合法性时，按 `docs/YAML_CONFIG_SYNTAX.md` 同步检查 TS Compiler、C++ IR loader 和相关测试。
 - 修改单次模拟语义时，先对齐 `docs/YAML_CONFIG_SYNTAX.md` 中的执行顺序，再检查 C++ Runtime 和行为测试。
-- 修改 CLI 或保存结果时，确认 GSR、Analysis v1 和按 metric 的完整 `*.visualize.json` sidecar 契约，并验证独立可视化消费方仍能读取 JSON。
+- 修改 CLI 或保存结果时，确认启动请求选择 result item、Compiler 写入对应 IR 索引、GSR v2、Analysis v2 和单一完整 `*.visualize.json` sidecar 契约，并验证独立可视化消费方仍能读取 JSON。
 - 修改 Electron IPC、配置扫描或模拟任务生命周期时，保持 `docs/ARCHITECTURE.md` 中的 main、preload、renderer 信任边界，并更新共享类型和 Electron 行为测试。
 - 修改可视化输入、CDF、marker、统计展示、动画或导出时，遵循 `docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md` 的维护边界和共享契约。
-- 修改 benchmark 时，优先覆盖完整批量模拟路径；跨 case 对比性能时注意不同配置的 `total_draw` 可能不同。
+- 修改 benchmark 时，优先覆盖完整批量模拟路径；跨 case 对比性能时注意不同配置的 `total_result` 可能不同。
 
 ## 容易忽略的行为
 
-- `simulate_until_total_draw()` 以累计抽数目标停止，最终 `total_draw` 可能大于请求值。
 - `simulate_fixed_runs()` 用于固定 run 数场景，benchmark 默认使用它做小规模稳定测量。
 
 ## 提交信息

@@ -24,7 +24,7 @@ GSR 是权威模拟结果，保存每次启动模拟前选择的 result item 期
 - `packages/config-compiler/`：唯一 YAML 校验和 IR 编译实现。
 - `cpp/`：唯一模拟 Runtime、GSR 编解码、统计、core、analyzer 和 benchmark。
 - `packages/cli/`：YAML→IR→core 与 GSR→analyzer 的命令行包装。
-- `src/main/`：受信任的 Electron 文件系统、配置扫描、原生进程和结果编辑生命周期。
+- `src/main/`：受信任的 Electron 文件系统、配置扫描、原生进程和结果编辑生命周期；扫描配置时通过 Compiler 读取并校验 `items`。
 - `src/preload/`：只暴露固定 IPC 能力。
 - `src/renderer/`：模拟表单、任务状态、结果编辑页和结果可视化页，不使用 Node.js。
 - `src/visualize/`：平台无关的 `VisualizeInput` 校验、视图模型、浏览器入口和导出。
@@ -41,7 +41,7 @@ main 严格拒绝未知 SimulationRequest 字段。core/analyzer stdout、Analys
 - TS Compiler 是 YAML 到 IR 的唯一权威；C++ 不解析 YAML。
 - C++ Runtime 是模拟执行的唯一权威。
 - 固定次数返回精确 run 数；GSR 只保存所选 result item 的期末库存。
-- `threads` 是受逻辑 CPU 数限制的正整数；result item 由模拟请求选择，Compiler 将其对应索引写入 IR。
+- `threads` 是受逻辑 CPU 数限制的正整数；Electron 只允许从当前配置按完整、大小写敏感的 ID 选择 result item，默认优先 `draw_count`、否则选择第一项，Compiler 再次验证并将其对应索引写入 IR。
 - core 只写 GSR v2；analyzer 只输出 Analysis v2。
 - sidecar 只允许编辑 `title`、`target`、`note`、`price`、`unit`。
 - 修改 `VisualizeInput` 时同步 schema、类型、校验和测试。

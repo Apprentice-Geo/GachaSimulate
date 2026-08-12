@@ -196,6 +196,37 @@ button:focus-visible {
   margin: 0;
 }
 
+.simulation-item-picker {
+  display: grid;
+  gap: 8px;
+}
+
+.simulation-item-panel {
+  background: var(--color-panel-soft);
+  border: 1px solid var(--color-hairline);
+  color: var(--color-text-muted);
+  list-style: none;
+  margin: 0;
+  max-height: 128px;
+  overflow: auto;
+  padding: 4px;
+}
+
+.simulation-item-panel li {
+  border-left: 2px solid transparent;
+  padding: 5px 8px;
+}
+
+.simulation-item-panel li[data-current] {
+  background: var(--color-panel);
+  border-left-color: var(--color-cyan);
+  color: var(--color-text-primary);
+}
+
+.simulation-item-panel code {
+  color: inherit;
+}
+
 .renderer-config-form label,
 .renderer-config-form fieldset {
   color: var(--color-text-muted);
@@ -213,6 +244,12 @@ button:focus-visible {
   min-height: 38px;
   padding: 8px 10px;
   width: 100%;
+}
+
+.renderer-config-form :is(input, select):focus-visible,
+.simulation-item-panel:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 2px;
 }
 
 .renderer-config-form fieldset {

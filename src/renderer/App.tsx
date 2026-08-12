@@ -2,6 +2,7 @@ import { BarChart3, FilePenLine, FolderOpen, Play, Store } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
 import type { InstalledConfig } from "../shared/installed_config";
 import type { DisplayFields, ResultEditorState } from "../shared/result_editor";
+import { default_result_item, selected_result_item } from "./simulation_items";
 import VisualizeApp from "../visualize/App";
 import {
   validate_simulation_request,
@@ -60,7 +61,7 @@ function SimulationPage() {
   const [config_error, set_config_error] = useState<string | null>(null);
   const [operation_error, set_operation_error] = useState<string | null>(null);
   const [termination, set_termination] = useState("");
-  const [result_item, set_result_item] = useState("draw_count");
+  const [result_item, set_result_item] = useState("");
   const [target_value, set_target_value] = useState("10");
   const [seed, set_seed] = useState("0");
   const [threads, set_threads] = useState("1");
@@ -109,17 +110,28 @@ function SimulationPage() {
 
   useEffect(() => {
     set_termination(selected?.terminations[0]?.file ?? "");
-  }, [selected_id, selected]);
+    set_result_item(default_result_item(selected?.items ?? []));
+  }, [selected]);
 
   const busy = ["starting", "running", "saving", "cancelling"].includes(status);
   const start = async () => {
     set_operation_error(null);
     set_progress(null);
     set_result_path("");
+    const canonical_result_item = selected_result_item(
+      result_item,
+      selected?.items ?? [],
+    );
+    if (!canonical_result_item) {
+      set_status("failed");
+      set_operation_error("请选择当前配置中的统计物品 ID");
+      return;
+    }
+    set_result_item(canonical_result_item);
     const request: SimulationRequest = {
       configId: selected?.id ?? "",
       termination,
-      resultItem: result_item,
+      resultItem: canonical_result_item,
       target: {
         kind: "totalRuns",
         value: Number(target_value),
@@ -207,14 +219,37 @@ function SimulationPage() {
                   ))}
                 </select>
               </label>
-              <label>
-                统计物品 ID
-                <input
-                  disabled={busy}
-                  value={result_item}
-                  onChange={(event) => set_result_item(event.target.value)}
-                />
-              </label>
+              <div className="simulation-item-picker">
+                <label>
+                  统计物品 ID
+                  <input
+                    autoComplete="off"
+                    disabled={busy}
+                    list="simulation-item-options"
+                    value={result_item}
+                    onChange={(event) => set_result_item(event.target.value)}
+                  />
+                  <datalist id="simulation-item-options">
+                    {selected?.items.map((item) => (
+                      <option key={item.id} value={item.id} />
+                    ))}
+                  </datalist>
+                </label>
+                <ul
+                  aria-label="当前配置物品"
+                  className="simulation-item-panel"
+                  tabIndex={0}
+                >
+                  {selected?.items.map((item) => (
+                    <li
+                      data-current={result_item.trim() === item.id || undefined}
+                      key={item.id}
+                    >
+                      <code>{item.id}</code>: {item.name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
               <p>{selected?.description}</p>
             </div>
             <fieldset disabled={busy}>

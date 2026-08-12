@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CompilerError, compile_yaml } from "../src/index.js";
+import {
+  CompilerError,
+  compile_yaml,
+  read_config_items,
+} from "../src/index.js";
 
 const config = `schema_version: 2
 items: [draw_count, target]
@@ -42,6 +46,21 @@ test("uses an item id as its display name when no name is provided", () => {
     (ir.strings as string[])[(ir.items as { name: number }[])[1].name],
     "target",
   );
+});
+
+test("reads config items with the compiler's item validation", () => {
+  assert.deepEqual(read_config_items("items: [draw_count, {target: 目标}]\n"), [
+    { id: "draw_count", name: "draw_count" },
+    { id: "target", name: "目标" },
+  ]);
+  for (const source of [
+    "items: []\n",
+    "items: [bad-id]\n",
+    "items: [same, same]\n",
+    "items: [{valid: ''}]\n",
+    "items: [unterminated\n",
+  ])
+    assert.throws(() => read_config_items(source), CompilerError);
 });
 
 test("emits the resolve batch reduction without making consumers rescan actions", () => {

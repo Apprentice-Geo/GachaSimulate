@@ -1,9 +1,11 @@
 export type InstalledTermination = { file: string; name: string };
+export type ConfigItem = { id: string; name: string };
 export type InstalledConfig = {
   id: string;
   name: string;
   description: string;
   terminations: InstalledTermination[];
+  items: ConfigItem[];
 };
 export type DesktopApi = {
   listInstalledConfigs: () => Promise<InstalledConfig[]>;

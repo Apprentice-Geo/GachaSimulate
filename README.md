@@ -23,7 +23,7 @@ Electron 开发前必须存在 `build/native/bin/gachasimulate-core` 和 `gachas
 
 ## Electron
 
-桌面应用有独立的“结果编辑”和“结果可视化”页面；两页共享当前 GSR 会话。应用可以选择已安装配置，以指定 seed 和 threads 运行或取消模拟，打开结果目录，并选择 GSR 编辑展示字段。失焦保存生成：
+桌面应用有独立的“结果编辑”和“结果可视化”页面；两页共享当前 GSR 会话。应用可以选择已安装配置，以指定 seed 和 threads 运行或取消模拟，打开结果目录，并选择 GSR 编辑展示字段。统计物品列表由 Compiler 从当前 `config.yaml` 的 `items` 读取；表单只按大小写敏感的完整 ID 选择，默认优先 `draw_count`，否则使用第一项。失焦保存生成：
 
 - `<stem>.visualize.json`
 

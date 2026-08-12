@@ -16,6 +16,7 @@ export class CompilerError extends Error {
 
 export type ActionRange = { begin: number; count: number };
 export type CompiledProgram = { ir: Record<string, unknown> };
+export type ConfigItem = { id: string; name: string };
 
 function fail(path: string, message: string): never {
   throw new CompilerError(path, message);
@@ -60,6 +61,40 @@ function actions(value: unknown, path: string): string[] {
   return result as string[];
 }
 
+function parse_yaml(text: string, name: string): Record<string, unknown> {
+  const document = parseDocument(text, { uniqueKeys: true });
+  if (document.errors.length)
+    fail(name, document.errors[0].message.replace(/\n.*/s, ""));
+  return map(document.toJS(), name);
+}
+
+function config_items(value: unknown): ConfigItem[] {
+  const rawItems = list(value, "config.items");
+  if (!rawItems.length) fail("config.items", "must be non-empty");
+  const itemIds = new Set<string>();
+  return rawItems.map((entry, index) => {
+    let id: string, name: string;
+    if (typeof entry === "string") id = name = entry;
+    else {
+      const single = map(entry, `config.items[${index}]`);
+      if (Object.keys(single).length !== 1)
+        fail(`config.items[${index}]`, "must be a single-key mapping");
+      [id, name] = Object.entries(single)[0] as [string, string];
+    }
+    if (!ID.test(id)) fail(`config.items[${index}]`, "invalid item id");
+    if (itemIds.has(id))
+      fail(`config.items[${index}]`, `duplicate item id: ${id}`);
+    if (typeof name !== "string" || !name)
+      fail(`config.items[${index}]`, "name must be a non-empty string");
+    itemIds.add(id);
+    return { id, name };
+  });
+}
+
+export function read_config_items(config_text: string): ConfigItem[] {
+  return config_items(parse_yaml(config_text, "config").items);
+}
+
 /** Compiles the v2 YAML contract to a JSON-serializable, flat arena IR. */
 export function compile_yaml(
   config_text: string,
@@ -67,16 +102,10 @@ export function compile_yaml(
   manifest_text: string,
   result_item: string,
 ): CompiledProgram {
-  const parse = (text: string, name: string): Record<string, unknown> => {
-    const document = parseDocument(text, { uniqueKeys: true });
-    if (document.errors.length)
-      fail(name, document.errors[0].message.replace(/\n.*/s, ""));
-    return map(document.toJS(), name);
-  };
   return compile(
-    parse(config_text, "config"),
-    parse(termination_text, "termination"),
-    parse(manifest_text, "manifest"),
+    parse_yaml(config_text, "config"),
+    parse_yaml(termination_text, "termination"),
+    parse_yaml(manifest_text, "manifest"),
     result_item,
   );
 }
@@ -118,24 +147,9 @@ export function compile(
     strings.push(value);
     return strings.length - 1;
   };
-  const rawItems = list(config.items, "config.items");
-  if (!rawItems.length) fail("config.items", "must be non-empty");
   const itemIds = new Map<string, number>();
   const items: { id: number; name: number }[] = [];
-  rawItems.forEach((entry, index) => {
-    let id: string, name: string;
-    if (typeof entry === "string") id = name = entry;
-    else {
-      const single = map(entry, `config.items[${index}]`);
-      if (Object.keys(single).length !== 1)
-        fail(`config.items[${index}]`, "must be a single-key mapping");
-      [id, name] = Object.entries(single)[0] as [string, string];
-    }
-    if (!ID.test(id)) fail(`config.items[${index}]`, "invalid item id");
-    if (itemIds.has(id))
-      fail(`config.items[${index}]`, `duplicate item id: ${id}`);
-    if (typeof name !== "string" || !name)
-      fail(`config.items[${index}]`, "name must be a non-empty string");
+  config_items(config.items).forEach(({ id, name }) => {
     itemIds.set(id, items.length);
     items.push({ id: stringId(id), name: stringId(name) });
   });
