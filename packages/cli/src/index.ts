@@ -28,8 +28,8 @@ const NATIVE_DIR = resolve(
 
 function usage(): never {
   throw new Error(
-    "usage: gachasimulate simulate --config-dir <dir> --termination <filename> (--total-runs <positive> | --target-total-draw <positive>) --output <file.gsr> [--seed <int64>] [--threads <positive>]\n" +
-      "       gachasimulate analyze --input <file.gsr> --metric <draw|cost>",
+    "usage: gachasimulate simulate --config-dir <dir> --termination <filename> --result-item <item-id> --total-runs <positive> --output <file.gsr> [--seed <int64>] [--threads <positive>]\n" +
+      "       gachasimulate analyze --input <file.gsr>",
   );
 }
 
@@ -96,16 +96,15 @@ async function simulate(args: string[]): Promise<number> {
   const allowed = new Set([
     "--config-dir",
     "--termination",
+    "--result-item",
     "--total-runs",
-    "--target-total-draw",
     "--output",
     "--seed",
     "--threads",
   ]);
   if ([...values.keys()].some((key) => !allowed.has(key))) usage();
   const runs = values.get("--total-runs");
-  const draws = values.get("--target-total-draw");
-  if ((runs == null) === (draws == null)) usage();
+  if (runs == null) usage();
   const config_dir = await realpath(require_option(values, "--config-dir"));
   const termination_name = require_option(values, "--termination");
   if (
@@ -127,17 +126,17 @@ async function simulate(args: string[]): Promise<number> {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
-  const [config_text, termination_text] = await Promise.all([
+  const [config_text, termination_text, manifest_text] = await Promise.all([
     readFile(join(config_dir, "config.yaml"), "utf8"),
     readFile(termination_path, "utf8"),
+    readFile(join(config_dir, "manifest.yaml"), "utf8"),
   ]);
-  let manifest_text: string | undefined;
-  try {
-    manifest_text = await readFile(join(config_dir, "manifest.yaml"), "utf8");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
-  const program = compile_yaml(config_text, termination_text, manifest_text);
+  const program = compile_yaml(
+    config_text,
+    termination_text,
+    manifest_text,
+    require_option(values, "--result-item"),
+  );
   const temporary = await mkdtemp(join(tmpdir(), "gachasimulate-"));
   try {
     const ir = join(temporary, "program.json");
@@ -145,9 +144,8 @@ async function simulate(args: string[]): Promise<number> {
     return await child("gachasimulate-core", [
       "--ir",
       ir,
-      ...(runs == null
-        ? ["--target-total-draw", positive(draws!, "target-total-draw")]
-        : ["--total-runs", positive(runs, "total-runs", 100_000_000n)]),
+      "--total-runs",
+      positive(runs, "total-runs", 100_000_000n),
       "--seed",
       seed(values.get("--seed") ?? "0"),
       "--threads",
@@ -162,12 +160,10 @@ async function simulate(args: string[]): Promise<number> {
 
 async function analyze(args: string[]): Promise<number> {
   const values = options(args);
-  if ([...values.keys()].some((key) => !["--input", "--metric"].includes(key)))
-    usage();
+  if ([...values.keys()].some((key) => key !== "--input")) usage();
   const input = resolve(require_option(values, "--input"));
-  const metric = require_option(values, "--metric");
-  if (!isAbsolute(input) || !["draw", "cost"].includes(metric)) usage();
-  return child("gachasimulate-analyze", ["--input", input, "--metric", metric]);
+  if (!isAbsolute(input)) usage();
+  return child("gachasimulate-analyze", ["--input", input]);
 }
 
 export async function main(args = process.argv.slice(2)): Promise<number> {

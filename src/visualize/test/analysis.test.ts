@@ -3,9 +3,9 @@ import { test } from "node:test";
 import { analysis_to_visualize, validate_analysis } from "../data/analysis";
 
 const valid = {
-  analysis_version: 1,
-  metric: "draw",
-  totals: { runs: "4", draw: "11", cost: null },
+  analysis_version: 2,
+  result_item: { id: "draw_count", name: "抽数" },
+  totals: { runs: "4", result: "11" },
   values: ["1", "2", "4"],
   cumulative: [0.25, 0.5, 1],
   statistic: {
@@ -25,6 +25,7 @@ const valid = {
 test("validates analysis and adapts it through VisualizeInput validation", () => {
   const result = analysis_to_visualize(valid, 1_700_000_000_123);
   assert.equal(result.total, 11);
+  assert.deepEqual(result.result_item, { id: "draw_count", name: "抽数" });
   assert.equal(result.timestamp, 1_700_000_000);
   assert.deepEqual(result.values, [1, 2, 4]);
 });
@@ -38,4 +39,9 @@ test("rejects unknown fields, non-canonical integers and unsupported values", ()
     analysis_to_visualize({ ...valid, values: ["9007199254740992"] }, 0),
   );
   assert.throws(() => analysis_to_visualize({ ...valid, values: ["-1"] }, 0));
+});
+
+test("rejects the removed v1 metric contract", () => {
+  assert.throws(() => validate_analysis({ ...valid, analysis_version: 1 }));
+  assert.throws(() => validate_analysis({ ...valid, metric: "draw" }));
 });

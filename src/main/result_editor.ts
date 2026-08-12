@@ -15,10 +15,7 @@ import {
   type DisplayFields,
   type ResultEditorState,
 } from "../shared/result_editor";
-import type {
-  VisualizeInput,
-  VisualizeMetric,
-} from "../visualize/types/visualize_input";
+import type { VisualizeInput } from "../visualize/types/visualize_input";
 import { analysis_to_visualize } from "../visualize/data/analysis";
 import { validate_input } from "../visualize/data/validate_input";
 import { terminate_process_tree } from "./simulation";
@@ -36,11 +33,6 @@ type ResultEditorDependencies = {
   native_dir?: string;
   random_uuid?: () => string;
 };
-
-function metric_value(value: unknown): VisualizeMetric {
-  if (value !== "draw" && value !== "cost") throw new Error("invalid metric");
-  return value;
-}
 
 function fields_value(value: unknown): DisplayFields {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -63,13 +55,12 @@ function display_fields(input: VisualizeInput): DisplayFields {
   ) as DisplayFields;
 }
 
-function sidecar_path(path: string, metric: VisualizeMetric): string {
-  return `${path.slice(0, -4)}.${metric}.visualize.json`;
+function sidecar_path(path: string): string {
+  return `${path.slice(0, -4)}.visualize.json`;
 }
 
 export class ResultEditor {
   private path: string | null = null;
-  private metric: VisualizeMetric = "draw";
   private input: VisualizeInput | null = null;
   private child: ChildProcess | null = null;
   private child_close: Promise<void> | null = null;
@@ -80,32 +71,22 @@ export class ResultEditor {
     return this.child !== null;
   }
 
-  async open(
-    path_value: string,
-    metric_value_raw: unknown,
-  ): Promise<ResultEditorState> {
+  async open(path_value: string): Promise<ResultEditorState> {
     const path = resolve(path_value);
-    const metric = metric_value(metric_value_raw);
     if (!isAbsolute(path_value) || !path.toLowerCase().endsWith(".gsr"))
       throw new Error("请选择 .gsr 结果文件");
-    const input = await this.analyze(path, metric);
-    const restored = this.restore_sidecar(path, metric, input);
+    const input = await this.analyze(path);
+    const restored = this.restore_sidecar(path, input);
     this.path = path;
-    this.metric = metric;
     this.input = restored;
     return this.state();
-  }
-
-  async switch_metric(value: unknown): Promise<ResultEditorState> {
-    if (!this.path) throw new Error("请先选择 GSR 文件");
-    return this.open(this.path, metric_value(value));
   }
 
   save(value: unknown): ResultEditorState {
     if (!this.path || !this.input) throw new Error("请先分析 GSR 文件");
     const fields = fields_value(value);
-    const path = sidecar_path(this.path, this.metric);
-    if (existsSync(path)) this.read_sidecar(path, this.metric);
+    const path = sidecar_path(this.path);
+    if (existsSync(path)) this.read_sidecar(path);
     const merged = { ...this.input, ...fields };
     const validation = validate_input(merged);
     if (!validation.valid || !validation.data)
@@ -143,57 +124,45 @@ export class ResultEditor {
     return {
       path: this.path,
       filename: basename(this.path),
-      metric: this.metric,
       fields: display_fields(this.input),
-      sidecar_path: sidecar_path(this.path, this.metric),
+      input: this.input,
+      sidecar_path: sidecar_path(this.path),
     };
   }
 
   private restore_sidecar(
     path: string,
-    metric: VisualizeMetric,
     authoritative: VisualizeInput,
   ): VisualizeInput {
-    const sidecar = sidecar_path(path, metric);
+    const sidecar = sidecar_path(path);
     if (!existsSync(sidecar)) return authoritative;
-    const saved = this.read_sidecar(sidecar, metric);
+    const saved = this.read_sidecar(sidecar);
     const merged = { ...authoritative, ...display_fields(saved) };
     const validation = validate_input(merged);
     if (!validation.valid || !validation.data)
-      throw new Error(
-        `非法 ${metric} sidecar: ${validation.errors.join("; ")}`,
-      );
+      throw new Error(`非法 sidecar: ${validation.errors.join("; ")}`);
     return validation.data;
   }
 
-  private read_sidecar(path: string, metric: VisualizeMetric): VisualizeInput {
+  private read_sidecar(path: string): VisualizeInput {
     if (statSync(path).size > JSON_LIMIT)
-      throw new Error(`非法 ${metric} sidecar: 文件超过 16 MiB`);
+      throw new Error("非法 sidecar: 文件超过 16 MiB");
     let value: unknown;
     try {
       value = JSON.parse(readFileSync(path, "utf8"));
     } catch (error) {
       throw new Error(
-        `非法 ${metric} sidecar: ${error instanceof Error ? error.message : String(error)}`,
+        `非法 sidecar: ${error instanceof Error ? error.message : String(error)}`,
         { cause: error },
       );
     }
     const validation = validate_input(value);
-    if (
-      !validation.valid ||
-      !validation.data ||
-      validation.data.metric !== metric
-    )
-      throw new Error(
-        `非法 ${metric} sidecar: ${validation.errors.join("; ") || "metric 不匹配"}`,
-      );
+    if (!validation.valid || !validation.data)
+      throw new Error(`非法 sidecar: ${validation.errors.join("; ")}`);
     return validation.data;
   }
 
-  private analyze(
-    path: string,
-    metric: VisualizeMetric,
-  ): Promise<VisualizeInput> {
+  private analyze(path: string): Promise<VisualizeInput> {
     if (this.child) throw new Error("analyzer is already running");
     const native_dir = resolve(
       this.dependencies.native_dir ??
@@ -208,7 +177,7 @@ export class ResultEditor {
     return new Promise((resolve_promise, reject) => {
       const child = (this.dependencies.spawn ?? spawn)(
         command,
-        ["--input", path, "--metric", metric],
+        ["--input", path],
         { cwd: dirname(command), windowsHide: true },
       );
       this.child = child;

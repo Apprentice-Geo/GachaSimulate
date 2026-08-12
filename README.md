@@ -1,6 +1,6 @@
 # GachaSimulate
 
-Monte Carlo 抽卡模拟器。TypeScript Compiler 将 YAML 编译为 IR，C++ Runtime 执行模拟并输出 GSR；C++ analyzer 按 `draw` 或 `cost` 生成分析数据。
+Monte Carlo 抽卡模拟器。TypeScript Compiler 将 YAML 和本次选择的结果 item 编译为 IR，C++ Runtime 执行模拟并输出 GSR；C++ analyzer 为该 item 生成分析数据。
 
 ## WSL2/Linux 快速开始
 
@@ -23,12 +23,11 @@ Electron 开发前必须存在 `build/native/bin/gachasimulate-core` 和 `gachas
 
 ## Electron
 
-桌面应用可以选择已安装配置，以指定 seed 和 threads 运行或取消模拟，打开结果目录，并选择 GSR 编辑展示字段。失焦保存生成：
+桌面应用有独立的“结果编辑”和“结果可视化”页面；两页共享当前 GSR 会话。应用可以选择已安装配置，以指定 seed 和 threads 运行或取消模拟，打开结果目录，并选择 GSR 编辑展示字段。失焦保存生成：
 
-- `<stem>.draw.visualize.json`
-- `<stem>.cost.visualize.json`
+- `<stem>.visualize.json`
 
-sidecar 是完整的 `VisualizeInput`，但重新打开时统计、CDF、termination、metric、total 和 timestamp 始终从 GSR 重新分析，只恢复 `title`、`target`、`note`、`price` 和 `unit`。
+sidecar 是完整的 `VisualizeInput`，但重新打开时统计、CDF、termination、result item、total 和 timestamp 始终从 GSR 重新分析，只恢复 `title`、`target`、`note`、`price` 和 `unit`。
 
 安装目录为空时，应用会复制 `configs/presets/`。桌面数据位于 `app.getPath("userData")` 下的 `configs/installed/` 与 `results/`。
 
@@ -46,11 +45,11 @@ pnpm --dir packages/cli build
 从 YAML 生成 GSR 并分析：
 
 ```bash
-pnpm exec gachasimulate simulate --config-dir configs/presets/basic_probability --termination termination.yaml --total-runs 10 --output results/example.gsr
-pnpm exec gachasimulate analyze --input results/example.gsr --metric draw
+pnpm exec gachasimulate simulate --config-dir configs/presets/basic_probability --termination termination.yaml --result-item draw_count --total-runs 10 --output results/example.gsr
+pnpm exec gachasimulate analyze --input results/example.gsr
 ```
 
-`simulate` 也支持 `--target-total-draw`、`--seed`（默认 `0`）和 `--threads`（默认 `1`）。输出必须是尚不存在的 `.gsr`；`analyze` 输出 [Analysis v1](docs/ANALYSIS_V1.md)。
+`simulate` 只接受固定的 `--total-runs`，另支持 `--seed`（默认 `0`）和 `--threads`（默认 `1`）。输出必须是尚不存在的 `.gsr`；`analyze` 输出 [Analysis v2](docs/ANALYSIS_V2.md)。
 
 ## 可视化与导出
 
@@ -61,7 +60,7 @@ pnpm run dev:web
 ```
 
 ```text
-http://127.0.0.1:5173/?input=results/<stem>.draw.visualize.json
+http://127.0.0.1:5173/?input=results/<stem>.visualize.json
 ```
 
 构建与导出：

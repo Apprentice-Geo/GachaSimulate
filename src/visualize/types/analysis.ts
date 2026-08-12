@@ -1,12 +1,9 @@
-import type {
-  TerminationReasonInput,
-  VisualizeMetric,
-} from "./visualize_input";
+import type { TerminationReasonInput } from "./visualize_input";
 
-export interface AnalysisV1 {
-  analysis_version: 1;
-  metric: VisualizeMetric;
-  totals: { runs: string; draw: string; cost: string | null };
+export interface AnalysisV2 {
+  analysis_version: 2;
+  result_item: { id: string; name: string };
+  totals: { runs: string; result: string };
   values: string[];
   cumulative: number[];
   statistic: {

@@ -1,7 +1,4 @@
-import type {
-  VisualizeInput,
-  VisualizeMetric,
-} from "../visualize/types/visualize_input";
+import type { VisualizeInput } from "../visualize/types/visualize_input";
 
 export const DISPLAY_FIELD_KEYS = [
   "title",
@@ -19,7 +16,7 @@ export type DisplayFields = Pick<
 export type ResultEditorState = {
   path: string;
   filename: string;
-  metric: VisualizeMetric;
   fields: DisplayFields;
+  input: VisualizeInput;
   sidecar_path: string;
 };

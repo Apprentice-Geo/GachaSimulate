@@ -1,4 +1,4 @@
-import type { StatisticKey, VisualizeMetric } from "../types/visualize_input";
+import type { StatisticKey } from "../types/visualize_input";
 
 export type DistributionStatisticKey = StatisticKey;
 
@@ -42,19 +42,15 @@ const QUANTILE_PERCENTAGES: Partial<Record<StatisticKey, number>> = {
   P95: 95,
 };
 
-export function get_statistic_description(
-  key: StatisticKey,
-  metric: VisualizeMetric,
-): string {
-  const metric_label = metric === "draw" ? "抽数" : "成本";
+export function get_statistic_description(key: StatisticKey): string {
   const percentage = QUANTILE_PERCENTAGES[key];
   if (percentage !== undefined) {
-    return `${percentage}% 模拟在此${metric_label}内达成`;
+    return `${percentage}% 的期末数量不超过此值`;
   }
   if (key === "MEAN") {
-    return `所有模拟结果的平均${metric_label}`;
+    return "所有模拟结果的期末平均数量";
   }
-  return `本轮模拟达成${metric_label}${key === "MIN" ? "最小值" : "最大值"}`;
+  return `本轮模拟期末数量${key === "MIN" ? "最小值" : "最大值"}`;
 }
 
 export const STATISTIC_VIEW_ORDER = [
@@ -74,13 +70,12 @@ const DISTRIBUTION_GROUP_KEYS = [
   ["P75", "P95", "MAX"],
 ] as const satisfies readonly (readonly DistributionStatisticKey[])[];
 
-export function get_distribution_statistic_groups(metric: VisualizeMetric): {
+export function get_distribution_statistic_groups(): {
   title: string;
   keys: readonly DistributionStatisticKey[];
 }[] {
-  const metric_label = metric === "draw" ? "抽数" : "成本";
   return ["低", "中", "高"].map((range, index) => ({
-    title: `${range}${metric_label}区间`,
+    title: `${range}期末数量区间`,
     keys: DISTRIBUTION_GROUP_KEYS[index],
   }));
 }

@@ -62,11 +62,17 @@ test("loads fixture from url input and renders dynamic page regions", async ({
   await expect(page.locator(".title-stack p")).toBeVisible();
   await expect(page.getByTestId("cdf-chart")).toBeVisible();
   await expect(page.getByTestId("cdf-curve-path")).toHaveAttribute("d", /M/);
-  await expect(page.getByText("成功概率")).toBeVisible();
-  await expect(page.getByText("累计抽数")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "低抽数区间" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "中抽数区间" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "高抽数区间" })).toBeVisible();
+  await expect(page.getByText("累计占比")).toBeVisible();
+  await expect(page.getByText("期末 抽数 数量")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "低期末数量区间" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "中期末数量区间" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "高期末数量区间" }),
+  ).toBeVisible();
   await expect(page.getByText("单抽 10 RMB；十连抽 90 RMB")).toBeVisible();
   await expect(page.getByTestId("statistic-panel")).toBeVisible();
   await expect(page.getByTestId("stat-COST")).toHaveCount(0);
@@ -91,14 +97,16 @@ test("loads fixture from url input and renders dynamic page regions", async ({
   await expect(page.locator(".page-note")).toBeVisible();
 });
 
-test("renders cost wording, units, and opaque price text", async ({ page }) => {
+test("renders generic result item wording, units, and opaque price text", async ({
+  page,
+}) => {
   await page.route("**/__visualize_input?**", async (route) => {
     const response = await route.fetch();
     const input = await response.json();
     await route.fulfill({
       json: {
         ...input,
-        metric: "cost",
+        result_item: { id: "tokens", name: "代币" },
         total: 1234,
         price: "单抽 10 RMB；十连抽 90 RMB",
         unit: "测试币",
@@ -107,13 +115,19 @@ test("renders cost wording, units, and opaque price text", async ({ page }) => {
     });
   });
 
-  await goto_fixture(page, { params: { metric: "cost" } });
+  await goto_fixture(page);
 
-  await expect(page.getByText("累计成本", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "低成本区间" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "中成本区间" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "高成本区间" })).toBeVisible();
-  await expect(page.getByText("本轮模拟成本：1,234 测试币")).toBeVisible();
+  await expect(page.getByText("期末 代币 数量", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "低期末数量区间" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "中期末数量区间" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "高期末数量区间" }),
+  ).toBeVisible();
+  await expect(page.getByText("期末 代币 总量：1,234 测试币")).toBeVisible();
   await expect(
     page.getByText("单抽 10 RMB；十连抽 90 RMB", { exact: true }),
   ).toBeVisible();
@@ -123,7 +137,6 @@ test("renders cost wording, units, and opaque price text", async ({ page }) => {
   await expect(
     page.getByTestId("stat-P50").locator(".metric-value"),
   ).toHaveText("39");
-  await expect(page.locator('[data-segment-position="single"]')).toHaveCount(1);
 });
 
 test("keeps export layout regions present and readable", async ({ page }) => {

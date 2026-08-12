@@ -1,15 +1,19 @@
-import { BarChart3, FolderOpen, Play, Store } from "lucide-react";
+import { BarChart3, FilePenLine, FolderOpen, Play, Store } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
 import type { InstalledConfig } from "../shared/installed_config";
 import type { DisplayFields, ResultEditorState } from "../shared/result_editor";
-import type { VisualizeMetric } from "../visualize/types/visualize_input";
+import VisualizeApp from "../visualize/App";
 import {
   validate_simulation_request,
   type SimulationRequest,
   type SimulationStatus,
 } from "../shared/simulation";
 
-type Page = "simulation" | "config-repository" | "results";
+type Page =
+  | "simulation"
+  | "config-repository"
+  | "result-editor"
+  | "result-visualize";
 
 const pages: Array<{
   id: Page;
@@ -27,7 +31,12 @@ const pages: Array<{
     icon: <Store aria-hidden="true" size={18} />,
   },
   {
-    id: "results",
+    id: "result-editor",
+    label: "结果编辑",
+    icon: <FilePenLine aria-hidden="true" size={18} />,
+  },
+  {
+    id: "result-visualize",
     label: "结果可视化",
     icon: <BarChart3 aria-hidden="true" size={18} />,
   },
@@ -51,9 +60,7 @@ function SimulationPage() {
   const [config_error, set_config_error] = useState<string | null>(null);
   const [operation_error, set_operation_error] = useState<string | null>(null);
   const [termination, set_termination] = useState("");
-  const [target_kind, set_target_kind] = useState<
-    "totalRuns" | "targetTotalDraw"
-  >("totalRuns");
+  const [result_item, set_result_item] = useState("draw_count");
   const [target_value, set_target_value] = useState("10");
   const [seed, set_seed] = useState("0");
   const [threads, set_threads] = useState("1");
@@ -112,8 +119,9 @@ function SimulationPage() {
     const request: SimulationRequest = {
       configId: selected?.id ?? "",
       termination,
+      resultItem: result_item,
       target: {
-        kind: target_kind,
+        kind: "totalRuns",
         value: Number(target_value),
       } as SimulationRequest["target"],
       seed: Number(seed),
@@ -199,26 +207,19 @@ function SimulationPage() {
                   ))}
                 </select>
               </label>
+              <label>
+                统计物品 ID
+                <input
+                  disabled={busy}
+                  value={result_item}
+                  onChange={(event) => set_result_item(event.target.value)}
+                />
+              </label>
               <p>{selected?.description}</p>
             </div>
             <fieldset disabled={busy}>
               <legend>目标</legend>
-              <label className="simulation-radio">
-                <input
-                  type="radio"
-                  checked={target_kind === "totalRuns"}
-                  onChange={() => set_target_kind("totalRuns")}
-                />
-                固定次数
-              </label>
-              <label className="simulation-radio">
-                <input
-                  type="radio"
-                  checked={target_kind === "targetTotalDraw"}
-                  onChange={() => set_target_kind("targetTotalDraw")}
-                />
-                累计抽数
-              </label>
+              <span>固定次数</span>
               <input
                 aria-label="目标值"
                 type="number"
@@ -295,22 +296,29 @@ function SimulationPage() {
   );
 }
 
-function ResultEditorPage() {
-  const [state, set_state] = useState<ResultEditorState | null>(null);
+function ResultEditorPage({
+  state,
+  on_state,
+}: {
+  state: ResultEditorState | null;
+  on_state: (state: ResultEditorState) => void;
+}) {
   const [fields, set_fields] = useState<DisplayFields | null>(null);
   const [status, set_status] = useState("请选择 GSR 文件。");
   const [busy, set_busy] = useState(false);
   const [error, set_error] = useState<string | null>(null);
 
   const apply_state = (next: ResultEditorState) => {
-    set_state(next);
+    on_state(next);
     set_fields(next.fields);
   };
+
+  useEffect(() => set_fields(state?.fields ?? null), [state]);
 
   const select = async () => {
     set_busy(true);
     set_error(null);
-    set_status("正在分析 draw…");
+    set_status("正在分析…");
     try {
       const next = await window.desktopApi.selectGsrResult();
       if (next) {
@@ -319,22 +327,6 @@ function ResultEditorPage() {
       } else {
         set_status("未选择文件。");
       }
-    } catch (reason) {
-      set_error(reason instanceof Error ? reason.message : String(reason));
-      set_status("分析失败。");
-    } finally {
-      set_busy(false);
-    }
-  };
-
-  const switch_metric = async (metric: VisualizeMetric) => {
-    set_busy(true);
-    set_error(null);
-    set_status(`正在分析 ${metric}…`);
-    try {
-      const next = await window.desktopApi.switchResultMetric(metric);
-      apply_state(next);
-      set_status("分析完成，尚无未保存更改。");
     } catch (reason) {
       set_error(reason instanceof Error ? reason.message : String(reason));
       set_status("分析失败。");
@@ -408,19 +400,7 @@ function ResultEditorPage() {
       {state && fields && (
         <div className="result-editor-form">
           <p title={state.path}>文件：{state.filename}</p>
-          <label>
-            统计维度
-            <select
-              disabled={busy}
-              value={state.metric}
-              onChange={(event) =>
-                void switch_metric(event.target.value as VisualizeMetric)
-              }
-            >
-              <option value="draw">抽数</option>
-              <option value="cost">成本</option>
-            </select>
-          </label>
+          <p>结果指标：{state.input.result_item.name}</p>
           {field("title", "标题")}
           {field("target", "目标")}
           {field("note", "说明", true)}
@@ -456,6 +436,16 @@ function Placeholder({ page }: { page: "config-repository" }) {
 
 export default function App() {
   const [active_page, set_active_page] = useState<Page>("simulation");
+  const [result_state, set_result_state] = useState<ResultEditorState | null>(
+    null,
+  );
+
+  const select_result = async (): Promise<boolean> => {
+    const selected = await window.desktopApi.selectGsrResult();
+    if (!selected) return false;
+    set_result_state(selected);
+    return true;
+  };
 
   return (
     <div className="renderer-shell">
@@ -484,8 +474,16 @@ export default function App() {
       </aside>
       <main className="renderer-main">
         <div className="renderer-content">
-          {active_page === "results" ? (
-            <ResultEditorPage />
+          {active_page === "result-editor" ? (
+            <ResultEditorPage
+              state={result_state}
+              on_state={set_result_state}
+            />
+          ) : active_page === "result-visualize" ? (
+            <VisualizeApp
+              input={result_state?.input ?? null}
+              on_select_result={select_result}
+            />
           ) : active_page === "simulation" ? (
             <SimulationPage />
           ) : (

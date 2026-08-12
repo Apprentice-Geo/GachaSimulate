@@ -7,7 +7,7 @@
   "required": [
     "title",
     "target",
-    "metric",
+    "result_item",
     "total",
     "note",
     "statistic",
@@ -25,8 +25,14 @@
     "target": {
       "type": "string"
     },
-    "metric": {
-      "enum": ["draw", "cost"]
+    "result_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "name": { "type": "string", "minLength": 1 }
+      }
     },
     "total": {
       "type": "integer",

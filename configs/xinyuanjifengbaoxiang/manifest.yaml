@@ -1,7 +1,6 @@
 id: xinyuanjifengbaoxiang
 name: test
 description: test
-result_item: draw_count
 terminations:
 - file: termination.yaml
   name: termination

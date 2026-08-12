@@ -20,19 +20,16 @@ export function normalize_input(
   const chart_points = build_chart_points(input);
   const max_draw = Math.max(...input.values, input.statistic.MAX);
   const x_domain_max = Math.max(1, Math.ceil(max_draw * 1.04));
-  const display_unit = input.metric === "draw" ? "抽" : input.unit;
-  const metric_label = input.metric === "draw" ? "抽数" : "成本";
-  const axis_title = input.metric === "draw" ? "累计抽数" : "累计成本";
+  const display_unit = input.unit;
 
   return {
     title: input.title,
     target: input.target,
-    metric: input.metric,
-    metric_label,
+    result_item: input.result_item,
     total: input.total,
     total_display: append_unit(format_number(input.total), display_unit),
     display_unit,
-    axis_title,
+    axis_title: `期末 ${input.result_item.name} 数量`,
     price: input.price,
     unit: input.unit,
     note: input.note,

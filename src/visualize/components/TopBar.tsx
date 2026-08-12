@@ -18,7 +18,7 @@ export function TopBar({ data, animation_progress }: TopBarProps) {
   const metadata_items = data
     ? [
         `模拟目标：${data.target}`,
-        `本轮模拟${data.metric_label}：${data.total_display}`,
+        `期末 ${data.result_item.name} 总量：${data.total_display}`,
         ...(data.price ? [data.price] : []),
       ]
     : ["导入模拟器输出 JSON 后生成结果页面"];
@@ -41,10 +41,8 @@ export function TopBar({ data, animation_progress }: TopBarProps) {
           <h1 style={title_style(1)}>{data?.title ?? "抽卡模拟 CDF 分析"}</h1>
           {data && (
             <p className="outline" style={title_style(2)}>
-              半数模拟 {format_statistic(data.statistic.P50, data.display_unit)}
-              内达成，95% 模拟{" "}
-              {format_statistic(data.statistic.P95, data.display_unit)}
-              内达成。
+              P50 为 {format_statistic(data.statistic.P50, data.display_unit)}，
+              P95 为 {format_statistic(data.statistic.P95, data.display_unit)}。
             </p>
           )}
         </div>

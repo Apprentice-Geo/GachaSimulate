@@ -14,7 +14,7 @@ foreach(expected
     "\"type\":\"progress\""
     "{\"stage\":\"saving\",\"type\":\"stage\"}"
     "\"type\":\"completed\""
-    "\"total_draw\":7"
+    "\"total_result\":7"
     "\"total_runs\":7")
   string(FIND "${stdout}" "${expected}" position)
   if(position EQUAL -1)

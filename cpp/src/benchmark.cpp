@@ -52,11 +52,11 @@ int main(int argc, char **argv) {
     const auto start = std::chrono::steady_clock::now();
     const auto program = gachasimulate::load_ir_file(ir);
     const auto result = gachasimulate::simulate_fixed_runs(program, runs, seed, threads);
-    gachasimulate::write_gsr_v1(output, program, result, seed);
+    gachasimulate::write_gsr_v2(output, program, result, seed);
     const auto elapsed =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
-    std::cout << "{\"elapsed_ms\":" << elapsed << ",\"total_runs\":" << result.draws.size()
-              << ",\"total_draw\":" << result.total_draw
+    std::cout << "{\"elapsed_ms\":" << elapsed << ",\"total_runs\":" << result.values.size()
+              << ",\"total_result\":" << result.total_result
               << ",\"gsr_bytes\":" << std::filesystem::file_size(path) << "}\n";
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n';

@@ -42,8 +42,7 @@ cd ..
 smoke_dir="$(mktemp -d)"
 ir="$(realpath cpp/tests/batch_fixture_ir.json)"
 build/native/bin/gachasimulate-core --ir "$ir" --total-runs 10 --seed 0 --threads 1 --output "$smoke_dir/fixed.gsr"
-build/native/bin/gachasimulate-core --ir "$ir" --target-total-draw 100 --seed 0 --threads 1 --output "$smoke_dir/target.gsr"
-build/native/bin/gachasimulate-analyze --input "$smoke_dir/fixed.gsr" --metric draw
+build/native/bin/gachasimulate-analyze --input "$smoke_dir/fixed.gsr"
 ```
 
 ## Node/Electron 完整检查
@@ -72,11 +71,11 @@ pnpm run test:e2e
 
 ## Electron 人工验收
 
-- 固定次数与累计抽数都能运行，threads 边界正确，任务互斥。
+- 固定次数能运行，threads 边界正确，任务互斥。
 - 取消、窗口关闭和应用退出后无残留 core/analyzer，临时 IR 已清理。
 - 完成后能打开结果目录并选择 GSR。
-- draw/cost 切换正确；无 cost、损坏/超限 GSR 和 analyzer 失败显示上下文错误。
+- 启动前选择的任意合法 result item 都能分析；损坏/超限 GSR 和 analyzer 失败显示上下文错误。
 - 五字段失焦后原子保存对应 sidecar；重新打开只恢复五字段。
-- 非法 sidecar 不被自动覆盖；表单和 metric 控件可用键盘操作。
+- 非法 sidecar 不被自动覆盖；结果编辑和结果可视化页面可用键盘操作并共享 GSR 选择。
 
 格式失败时执行 `pnpm run format`；其它失败按首个具体错误修复，不用批量改动掩盖问题。

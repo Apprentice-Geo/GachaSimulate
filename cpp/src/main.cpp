@@ -14,8 +14,8 @@ namespace {
 using Json = nlohmann::json;
 [[noreturn]] void usage() {
   throw std::runtime_error(
-      "usage: gachasimulate-core --ir <path> (--total-runs <positive> | --target-total-draw "
-      "<positive>) --seed <int64> --threads <positive> --output <absolute .gsr path>");
+      "usage: gachasimulate-core --ir <path> --total-runs <positive> --seed <int64> --threads "
+      "<positive> --output <absolute .gsr path>");
 }
 template <class T> T integer(const std::string &value, const char *name) {
   T result{};
@@ -53,9 +53,9 @@ int main(int argc, char **argv) {
   try {
     std::string ir, output;
     int64_t seed = 0;
-    uint64_t runs = 0, draws = 0;
+    uint64_t runs = 0;
     uint32_t threads = 0;
-    bool haveSeed = false, haveThreads = false, haveMode = false;
+    bool haveSeed = false, haveThreads = false;
     for (int i = 1; i < argc; ++i) {
 #ifdef _WIN32
       const std::string arg = utf8(argv[i]);
@@ -83,42 +83,30 @@ int main(int argc, char **argv) {
         threads = integer<uint32_t>(value(), "threads");
         haveThreads = true;
       } else if (arg == "--total-runs") {
-        if (haveMode)
-          usage();
-        haveMode = true;
         runs = integer<uint64_t>(value(), "total-runs");
-      } else if (arg == "--target-total-draw") {
-        if (haveMode)
-          usage();
-        haveMode = true;
-        draws = integer<uint64_t>(value(), "target-total-draw");
       } else
         usage();
     }
     const auto resultPath = std::filesystem::u8path(output);
-    if (ir.empty() || output.empty() || !haveSeed || !haveThreads || !threads ||
-        (!runs && !draws) || !resultPath.is_absolute() || resultPath.extension() != ".gsr" ||
+    if (ir.empty() || output.empty() || !haveSeed || !haveThreads || !threads || !runs ||
+        !resultPath.is_absolute() || resultPath.extension() != ".gsr" ||
         std::filesystem::exists(resultPath))
       usage();
     event("started");
     stage("loading_config");
     const auto program = gachasimulate::load_ir_file(ir);
     stage("simulating");
-    const auto total = runs ? runs : draws;
-    const auto unit = runs ? "runs" : "draws";
     const auto report_progress = [&](uint64_t completed) {
       event("progress",
-            {{"completed", std::min(completed, total)}, {"total", total}, {"unit", unit}});
+            {{"completed", std::min(completed, runs)}, {"total", runs}, {"unit", "runs"}});
     };
     const auto result =
-        runs ? gachasimulate::simulate_fixed_runs(program, runs, seed, threads, report_progress)
-             : gachasimulate::simulate_until_total_draw(program, draws, seed, threads,
-                                                        report_progress);
+        gachasimulate::simulate_fixed_runs(program, runs, seed, threads, report_progress);
     stage("saving");
-    gachasimulate::write_gsr_v1(output, program, result, seed);
+    gachasimulate::write_gsr_v2(output, program, result, seed);
     event("completed", {{"result_path", output},
-                        {"total_runs", result.draws.size()},
-                        {"total_draw", result.total_draw}});
+                        {"total_runs", result.values.size()},
+                        {"total_result", result.total_result}});
     return 0;
   } catch (const std::exception &error) {
     event("error", {{"message", error.what()}});

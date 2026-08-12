@@ -43,7 +43,7 @@ function make_valid_input(
   const base_input: VisualizeInput = {
     title: "核心模拟结果",
     target: "target",
-    metric: "draw",
+    result_item: { id: "draw_count", name: "抽数" },
     total: 3,
     note: "",
     timestamp: 0,
@@ -140,8 +140,8 @@ test("selected file text passes through JSON, schema, and normalization", async 
   const normalized = await load_input_from_text(
     JSON.stringify(make_valid_input()),
   );
-  assert.equal(normalized.metric_label, "抽数");
-  assert.equal(normalized.total_display, "3 抽");
+  assert.deepEqual(normalized.result_item, { id: "draw_count", name: "抽数" });
+  assert.equal(normalized.total_display, "3");
 
   await assert.rejects(load_input_from_text("not json"), SyntaxError);
   await assert.rejects(load_input_from_text('{"title":"missing fields"}'));
@@ -188,10 +188,10 @@ test("validate_input rejects the old draw-specific contract", () => {
   const old_input = {
     title: "旧输入",
     target: "target",
-    draw_counts: 3,
+    metric: "draw",
     note: "",
     timestamp: 0,
-    draws: [1, 2, 3],
+    values: [1, 2, 3],
     cumulative: [0.25, 0.75, 1],
     statistic: {
       P5: 1,
@@ -314,11 +314,11 @@ test("build_curve_path clamps cumulative values", () => {
   );
 });
 
-test("build_visualize_view_model derives metric-aware values and markers", () => {
+test("build_visualize_view_model derives result-item values and markers", () => {
   const input: VisualizeInput = {
     title: "核心模拟结果",
     target: "target",
-    metric: "cost",
+    result_item: { id: "tokens", name: "代币" },
     total: 100,
     note: "",
     timestamp: 0,
@@ -343,9 +343,8 @@ test("build_visualize_view_model derives metric-aware values and markers", () =>
   const normalized_input = normalize_input(input);
   assert.equal("metrics" in normalized_input, false);
   assert.equal("markers" in normalized_input, false);
-  assert.equal(normalized_input.metric, "cost");
   assert.equal(normalized_input.total_display, "100 测试币");
-  assert.equal(normalized_input.axis_title, "累计成本");
+  assert.equal(normalized_input.axis_title, "期末 代币 数量");
   assert.equal(normalized_input.price, "单抽 10 RMB；十连抽 90 RMB");
 
   const view_model = build_visualize_view_model(normalized_input);
@@ -363,10 +362,9 @@ test("build_visualize_view_model derives metric-aware values and markers", () =>
   );
 });
 
-test("cost metric omits suffixes when unit and price are empty", () => {
+test("result item omits suffixes when unit is empty", () => {
   const normalized_input = normalize_input(
     make_valid_input({
-      metric: "cost",
       price: "",
       unit: "",
     }),
@@ -374,7 +372,7 @@ test("cost metric omits suffixes when unit and price are empty", () => {
   const view_model = build_visualize_view_model(normalized_input);
 
   assert.equal(normalized_input.total_display, "3");
-  assert.equal(normalized_input.axis_title, "累计成本");
+  assert.equal(normalized_input.axis_title, "期末 抽数 数量");
   assert.equal(normalized_input.price, "");
   assert.equal(
     view_model.metrics.find((metric) => metric.key === "P50")?.display_value,

@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <functional>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -47,8 +46,9 @@ struct Resolve {
   Range actions;
 };
 struct RuntimeProgram {
-  uint32_t draw_count_item{};
-  std::optional<uint32_t> cost_item;
+  uint32_t result_item{};
+  std::string result_id;
+  std::string result_name;
   std::vector<std::string> strings;
   std::vector<Action> actions;
   std::vector<Pool> pools;
@@ -63,16 +63,13 @@ struct RuntimeProgram {
 };
 struct RunResult {
   std::vector<int64_t> inventory;
-  int64_t draw_count{};
   uint32_t reason_id{};
   std::string reason;
 };
 struct BatchResult {
-  std::vector<uint64_t> draws;
-  std::vector<int64_t> costs;
+  std::vector<uint64_t> values;
   std::vector<uint32_t> reasons;
-  uint64_t total_draw{};
-  int64_t total_cost{};
+  uint64_t total_result{};
 };
 RuntimeProgram load_ir_file(const std::string &utf8_path);
 RunResult single_run(const RuntimeProgram &program, int64_t seed);
@@ -80,8 +77,4 @@ BatchResult simulate_fixed_runs(const RuntimeProgram &program, uint64_t total_ru
                                 uint32_t threads,
                                 const std::function<void(uint64_t)> &progress = {},
                                 uint32_t chunks = 0);
-BatchResult simulate_until_total_draw(const RuntimeProgram &program, uint64_t target_total_draw,
-                                      int64_t seed, uint32_t threads,
-                                      const std::function<void(uint64_t)> &progress = {},
-                                      uint32_t chunks = 0);
 } // namespace gachasimulate

@@ -6,17 +6,18 @@
 
 ```text
 config.yaml + termination.yaml + manifest.yaml
+    + simulation result item
     -> @gachasimulate/config-compiler
     -> JSON IR
     -> gachasimulate-core
     -> GSR
-    -> gachasimulate-analyze (draw | cost)
-    -> Analysis v1
+    -> gachasimulate-analyze
+    -> Analysis v2
     -> analysis_to_visualize
     -> VisualizeInput
 ```
 
-GSR 是权威模拟结果。Electron 编辑后生成按 metric 区分的完整 `*.visualize.json` sidecar；重新打开时只恢复五个展示字段，不从 sidecar 恢复统计。
+GSR 是权威模拟结果，保存每次启动模拟前选择的 result item 期末库存。Electron 的“结果编辑”和“结果可视化”页面共享当前 GSR 会话。编辑后生成单一完整 `<stem>.visualize.json` sidecar；重新打开时只恢复五个展示字段，不从 sidecar 恢复统计。
 
 ## 代码地图
 
@@ -25,7 +26,7 @@ GSR 是权威模拟结果。Electron 编辑后生成按 metric 区分的完整 `
 - `packages/cli/`：YAML→IR→core 与 GSR→analyzer 的命令行包装。
 - `src/main/`：受信任的 Electron 文件系统、配置扫描、原生进程和结果编辑生命周期。
 - `src/preload/`：只暴露固定 IPC 能力。
-- `src/renderer/`：模拟表单、任务状态和五字段结果编辑，不使用 Node.js。
+- `src/renderer/`：模拟表单、任务状态、结果编辑页和结果可视化页，不使用 Node.js。
 - `src/visualize/`：平台无关的 `VisualizeInput` 校验、视图模型、浏览器入口和导出。
 - `configs/`：本地配置与预置；`benchmark/cases/`：语言无关 benchmark case。
 
@@ -33,17 +34,17 @@ GSR 是权威模拟结果。Electron 编辑后生成按 metric 区分的完整 `
 
 Renderer 不能提供 executable、IR、GSR 输出路径或 analyzer 输入路径。main 从 `build/native/bin` 解析两个程序，只读取已安装配置，并在 `<userData>/results/` 生成唯一 GSR 路径。GSR 输入只来自 main 的系统文件对话框。
 
-main 严格拒绝未知 SimulationRequest 字段。core/analyzer stdout、Analysis v1、sidecar 与 YAML/manifest 都在各自边界校验，并设置资源上限。应用关闭、取消、协议错误和异常退出必须终止原生进程树并清理临时 IR。
+main 严格拒绝未知 SimulationRequest 字段。core/analyzer stdout、Analysis v2、sidecar 与 YAML/manifest 都在各自边界校验，并设置资源上限。应用关闭、取消、协议错误和异常退出必须终止原生进程树并清理临时 IR。
 
 ## 稳定不变量
 
 - TS Compiler 是 YAML 到 IR 的唯一权威；C++ 不解析 YAML。
 - C++ Runtime 是模拟执行的唯一权威。
-- 固定次数返回精确 run 数；累计抽数达到或超过目标。
-- `threads` 是受逻辑 CPU 数限制的正整数；展示 metric 不进入模拟请求。
-- core 只写 GSR；analyzer 只输出 Analysis v1。
+- 固定次数返回精确 run 数；GSR 只保存所选 result item 的期末库存。
+- `threads` 是受逻辑 CPU 数限制的正整数；result item 由模拟请求选择，Compiler 将其对应索引写入 IR。
+- core 只写 GSR v2；analyzer 只输出 Analysis v2。
 - sidecar 只允许编辑 `title`、`target`、`note`、`price`、`unit`。
 - 修改 `VisualizeInput` 时同步 schema、类型、校验和测试。
 - 配置仓库、安装包、分析详情和 CDF 同屏预览是后置能力。
 
-语法见 [YAML Config Syntax](YAML_CONFIG_SYNTAX.md)，GSR 见 [GSR v1](GSR_V1.md)，分析见 [Analysis v1](ANALYSIS_V1.md)，可视化见 [Visualize Frontend Implementation](VISUALIZE_FRONTEND_IMPLEMENTATION.md)。
+语法见 [YAML Config Syntax](YAML_CONFIG_SYNTAX.md)，GSR 见 [GSR v2](GSR_V2.md)，分析见 [Analysis v2](ANALYSIS_V2.md)，可视化见 [Visualize Frontend Implementation](VISUALIZE_FRONTEND_IMPLEMENTATION.md)。

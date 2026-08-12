@@ -12,8 +12,8 @@
   "scripts": {
     "dev": "electron-vite dev",
     "dev:web": "vite",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"e2e/**/*.ts\" \"docs/schemas/**/*.json\" \"*.{ts,json,html,mjs}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\" \"e2e/**/*.ts\" \"docs/schemas/**/*.json\" \"*.{ts,json,html,mjs}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"e2e/**/*.ts\" \"docs/schemas/**/*.json\" \"*.{ts,json,html,mjs}\" \"packages/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\" \"e2e/**/*.ts\" \"docs/schemas/**/*.json\" \"*.{ts,json,html,mjs}\" \"packages/**/*.ts\"",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"e2e/**/*.ts\" \"*.ts\"",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && electron-vite build",

@@ -112,11 +112,8 @@ app.whenReady().then(() => {
       filters: [{ name: "GachaSimulate 结果", extensions: ["gsr"] }],
     });
     if (result.canceled || result.filePaths.length === 0) return null;
-    return result_editor.open(result.filePaths[0], "draw");
+    return result_editor.open(result.filePaths[0]);
   });
-  ipcMain.handle("switch-result-metric", (_event, metric: unknown) =>
-    result_editor.switch_metric(metric),
-  );
   ipcMain.handle("save-result-fields", (_event, fields: DisplayFields) =>
     result_editor.save(fields),
   );

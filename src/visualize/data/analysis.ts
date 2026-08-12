@@ -1,6 +1,6 @@
 import Ajv2020 from "ajv/dist/2020";
-import schema from "../../../docs/schemas/analysis_v1.schema.json";
-import type { AnalysisV1 } from "../types/analysis";
+import schema from "../../../docs/schemas/analysis_v2.schema.json";
+import type { AnalysisV2 } from "../types/analysis";
 import type { VisualizeInput } from "../types/visualize_input";
 import { validate_input } from "./validate_input";
 
@@ -16,7 +16,7 @@ const INTEGER_KEYS = [
   "MAX",
 ] as const;
 
-export function validate_analysis(value: unknown): AnalysisV1 {
+export function validate_analysis(value: unknown): AnalysisV2 {
   if (!validate_schema(value)) {
     throw new Error(
       (validate_schema.errors ?? [])
@@ -24,7 +24,7 @@ export function validate_analysis(value: unknown): AnalysisV1 {
         .join("; "),
     );
   }
-  const analysis = value as unknown as AnalysisV1;
+  const analysis = value as unknown as AnalysisV2;
   if (
     analysis.values.length !== analysis.cumulative.length ||
     analysis.cumulative.at(-1) !== 1 ||
@@ -57,10 +57,8 @@ export function analysis_to_visualize(
   mtime_ms: number,
 ): VisualizeInput {
   const analysis = validate_analysis(value);
-  const total_text =
-    analysis.metric === "draw" ? analysis.totals.draw : analysis.totals.cost;
-  if (total_text == null || !Number.isFinite(mtime_ms)) {
-    throw new Error("analysis metric total or GSR mtime is invalid");
+  if (!Number.isFinite(mtime_ms)) {
+    throw new Error("GSR mtime is invalid");
   }
   const statistic = Object.fromEntries(
     INTEGER_KEYS.map((key) => [
@@ -70,11 +68,11 @@ export function analysis_to_visualize(
   ) as unknown as VisualizeInput["statistic"];
   statistic.MEAN_LEVEL = analysis.statistic.MEAN_LEVEL;
   const input: VisualizeInput = {
-    title: "模拟结果",
+    title: "期末数量分布",
     target: "未设置",
-    metric: analysis.metric,
-    total: safe_non_negative(total_text, "total"),
-    note: "MEAN 受极端值影响，P50 更接近“典型体验”，P95 更适合衡量高风险预算。MIN、MAX 受模拟次数影响，不代表理论极限。",
+    result_item: analysis.result_item,
+    total: safe_non_negative(analysis.totals.result, "total"),
+    note: "MEAN 受极端值影响，P50 表示一半结果不超过该值，P95 表示 95% 结果不超过该值。MIN、MAX 受模拟次数影响，不代表理论极限。",
     statistic,
     termination_reason: analysis.termination_reason,
     timestamp: Math.trunc(mtime_ms / 1000),

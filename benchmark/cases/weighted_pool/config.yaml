@@ -1,5 +1,6 @@
-schema_version: 1
+schema_version: 2
 items:
+  - draw_count: 抽数
   - target
   - shard
   - dust
@@ -25,3 +26,5 @@ pools:
         actions: common_d += 1
 initial:
   - change main
+every_draw:
+  - draw_count += 1

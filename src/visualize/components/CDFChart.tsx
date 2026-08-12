@@ -49,7 +49,7 @@ export function CDFChart({
       style={style}
     >
       {/* Keep the Y-axis title outside Recharts so its rotated position stays stable in the responsive shell. */}
-      <div className="y-axis-title">成功概率</div>
+      <div className="y-axis-title">累计占比</div>
       {render_size.width > 0 && render_size.height > 0 && (
         <LineChart
           data={data.chart_points}

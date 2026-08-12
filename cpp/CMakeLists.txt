@@ -42,7 +42,7 @@ if(BUILD_TESTING)
     GACHASIMULATE_TEST_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_fixture_ir.json"
     GACHASIMULATE_TEST_COST_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_cost_fixture_ir.json"
     GACHASIMULATE_TEST_RANDOM_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_random_fixture_ir.json"
-    GACHASIMULATE_TEST_GSR_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/gsr_v1_fixture.hex")
+    GACHASIMULATE_TEST_GSR_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/gsr_v2_fixture.hex")
   gtest_discover_tests(gachasimulate_runtime_tests)
   add_test(NAME Cli.EmitsJsonlProtocol COMMAND ${CMAKE_COMMAND}
     -DCORE=$<TARGET_FILE:gachasimulate-core>

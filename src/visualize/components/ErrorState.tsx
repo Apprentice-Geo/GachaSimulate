@@ -3,7 +3,7 @@ import { ImportButton } from "./ImportButton";
 
 interface ErrorStateProps {
   message: string;
-  on_file_import: (file: File) => void;
+  on_file_import?: (file: File) => void;
 }
 
 export function ErrorState({ message, on_file_import }: ErrorStateProps) {
@@ -13,7 +13,7 @@ export function ErrorState({ message, on_file_import }: ErrorStateProps) {
       <div>
         <h2>导入失败</h2>
         <pre>{message}</pre>
-        <ImportButton on_file_import={on_file_import} />
+        {on_file_import && <ImportButton on_file_import={on_file_import} />}
       </div>
     </div>
   );

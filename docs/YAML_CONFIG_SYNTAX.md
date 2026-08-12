@@ -36,7 +36,7 @@ PositiveNumber = Number where value > 0
 
 ```ebnf
 Config = {
-  "schema_version": 1,
+  "schema_version": 2,
   "items": ItemList,
   "pools": PoolList,
   "initial"?: Actions,
@@ -57,8 +57,14 @@ TerminationConfig = {
 }
 ```
 
-根对象仅允许上述字段；展示信息放在同目录 `manifest.yaml`。`config.yaml` 必须声明
-`schema_version: 1`；termination 继承该版本且不得重复声明。
+根对象仅允许上述字段；展示信息放在同目录、且编译时必填的 `manifest.yaml`。
+`config.yaml` 必须声明 `schema_version: 2`；termination 继承该版本且不得重复声明。
+
+`manifest.yaml` 根对象可包含配置目录使用的 `id`、`name`、`description`、
+`terminations` 和 `metadata` 字段，不声明结果 item。
+`compile_yaml(config, termination, manifest, result_item)` 的 `manifest` 和 `result_item`
+参数必填；`result_item` 由每次模拟请求提供，必须引用已声明 item。若该 item 没有展示名，
+Analysis/GSR 使用 item ID 作为名称。
 
 ## 基础结构
 
@@ -80,7 +86,7 @@ RuleBody = {
   "condition": ConditionNode
 }
 
-EveryDrawList = [ "draw_count Padding += Padding PositiveNumber", ... ]
+EveryDrawList = [ Action, ... ]
 
 ItemResolveList = [ ItemResolve, ... ]
 ItemResolve = {
@@ -94,14 +100,17 @@ RetainedItemList = [ { ItemId: NonNegativeInteger }, ... ]
 
 约束：
 
-- 用户 `items` 不得声明 `draw_count`。编译器会在索引 0 注入只读的合成槽位。
-- `cost_count` 是可选 item；仅当 `manifest.yaml` 的 `metrics` 包含 `cost` 时必须声明它。成本由配置 actions 按实际规则累计，运行时不会根据抽数或 metadata 推导。
+- 所有 item 都是普通可写 item；`draw_count`、`cost_count` 没有特殊语义。
+- 需要统计抽数时，配置必须声明普通 item `draw_count`，并在 `every_draw` 首项使用
+  `draw_count += 1`；其他统计 item 也必须由配置 actions 明确维护。
+- 每次模拟请求的 `result_item` 唯一决定 GSR 和 Analysis 保存、汇总的期末 item；Compiler 将其解析为 IR item 索引。
+- 所选 result item 的每轮期末库存必须可编码为非负 `u64`；负值或所有 run 汇总溢出时模拟失败。
 - 同一个 pool 内只能统一使用 `probability` 或统一使用 `weight`。
 - 使用 `probability` 时，单个概率必须大于 `0`，同一个 pool 的概率和必须为 `1`。
 - 使用 `weight` 时，单个权重必须大于 `0`。
 - pool entry 的 `actions` 可省略，省略等价空动作。
 - `RuleId` 必须唯一。
-- `every_draw` 可省略。每轮会先自动递增 `draw_count`，再执行用户 actions。
+- `every_draw` 可省略。若配置需要抽数，应将 `draw_count += 1` 放在 actions 首项；随后按声明顺序执行其余 actions。
 - `ItemResolve.actions` 必须出现，且必须是非空 action 或非空 action 列表；不能省略、不能为 `null`、不能为空列表。
 - `ItemResolve.actions` 必须包含且仅包含一个 `item -= n` 动作，且该动作必须减少当前 `ItemResolve.item`；不能包含减少其他 item 的 `-=` 动作。
 - `mode` 省略时等价 `once`。
@@ -135,7 +144,7 @@ Action =
 
 约束：
 
-- 所有 action 引用的 `item` 和 `pool_id` 必须已定义；任何 action 和 `item_resolve` 都不得写入或声明 `draw_count`。
+- 所有 action 引用的 `item` 和 `pool_id` 必须已定义；任何 action 都可写入已声明的普通 item。
 - `Actions` 可为 `null`、单个 action 字符串、或 action 字符串列表；普通 actions 的空列表等价空动作。
 - `ResolveActions` 不能为 `null` 或空列表。
 - `terminate` 后续 action 不再执行。
@@ -184,7 +193,7 @@ CheckExpression =
 
 1. 创建空状态，主 pool 初始为 `pools` 列表中的第一个 pool。
 2. 执行 `initial` actions。
-3. 每轮先递增合成 `draw_count`，再执行 `every_draw` actions。
+3. 每轮按声明顺序执行 `every_draw` actions；需要抽数时由首项 `draw_count += 1` 维护普通 item。
 4. 从当前主 pool 抽取一次，并执行抽中 entry 的 actions。
 5. 按 `rules` 声明顺序执行 rule 阶段。
 6. 检查 `termination_rule`；命中后执行收集到的 termination actions。

@@ -1,5 +1,6 @@
-schema_version: 1
+schema_version: 2
 items:
+  - draw_count: 抽数
   - gift
   - target
   - shard
@@ -20,3 +21,5 @@ item_resolve:
       - draw gift_pool
 initial:
   - change main
+every_draw:
+  - draw_count += 1

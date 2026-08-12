@@ -225,13 +225,13 @@ RuntimeProgram load_ir_file(const std::string &path) {
     throw std::runtime_error("IR exceeds 64 MiB");
   input.seekg(0);
   const auto root = Json::parse(input);
-  object(root, {"ir_version", "draw_count_item", "cost_item", "items", "strings", "actions",
-                "pools", "pool_entries", "rules", "condition_nodes", "condition_children",
-                "item_resolve", "initial", "every_draw", "termination", "termination_condition"});
-  if (u32(field(root, "ir_version"), "ir_version") != 1)
+  object(root, {"ir_version", "result_item", "items", "strings", "actions", "pools", "pool_entries",
+                "rules", "condition_nodes", "condition_children", "item_resolve", "initial",
+                "every_draw", "termination", "termination_condition"});
+  if (u32(field(root, "ir_version"), "ir_version") != 2)
     fail("unsupported ir_version");
   RuntimeProgram p;
-  p.draw_count_item = u32(field(root, "draw_count_item"), "draw_count_item");
+  p.result_item = u32(field(root, "result_item"), "result_item");
   const auto &strings = array(field(root, "strings"), "strings");
   for (const auto &value : strings) {
     if (!value.is_string())
@@ -239,19 +239,16 @@ RuntimeProgram load_ir_file(const std::string &path) {
     p.strings.push_back(value.get<std::string>());
   }
   const auto &items = array(field(root, "items"), "items");
-  if (items.empty() || p.draw_count_item >= items.size())
-    fail("invalid draw_count_item");
-  if (root.contains("cost_item")) {
-    p.cost_item = u32(root.at("cost_item"), "cost_item");
-    if (*p.cost_item >= items.size() || *p.cost_item == p.draw_count_item)
-      fail("invalid cost_item");
-  }
+  if (items.empty() || p.result_item >= items.size())
+    fail("invalid result_item");
   for (const auto &value : items) {
     object(value, {"id", "name"});
     if (u32(field(value, "id"), "item id") >= p.strings.size() ||
         u32(field(value, "name"), "item name") >= p.strings.size())
       fail("invalid string id");
   }
+  p.result_id = p.strings[u32(field(items[p.result_item], "id"), "item id")];
+  p.result_name = p.strings[u32(field(items[p.result_item], "name"), "item name")];
   const auto &actions = array(field(root, "actions"), "actions");
   for (const auto &value : actions) {
     if (!value.is_object() || !field(value, "kind").is_string())
@@ -269,8 +266,7 @@ RuntimeProgram load_ir_file(const std::string &path) {
       object(value, {"kind", "item", "amount"});
       a.target = u32(field(value, "item"), "item");
       a.amount = i64(field(value, "amount"), "amount");
-      if (a.target >= items.size() || a.target == p.draw_count_item || a.amount < 0 ||
-          (a.kind != ActionKind::Set && a.amount == 0))
+      if (a.target >= items.size() || a.amount < 0 || (a.kind != ActionKind::Set && a.amount == 0))
         fail("invalid item action");
     }
     p.actions.push_back(a);
@@ -421,8 +417,6 @@ RunResult single_run(const RuntimeProgram &p, int64_t seed) {
       0, std::mt19937_64(static_cast<uint64_t>(seed))};
   execute(p, s, p.initial);
   while (!s.stop) {
-    if (!add_checked(s.inventory[p.draw_count_item], 1))
-      throw std::runtime_error("runtime draw count overflow");
     execute(p, s, p.every_draw);
     if (s.stop)
       break;
@@ -454,8 +448,7 @@ RunResult single_run(const RuntimeProgram &p, int64_t seed) {
           execute(p, s, r);
     }
   }
-  const auto draw_count = s.inventory[p.draw_count_item];
-  return {std::move(s.inventory), draw_count, s.reason, p.strings[s.reason]};
+  return {std::move(s.inventory), s.reason, p.strings[s.reason]};
 }
 
 namespace {
@@ -471,24 +464,18 @@ uint32_t effective_threads(uint64_t work, uint32_t threads) {
   return static_cast<uint32_t>(std::min<uint64_t>(threads, work));
 }
 void append(BatchResult &target, const RuntimeProgram &p, const RunResult &run) {
-  if (run.draw_count < 0)
-    throw std::runtime_error("runtime negative draw count");
-  target.draws.push_back(static_cast<uint64_t>(run.draw_count));
+  const auto value = run.inventory[p.result_item];
+  if (value < 0)
+    throw std::runtime_error("runtime negative result item");
+  target.values.push_back(static_cast<uint64_t>(value));
   target.reasons.push_back(run.reason_id);
-  if (p.cost_item)
-    target.costs.push_back(run.inventory[*p.cost_item]);
 }
-void finish(BatchResult &r, const RuntimeProgram &p) {
-  for (auto draw : r.draws) {
-    if (r.total_draw > std::numeric_limits<uint64_t>::max() - draw)
-      throw std::runtime_error("total draw overflow");
-    r.total_draw += draw;
+void finish(BatchResult &r) {
+  for (auto value : r.values) {
+    if (r.total_result > std::numeric_limits<uint64_t>::max() - value)
+      throw std::runtime_error("total result overflow");
+    r.total_result += value;
   }
-  if (p.cost_item)
-    for (auto cost : r.costs) {
-      if (!add_checked(r.total_cost, cost))
-        throw std::runtime_error("total cost overflow");
-    }
 }
 template <class Work>
 BatchResult batches(const RuntimeProgram &p, uint64_t work, int64_t seed, uint32_t threads,
@@ -545,12 +532,10 @@ BatchResult batches(const RuntimeProgram &p, uint64_t work, int64_t seed, uint32
     progress(done.load());
   BatchResult result;
   for (auto &part : parts) {
-    result.draws.insert(result.draws.end(), part.draws.begin(), part.draws.end());
+    result.values.insert(result.values.end(), part.values.begin(), part.values.end());
     result.reasons.insert(result.reasons.end(), part.reasons.begin(), part.reasons.end());
-    if (p.cost_item)
-      result.costs.insert(result.costs.end(), part.costs.begin(), part.costs.end());
   }
-  finish(result, p);
+  finish(result);
   return result;
 }
 } // namespace
@@ -568,28 +553,6 @@ BatchResult simulate_fixed_runs(const RuntimeProgram &p, uint64_t total_runs, in
         for (auto i = begin; i < end; ++i) {
           append(part, p, single_run(p, static_cast<int64_t>(rng())));
           ++done;
-        }
-      },
-      progress);
-}
-
-BatchResult simulate_until_total_draw(const RuntimeProgram &p, uint64_t target, int64_t seed,
-                                      uint32_t threads,
-                                      const std::function<void(uint64_t)> &progress,
-                                      uint32_t chunks) {
-  if (!target)
-    throw std::runtime_error("target-total-draw must be positive");
-  return batches(
-      p, target, seed, threads, chunks,
-      [&](uint32_t chunk, uint32_t chunks, BatchResult &part, std::atomic<uint64_t> &done) {
-        const auto goal = target / chunks + (chunk < target % chunks);
-        std::mt19937_64 rng(mix_seed(seed, chunk));
-        uint64_t draws{};
-        while (draws < goal) {
-          const auto run = single_run(p, static_cast<int64_t>(rng()));
-          append(part, p, run);
-          draws += static_cast<uint64_t>(run.draw_count);
-          done.fetch_add(static_cast<uint64_t>(run.draw_count));
         }
       },
       progress);

@@ -133,14 +133,17 @@ export class SimulationTask {
       throw new Error("termination must be inside config directory");
     const config_path = join(config_dir, "config.yaml");
     const manifest_path = join(config_dir, "manifest.yaml");
-    if (!existsSync(config_path) || !existsSync(termination_path))
+    if (
+      !existsSync(config_path) ||
+      !existsSync(termination_path) ||
+      !existsSync(manifest_path)
+    )
       throw new Error("configuration files not found");
     const program = compile_yaml(
       readFileSync(config_path, "utf8"),
       readFileSync(termination_path, "utf8"),
-      existsSync(manifest_path)
-        ? readFileSync(manifest_path, "utf8")
-        : undefined,
+      readFileSync(manifest_path, "utf8"),
+      request.resultItem,
     );
 
     mkdirSync(this.results_dir, { recursive: true });
@@ -173,9 +176,7 @@ export class SimulationTask {
     const args = [
       "--ir",
       ir,
-      request.target.kind === "totalRuns"
-        ? "--total-runs"
-        : "--target-total-draw",
+      "--total-runs",
       String(request.target.value),
       "--seed",
       String(request.seed),

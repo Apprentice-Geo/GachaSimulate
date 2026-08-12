@@ -16,6 +16,7 @@ import {
 const request = {
   configId: "test",
   termination: "termination.yaml",
+  resultItem: "draw_count",
   target: { kind: "totalRuns" as const, value: 1 },
   seed: 0,
   threads: 1,
@@ -76,6 +77,9 @@ test("validates strict requests, positive targets, and thread limit", () => {
   );
   assert.throws(() =>
     validate_simulation_request({ ...request, metric: "draw" }, 2),
+  );
+  assert.throws(() =>
+    validate_simulation_request({ ...request, resultItem: "not-an-id" }, 2),
   );
   assert.throws(() =>
     validate_simulation_request(
@@ -242,7 +246,7 @@ test("requires a matching terminal event and exit code", () => {
           type: "completed",
           result_path: args.at(-1),
           total_runs: 1,
-          total_draw: 1,
+          total_result: 1,
         })}\n`,
       );
     else if (scenario.line) child.stdout.write(`${scenario.line}\n`);

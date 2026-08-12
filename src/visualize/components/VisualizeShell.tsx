@@ -52,30 +52,34 @@ export function VisualizeShell({
         <div className="primary-region">
           <div className="chart-region">
             {chart_slot}
-            {show_controls && on_file_import && on_replay && (
-              <div className="chart-actions" aria-label="数据操作">
-                <ReplayButton
-                  disabled={!data}
-                  is_animating={is_animating}
-                  on_replay={on_replay}
-                />
-                <ImportButton
-                  compact={Boolean(data)}
-                  disabled={is_animating}
-                  on_file_import={on_file_import}
-                />
-                {on_select_file && (
-                  <button
-                    className="command-button"
-                    type="button"
-                    onClick={on_select_file}
-                  >
-                    <FolderOpen aria-hidden="true" size={18} />
-                    <span>选择结果</span>
-                  </button>
-                )}
-              </div>
-            )}
+            {show_controls &&
+              on_replay &&
+              (on_file_import || on_select_file) && (
+                <div className="chart-actions" aria-label="数据操作">
+                  <ReplayButton
+                    disabled={!data}
+                    is_animating={is_animating}
+                    on_replay={on_replay}
+                  />
+                  {on_file_import && (
+                    <ImportButton
+                      compact={Boolean(data)}
+                      disabled={is_animating}
+                      on_file_import={on_file_import}
+                    />
+                  )}
+                  {on_select_file && (
+                    <button
+                      className="command-button"
+                      type="button"
+                      onClick={on_select_file}
+                    >
+                      <FolderOpen aria-hidden="true" size={18} />
+                      <span>选择结果</span>
+                    </button>
+                  )}
+                </div>
+              )}
           </div>
           <TerminationBar
             animation_progress={animation_progress}

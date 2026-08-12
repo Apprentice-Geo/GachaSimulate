@@ -1,5 +1,3 @@
-export type VisualizeMetric = "draw" | "cost";
-
 export interface TerminationReasonInput {
   reason: string;
   proportion: number;
@@ -8,7 +6,7 @@ export interface TerminationReasonInput {
 export const VISUALIZE_INPUT_REQUIRED_KEYS = [
   "title",
   "target",
-  "metric",
+  "result_item",
   "total",
   "note",
   "statistic",
@@ -47,7 +45,7 @@ export interface VisualizeStatisticInput {
 export interface VisualizeInput {
   title: string;
   target: string;
-  metric: VisualizeMetric;
+  result_item: { id: string; name: string };
   total: number;
   note: string;
   statistic: VisualizeStatisticInput;
@@ -110,8 +108,7 @@ export interface CDFMarkerDatum {
 export interface NormalizedVisualizeInputData {
   title: string;
   target: string;
-  metric: VisualizeMetric;
-  metric_label: "抽数" | "成本";
+  result_item: { id: string; name: string };
   total: number;
   total_display: string;
   display_unit: string;

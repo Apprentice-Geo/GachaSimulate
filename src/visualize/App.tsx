@@ -11,9 +11,12 @@ import {
   get_input_path_from_url,
   load_input_from_file,
   load_input_from_project_path,
-  load_input_from_text,
+  load_input_from_value,
 } from "./data/load_input";
-import type { NormalizedVisualizeInputData } from "./types/visualize_input";
+import type {
+  NormalizedVisualizeInputData,
+  VisualizeInput,
+} from "./types/visualize_input";
 import { build_visualize_view_model } from "./view/cdf_view_model";
 
 type AppState =
@@ -27,10 +30,13 @@ function get_error_message(error: unknown): string {
 }
 
 export default function App({
-  on_select_file,
+  input,
+  on_select_result,
 }: {
-  on_select_file?: () => Promise<{ path: string; text: string } | null>;
+  input?: VisualizeInput | null;
+  on_select_result?: () => Promise<boolean>;
 }) {
+  const external = input !== undefined;
   const [state, set_state] = useState<AppState>({ status: "idle" });
   const [animation_elapsed_ms, set_animation_elapsed_ms] =
     useState(ANIMATION_TOTAL_MS);
@@ -91,29 +97,42 @@ export default function App({
   }, []);
 
   const handle_desktop_file_select = useCallback(async () => {
-    if (!on_select_file) return;
+    if (!on_select_result) return;
     set_state({ status: "loading" });
     try {
-      const selected = await on_select_file();
+      const selected = await on_select_result();
       if (!selected) {
-        set_state({ status: "idle" });
-        return;
+        set_state(
+          input
+            ? { status: "ready", data: await load_input_from_value(input) }
+            : { status: "idle" },
+        );
       }
-      set_state({
-        status: "ready",
-        data: await load_input_from_text(selected.text),
-      });
     } catch (error) {
       set_state({ status: "error", message: get_error_message(error) });
     }
-  }, [on_select_file]);
+  }, [input, on_select_result]);
 
   useEffect(() => {
+    if (!external) return;
+    if (!input) {
+      set_state({ status: "idle" });
+      return;
+    }
+    void load_input_from_value(input).then(
+      (data) => set_state({ status: "ready", data }),
+      (error) =>
+        set_state({ status: "error", message: get_error_message(error) }),
+    );
+  }, [external, input]);
+
+  useEffect(() => {
+    if (external) return;
     const input_path = get_input_path_from_url();
     if (input_path) {
       void load_project_input(input_path);
     }
-  }, [load_project_input]);
+  }, [external, load_project_input]);
 
   useEffect(() => {
     if (state.status === "ready") {
@@ -172,9 +191,9 @@ export default function App({
         animation_state={animation_state}
         data={data}
         is_animating={is_animating}
-        on_file_import={handle_file_import}
+        on_file_import={external ? undefined : handle_file_import}
         on_select_file={
-          on_select_file ? () => void handle_desktop_file_select() : undefined
+          on_select_result ? () => void handle_desktop_file_select() : undefined
         }
         on_replay={start_animation}
       />
@@ -187,12 +206,12 @@ export default function App({
       animation_state={animation_state}
       chart_slot={
         <>
-          {state.status === "idle" && <EmptyState />}
+          {state.status === "idle" && <EmptyState desktop={external} />}
           {state.status === "loading" && <LoadingState />}
           {state.status === "error" && (
             <ErrorState
               message={state.message}
-              on_file_import={handle_file_import}
+              on_file_import={external ? undefined : handle_file_import}
             />
           )}
         </>
@@ -200,9 +219,9 @@ export default function App({
       data={data}
       is_animating={is_animating}
       load_state={state.status}
-      on_file_import={handle_file_import}
+      on_file_import={external ? undefined : handle_file_import}
       on_select_file={
-        on_select_file ? () => void handle_desktop_file_select() : undefined
+        on_select_result ? () => void handle_desktop_file_select() : undefined
       }
       on_replay={start_animation}
     />

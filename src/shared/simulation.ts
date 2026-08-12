@@ -1,10 +1,9 @@
-export type SimulationTarget =
-  | { kind: "totalRuns"; value: number }
-  | { kind: "targetTotalDraw"; value: number };
+export type SimulationTarget = { kind: "totalRuns"; value: number };
 
 export type SimulationRequest = {
   configId: string;
   termination: string;
+  resultItem: string;
   target: SimulationTarget;
   seed: number;
   threads: number;
@@ -29,13 +28,13 @@ export type SimulationEvent =
       type: "progress";
       completed: number;
       total: number;
-      unit: "runs" | "draws";
+      unit: "runs";
     }
   | {
       type: "completed";
       result_path: string;
       total_runs: number;
-      total_draw: number;
+      total_result: number;
     }
   | { type: "error"; message: string };
 
@@ -92,7 +91,7 @@ export function validate_simulation_request(
   const request = object_value(value);
   exact_keys(
     request,
-    ["configId", "termination", "target", "seed", "threads"],
+    ["configId", "termination", "resultItem", "target", "seed", "threads"],
     "simulation request",
   );
   if (
@@ -107,6 +106,11 @@ export function validate_simulation_request(
     request.termination.includes("/")
   )
     throw new Error("termination must be a filename");
+  if (
+    typeof request.resultItem !== "string" ||
+    !/^[A-Za-z_][A-Za-z0-9_]*$/.test(request.resultItem)
+  )
+    throw new Error("resultItem must be an item id");
   if (!Number.isSafeInteger(request.seed))
     throw new Error("seed must be a safe integer");
   const threads = integer(request.threads, "threads", 1);
@@ -114,10 +118,9 @@ export function validate_simulation_request(
     throw new Error(`threads must be <= ${logical_cpu_count}`);
   const target = object_value(request.target);
   exact_keys(target, ["kind", "value"], "target");
-  if (target.kind !== "totalRuns" && target.kind !== "targetTotalDraw")
-    throw new Error("exactly one target is required");
+  if (target.kind !== "totalRuns") throw new Error("target must be totalRuns");
   const target_value = integer(target.value, "target", 1);
-  if (target.kind === "totalRuns" && target_value > 100_000_000)
+  if (target_value > 100_000_000)
     throw new Error("totalRuns must be <= 100000000");
 }
 
@@ -149,10 +152,7 @@ export function parse_simulation_line(
     case "progress": {
       const completed = integer(event.completed, "completed");
       const total = integer(event.total, "total", 1);
-      if (
-        completed > total ||
-        (event.unit !== "runs" && event.unit !== "draws")
-      )
+      if (completed > total || event.unit !== "runs")
         throw new Error("invalid progress event");
       return { type: "progress", completed, total, unit: event.unit };
     }
@@ -161,7 +161,7 @@ export function parse_simulation_line(
         type: "completed",
         result_path: text(event.result_path, "result_path"),
         total_runs: integer(event.total_runs, "total_runs", 1),
-        total_draw: integer(event.total_draw, "total_draw", 1),
+        total_result: integer(event.total_result, "total_result"),
       };
     case "error":
       return { type: "error", message: text(event.message, "message") };

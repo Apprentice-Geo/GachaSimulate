@@ -8,7 +8,7 @@
 
 素材导出是长期保留能力。当前独立浏览器入口用于开发和调试，不保证长期存在。
 
-Electron 的导航、模拟表单、GSR 对话框、analyzer 进程和五个展示字段编辑属于 `src/renderer/`、`src/preload/` 与 `src/main/`，不得进入 `src/visualize/`。反过来，`src/visualize/` 不依赖 Electron 或 Node.js API。
+Electron 的导航、模拟表单、GSR 对话框、analyzer 进程、结果编辑页和结果可视化页属于 `src/renderer/`、`src/preload/` 与 `src/main/`，不得进入 `src/visualize/`。反过来，`src/visualize/` 不依赖 Electron 或 Node.js API。
 
 ## 数据流
 
@@ -25,7 +25,7 @@ unknown input
 
 原始输入不能绕过校验直接进入组件。组件消费 normalized data 或 view model，不承担 schema 校验、CDF 计算或展示规则编排。
 
-Electron 由 main 选择 GSR、调用 C++ analyzer、校验 Analysis v1 并复用 `analysis_to_visualize`。按 metric 的 sidecar 保存完整 `VisualizeInput`，重新打开时只恢复五个展示字段。浏览器入口继续读取完整 JSON，但不能形成另一套校验和计算实现。
+Electron 的结果编辑页和结果可视化页共享当前 GSR 会话。任一页面选择 GSR 后，main 调用 C++ analyzer、校验 Analysis v2 并复用 `analysis_to_visualize`；编辑页失焦保存五个展示字段后同步共享 input，可视化页可直接重播动画。sidecar 统一为 `<stem>.visualize.json`，保存完整 `VisualizeInput`，重新打开时只恢复 `title`、`target`、`note`、`price` 和 `unit`。浏览器入口继续读取完整 JSON，但不能形成另一套校验和计算实现；Electron 禁止任意 JSON 导入。
 
 ## 模块地图
 
@@ -51,11 +51,11 @@ Electron 展示和素材导出复用同一套输入处理、视图模型、画�
 
 可视化采用深色数据监控台方向，强调高信息密度和分析可读性，不采用营销页、游戏 HUD 或高装饰性视觉。CDF 曲线是主视觉信号，网格、坐标轴和动画保持克制。
 
-统计 marker 使用颜色和视觉权重表达分位位置及尾部风险。终止原因颜色只表示原因之间的对应关系，不表达好坏。`draw` 与 `cost` 共用数据和画面结构，只切换数值维度及对应文案。
+统计 marker 使用颜色和视觉权重表达分位位置及尾部风险。终止原因颜色只表示原因之间的对应关系，不表达好坏。文案使用通用的“期末数量分布”“累计占比”“期末 `<item name>` 总量”和中性的分位说明；`unit` 只由展示字段提供。
 
 ### 输入契约
 
-`docs/schemas/visualize_input.schema.json` 是生产方和消费方共享的结构契约。TypeScript 还会检查 schema 无法完整表达的业务规则。旧字段不做隐式兼容；需要兼容时应明确修改契约和迁移策略。
+`docs/schemas/visualize_input.schema.json` 是生产方和消费方共享的结构契约，其中 `result_item` 标识本次结果 item，`total` 表示所有 run 的期末结果总和。TypeScript 还会检查 schema 无法完整表达的业务规则。旧字段不做隐式兼容；需要兼容时应明确修改契约和迁移策略。
 
 ## 维护边界
 

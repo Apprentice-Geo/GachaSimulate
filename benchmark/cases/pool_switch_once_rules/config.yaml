@@ -1,5 +1,6 @@
-schema_version: 1
+schema_version: 2
 items:
+  - draw_count: 抽数
   - phase_token
   - target
   - filler
@@ -20,3 +21,5 @@ rules:
         actions: change second_pool
 initial:
   - change begin_pool
+every_draw:
+  - draw_count += 1
