@@ -1,4 +1,5 @@
 items:
+- draw_count: 抽数
 - counter: 阶段计数
 - reward: 阶段奖励
 pools:
@@ -20,4 +21,6 @@ rules:
       actions: change late
 initial:
 - change early
-schema_version: 1
+schema_version: 2
+every_draw:
+- draw_count += 1

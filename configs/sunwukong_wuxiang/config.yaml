@@ -1,4 +1,5 @@
 items:
+- draw_count: 抽数
 - wuxiang_point: 无相积分
 - random_limited_skin: 随机限定皮肤礼
 - random_legendary_skin: 随机传说皮肤
@@ -208,4 +209,6 @@ item_resolve:
   - wuxiang_point += 20
 initial:
 - change begin_pool
-schema_version: 1
+schema_version: 2
+every_draw:
+- draw_count += 1

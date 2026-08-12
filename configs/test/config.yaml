@@ -1,4 +1,5 @@
 items:
+- draw_count: 抽数
 - target_item_1: 目标物品_1
 - target_item_2: 目标物品_2
 - target_item_3: 目标物品_3
@@ -55,6 +56,7 @@ pools:
   - probability: 0.6
     actions: ordinary_item_3 += 1
 every_draw:
+- draw_count += 1
 - cost_count += 10
 - general_fragment += 1
 rules:
@@ -113,4 +115,4 @@ item_resolve:
   - ordinary_item_3 -= 1
 initial:
 - change begin_pool
-schema_version: 1
+schema_version: 2

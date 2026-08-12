@@ -1,4 +1,5 @@
 items:
+- draw_count: 抽数
 - shenjiangwei: 神姜维
 - shishibaozhu_66: 史诗宝珠66
 - mou_zhugeliang: 谋·诸葛亮
@@ -30,4 +31,6 @@ pools:
     actions: putonwupin += 1
 initial:
 - change begin_pool
-schema_version: 1
+schema_version: 2
+every_draw:
+- draw_count += 1

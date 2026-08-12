@@ -1,4 +1,5 @@
 items:
+- draw_count: 抽数
 - shiweiyan: 势魏延
 - shishibaozhu_33: 史诗宝珠33
 - fenyuezhenlv_huangfusongdontaibao: 奋钺振旅·皇甫嵩动态包
@@ -24,4 +25,6 @@ pools:
     actions: putonwupin += 1
 initial:
 - change begin_pool
-schema_version: 1
+schema_version: 2
+every_draw:
+- draw_count += 1

@@ -1,4 +1,5 @@
 items:
+- draw_count: 抽数
 - sanliouduihuanbi: 三丽鸥兑换币
 - teshuhuizhangbaodijishu: 特殊徽章保底计数
 - teshuhuizhang1: 特殊徽章1
@@ -78,6 +79,7 @@ pools:
   - probability: 0.005
     actions: sanliouduihuanbi += 198
 every_draw:
+- draw_count += 1
 - teshuhuizhangbaodijishu += 1
 rules:
 - teshuhuizhang_gain:
@@ -190,4 +192,4 @@ item_resolve:
   - sanliouduihuanbi += 98
 initial:
 - change begin_pool
-schema_version: 1
+schema_version: 2

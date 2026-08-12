@@ -1,4 +1,5 @@
 items:
+- draw_count: 抽数
 - xinyuanjifeng: 心愿积分
 - huanledou: 欢乐豆
 - cailanzi: 菜篮子
@@ -23,4 +24,6 @@ pools:
     actions: yinbi += 100
 initial:
 - change begin_pool
-schema_version: 1
+schema_version: 2
+every_draw:
+- draw_count += 1

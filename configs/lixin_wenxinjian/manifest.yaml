@@ -1,7 +1,7 @@
 id: lixin_wenxinjian
 name: lixin_wenxinjian
 description: lixin_wenxinjian
-metrics: [draw]
+result_item: draw_count
 terminations:
 - file: termination_all.yaml
   name: termination_all

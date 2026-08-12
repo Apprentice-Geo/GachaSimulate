@@ -1,4 +1,5 @@
 items:
+- draw_count: 抽数
 - shard: 碎片
 - token: 兑换代币
 - reward: 奖励
@@ -27,4 +28,6 @@ rules:
       actions:
       - token -= 4
       - draw exchange
-schema_version: 1
+schema_version: 2
+every_draw:
+- draw_count += 1

@@ -1,4 +1,5 @@
 items:
+- draw_count: 抽数
 - target: 目标
 - miss: 未命中
 pools:
@@ -9,4 +10,6 @@ pools:
     actions: miss += 1
 initial:
 - change main
-schema_version: 1
+schema_version: 2
+every_draw:
+- draw_count += 1

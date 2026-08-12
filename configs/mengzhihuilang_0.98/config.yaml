@@ -1,4 +1,5 @@
 items:
+- draw_count: 抽数
 - fragment0
 - fragment1
 - fragment2
@@ -256,4 +257,6 @@ rules:
       actions: change pool25
 initial:
 - change pool0
-schema_version: 1
+schema_version: 2
+every_draw:
+- draw_count += 1

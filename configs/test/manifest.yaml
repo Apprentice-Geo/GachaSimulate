@@ -1,7 +1,7 @@
 id: test
 name: test
 description: test
-metrics: [draw, cost]
+result_item: draw_count
 terminations:
 - file: termination.yaml
   name: termination

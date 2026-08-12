@@ -1,4 +1,5 @@
 items:
+- draw_count: 抽数
 - nezha2duihuanbi: 哪吒2兑换币
 - teshuhuizhangbaodijishu: 特殊徽章保底计数
 - teshuhuizhang1: 特殊徽章1
@@ -162,4 +163,6 @@ item_resolve:
   - nezha2duihuanbi += 168
 initial:
 - change begin_pool
-schema_version: 1
+schema_version: 2
+every_draw:
+- draw_count += 1

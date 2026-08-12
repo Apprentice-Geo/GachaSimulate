@@ -1,7 +1,7 @@
 id: duplicate_resolve
 name: duplicate_resolve
 description: duplicate_resolve
-metrics: [draw]
+result_item: draw_count
 terminations:
 - file: termination.yaml
   name: 收集完成
