@@ -27,7 +27,8 @@ GSR 是权威模拟结果，保存每次启动模拟前选择的 result item 期
 - `src/main/`：受信任的 Electron 文件系统、配置扫描、原生进程和结果编辑生命周期；扫描配置时通过 Compiler 读取并校验 `items`。
 - `src/preload/`：只暴露固定 IPC 能力。
 - `src/renderer/`：模拟表单、任务状态、结果编辑页和结果可视化页，不使用 Node.js。
-- `src/visualize/`：平台无关的 `VisualizeInput` 校验、视图模型、浏览器入口和导出。
+- `src/visualize/`：平台无关的 `VisualizeInput` 校验、视图模型、共享场景、浏览器入口和 Remotion composition。
+- `src/export/`：Node.js 素材导出宿主，负责文件系统、Remotion bundler/renderer 和进程入口。
 - `configs/`：本地配置与预置；`benchmark/cases/`：语言无关 benchmark case。
 
 ## 信任边界

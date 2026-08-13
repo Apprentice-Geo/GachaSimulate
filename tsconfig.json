@@ -23,6 +23,7 @@
     "types": ["node"]
   },
   "include": [
+    "src/export/**/*.ts",
     "src/visualize/**/*.ts",
     "src/visualize/**/*.tsx",
     "src/main/**/*.ts",

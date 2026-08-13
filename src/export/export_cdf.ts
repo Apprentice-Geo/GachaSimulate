@@ -6,9 +6,9 @@ import {
 } from "@remotion/renderer";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { load_input_from_value } from "../data/load_input";
-import { build_visualize_view_model } from "../view/cdf_view_model";
-import { CDF_COMPOSITION_ID } from "../remotion/constants";
+import { load_input_from_value } from "../visualize/data/load_input";
+import { CDF_COMPOSITION_ID } from "../visualize/remotion/constants";
+import { build_visualize_view_model } from "../visualize/view/cdf_view_model";
 import {
   DEFAULT_OUTPUT_DIR,
   ensure_output_dir,

@@ -22,7 +22,7 @@
     "test:visualize:cdf": "tsx --test src/visualize/test/cdf.test.ts src/visualize/test/analysis.test.ts",
     "test:simulation": "tsx --test src/main/config_manager.test.ts src/main/simulation.test.ts src/main/result_editor.test.ts src/renderer/simulation_items.test.ts",
     "test:e2e": "tsx src/visualize/test/run_e2e.ts",
-    "export:cdf": "tsx src/visualize/export/export_cdf.ts",
+    "export:cdf": "tsx src/export/export_cdf.ts",
     "test:compiler": "pnpm --dir packages/config-compiler test",
     "test:cli": "pnpm --dir packages/cli test",
     "test:packages": "pnpm --dir packages/config-compiler build && pnpm --dir packages/config-compiler test && pnpm --dir packages/cli test"

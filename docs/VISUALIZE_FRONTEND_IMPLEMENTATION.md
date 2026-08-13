@@ -4,7 +4,7 @@
 
 ## 定位
 
-`src/visualize/` 是平台无关的结果可视化层。它把未知的 `VisualizeInput` 转换为经过校验的展示模型，供独立浏览器入口和素材导出使用。
+`src/visualize/` 是平台无关的结果可视化层。它把未知的 `VisualizeInput` 转换为经过校验的展示模型，供独立浏览器入口和素材导出使用。Node.js 文件系统、Remotion bundler/renderer 和导出进程入口位于 `src/export/`，只依赖本层，不被本层反向依赖。
 
 素材导出是长期保留能力。当前独立浏览器入口用于开发和调试，不保证长期存在。
 
@@ -34,7 +34,8 @@ Electron 的结果编辑页和结果可视化页共享当前 GSR 会话。任一
 - `components/`：共享画面与交互组件，保持偏渲染。
 - `animation/`：交互展示和逐帧导出共用的时间轴与进度计算。
 - `styles/`：共享设计 token、画面样式和宿主外壳样式。
-- `remotion/` 与 `export/`：当前素材导出实现。
+- `remotion/`：复用共享场景的 Remotion composition。
+- `src/export/`：位于可视化层之外的 Node.js 素材导出宿主。
 - `types/`：原始输入、normalized data 和 view model 类型。
 
 重要符号包括 `VisualizeInput`、`NormalizedVisualizeInputData`、`NormalizedVisualizeData` 和 `VisualizeScene`。需要定位具体实现时，优先搜索这些符号及上述模块，而不是依赖本文档中的文件清单。
