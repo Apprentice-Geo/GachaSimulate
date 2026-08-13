@@ -46,6 +46,12 @@ jobs:
           ../build/native/bin/gachasimulate-core --ir "$ir" --total-runs 10 --seed 0 --threads 1 --output "$smoke_dir/fixed.gsr"
           ../build/native/bin/gachasimulate-analyze --input "$smoke_dir/fixed.gsr"
 
+      - name: Upload native binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-binaries
+          path: build/native/bin
+
   frontend-format:
     name: Frontend format
     runs-on: ubuntu-latest
@@ -118,6 +124,7 @@ jobs:
   frontend-build-test:
     name: Frontend build and tests
     runs-on: ubuntu-latest
+    needs: cpp
 
     steps:
       - name: Check out repository
@@ -135,6 +142,15 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Download native binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: native-binaries
+          path: build/native/bin
+
+      - name: Restore native binary permissions
+        run: chmod +x build/native/bin/*
+
       - name: Build frontend
         run: pnpm run build
 
@@ -143,6 +159,12 @@ jobs:
 
       - name: Run simulation tests
         run: pnpm run test:simulation
+
+      - name: Build and test packages
+        run: pnpm run test:packages
+
+      - name: Check committed package builds
+        run: git diff --exit-code -- packages/*/dist
 
   e2e:
     name: Playwright e2e

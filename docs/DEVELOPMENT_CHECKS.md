@@ -51,14 +51,15 @@ build/native/bin/gachasimulate-analyze --input "$smoke_dir/fixed.gsr"
 pnpm run format:check
 pnpm run lint
 pnpm run typecheck
-pnpm run test:compiler
-pnpm run test:cli
+pnpm run test:packages
 pnpm run test:simulation
 pnpm run test:visualize:cdf
 pnpm run build
 pnpm run build:web
 pnpm run test:e2e
 ```
+
+Prettier 和 ESLint 检查手写的 TypeScript/JavaScript；生成的 package JavaScript 和声明文件由 TypeScript build、package 测试及 CI 的 dist 同步检查负责。
 
 ## 按影响范围选择
 
