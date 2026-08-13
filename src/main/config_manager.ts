@@ -6,44 +6,23 @@ import {
   readdirSync,
 } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import { read_config_items } from "@gachasimulate/config-compiler";
-import { parse } from "yaml";
+import {
+  read_config_items,
+  read_config_manifest,
+} from "@gachasimulate/config-compiler";
 import type { InstalledConfig } from "../shared/installed_config";
 
-const ID_RE = /^[A-Za-z0-9_-]+$/;
-
 function read_manifest(path: string, directory_name: string): InstalledConfig {
-  const manifest = parse(readFileSync(path, "utf8")) as Record<string, unknown>;
-  if (
-    !manifest ||
-    typeof manifest.id !== "string" ||
-    manifest.id !== directory_name ||
-    !ID_RE.test(manifest.id) ||
-    typeof manifest.name !== "string" ||
-    !manifest.name.trim() ||
-    typeof manifest.description !== "string" ||
-    !Array.isArray(manifest.terminations) ||
-    manifest.terminations.length === 0
-  )
-    throw new Error("invalid manifest fields");
+  const manifest = read_config_manifest(readFileSync(path, "utf8"));
+  if (manifest.id !== directory_name) throw new Error("manifest id mismatch");
   const root = resolve(path, "..");
-  const terminations = manifest.terminations.map((entry: unknown) => {
-    if (!entry || typeof entry !== "object")
-      throw new Error("invalid termination");
-    const value = entry as Record<string, unknown>;
-    if (
-      typeof value.file !== "string" ||
-      isAbsolute(value.file) ||
-      value.file.includes("\\") ||
-      value.file.includes("/") ||
-      typeof value.name !== "string" ||
-      !value.name.trim()
-    )
-      throw new Error("invalid termination");
-    const file_path = resolve(root, value.file);
+  const terminations = manifest.terminations.map((termination) => {
+    const file_path = resolve(root, termination.file);
     if (relative(root, file_path).startsWith("..") || !existsSync(file_path))
       throw new Error("invalid termination path");
-    return { file: value.file, name: value.name };
+    if (isAbsolute(termination.file))
+      throw new Error("invalid termination path");
+    return termination;
   });
   const config_path = join(root, "config.yaml");
   if (!existsSync(config_path)) throw new Error("config.yaml is missing");

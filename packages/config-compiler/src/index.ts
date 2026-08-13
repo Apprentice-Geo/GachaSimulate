@@ -1,6 +1,7 @@
 import { parseDocument } from "yaml";
 
 const ID = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const MANIFEST_ID = /^[A-Za-z0-9_-]+$/;
 const ACTION = /^([A-Za-z_][A-Za-z0-9_]*)\s*(\+=|-=|=)\s*(\d+)$/;
 const CHECK = /^([A-Za-z_][A-Za-z0-9_]*)\s*(>=|<=|==|!=|>|<)\s*(\d+)$/;
 
@@ -17,6 +18,14 @@ export class CompilerError extends Error {
 export type ActionRange = { begin: number; count: number };
 export type CompiledProgram = { ir: Record<string, unknown> };
 export type ConfigItem = { id: string; name: string };
+export type ConfigTermination = { file: string; name: string };
+export type ConfigManifest = {
+  id: string;
+  name: string;
+  description: string;
+  terminations: ConfigTermination[];
+  metadata?: unknown;
+};
 
 function fail(path: string, message: string): never {
   throw new CompilerError(path, message);
@@ -95,6 +104,53 @@ export function read_config_items(config_text: string): ConfigItem[] {
   return config_items(parse_yaml(config_text, "config").items);
 }
 
+function config_manifest(value: unknown): ConfigManifest {
+  const manifest = map(value, "manifest");
+  keys(manifest, "manifest", [
+    "id",
+    "name",
+    "description",
+    "terminations",
+    "metadata",
+  ]);
+  if (typeof manifest.id !== "string" || !MANIFEST_ID.test(manifest.id))
+    fail("manifest.id", "must be a valid config id");
+  if (typeof manifest.name !== "string" || !manifest.name.trim())
+    fail("manifest.name", "must be a non-empty string");
+  if (typeof manifest.description !== "string")
+    fail("manifest.description", "must be a string");
+  const terminations = list(manifest.terminations, "manifest.terminations");
+  if (!terminations.length) fail("manifest.terminations", "must be non-empty");
+  const parsedTerminations = terminations.map((raw, index) => {
+    const path = `manifest.terminations[${index}]`;
+    const termination = map(raw, path);
+    keys(termination, path, ["file", "name"]);
+    if (
+      typeof termination.file !== "string" ||
+      !termination.file ||
+      termination.file.includes("/") ||
+      termination.file.includes("\\")
+    )
+      fail(`${path}.file`, "must be a non-empty file name");
+    if (typeof termination.name !== "string" || !termination.name.trim())
+      fail(`${path}.name`, "must be a non-empty string");
+    return { file: termination.file, name: termination.name };
+  });
+  return {
+    id: manifest.id,
+    name: manifest.name,
+    description: manifest.description,
+    terminations: parsedTerminations,
+    ...(Object.hasOwn(manifest, "metadata")
+      ? { metadata: manifest.metadata }
+      : {}),
+  };
+}
+
+export function read_config_manifest(manifest_text: string): ConfigManifest {
+  return config_manifest(parse_yaml(manifest_text, "manifest"));
+}
+
 /** Compiles the v2 YAML contract to a JSON-serializable, flat arena IR. */
 export function compile_yaml(
   config_text: string,
@@ -118,7 +174,7 @@ export function compile(
 ): CompiledProgram {
   const config = map(configValue, "config");
   const termination = map(terminationValue, "termination");
-  const manifest = map(manifestValue, "manifest");
+  config_manifest(manifestValue);
   keys(config, "config", [
     "schema_version",
     "items",
@@ -132,14 +188,6 @@ export function compile(
   keys(termination, "termination", ["retained_items", "termination_rule"]);
   if ("schema_version" in termination)
     fail("termination.schema_version", "must inherit config schema_version");
-  keys(manifest, "manifest", [
-    "id",
-    "name",
-    "description",
-    "terminations",
-    "metadata",
-  ]);
-
   const strings: string[] = [];
   const stringId = (value: string) => {
     const found = strings.indexOf(value);
@@ -313,10 +361,14 @@ export function compile(
         (match): match is RegExpExecArray =>
           match != null && match[1] === value.item && match[2] === "-=",
       );
-    if (!values.length || reduce.length !== 1)
+    const reducesOtherItem = values.some((entry) => {
+      const match = ACTION.exec(entry.trim());
+      return match?.[2] === "-=" && match[1] !== value.item;
+    });
+    if (!values.length || reduce.length !== 1 || reducesOtherItem)
       fail(
         `${path}.actions`,
-        "must contain exactly one reduce action for the resolved item",
+        "must contain exactly one reduce action for the resolved item and no other item reductions",
       );
     resolve[item] = {
       retain: integer(value.retain, `${path}.retain`),
@@ -362,7 +414,16 @@ export function compile(
           everyPathHasAction(child, `${path}.children[${index}]`),
         );
   };
+  const conditionHasAction = (raw: unknown, path: string): boolean => {
+    const node = map(raw, path);
+    if (actions(node.actions, `${path}.actions`).length) return true;
+    if ("check" in node) return false;
+    return list(node.children, `${path}.children`).some((child, index) =>
+      conditionHasAction(child, `${path}.children[${index}]`),
+    );
+  };
   const rules: Record<string, unknown>[] = [];
+  const ruleIds = new Set<string>();
   const rawRules =
     config.rules == null ? [] : list(config.rules, "config.rules");
   rawRules.forEach((raw, index) => {
@@ -370,11 +431,25 @@ export function compile(
     if (Object.keys(value).length !== 1)
       fail(`config.rules[${index}]`, "must be a single-key mapping");
     const [id, body] = Object.entries(value)[0];
+    if (!ID.test(id)) fail(`config.rules[${index}]`, "invalid rule id");
+    if (ruleIds.has(id))
+      fail(`config.rules[${index}]`, `duplicate rule id: ${id}`);
+    ruleIds.add(id);
     const rule = map(body, `config.rules[${index}].${id}`);
     keys(rule, `config.rules[${index}].${id}`, ["mode", "condition"]);
     const mode = rule.mode ?? "once";
     if (!["once", "per_draw", "repeat"].includes(mode as string))
       fail(`config.rules[${index}].${id}.mode`, "unsupported mode");
+    if (
+      !conditionHasAction(
+        rule.condition,
+        `config.rules[${index}].${id}.condition`,
+      )
+    )
+      fail(
+        `config.rules[${index}].${id}.condition`,
+        "must contain at least one action",
+      );
     if (
       mode === "repeat" &&
       !everyPathHasAction(

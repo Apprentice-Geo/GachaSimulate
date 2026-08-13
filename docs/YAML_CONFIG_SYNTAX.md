@@ -60,8 +60,30 @@ TerminationConfig = {
 根对象仅允许上述字段；展示信息放在同目录、且编译时必填的 `manifest.yaml`。
 `config.yaml` 必须声明 `schema_version: 2`；termination 继承该版本且不得重复声明。
 
-`manifest.yaml` 根对象可包含配置目录使用的 `id`、`name`、`description`、
-`terminations` 和 `metadata` 字段，不声明结果 item。
+`manifest.yaml` 根对象：
+
+```ebnf
+Manifest = {
+  "id": ManifestId,
+  "name": NonEmptyString,
+  "description": String,
+  "terminations": [ ManifestTermination, ... ],
+  "metadata"?: AnyYamlValue,
+}
+ManifestId = ASCII letter, digit, "_" or "-", one or more
+ManifestTermination = {
+  "file": FileName,
+  "name": NonEmptyString,
+}
+FileName = NonEmptyString without "/" or "\\"
+```
+
+`id`、`name`、`description` 和非空 `terminations` 列表均为必填；`id` 只允许
+ASCII 字母、数字、下划线和连字符。termination 的 `file` 只能是当前配置目录下的
+非空文件名，不能包含路径分隔符；`name` 必须是非空字符串。`metadata` 可省略，
+Compiler 不约束其内部结构。根对象和 termination 条目不允许其他字段。
+
+manifest 不声明结果 item。
 `compile_yaml(config, termination, manifest, result_item)` 的 `manifest` 和 `result_item`
 参数必填；`result_item` 由每次模拟请求提供，必须引用已声明 item。若该 item 没有展示名，
 Analysis/GSR 使用 item ID 作为名称。

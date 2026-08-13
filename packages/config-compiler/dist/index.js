@@ -1,5 +1,6 @@
 import { parseDocument } from "yaml";
 const ID = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const MANIFEST_ID = /^[A-Za-z0-9_-]+$/;
 const ACTION = /^([A-Za-z_][A-Za-z0-9_]*)\s*(\+=|-=|=)\s*(\d+)$/;
 const CHECK = /^([A-Za-z_][A-Za-z0-9_]*)\s*(>=|<=|==|!=|>|<)\s*(\d+)$/;
 export class CompilerError extends Error {
@@ -84,6 +85,50 @@ function config_items(value) {
 export function read_config_items(config_text) {
     return config_items(parse_yaml(config_text, "config").items);
 }
+function config_manifest(value) {
+    const manifest = map(value, "manifest");
+    keys(manifest, "manifest", [
+        "id",
+        "name",
+        "description",
+        "terminations",
+        "metadata",
+    ]);
+    if (typeof manifest.id !== "string" || !MANIFEST_ID.test(manifest.id))
+        fail("manifest.id", "must be a valid config id");
+    if (typeof manifest.name !== "string" || !manifest.name.trim())
+        fail("manifest.name", "must be a non-empty string");
+    if (typeof manifest.description !== "string")
+        fail("manifest.description", "must be a string");
+    const terminations = list(manifest.terminations, "manifest.terminations");
+    if (!terminations.length)
+        fail("manifest.terminations", "must be non-empty");
+    const parsedTerminations = terminations.map((raw, index) => {
+        const path = `manifest.terminations[${index}]`;
+        const termination = map(raw, path);
+        keys(termination, path, ["file", "name"]);
+        if (typeof termination.file !== "string" ||
+            !termination.file ||
+            termination.file.includes("/") ||
+            termination.file.includes("\\"))
+            fail(`${path}.file`, "must be a non-empty file name");
+        if (typeof termination.name !== "string" || !termination.name.trim())
+            fail(`${path}.name`, "must be a non-empty string");
+        return { file: termination.file, name: termination.name };
+    });
+    return {
+        id: manifest.id,
+        name: manifest.name,
+        description: manifest.description,
+        terminations: parsedTerminations,
+        ...(Object.hasOwn(manifest, "metadata")
+            ? { metadata: manifest.metadata }
+            : {}),
+    };
+}
+export function read_config_manifest(manifest_text) {
+    return config_manifest(parse_yaml(manifest_text, "manifest"));
+}
 /** Compiles the v2 YAML contract to a JSON-serializable, flat arena IR. */
 export function compile_yaml(config_text, termination_text, manifest_text, result_item) {
     return compile(parse_yaml(config_text, "config"), parse_yaml(termination_text, "termination"), parse_yaml(manifest_text, "manifest"), result_item);
@@ -91,7 +136,7 @@ export function compile_yaml(config_text, termination_text, manifest_text, resul
 export function compile(configValue, terminationValue, manifestValue, result_item) {
     const config = map(configValue, "config");
     const termination = map(terminationValue, "termination");
-    const manifest = map(manifestValue, "manifest");
+    config_manifest(manifestValue);
     keys(config, "config", [
         "schema_version",
         "items",
@@ -106,13 +151,6 @@ export function compile(configValue, terminationValue, manifestValue, result_ite
     keys(termination, "termination", ["retained_items", "termination_rule"]);
     if ("schema_version" in termination)
         fail("termination.schema_version", "must inherit config schema_version");
-    keys(manifest, "manifest", [
-        "id",
-        "name",
-        "description",
-        "terminations",
-        "metadata",
-    ]);
     const strings = [];
     const stringId = (value) => {
         const found = strings.indexOf(value);
@@ -268,8 +306,12 @@ export function compile(configValue, terminationValue, manifestValue, result_ite
         const reduce = values
             .map((entry) => ACTION.exec(entry.trim()))
             .filter((match) => match != null && match[1] === value.item && match[2] === "-=");
-        if (!values.length || reduce.length !== 1)
-            fail(`${path}.actions`, "must contain exactly one reduce action for the resolved item");
+        const reducesOtherItem = values.some((entry) => {
+            const match = ACTION.exec(entry.trim());
+            return match?.[2] === "-=" && match[1] !== value.item;
+        });
+        if (!values.length || reduce.length !== 1 || reducesOtherItem)
+            fail(`${path}.actions`, "must contain exactly one reduce action for the resolved item and no other item reductions");
         resolve[item] = {
             retain: integer(value.retain, `${path}.retain`),
             reduce_per_batch: integer(Number(reduce[0][3]), `${path}.actions`, true),
@@ -300,18 +342,34 @@ export function compile(configValue, terminationValue, manifestValue, result_ite
             ? children.every((child, index) => everyPathHasAction(child, `${path}.children[${index}]`))
             : children.some((child, index) => everyPathHasAction(child, `${path}.children[${index}]`));
     };
+    const conditionHasAction = (raw, path) => {
+        const node = map(raw, path);
+        if (actions(node.actions, `${path}.actions`).length)
+            return true;
+        if ("check" in node)
+            return false;
+        return list(node.children, `${path}.children`).some((child, index) => conditionHasAction(child, `${path}.children[${index}]`));
+    };
     const rules = [];
+    const ruleIds = new Set();
     const rawRules = config.rules == null ? [] : list(config.rules, "config.rules");
     rawRules.forEach((raw, index) => {
         const value = map(raw, `config.rules[${index}]`);
         if (Object.keys(value).length !== 1)
             fail(`config.rules[${index}]`, "must be a single-key mapping");
         const [id, body] = Object.entries(value)[0];
+        if (!ID.test(id))
+            fail(`config.rules[${index}]`, "invalid rule id");
+        if (ruleIds.has(id))
+            fail(`config.rules[${index}]`, `duplicate rule id: ${id}`);
+        ruleIds.add(id);
         const rule = map(body, `config.rules[${index}].${id}`);
         keys(rule, `config.rules[${index}].${id}`, ["mode", "condition"]);
         const mode = rule.mode ?? "once";
         if (!["once", "per_draw", "repeat"].includes(mode))
             fail(`config.rules[${index}].${id}.mode`, "unsupported mode");
+        if (!conditionHasAction(rule.condition, `config.rules[${index}].${id}.condition`))
+            fail(`config.rules[${index}].${id}.condition`, "must contain at least one action");
         if (mode === "repeat" &&
             !everyPathHasAction(rule.condition, `config.rules[${index}].${id}.condition`))
             fail(`config.rules[${index}].${id}.condition`, "every repeat path must contain at least one action");

@@ -56,6 +56,10 @@ test("scans valid manifests and skips invalid installed configs", () => {
       "separator",
       "id: separator\nname: Test\ndescription: Test\nterminations:\n  - file: nested/termination.yaml\n    name: Done\n",
     );
+    const missingTermination = write_config(installed, "missing-termination");
+    rmSync(join(missingTermination, "termination.yaml"));
+    const missingConfig = write_config(installed, "missing-config");
+    rmSync(join(missingConfig, "config.yaml"));
 
     assert.deepEqual(scan_installed_configs(installed), [
       {
