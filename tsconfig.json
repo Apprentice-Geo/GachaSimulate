@@ -24,6 +24,7 @@
   },
   "include": [
     "src/export/**/*.ts",
+    "src/dev/**/*.ts",
     "src/visualize/**/*.ts",
     "src/visualize/**/*.tsx",
     "src/main/**/*.ts",

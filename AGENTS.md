@@ -14,6 +14,7 @@
 - 首次准备环境：`pnpm install --frozen-lockfile`，再按 Development Checks 完成 C++ Release install。
 - 启动 Electron 桌面应用：`pnpm run dev`。Electron 直接调用 `build/native/bin` 中的 core 和 analyzer。
 - `pnpm run dev:web` 只启动独立浏览器可视化入口，不是桌面应用。
+- 修改 Electron 或独立可视化 UI 后，建议使用 `pnpm run capture:ui [场景名]` 截取真实渲染结果，并查看项目内 `tmp/ui-captures/` 的图片；省略场景名时截取全部内置状态。
 - C++ 日常开发与 CI 使用 WSL2/Linux + Clang + Ninja；Windows 最终构建留给打包/CD 流程。完整环境说明和检查矩阵见 Development Checks。
 
 除上述默认入口外，不要在本文件复制链接文档中的详细命令、配置语法或实现清单。文档与实现冲突时，以源码和行为测试为准，并修正对应文档。
