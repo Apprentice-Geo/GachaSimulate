@@ -1,3 +1,4 @@
+export declare const YAML_TEXT_LIMIT: number;
 export declare class CompilerError extends Error {
     readonly path: string;
     constructor(path: string, message: string);

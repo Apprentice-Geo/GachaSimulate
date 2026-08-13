@@ -1,4 +1,4 @@
-import { compile_yaml } from "@gachasimulate/config-compiler";
+import { compile_yaml, YAML_TEXT_LIMIT } from "@gachasimulate/config-compiler";
 import { spawn, execFile } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -8,6 +8,8 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { cpus, tmpdir } from "node:os";
@@ -22,6 +24,7 @@ import {
 } from "../shared/simulation";
 
 const STDERR_LIMIT = 64 * 1024;
+const JSONL_LINE_LIMIT = 64 * 1024;
 const TERMINATION_TIMEOUT_MS = 10_000;
 
 type SimulationTaskDependencies = {
@@ -30,18 +33,31 @@ type SimulationTaskDependencies = {
     args: string[],
     options: { cwd: string; windowsHide: boolean },
   ) => ChildProcess;
-  terminate_process_tree?: (child: ChildProcess) => Promise<void>;
+  terminate_native_process?: (child: ChildProcess) => Promise<void>;
+  shutdown_native_processes?: () => Promise<void>;
   close_timeout_ms?: number;
   native_dir?: string;
   now?: () => Date;
   random_uuid?: () => string;
 };
 
+type NativeTask = { active: boolean; cancel(): Promise<void> };
+
+export async function shutdown_native_processes(
+  ...tasks: Array<NativeTask | undefined>
+): Promise<void> {
+  await Promise.all(
+    tasks
+      .filter((task): task is NativeTask => Boolean(task?.active))
+      .map((task) => task.cancel()),
+  );
+}
+
 function readable_error(reason: unknown): Error {
   return reason instanceof Error ? reason : new Error(String(reason));
 }
 
-export async function terminate_process_tree(
+export async function terminate_native_process(
   child: ChildProcess,
 ): Promise<void> {
   if (process.platform !== "win32") {
@@ -80,7 +96,7 @@ export async function terminate_process_tree(
 
 export class SimulationTask {
   private child: ChildProcess | null = null;
-  private child_close: Promise<void> | null = null;
+  private child_close: Promise<Error | null> | null = null;
   private cancel_promise: Promise<void> | null = null;
   private status: SimulationStatus = "idle";
   private cancelled = false;
@@ -139,6 +155,9 @@ export class SimulationTask {
       !existsSync(manifest_path)
     )
       throw new Error("configuration files not found");
+    for (const path of [config_path, termination_path, manifest_path])
+      if (statSync(path).size > YAML_TEXT_LIMIT)
+        throw new Error(`${basename(path)} exceeds 1 MiB`);
     const program = compile_yaml(
       readFileSync(config_path, "utf8"),
       readFileSync(termination_path, "utf8"),
@@ -160,7 +179,6 @@ export class SimulationTask {
     );
     this.temporary_dir = mkdtempSync(join(tmpdir(), "gachasimulate-electron-"));
     const ir = join(this.temporary_dir, "program.json");
-    writeFileSync(ir, JSON.stringify(program.ir));
     const native_dir = resolve(
       this.dependencies.native_dir ??
         join(process.cwd(), "build", "native", "bin"),
@@ -169,10 +187,6 @@ export class SimulationTask {
       native_dir,
       `gachasimulate-core${process.platform === "win32" ? ".exe" : ""}`,
     );
-    if (!existsSync(command)) {
-      this.cleanup_temporary_ir();
-      throw new Error(`native core not found: ${command}`);
-    }
     const args = [
       "--ir",
       ir,
@@ -196,27 +210,41 @@ export class SimulationTask {
     this.notify({ status: "starting" });
     let child: ChildProcess;
     try {
+      writeFileSync(ir, JSON.stringify(program.ir));
+      if (!existsSync(command))
+        throw new Error(`native core not found: ${command}`);
       child = (this.dependencies.spawn ?? spawn)(command, args, {
         cwd: native_dir,
         windowsHide: true,
       });
     } catch (error) {
       this.cleanup_temporary_ir();
+      this.cleanup_output();
       throw error;
     }
     this.child = child;
-    let resolve_close!: () => void;
-    this.child_close = new Promise<void>((resolve) => {
+    let resolve_close!: (error: Error | null) => void;
+    this.child_close = new Promise<Error | null>((resolve) => {
       resolve_close = resolve;
     });
     child.stdout?.setEncoding("utf8");
     child.stderr?.setEncoding("utf8");
     let stdout = "";
+    // ? 是可选链运算符 若前面是 null 或 undefined 则返回 undefined 否则返回前面的值
     child.stdout?.on("data", (chunk: string) => {
+      if (this.protocol_error) return;
       stdout += chunk;
+      // 以换行符分隔 兼容 windows 的 \r\n 和 linux 的 \n
       const lines = stdout.split(/\r?\n/);
+      // ?? 是空值合并运算符 若前面是 null 或 undefined 则返回后面的值 否则返回前面的值
+      // 将最后一个保存到 stdout 中 以便下一次接收数据时继续处理
       stdout = lines.pop() ?? "";
-      for (const line of lines) this.handle_line(line);
+      for (const line of lines) {
+        this.handle_line(line);
+        if (this.protocol_error) return;
+      }
+      if (Buffer.byteLength(stdout, "utf8") > JSONL_LINE_LIMIT)
+        this.fail_protocol("core JSONL line exceeds 64 KiB");
     });
     child.stderr?.on("data", (chunk: string) => {
       this.stderr = (this.stderr + chunk).slice(-STDERR_LIMIT);
@@ -227,18 +255,32 @@ export class SimulationTask {
     });
     child.on("close", (code) => {
       if (this.child !== child) return;
-      if (stdout.trim()) this.handle_line(stdout);
-      this.child = null;
-      this.child_close = null;
-      this.cleanup_temporary_ir();
-      resolve_close();
+      if (stdout.trim() && !this.protocol_error) this.handle_line(stdout);
       const outcome = resolve_process_outcome(
         code,
         this.saw_completed,
         this.saw_error,
         this.cancelled,
       );
-      if (this.protocol_error) {
+      let cleanup_error: Error | null = null;
+      try {
+        this.cleanup_temporary_ir();
+      } catch (error) {
+        cleanup_error = readable_error(error);
+      }
+      if (this.protocol_error || outcome !== "completed") {
+        try {
+          this.cleanup_output();
+        } catch (error) {
+          cleanup_error ??= readable_error(error);
+        }
+      }
+      this.child = null;
+      this.child_close = null;
+      resolve_close(cleanup_error);
+      if (cleanup_error) {
+        this.notify({ status: "failed", message: cleanup_error.message });
+      } else if (this.protocol_error) {
         this.notify({ status: "failed", message: this.protocol_error });
       } else if (outcome === "cancelled") this.notify({ status: "cancelled" });
       else if (outcome === "completed") this.notify({ status: "completed" });
@@ -260,21 +302,31 @@ export class SimulationTask {
     this.temporary_dir = null;
   }
 
+  private cleanup_output(): void {
+    if (this.expected_output && existsSync(this.expected_output))
+      unlinkSync(this.expected_output);
+  }
+
   private handle_line(line: string): void {
     try {
+      if (Buffer.byteLength(line, "utf8") > JSONL_LINE_LIMIT)
+        throw new Error("core JSONL line exceeds 64 KiB");
       const diagnostics: string[] = [];
       const event = parse_simulation_line(line, diagnostics);
       for (const diagnostic of diagnostics)
         console.warn(`simulation stdout: ${diagnostic}`);
       if (event) this.handle_event(event);
     } catch (error) {
-      if (!this.protocol_error)
-        this.protocol_error = readable_error(error).message;
-      const child = this.child;
-      if (child && !this.protocol_stop_started) {
-        this.protocol_stop_started = true;
-        void this.stop_after_protocol_error(child, this.status);
-      }
+      this.fail_protocol(readable_error(error).message);
+    }
+  }
+
+  private fail_protocol(message: string): void {
+    if (!this.protocol_error) this.protocol_error = message;
+    const child = this.child;
+    if (child && !this.protocol_stop_started) {
+      this.protocol_stop_started = true;
+      void this.stop_after_protocol_error(child, this.status);
     }
   }
 
@@ -285,10 +337,14 @@ export class SimulationTask {
     if (child.exitCode !== null || child.signalCode !== null) return;
     this.notify({ status: "cancelling" });
     try {
-      await (
-        this.dependencies.terminate_process_tree ?? terminate_process_tree
-      )(child);
-      await this.wait_for_close(child);
+      if (this.dependencies.shutdown_native_processes)
+        await this.dependencies.shutdown_native_processes();
+      else {
+        await (
+          this.dependencies.terminate_native_process ?? terminate_native_process
+        )(child);
+        await this.wait_for_close(child);
+      }
     } catch (error) {
       if (this.child !== child) return;
       const failure = readable_error(error);
@@ -328,7 +384,7 @@ export class SimulationTask {
     if (!close) return;
     let timer: NodeJS.Timeout | undefined;
     try {
-      await Promise.race([
+      const cleanup_error = await Promise.race([
         close,
         new Promise<never>((_resolve, reject) => {
           timer = setTimeout(
@@ -337,6 +393,7 @@ export class SimulationTask {
           );
         }),
       ]);
+      if (cleanup_error) throw cleanup_error;
     } finally {
       if (timer) clearTimeout(timer);
     }
@@ -353,14 +410,23 @@ export class SimulationTask {
     const cancellation = (async () => {
       try {
         await (
-          this.dependencies.terminate_process_tree ?? terminate_process_tree
+          this.dependencies.terminate_native_process ?? terminate_native_process
         )(child);
-        await this.wait_for_close(child);
       } catch (error) {
         if (this.child !== child) return;
         this.cancelled = false;
         const failure = readable_error(error);
         this.notify({ status: previous_status, message: failure.message });
+        throw failure;
+      }
+      try {
+        await this.wait_for_close(child);
+      } catch (error) {
+        const failure = readable_error(error);
+        if (this.child === child) {
+          this.cancelled = false;
+          this.notify({ status: previous_status, message: failure.message });
+        }
         throw failure;
       }
     })();

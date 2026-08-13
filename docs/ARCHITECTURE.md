@@ -1,51 +1,37 @@
 # Architecture
 
-本文档记录 GachaSimulate 的稳定模块、信任边界和数据契约；具体行为以源码、测试及专项文档为准。
+本文档提供 GachaSimulate 的代码地图，帮助贡献者判断“功能在哪里”和“改动应落在哪一层”。这里只记录稳定边界；具体协议、参数和检查命令见专项文档。
 
-## 数据流
+## 鸟瞰
+
+GachaSimulate 将 YAML 抽卡规则编译为中间表示，由 C++ Runtime 执行 Monte Carlo 模拟并保存 GSR。analyzer 从 GSR 生成平台无关的分析数据，供 Electron 展示和素材导出使用。Electron 与 CLI 是这条流水线的两个宿主，不实现模拟语义。
 
 ```text
-config.yaml + termination.yaml + manifest.yaml
-    + simulation result item
-    -> @gachasimulate/config-compiler
-    -> JSON IR
-    -> gachasimulate-core
-    -> GSR
-    -> gachasimulate-analyze
-    -> Analysis v2
-    -> analysis_to_visualize
-    -> VisualizeInput
+YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
+     -> analysis_to_visualize -> VisualizeInput
 ```
-
-GSR 是权威模拟结果，保存每次启动模拟前选择的 result item 期末库存。Electron 的“结果编辑”和“结果可视化”页面共享当前 GSR 会话。编辑后生成单一完整 `<stem>.visualize.json` sidecar；重新打开时只恢复五个展示字段，不从 sidecar 恢复统计。
 
 ## 代码地图
 
-- `packages/config-compiler/`：唯一 YAML 校验和 IR 编译实现。
-- `cpp/`：唯一模拟 Runtime、GSR 编解码、统计、core、analyzer 和 benchmark。
-- `packages/cli/`：YAML→IR→core 与 GSR→analyzer 的命令行包装。
-- `src/main/`：受信任的 Electron 文件系统、配置扫描、原生进程和结果编辑生命周期；扫描配置时通过 Compiler 读取并校验 `items`。
-- `src/preload/`：只暴露固定 IPC 能力。
-- `src/renderer/`：模拟表单、任务状态、结果编辑页和结果可视化页，不使用 Node.js。
-- `src/visualize/`：平台无关的 `VisualizeInput` 校验、视图模型、共享场景、浏览器入口和 Remotion composition。
-- `src/export/`：Node.js 素材导出宿主，负责文件系统、Remotion bundler/renderer 和进程入口。
-- `configs/`：本地配置与预置；`benchmark/cases/`：语言无关 benchmark case。
+- `packages/config-compiler/`：YAML 校验与 IR 编译；入口是 `compile_yaml`。
+- `cpp/`：Runtime 执行 IR；同层还包含 GSR 编解码、统计、core、analyzer 和 benchmark。
+- `packages/cli/`：组织 Compiler、core 和 analyzer 的命令行流程。
+- `src/main/`：受信任的 Electron 宿主；`SimulationTask` 管理 core 与模拟产物，`ResultEditor` 管理 analyzer 与结果会话。
+- `src/preload/`：main 与 renderer 之间的固定 IPC 桥。
+- `src/renderer/`：桌面界面与任务状态，不直接访问 Node.js。
+- `src/visualize/`：平台无关的输入校验、视图模型和共享场景，以 `VisualizeInput` 为边界。
+- `src/export/`：文件系统和 Remotion 导出宿主，依赖 `src/visualize/`。
+- `configs/` 与 `benchmark/cases/`：配置、预置和跨实现 benchmark case。
 
-## 信任边界
+## 边界与不变量
 
-Renderer 不能提供 executable、IR、GSR 输出路径或 analyzer 输入路径。main 从 `build/native/bin` 解析两个程序，只读取已安装配置，并在 `<userData>/results/` 生成唯一 GSR 路径。GSR 输入只来自 main 的系统文件对话框。
+- Config Compiler 是 YAML 到 IR 的唯一权威；C++ 不解析 YAML。
+- C++ Runtime 是模拟语义的唯一权威；GSR 是持久化模拟结果，analyzer 不重新模拟。
+- Electron renderer 不决定可执行文件和受信任文件路径；这些能力只存在于 main，并通过 preload 暴露固定操作。
+- `src/visualize/` 不依赖 Electron、Node.js 或导出宿主；Electron 展示与素材导出复用同一套输入处理和场景。
+- 启动原生进程的一层负责终止、等待和清理；失败任务不得留下临时 IR 或半成品结果。
+- IR、GSR、Analysis 和 VisualizeInput 是跨层契约。修改契约时必须同时检查生产方、消费方和行为测试。
 
-main 严格拒绝未知 SimulationRequest 字段。core/analyzer stdout、Analysis v2、sidecar 与 YAML/manifest 都在各自边界校验，并设置资源上限。应用关闭、取消、协议错误和异常退出必须终止原生进程树并清理临时 IR。
+## 专项文档
 
-## 稳定不变量
-
-- TS Compiler 是 YAML 到 IR 的唯一权威；C++ 不解析 YAML。
-- C++ Runtime 是模拟执行的唯一权威。
-- 固定次数返回精确 run 数；GSR 只保存所选 result item 的期末库存。
-- `threads` 是受逻辑 CPU 数限制的正整数；Electron 只允许从当前配置按完整、大小写敏感的 ID 选择 result item，默认优先 `draw_count`、否则选择第一项，Compiler 再次验证并将其对应索引写入 IR。
-- core 只写 GSR v2；analyzer 只输出 Analysis v2。
-- sidecar 只允许编辑 `title`、`target`、`note`、`price`、`unit`。
-- 修改 `VisualizeInput` 时同步 schema、类型、校验和测试。
-- 配置仓库、安装包、分析详情和 CDF 同屏预览是后置能力。
-
-语法见 [YAML Config Syntax](YAML_CONFIG_SYNTAX.md)，GSR 见 [GSR v2](GSR_V2.md)，分析见 [Analysis v2](ANALYSIS_V2.md)，可视化见 [Visualize Frontend Implementation](VISUALIZE_FRONTEND_IMPLEMENTATION.md)。
+配置语法见 `YAML_CONFIG_SYNTAX.md`，结果格式见 `GSR_V2.md`，分析格式见 `ANALYSIS_V2.md`，可视化边界见 `VISUALIZE_FRONTEND_IMPLEMENTATION.md`，检查矩阵见 `DEVELOPMENT_CHECKS.md`。

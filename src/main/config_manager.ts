@@ -4,15 +4,19 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  statSync,
 } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import {
   read_config_items,
   read_config_manifest,
+  YAML_TEXT_LIMIT,
 } from "@gachasimulate/config-compiler";
 import type { InstalledConfig } from "../shared/installed_config";
 
 function read_manifest(path: string, directory_name: string): InstalledConfig {
+  if (statSync(path).size > YAML_TEXT_LIMIT)
+    throw new Error("manifest.yaml exceeds 1 MiB");
   const manifest = read_config_manifest(readFileSync(path, "utf8"));
   if (manifest.id !== directory_name) throw new Error("manifest id mismatch");
   const root = resolve(path, "..");
@@ -26,6 +30,8 @@ function read_manifest(path: string, directory_name: string): InstalledConfig {
   });
   const config_path = join(root, "config.yaml");
   if (!existsSync(config_path)) throw new Error("config.yaml is missing");
+  if (statSync(config_path).size > YAML_TEXT_LIMIT)
+    throw new Error("config.yaml exceeds 1 MiB");
   const items = read_config_items(readFileSync(config_path, "utf8"));
   return {
     id: manifest.id,

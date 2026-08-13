@@ -18,7 +18,7 @@ import {
 import type { VisualizeInput } from "../visualize/types/visualize_input";
 import { analysis_to_visualize } from "../visualize/data/analysis";
 import { validate_input } from "../visualize/data/validate_input";
-import { terminate_process_tree } from "./simulation";
+import { terminate_native_process } from "./simulation";
 
 const JSON_LIMIT = 16 * 1024 * 1024;
 const STDERR_LIMIT = 64 * 1024;
@@ -29,7 +29,7 @@ type ResultEditorDependencies = {
     args: string[],
     options: { cwd: string; windowsHide: boolean },
   ) => ChildProcess;
-  terminate_process_tree?: (child: ChildProcess) => Promise<void>;
+  terminate_native_process?: (child: ChildProcess) => Promise<void>;
   native_dir?: string;
   random_uuid?: () => string;
 };
@@ -113,9 +113,9 @@ export class ResultEditor {
     const child = this.child;
     const close = this.child_close;
     if (!child || !close) return;
-    await (this.dependencies.terminate_process_tree ?? terminate_process_tree)(
-      child,
-    );
+    await (
+      this.dependencies.terminate_native_process ?? terminate_native_process
+    )(child);
     await close;
   }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { compile_yaml } from "@gachasimulate/config-compiler";
+import { compile_yaml, YAML_TEXT_LIMIT } from "@gachasimulate/config-compiler";
 import { constants, realpathSync } from "node:fs";
-import { access, mkdtemp, readFile, realpath, rm, writeFile, } from "node:fs/promises";
+import { access, mkdtemp, readFile, realpath, rm, stat, writeFile, } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -100,28 +100,42 @@ async function simulate(args) {
         if (error.code !== "ENOENT")
             throw error;
     }
-    const [config_text, termination_text, manifest_text] = await Promise.all([
-        readFile(join(config_dir, "config.yaml"), "utf8"),
-        readFile(termination_path, "utf8"),
-        readFile(join(config_dir, "manifest.yaml"), "utf8"),
-    ]);
+    const paths = [
+        join(config_dir, "config.yaml"),
+        termination_path,
+        join(config_dir, "manifest.yaml"),
+    ];
+    const sizes = await Promise.all(paths.map((path) => stat(path)));
+    const oversized = sizes.findIndex((value) => value.size > YAML_TEXT_LIMIT);
+    if (oversized >= 0)
+        throw new Error(`${basename(paths[oversized])} exceeds 1 MiB`);
+    const [config_text, termination_text, manifest_text] = await Promise.all(paths.map((path) => readFile(path, "utf8")));
     const program = compile_yaml(config_text, termination_text, manifest_text, require_option(values, "--result-item"));
     const temporary = await mkdtemp(join(tmpdir(), "gachasimulate-"));
     try {
         const ir = join(temporary, "program.json");
         await writeFile(ir, JSON.stringify(program.ir));
-        return await child("gachasimulate-core", [
-            "--ir",
-            ir,
-            "--total-runs",
-            positive(runs, "total-runs", 100000000n),
-            "--seed",
-            seed(values.get("--seed") ?? "0"),
-            "--threads",
-            positive(values.get("--threads") ?? "1", "threads", 4294967295n),
-            "--output",
-            output,
-        ]);
+        try {
+            const code = await child("gachasimulate-core", [
+                "--ir",
+                ir,
+                "--total-runs",
+                positive(runs, "total-runs", 100000000n),
+                "--seed",
+                seed(values.get("--seed") ?? "0"),
+                "--threads",
+                positive(values.get("--threads") ?? "1", "threads", 4294967295n),
+                "--output",
+                output,
+            ]);
+            if (code !== 0)
+                await rm(output, { force: true });
+            return code;
+        }
+        catch (error) {
+            await rm(output, { force: true });
+            throw error;
+        }
     }
     finally {
         await rm(temporary, { recursive: true, force: true });

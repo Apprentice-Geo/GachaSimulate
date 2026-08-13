@@ -2,6 +2,7 @@
 #include "gachasimulate/runtime.hpp"
 
 #include <charconv>
+#include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -96,9 +97,18 @@ int main(int argc, char **argv) {
     stage("loading_config");
     const auto program = gachasimulate::load_ir_file(ir);
     stage("simulating");
+    int lastPercent = 0;
+    auto lastProgress = std::chrono::steady_clock::now();
     const auto report_progress = [&](uint64_t completed) {
-      event("progress",
-            {{"completed", std::min(completed, runs)}, {"total", runs}, {"unit", "runs"}});
+      completed = std::min(completed, runs);
+      const auto percent = static_cast<int>(completed * 100 / runs);
+      const auto now = std::chrono::steady_clock::now();
+      if (completed != runs &&
+          (percent <= lastPercent || now - lastProgress < std::chrono::milliseconds(100)))
+        return;
+      event("progress", {{"completed", completed}, {"total", runs}, {"unit", "runs"}});
+      lastPercent = percent;
+      lastProgress = now;
     };
     const auto result =
         gachasimulate::simulate_fixed_runs(program, runs, seed, threads, report_progress);

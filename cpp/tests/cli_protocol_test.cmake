@@ -11,7 +11,7 @@ foreach(expected
     "{\"type\":\"started\"}"
     "{\"stage\":\"loading_config\",\"type\":\"stage\"}"
     "{\"stage\":\"simulating\",\"type\":\"stage\"}"
-    "\"type\":\"progress\""
+    "{\"completed\":7,\"total\":7,\"type\":\"progress\",\"unit\":\"runs\"}"
     "{\"stage\":\"saving\",\"type\":\"stage\"}"
     "\"type\":\"completed\""
     "\"total_result\":7"
@@ -21,6 +21,11 @@ foreach(expected
     message(FATAL_ERROR "missing JSONL fragment ${expected}: ${stdout}")
   endif()
 endforeach()
+string(REGEX MATCHALL "\"type\":\"progress\"" progress_events "${stdout}")
+list(LENGTH progress_events progress_count)
+if(NOT progress_count EQUAL 1)
+  message(FATAL_ERROR "fast run should emit only final progress: ${stdout}")
+endif()
 string(FIND "${stdout}" "\"event\":" legacy_event)
 if(NOT legacy_event EQUAL -1)
   message(FATAL_ERROR "legacy event field found: ${stdout}")

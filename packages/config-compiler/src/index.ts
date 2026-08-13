@@ -1,5 +1,7 @@
 import { parseDocument } from "yaml";
 
+export const YAML_TEXT_LIMIT = 1024 * 1024;
+
 const ID = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const MANIFEST_ID = /^[A-Za-z0-9_-]+$/;
 const ACTION = /^([A-Za-z_][A-Za-z0-9_]*)\s*(\+=|-=|=)\s*(\d+)$/;
@@ -71,10 +73,16 @@ function actions(value: unknown, path: string): string[] {
 }
 
 function parse_yaml(text: string, name: string): Record<string, unknown> {
+  if (new TextEncoder().encode(text).byteLength > YAML_TEXT_LIMIT)
+    fail(name, "must not exceed 1 MiB");
   const document = parseDocument(text, { uniqueKeys: true });
   if (document.errors.length)
     fail(name, document.errors[0].message.replace(/\n.*/s, ""));
-  return map(document.toJS(), name);
+  try {
+    return map(document.toJS({ maxAliasCount: 0 }), name);
+  } catch (error) {
+    fail(name, error instanceof Error ? error.message : String(error));
+  }
 }
 
 function config_items(value: unknown): ConfigItem[] {

@@ -73,7 +73,7 @@ Prettier 和 ESLint 检查手写的 TypeScript/JavaScript；生成的 package Ja
 ## Electron 人工验收
 
 - 固定次数能运行，threads 边界正确，任务互斥。
-- 取消、窗口关闭和应用退出后无残留 core/analyzer，临时 IR 已清理。
+- 取消、窗口关闭和应用退出后无残留 core/analyzer；失败任务不留下临时 IR 或半成品 GSR。
 - 完成后能打开结果目录并选择 GSR。
 - 启动前选择的任意合法 result item 都能分析；损坏/超限 GSR 和 analyzer 失败显示上下文错误。
 - 五字段失焦后原子保存对应 sidecar；重新打开只恢复五字段。

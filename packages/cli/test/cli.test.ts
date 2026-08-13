@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { test } from "node:test";
 
 const cli = resolve("dist/index.js");
@@ -14,7 +20,7 @@ function run(args: string[], environment: NodeJS.ProcessEnv = {}) {
   });
 }
 
-test("simulates fixed runs and analyzes the selected result item", () => {
+test("simulates fixed runs and analyzes the selected result item", async () => {
   const root = mkdtempSync(join(tmpdir(), "gachasimulate-cli-test-"));
   const config = join(root, "config");
   const temporary = join(root, "tmp");
@@ -95,6 +101,41 @@ terminations:
     ]).status,
     0,
   );
+
+  const interrupted_output = join(root, "interrupted.gsr");
+  const interrupted = spawn(
+    process.execPath,
+    [
+      cli,
+      "simulate",
+      ...common,
+      "--total-runs",
+      "100000000",
+      "--output",
+      interrupted_output,
+    ],
+    {
+      env: { ...process.env, TMPDIR: temporary },
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  await new Promise<void>((resolve_promise, reject) => {
+    interrupted.once("error", reject);
+    interrupted.stdout.setEncoding("utf8");
+    interrupted.stdout.on("data", (chunk: string) => {
+      if (chunk.includes('"stage":"simulating"')) interrupted.kill("SIGTERM");
+    });
+    interrupted.once("close", () => resolve_promise());
+  });
+  assert.equal(existsSync(interrupted_output), false);
+
+  const failed_output = join(root, "missing", "failed.gsr");
+  assert.notEqual(
+    run(["simulate", ...common, "--total-runs", "1", "--output", failed_output])
+      .status,
+    0,
+  );
+  assert.equal(existsSync(failed_output), false);
   assert.deepEqual(readdirSync(temporary), []);
 });
 

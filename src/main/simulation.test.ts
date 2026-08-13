@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { existsSync } from "node:fs";
+import { existsSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 import type { ChildProcess } from "node:child_process";
-import { SimulationTask } from "./simulation";
+import { shutdown_native_processes, SimulationTask } from "./simulation";
 import {
   parse_simulation_line,
   resolve_process_outcome,
@@ -58,7 +58,7 @@ function create_task(
         args = next_args;
         return child as unknown as ChildProcess;
       },
-      terminate_process_tree: terminate,
+      terminate_native_process: terminate,
       close_timeout_ms,
     },
   );
@@ -190,6 +190,35 @@ test("invalid JSONL keeps the task active until close then fails", async () => {
   assert.equal(task.active, false);
 });
 
+test("assembles chunked JSONL and rejects oversized complete or partial lines once", async () => {
+  const normal = create_task(async () => {});
+  normal.child.stdout.write('{"type":"pro');
+  normal.child.stdout.write('gress","completed":1,"total":1,"unit":"runs"}\n');
+  assert.equal(normal.events.at(-1)?.event?.type, "progress");
+  normal.child.close(1);
+
+  for (const chunks of [
+    ["x".repeat(64 * 1024 + 1), "\n"],
+    ["x".repeat(32 * 1024), "x".repeat(32 * 1024 + 1)],
+  ]) {
+    let terminate_calls = 0;
+    const value = create_task(async () => {
+      terminate_calls += 1;
+    });
+    const output = value.args.at(-1)!;
+    writeFileSync(output, "partial");
+    for (const chunk of chunks) value.child.stdout.write(chunk);
+    await Promise.resolve();
+    assert.equal(terminate_calls, 1);
+    value.child.close(1);
+    assert.equal(
+      value.events.at(-1)?.message,
+      "core JSONL line exceeds 64 KiB",
+    );
+    assert.equal(existsSync(output), false);
+  }
+});
+
 test("protocol termination failure remains retryable and preserves the protocol error", async () => {
   let terminate_calls = 0;
   const { child, events, task } = create_task(async () => {
@@ -274,4 +303,62 @@ test("uses only trusted native paths and removes temporary IR on close", () => {
   );
   child.close(1);
   assert.equal(existsSync(ir), false);
+});
+
+test("keeps only a successfully completed GSR", async () => {
+  const success = create_task(async () => {});
+  const success_output = success.args.at(-1)!;
+  writeFileSync(success_output, "complete");
+  success.child.stdout.write(
+    `${JSON.stringify({
+      type: "completed",
+      result_path: success_output,
+      total_runs: 1,
+      total_result: 1,
+    })}\n`,
+  );
+  success.child.close(0);
+  assert.equal(existsSync(success_output), true);
+  unlinkSync(success_output);
+
+  const failed = create_task(async () => {});
+  const failed_output = failed.args.at(-1)!;
+  writeFileSync(failed_output, "partial");
+  failed.child.close(1);
+  assert.equal(existsSync(failed_output), false);
+
+  const cancelled = create_task(async () => {});
+  const cancelled_output = cancelled.args.at(-1)!;
+  writeFileSync(cancelled_output, "partial");
+  const stopping = cancelled.task.cancel();
+  cancelled.child.close(null, "SIGTERM");
+  await stopping;
+  assert.equal(existsSync(cancelled_output), false);
+});
+
+test("spawn failure removes the temporary IR", () => {
+  let ir = "";
+  const task = new SimulationTask(
+    resolve("configs"),
+    resolve("results"),
+    () => {},
+    {
+      spawn: (_command, args) => {
+        ir = args[1];
+        throw new Error("spawn failed");
+      },
+    },
+  );
+  assert.throws(() => task.start(request), /spawn failed/);
+  assert.equal(existsSync(ir), false);
+});
+
+test("shutdown stops active simulation and analyzer tasks together", async () => {
+  const calls: string[] = [];
+  await shutdown_native_processes(
+    { active: true, cancel: async () => void calls.push("simulation") },
+    { active: true, cancel: async () => void calls.push("analyzer") },
+    { active: false, cancel: async () => void calls.push("inactive") },
+  );
+  assert.deepEqual(calls.sort(), ["analyzer", "simulation"]);
 });

@@ -7,13 +7,17 @@ import {
   validate_installed_config_selection,
 } from "./config_manager";
 import { ResultEditor } from "./result_editor";
-import { SimulationTask } from "./simulation";
+import { shutdown_native_processes, SimulationTask } from "./simulation";
 import { validate_simulation_request } from "../shared/simulation";
 import type { DisplayFields } from "../shared/result_editor";
 
 let simulation: SimulationTask;
 let result_editor: ResultEditor;
 let quitting = false;
+
+function shutdown(): Promise<void> {
+  return shutdown_native_processes(simulation, result_editor);
+}
 
 function create_window(): void {
   const window = new BrowserWindow({
@@ -29,7 +33,7 @@ function create_window(): void {
       event.preventDefault();
       if (quitting) return;
       quitting = true;
-      void result_editor.cancel().then(
+      void shutdown().then(
         () => window.destroy(),
         () => {
           quitting = false;
@@ -55,10 +59,7 @@ function create_window(): void {
           return;
         }
         try {
-          await Promise.all([
-            simulation.cancel(),
-            result_editor.active ? result_editor.cancel() : Promise.resolve(),
-          ]);
+          await shutdown();
           window.destroy();
         } catch (error) {
           quitting = false;
@@ -88,10 +89,15 @@ app.whenReady().then(() => {
   );
   const results_dir = join(app.getPath("userData"), "results");
   result_editor = new ResultEditor();
-  simulation = new SimulationTask(installed_dir, results_dir, (event) => {
-    for (const window of BrowserWindow.getAllWindows())
-      window.webContents.send("simulation-event", event);
-  });
+  simulation = new SimulationTask(
+    installed_dir,
+    results_dir,
+    (event) => {
+      for (const window of BrowserWindow.getAllWindows())
+        window.webContents.send("simulation-event", event);
+    },
+    { shutdown_native_processes: shutdown },
+  );
   ipcMain.handle("list-installed-configs", () =>
     scan_installed_configs(installed_dir),
   );
@@ -105,7 +111,7 @@ app.whenReady().then(() => {
     );
     simulation.start(request);
   });
-  ipcMain.handle("cancel-simulation", () => simulation.cancel());
+  ipcMain.handle("cancel-simulation", () => shutdown());
   ipcMain.handle("select-gsr-result", async () => {
     const result = await dialog.showOpenDialog({
       properties: ["openFile"],
@@ -134,4 +140,21 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+app.on("before-quit", (event) => {
+  if (!simulation?.active && !result_editor?.active) return;
+  event.preventDefault();
+  if (quitting) return;
+  quitting = true;
+  void shutdown().then(
+    () => app.quit(),
+    (error) => {
+      quitting = false;
+      dialog.showErrorBox(
+        "无法退出 GachaSimulate",
+        error instanceof Error ? error.message : String(error),
+      );
+    },
+  );
 });

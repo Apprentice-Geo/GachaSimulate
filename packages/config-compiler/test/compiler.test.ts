@@ -2,11 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CompilerError,
+  YAML_TEXT_LIMIT,
   compile,
   compile_yaml,
   read_config_items,
   read_config_manifest,
 } from "../src/index.js";
+
+function padded(source: string, bytes: number): string {
+  return `${source}#${"x".repeat(bytes - Buffer.byteLength(source) - 2)}\n`;
+}
 
 const config = `schema_version: 2
 items: [draw_count, target]
@@ -223,5 +228,34 @@ test("reads and validates manifests through the shared compiler contract", () =>
   assert.throws(
     () => compile_yaml(config, termination, "id: invalid\n", "draw_count"),
     /manifest.name/,
+  );
+});
+
+test("limits every YAML input to 1 MiB and rejects aliases", () => {
+  assert.doesNotThrow(() =>
+    read_config_items(padded("items: [draw_count]\n", YAML_TEXT_LIMIT)),
+  );
+  assert.throws(
+    () =>
+      read_config_items(padded("items: [draw_count]\n", YAML_TEXT_LIMIT + 1)),
+    /1 MiB/,
+  );
+  assert.throws(
+    () =>
+      compile_yaml(
+        config,
+        padded(termination, YAML_TEXT_LIMIT + 1),
+        manifest,
+        "draw_count",
+      ),
+    /termination.*1 MiB/,
+  );
+  assert.throws(
+    () => read_config_manifest(padded(manifest, YAML_TEXT_LIMIT + 1)),
+    /manifest.*1 MiB/,
+  );
+  assert.throws(
+    () => read_config_items("items: &items [draw_count]\ncopy: *items\n"),
+    /alias/i,
   );
 });
