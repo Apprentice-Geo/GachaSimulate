@@ -15,7 +15,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,js,mjs,cjs,css,json}\" \"e2e/**/*.{ts,tsx,js,mjs,cjs,json}\" \"docs/schemas/**/*.json\" \"*.{ts,js,mjs,cjs,json,html}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,mjs,cjs,css,json}\" \"e2e/**/*.{ts,tsx,js,mjs,cjs,json}\" \"docs/schemas/**/*.json\" \"*.{ts,js,mjs,cjs,json,html}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs,json}\"",
     "lint": "eslint \"src/**/*.{ts,tsx,js,mjs,cjs}\" \"e2e/**/*.{ts,tsx,js,mjs,cjs}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs}\" \"*.{ts,js,mjs,cjs}\"",
-    "typecheck": "tsc --noEmit && pnpm --recursive --filter './packages/*' typecheck",
+    "typecheck": "pnpm run build:compiler && tsc --noEmit && pnpm --recursive --filter './packages/*' typecheck",
     "build": "pnpm run build:compiler && tsc --noEmit && electron-vite build",
     "build:web": "tsc --noEmit && vite build",
     "capture:ui": "pnpm run build:compiler && electron-vite build && tsx src/dev/capture_ui.ts",
