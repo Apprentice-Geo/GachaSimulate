@@ -45,12 +45,12 @@ const QUANTILE_PERCENTAGES: Partial<Record<StatisticKey, number>> = {
 export function get_statistic_description(key: StatisticKey): string {
   const percentage = QUANTILE_PERCENTAGES[key];
   if (percentage !== undefined) {
-    return `${percentage}% 的期末数量不超过此值`;
+    return `第 ${percentage} 百分位`;
   }
   if (key === "MEAN") {
-    return "所有模拟结果的期末平均数量";
+    return "平均结果";
   }
-  return `本轮模拟期末数量${key === "MIN" ? "最小值" : "最大值"}`;
+  return key === "MIN" ? "最小结果" : "最大结果";
 }
 
 export const STATISTIC_VIEW_ORDER = [
@@ -74,8 +74,8 @@ export function get_distribution_statistic_groups(): {
   title: string;
   keys: readonly DistributionStatisticKey[];
 }[] {
-  return ["低", "中", "高"].map((range, index) => ({
-    title: `${range}期末数量区间`,
+  return ["偏低结果", "典型结果", "偏高结果"].map((title, index) => ({
+    title,
     keys: DISTRIBUTION_GROUP_KEYS[index],
   }));
 }

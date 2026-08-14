@@ -45,6 +45,7 @@ function make_valid_input(
     target: "target",
     result_item: { id: "draw_count", name: "抽数" },
     total: 3,
+    runs: 4,
     note: "",
     timestamp: 0,
     values: [1, 2, 3],
@@ -142,6 +143,7 @@ test("selected file text passes through JSON, schema, and normalization", async 
   );
   assert.deepEqual(normalized.result_item, { id: "draw_count", name: "抽数" });
   assert.equal(normalized.total_display, "3");
+  assert.equal(normalized.runs, 4);
 
   await assert.rejects(load_input_from_text("not json"), SyntaxError);
   await assert.rejects(load_input_from_text('{"title":"missing fields"}'));
@@ -320,6 +322,7 @@ test("build_visualize_view_model derives result-item values and markers", () => 
     target: "target",
     result_item: { id: "tokens", name: "代币" },
     total: 100,
+    runs: 2,
     note: "",
     timestamp: 0,
     values: [1, 2],
@@ -344,7 +347,7 @@ test("build_visualize_view_model derives result-item values and markers", () => 
   assert.equal("metrics" in normalized_input, false);
   assert.equal("markers" in normalized_input, false);
   assert.equal(normalized_input.total_display, "100 测试币");
-  assert.equal(normalized_input.axis_title, "期末 代币 数量");
+  assert.equal(normalized_input.axis_title, "结束时的代币");
   assert.equal(normalized_input.price, "单抽 10 RMB；十连抽 90 RMB");
 
   const view_model = build_visualize_view_model(normalized_input);
@@ -372,7 +375,7 @@ test("result item omits suffixes when unit is empty", () => {
   const view_model = build_visualize_view_model(normalized_input);
 
   assert.equal(normalized_input.total_display, "3");
-  assert.equal(normalized_input.axis_title, "期末 抽数 数量");
+  assert.equal(normalized_input.axis_title, "结束时的抽数");
   assert.equal(normalized_input.price, "");
   assert.equal(
     view_model.metrics.find((metric) => metric.key === "P50")?.display_value,

@@ -63,16 +63,10 @@ test("loads fixture from url input and renders dynamic page regions", async ({
   await expect(page.getByTestId("cdf-chart")).toBeVisible();
   await expect(page.getByTestId("cdf-curve-path")).toHaveAttribute("d", /M/);
   await expect(page.getByText("累计占比")).toBeVisible();
-  await expect(page.getByText("期末 抽数 数量")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "低期末数量区间" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "中期末数量区间" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "高期末数量区间" }),
-  ).toBeVisible();
+  await expect(page.getByText("结束时的抽数")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "偏低结果" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "典型结果" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "偏高结果" })).toBeVisible();
   await expect(page.getByText("单抽 10 RMB；十连抽 90 RMB")).toBeVisible();
   await expect(page.getByTestId("statistic-panel")).toBeVisible();
   await expect(page.getByTestId("stat-COST")).toHaveCount(0);
@@ -117,17 +111,11 @@ test("renders generic result item wording, units, and opaque price text", async 
 
   await goto_fixture(page);
 
-  await expect(page.getByText("期末 代币 数量", { exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "低期末数量区间" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "中期末数量区间" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "高期末数量区间" }),
-  ).toBeVisible();
-  await expect(page.getByText("期末 代币 总量：1,234 测试币")).toBeVisible();
+  await expect(page.getByText("结束时的代币", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "偏低结果" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "典型结果" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "偏高结果" })).toBeVisible();
+  await expect(page.getByText("累计模拟次数：1,000,000 次")).toBeVisible();
   await expect(
     page.getByText("单抽 10 RMB；十连抽 90 RMB", { exact: true }),
   ).toBeVisible();

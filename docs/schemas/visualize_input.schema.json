@@ -9,6 +9,7 @@
     "target",
     "result_item",
     "total",
+    "runs",
     "note",
     "statistic",
     "termination_reason",
@@ -37,6 +38,10 @@
     "total": {
       "type": "integer",
       "minimum": 0
+    },
+    "runs": {
+      "type": "integer",
+      "minimum": 1
     },
     "note": {
       "type": "string"

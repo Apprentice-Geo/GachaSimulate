@@ -8,6 +8,7 @@ export const VISUALIZE_INPUT_REQUIRED_KEYS = [
   "target",
   "result_item",
   "total",
+  "runs",
   "note",
   "statistic",
   "termination_reason",
@@ -47,6 +48,7 @@ export interface VisualizeInput {
   target: string;
   result_item: { id: string; name: string };
   total: number;
+  runs: number;
   note: string;
   statistic: VisualizeStatisticInput;
   termination_reason: TerminationReasonInput[];
@@ -110,6 +112,7 @@ export interface NormalizedVisualizeInputData {
   target: string;
   result_item: { id: string; name: string };
   total: number;
+  runs: number;
   total_display: string;
   display_unit: string;
   axis_title: string;

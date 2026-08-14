@@ -68,10 +68,11 @@ export function analysis_to_visualize(
   ) as unknown as VisualizeInput["statistic"];
   statistic.MEAN_LEVEL = analysis.statistic.MEAN_LEVEL;
   const input: VisualizeInput = {
-    title: "期末数量分布",
+    title: "模拟结果分布",
     target: "未设置",
     result_item: analysis.result_item,
     total: safe_non_negative(analysis.totals.result, "total"),
+    runs: safe_non_negative(analysis.totals.runs, "runs"),
     note: "MEAN 受极端值影响，P50 表示一半结果不超过该值，P95 表示 95% 结果不超过该值。MIN、MAX 受模拟次数影响，不代表理论极限。",
     statistic,
     termination_reason: analysis.termination_reason,

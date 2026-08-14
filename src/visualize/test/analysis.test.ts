@@ -25,6 +25,7 @@ const valid = {
 test("validates analysis and adapts it through VisualizeInput validation", () => {
   const result = analysis_to_visualize(valid, 1_700_000_000_123);
   assert.equal(result.total, 11);
+  assert.equal(result.runs, 4);
   assert.deepEqual(result.result_item, { id: "draw_count", name: "抽数" });
   assert.equal(result.timestamp, 1_700_000_000);
   assert.deepEqual(result.values, [1, 2, 4]);

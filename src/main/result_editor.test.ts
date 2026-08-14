@@ -91,10 +91,11 @@ test("uses the v2 analyzer and saves a complete single sidecar", async () => {
     );
     assert.deepEqual(value.calls[0].args, ["--input", value.path]);
     assert.deepEqual(state.input, {
-      title: "期末数量分布",
+      title: "模拟结果分布",
       target: "未设置",
       result_item: { id: "draw_count", name: "抽数" },
       total: 3,
+      runs: 2,
       note: "MEAN 受极端值影响，P50 表示一半结果不超过该值，P95 表示 95% 结果不超过该值。MIN、MAX 受模拟次数影响，不代表理论极限。",
       statistic: {
         P5: 1,
@@ -157,6 +158,7 @@ test("restores display fields while preserving authoritative analysis and bad si
     );
     assert.equal(state.fields.title, "保留");
     assert.equal(state.input.total, 7);
+    assert.equal(state.input.runs, 2);
     assert.equal(JSON.parse(readFileSync(sidecar, "utf8")).total, 3);
 
     writeFileSync(sidecar, "{broken");
