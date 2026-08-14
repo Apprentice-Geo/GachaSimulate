@@ -29,7 +29,7 @@ Electron 开发前必须存在 `build/native/bin/gachasimulate-core` 和 `gachas
 
 sidecar 是完整的 `VisualizeInput`，但重新打开时统计、CDF、termination、result item、total 和 timestamp 始终从 GSR 重新分析，只恢复 `title`、`target`、`note`、`price` 和 `unit`。
 
-安装目录为空时，应用会复制 `configs/presets/`。桌面数据位于 `app.getPath("userData")` 下的 `configs/installed/` 与 `results/`。
+桌面数据位于 `app.getPath("userData")` 下的 `configs/installed/` 与 `results/`。
 
 Electron 当前只支持从源码启动。安装包、远端配置仓库、分析详情和 CDF 同屏预览尚未实现。
 
@@ -38,7 +38,6 @@ Electron 当前只支持从源码启动。安装包、远端配置仓库、分�
 构建 workspace CLI：
 
 ```bash
-pnpm --dir packages/config-compiler build
 pnpm --dir packages/cli build
 ```
 

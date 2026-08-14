@@ -163,9 +163,6 @@ jobs:
       - name: Build and test packages
         run: pnpm run test:packages
 
-      - name: Check committed package builds
-        run: git diff --exit-code -- packages/*/dist
-
   e2e:
     name: Playwright e2e
     runs-on: ubuntu-latest

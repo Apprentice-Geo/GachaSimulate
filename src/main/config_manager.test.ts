@@ -1,17 +1,9 @@
 import assert from "node:assert/strict";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import {
-  initialize_installed_configs,
   scan_installed_configs,
   validate_installed_config_selection,
 } from "./config_manager";
@@ -122,37 +114,5 @@ test("only manifest-declared configuration selections can start", () => {
     );
   } finally {
     rmSync(installed, { recursive: true, force: true });
-  }
-});
-
-test("initialization copies presets only when the installed directory is empty", () => {
-  const root = temporary_directory();
-  try {
-    const presets = join(root, "presets");
-    const empty_installed = join(root, "empty-installed");
-    write_config(presets, "first");
-    write_config(presets, "second");
-
-    initialize_installed_configs(empty_installed, presets);
-    assert.equal(
-      existsSync(join(empty_installed, "first", "config.yaml")),
-      true,
-    );
-    assert.equal(
-      existsSync(join(empty_installed, "second", "config.yaml")),
-      true,
-    );
-
-    const nonempty_installed = join(root, "nonempty-installed");
-    const existing = write_config(nonempty_installed, "first");
-    writeFileSync(join(existing, "config.yaml"), "keep: true\n");
-    initialize_installed_configs(nonempty_installed, presets);
-    assert.equal(
-      readFileSync(join(existing, "config.yaml"), "utf8"),
-      "keep: true\n",
-    );
-    assert.equal(existsSync(join(nonempty_installed, "second")), false);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
   }
 });

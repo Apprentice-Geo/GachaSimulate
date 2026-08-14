@@ -59,7 +59,7 @@ pnpm run build:web
 pnpm run test:e2e
 ```
 
-Prettier 和 ESLint 检查手写的 TypeScript/JavaScript；生成的 package JavaScript 和声明文件由 TypeScript build、package 测试及 CI 的 dist 同步检查负责。
+Package 的 `dist/` 不提交；Electron、CLI 和相关测试入口会在使用前构建所需 package。
 
 ## 按影响范围选择
 

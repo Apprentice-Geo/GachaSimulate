@@ -1,11 +1,4 @@
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-} from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import {
   read_config_items,
@@ -76,18 +69,4 @@ export function validate_installed_config_selection(
   if (!config) throw new Error("installed config not found");
   if (!config.terminations.some((item) => item.file === termination))
     throw new Error("termination is not declared by the installed config");
-}
-
-export function initialize_installed_configs(
-  installed_dir: string,
-  presets_dir: string,
-): void {
-  mkdirSync(installed_dir, { recursive: true });
-  if (readdirSync(installed_dir).length > 0) return;
-  for (const entry of readdirSync(presets_dir, { withFileTypes: true })) {
-    if (entry.isDirectory())
-      cpSync(join(presets_dir, entry.name), join(installed_dir, entry.name), {
-        recursive: true,
-      });
-  }
 }

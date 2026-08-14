@@ -2,7 +2,6 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { cpus } from "node:os";
 import { join } from "node:path";
 import {
-  initialize_installed_configs,
   scan_installed_configs,
   validate_installed_config_selection,
 } from "./config_manager";
@@ -83,10 +82,6 @@ function create_window(): void {
 
 app.whenReady().then(() => {
   const installed_dir = join(app.getPath("userData"), "configs", "installed");
-  initialize_installed_configs(
-    installed_dir,
-    join(process.cwd(), "configs", "presets"),
-  );
   const results_dir = join(app.getPath("userData"), "results");
   result_editor = new ResultEditor();
   simulation = new SimulationTask(
