@@ -74,11 +74,17 @@ termination_rule:
     root.children!.begin + root.children!.count,
   );
 
-  assert.deepEqual(rootChildren.map((id) => nodes[id].kind), ["logic", "check"]);
+  assert.deepEqual(
+    rootChildren.map((id) => nodes[id].kind),
+    ["logic", "check"],
+  );
   const nested = nodes[rootChildren[0]];
   assert.deepEqual(
     childIds
-      .slice(nested.children!.begin, nested.children!.begin + nested.children!.count)
+      .slice(
+        nested.children!.begin,
+        nested.children!.begin + nested.children!.count,
+      )
       .map((id) => nodes[id].kind),
     ["check", "check"],
   );

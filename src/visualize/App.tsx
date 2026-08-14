@@ -47,8 +47,9 @@ export default function App({
     new URLSearchParams(window.location.search).get("autoplay") === "0",
   );
   const first_ready_seen_ref = useRef(false);
+  const viewport_ref = useRef<HTMLDivElement>(null);
 
-  use_page_scale();
+  use_page_scale(viewport_ref);
 
   const start_animation = useCallback(() => {
     if (animation_frame_ref.current !== null) {
@@ -184,46 +185,50 @@ export default function App({
       ? "primed"
       : "idle";
 
-  if (state.status === "ready" && data) {
-    return (
-      <VisualizeScene
-        animation_progress={animation_progress}
-        animation_state={animation_state}
-        data={data}
-        is_animating={is_animating}
-        on_file_import={external ? undefined : handle_file_import}
-        on_select_file={
-          on_select_result ? () => void handle_desktop_file_select() : undefined
-        }
-        on_replay={start_animation}
-      />
-    );
-  }
-
   return (
-    <VisualizeShell
-      animation_progress={null}
-      animation_state={animation_state}
-      chart_slot={
-        <>
-          {state.status === "idle" && <EmptyState desktop={external} />}
-          {state.status === "loading" && <LoadingState />}
-          {state.status === "error" && (
-            <ErrorState
-              message={state.message}
-              on_file_import={external ? undefined : handle_file_import}
-            />
-          )}
-        </>
-      }
-      data={data}
-      is_animating={is_animating}
-      load_state={state.status}
-      on_file_import={external ? undefined : handle_file_import}
-      on_select_file={
-        on_select_result ? () => void handle_desktop_file_select() : undefined
-      }
-      on_replay={start_animation}
-    />
+    <div className="visualize-viewport" ref={viewport_ref}>
+      {state.status === "ready" && data ? (
+        <VisualizeScene
+          animation_progress={animation_progress}
+          animation_state={animation_state}
+          data={data}
+          is_animating={is_animating}
+          on_file_import={external ? undefined : handle_file_import}
+          on_select_file={
+            on_select_result
+              ? () => void handle_desktop_file_select()
+              : undefined
+          }
+          on_replay={start_animation}
+        />
+      ) : (
+        <VisualizeShell
+          animation_progress={null}
+          animation_state={animation_state}
+          chart_slot={
+            <>
+              {state.status === "idle" && <EmptyState desktop={external} />}
+              {state.status === "loading" && <LoadingState />}
+              {state.status === "error" && (
+                <ErrorState
+                  message={state.message}
+                  on_file_import={external ? undefined : handle_file_import}
+                />
+              )}
+            </>
+          }
+          data={data}
+          is_animating={is_animating}
+          load_state={state.status}
+          on_file_import={external ? undefined : handle_file_import}
+          on_select_file={
+            on_select_result
+              ? () => void handle_desktop_file_select()
+              : undefined
+          }
+          on_replay={start_animation}
+        />
+      )}
+    </div>
   );
 }

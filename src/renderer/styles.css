@@ -124,13 +124,10 @@ button:focus-visible {
 }
 
 .renderer-content {
+  height: 100%;
   min-height: 100%;
   min-width: 0;
   position: relative;
-}
-
-.renderer-content > .visualize-page {
-  margin: 0 auto;
 }
 
 .renderer-placeholder {
@@ -140,6 +137,10 @@ button:focus-visible {
   justify-content: center;
   min-height: 100%;
   padding: 64px clamp(48px, 8vw, 160px);
+}
+
+.renderer-placeholder[hidden] {
+  display: none;
 }
 
 .renderer-placeholder-mark {

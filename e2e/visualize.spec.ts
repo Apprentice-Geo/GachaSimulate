@@ -170,7 +170,7 @@ test("keeps export layout regions present and readable", async ({ page }) => {
   expect(layout_contract!.note_below_main).toBe(true);
 });
 
-test("keeps enlarged preview scrollable from the left edge", async ({
+test("refits the preview after viewport resize without changing its aspect ratio", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
@@ -182,49 +182,54 @@ test("keeps enlarged preview scrollable from the left edge", async ({
     "idle",
   );
 
-  await page.setViewportSize({ width: 1536, height: 864 });
+  await page.setViewportSize({ width: 1536, height: 900 });
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Number(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--page-scale",
+          ),
+        ),
+      ),
+    )
+    .toBeCloseTo(1536 / 3840, 5);
 
-  const scroll_contract = await page.evaluate(() => {
-    const root = document.querySelector("#root");
+  const fit_contract = await page.evaluate(() => {
+    const viewport = document.querySelector(".visualize-viewport");
     const visualize_root = document.querySelector(
       '[data-testid="visualize-root"]',
     );
     if (
-      !(root instanceof HTMLElement) ||
+      !(viewport instanceof HTMLElement) ||
       !(visualize_root instanceof HTMLElement)
     ) {
       return null;
     }
 
-    root.scrollLeft = 0;
-    root.scrollTop = 0;
-
-    const root_rect = root.getBoundingClientRect();
+    const viewport_rect = viewport.getBoundingClientRect();
     const visualize_rect = visualize_root.getBoundingClientRect();
 
     return {
-      root_client_width: root.clientWidth,
-      root_scroll_width: root.scrollWidth,
-      root_client_height: root.clientHeight,
-      root_scroll_height: root.scrollHeight,
-      visualize_left_at_scroll_origin: visualize_rect.left - root_rect.left,
-      visualize_top_at_scroll_origin: visualize_rect.top - root_rect.top,
+      aspect_ratio: visualize_rect.width / visualize_rect.height,
+      bottom_space: viewport_rect.bottom - visualize_rect.bottom,
+      client_width: viewport.clientWidth,
+      scroll_width: viewport.scrollWidth,
+      client_height: viewport.clientHeight,
+      scroll_height: viewport.scrollHeight,
+      left_space: visualize_rect.left - viewport_rect.left,
+      right_space: viewport_rect.right - visualize_rect.right,
+      top_space: visualize_rect.top - viewport_rect.top,
     };
   });
 
-  expect(scroll_contract).not.toBeNull();
-  expect(scroll_contract!.root_scroll_width).toBeGreaterThan(
-    scroll_contract!.root_client_width,
-  );
-  expect(scroll_contract!.root_scroll_height).toBeGreaterThan(
-    scroll_contract!.root_client_height,
-  );
-  expect(
-    scroll_contract!.visualize_left_at_scroll_origin,
-  ).toBeGreaterThanOrEqual(-1);
-  expect(
-    scroll_contract!.visualize_top_at_scroll_origin,
-  ).toBeGreaterThanOrEqual(-1);
+  expect(fit_contract).not.toBeNull();
+  expect(fit_contract!.scroll_width).toBe(fit_contract!.client_width);
+  expect(fit_contract!.scroll_height).toBe(fit_contract!.client_height);
+  expect(fit_contract!.aspect_ratio).toBeCloseTo(16 / 9, 5);
+  expect(fit_contract!.left_space).toBeCloseTo(fit_contract!.right_space, 5);
+  expect(fit_contract!.top_space).toBeCloseTo(fit_contract!.bottom_space, 5);
+  expect(fit_contract!.top_space).toBeGreaterThan(0);
 });
 
 test("renders statistic and termination summaries", async ({ page }) => {
