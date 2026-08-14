@@ -154,6 +154,14 @@ bool condition(const RuntimeProgram &p, State &s, uint32_t id, std::vector<Range
 }
 void execute(const RuntimeProgram &p, State &s, Range initial) {
   std::vector<Frame> frames;
+  const auto enqueue_resolve = [&](uint32_t item) {
+    const auto &r = p.resolves[item];
+    if (!r.actions.count || s.inventory[item] <= r.retain)
+      return;
+    const auto batches = static_cast<uint64_t>(s.inventory[item] - r.retain) / r.reduce_per_batch;
+    if (batches)
+      frames.push_back({r.actions, 0, batches});
+  };
   if (initial.count)
     frames.push_back({initial, 0, 1});
   while (!frames.empty() && !s.stop) {
@@ -171,13 +179,7 @@ void execute(const RuntimeProgram &p, State &s, Range initial) {
     case ActionKind::Add:
       if (!add_checked(s.inventory[action.target], action.amount))
         throw std::runtime_error("runtime inventory overflow");
-      {
-        const auto &r = p.resolves[action.target];
-        if (r.actions.count && s.inventory[action.target] > r.retain)
-          frames.push_back(
-              {r.actions, 0,
-               static_cast<uint64_t>(s.inventory[action.target] - r.retain) / r.reduce_per_batch});
-      }
+      enqueue_resolve(action.target);
       break;
     case ActionKind::Reduce:
       if (!add_checked(s.inventory[action.target], -action.amount))
@@ -185,13 +187,7 @@ void execute(const RuntimeProgram &p, State &s, Range initial) {
       break;
     case ActionKind::Set:
       s.inventory[action.target] = action.amount;
-      {
-        const auto &r = p.resolves[action.target];
-        if (r.actions.count && s.inventory[action.target] > r.retain)
-          frames.push_back(
-              {r.actions, 0,
-               static_cast<uint64_t>(s.inventory[action.target] - r.retain) / r.reduce_per_batch});
-      }
+      enqueue_resolve(action.target);
       break;
     case ActionKind::Draw: {
       const auto &pool = p.pools[action.target];

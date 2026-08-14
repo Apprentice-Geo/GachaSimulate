@@ -241,22 +241,30 @@ void write_gsr_v2(const std::string &path, const RuntimeProgram &p, const BatchR
       !valid_utf8(p.result_name))
     throw std::runtime_error("invalid result item string");
   std::vector<uint32_t> raw = r.reasons;
-  std::sort(raw.begin(), raw.end());
-  raw.erase(std::unique(raw.begin(), raw.end()), raw.end());
+  for (const auto id : raw)
+    if (id >= p.strings.size() || p.strings[id].empty() || p.strings[id].size() > kMaxStringSize ||
+        !valid_utf8(p.strings[id]))
+      throw std::runtime_error("invalid reason string");
+  std::sort(raw.begin(), raw.end(),
+            [&](uint32_t left, uint32_t right) { return p.strings[left] < p.strings[right]; });
+  raw.erase(std::unique(
+                raw.begin(), raw.end(),
+                [&](uint32_t left, uint32_t right) { return p.strings[left] == p.strings[right]; }),
+            raw.end());
   if (raw.empty() || raw.size() > kMaxReasons)
     throw std::runtime_error("invalid reason count");
   std::vector<uint32_t> reasons;
   reasons.reserve(r.reasons.size());
   uint64_t strings_size = p.result_id.size() + p.result_name.size();
-  for (const auto id : raw) {
-    if (id >= p.strings.size() || p.strings[id].empty() || p.strings[id].size() > kMaxStringSize ||
-        !valid_utf8(p.strings[id]))
-      throw std::runtime_error("invalid reason string");
+  for (const auto id : raw)
     strings_size += 4 + p.strings[id].size();
-  }
   for (const auto id : r.reasons)
     reasons.push_back(
-        static_cast<uint32_t>(std::lower_bound(raw.begin(), raw.end(), id) - raw.begin()));
+        static_cast<uint32_t>(std::lower_bound(raw.begin(), raw.end(), p.strings[id],
+                                               [&](uint32_t raw_id, const std::string &reason) {
+                                                 return p.strings[raw_id] < reason;
+                                               }) -
+                              raw.begin()));
   const auto result_offset = kHeaderSize;
   const auto reason_offset = checked_section(result_offset, r.values.size(), 8, "result section");
   const auto string_offset = checked_section(reason_offset, reasons.size(), 4, "reason section");

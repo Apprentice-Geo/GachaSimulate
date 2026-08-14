@@ -98,6 +98,15 @@ TEST(Runtime, RunsPoolResolveAndTerminationFixture) {
   EXPECT_EQ(result.reason, "done");
 }
 
+TEST(Runtime, SkipsIncompleteResolveBatch) {
+  auto program = gachasimulate::load_ir_file(fixture_path().string());
+  program.actions[0].amount = 1;
+  program.resolves[1].retain = 0;
+  const auto result = gachasimulate::single_run(program, 7);
+  EXPECT_EQ(result.inventory[1], 1);
+  EXPECT_EQ(result.reason, "done");
+}
+
 TEST(Runtime, RejectsV1AndInvalidPoolReference) {
   const auto path = std::filesystem::temp_directory_path() / "gachasimulate_invalid_ir.json";
   std::ifstream input(random_fixture_path());
@@ -207,6 +216,24 @@ TEST(Gsr, ReadsAndAnalyzesV2Statistics) {
   EXPECT_EQ(analysis.at("termination_reason"),
             nlohmann::json({{{"reason", "exchange"}, {"proportion", 25}},
                             {{"reason", "skin"}, {"proportion", 75}}}));
+  std::filesystem::remove(path);
+}
+
+TEST(Gsr, SortsAndDeduplicatesReasonStrings) {
+  const auto path = output_path("sorted_reasons_test");
+  std::filesystem::remove(path);
+  auto program = gachasimulate::load_ir_file(fixture_path().string());
+  const auto zeta = static_cast<uint32_t>(program.strings.size());
+  program.strings.push_back("zeta");
+  const auto alpha = static_cast<uint32_t>(program.strings.size());
+  program.strings.push_back("alpha");
+  const auto duplicate_alpha = static_cast<uint32_t>(program.strings.size());
+  program.strings.push_back("alpha");
+  gachasimulate::write_gsr_v2(path.string(), program,
+                              {{1, 2, 3, 4}, {zeta, alpha, duplicate_alpha, zeta}, 10}, 0);
+  const auto data = gachasimulate::read_gsr_v2(path.string());
+  EXPECT_EQ(data.reason_names, (std::vector<std::string>{"alpha", "zeta"}));
+  EXPECT_EQ(data.reasons, (std::vector<uint32_t>{1, 0, 0, 1}));
   std::filesystem::remove(path);
 }
 

@@ -333,9 +333,13 @@ export function compile(
     const children = list(node.children, `${path}.children`);
     if (!children.length) fail(`${path}.children`, "must be non-empty");
     const begin = condition_children.length;
-    children.forEach((child, index) =>
-      condition_children.push(condition(child, `${path}.children[${index}]`)),
-    );
+    condition_children.push(...children.map(() => 0));
+    children.forEach((child, index) => {
+      condition_children[begin + index] = condition(
+        child,
+        `${path}.children[${index}]`,
+      );
+    });
     return (
       conditions.push({
         kind: "logic",

@@ -44,6 +44,46 @@ test("compiles v2 YAML with the simulation-selected result item", () => {
   assert.deepEqual((draw.items as { id: number }[]).length, 2);
 });
 
+test("keeps direct nested condition children contiguous", () => {
+  const { ir } = compile_yaml(
+    config,
+    `retained_items: []
+termination_rule:
+  condition:
+    op: OR
+    children:
+    - op: AND
+      children:
+      - check: target >= 1
+      - check: draw_count >= 1
+      actions: terminate both
+    - check: target >= 2
+      actions: terminate target
+`,
+    manifest,
+    "draw_count",
+  );
+  const nodes = ir.condition_nodes as {
+    kind: string;
+    children?: { begin: number; count: number };
+  }[];
+  const childIds = ir.condition_children as number[];
+  const root = nodes[ir.termination_condition as number];
+  const rootChildren = childIds.slice(
+    root.children!.begin,
+    root.children!.begin + root.children!.count,
+  );
+
+  assert.deepEqual(rootChildren.map((id) => nodes[id].kind), ["logic", "check"]);
+  const nested = nodes[rootChildren[0]];
+  assert.deepEqual(
+    childIds
+      .slice(nested.children!.begin, nested.children!.begin + nested.children!.count)
+      .map((id) => nodes[id].kind),
+    ["check", "check"],
+  );
+});
+
 test("uses an item id as its display name when no name is provided", () => {
   const { ir } = compile_yaml(
     config.replace(

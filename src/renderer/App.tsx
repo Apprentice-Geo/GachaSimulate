@@ -54,7 +54,7 @@ const status_labels: Record<SimulationStatus, string> = {
   cancelled: "已取消",
 };
 
-function SimulationPage() {
+function SimulationPage({ active }: { active: boolean }) {
   const [configs, set_configs] = useState<InstalledConfig[]>([]);
   const [selected_id, set_selected_id] = useState("");
   const [loading, set_loading] = useState(true);
@@ -173,6 +173,7 @@ function SimulationPage() {
 
   return (
     <section
+      hidden={!active}
       className="renderer-placeholder simulation-page"
       aria-labelledby="simulation-title"
     >
@@ -509,6 +510,7 @@ export default function App() {
       </aside>
       <main className="renderer-main">
         <div className="renderer-content">
+          <SimulationPage active={active_page === "simulation"} />
           {active_page === "result-editor" ? (
             <ResultEditorPage
               state={result_state}
@@ -519,11 +521,9 @@ export default function App() {
               input={result_state?.input ?? null}
               on_select_result={select_result}
             />
-          ) : active_page === "simulation" ? (
-            <SimulationPage />
-          ) : (
+          ) : active_page === "config-repository" ? (
             <Placeholder page="config-repository" />
-          )}
+          ) : null}
         </div>
       </main>
     </div>

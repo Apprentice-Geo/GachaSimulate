@@ -18,6 +18,7 @@ const OUTPUT_DIR = path.join(PROJECT_ROOT, "tmp", "ui-captures");
 const WEB_PORT = 5173;
 const SCENARIOS = [
   "electron/simulation-idle",
+  "electron/simulation-navigation",
   "electron/result-editor-loaded",
   "electron/result-visualize-loaded",
   "web/result-visualize-loaded",
@@ -101,6 +102,24 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
     if (scenarios.includes("electron/simulation-idle")) {
       await page.getByText("状态：待运行").waitFor();
       await screenshot(page, "electron/simulation-idle");
+    }
+
+    if (scenarios.includes("electron/simulation-navigation")) {
+      await page.getByRole("button", { name: "结果编辑" }).click();
+      await application.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.webContents.send("simulation-event", {
+          status: "completed",
+          event: {
+            type: "completed",
+            result_path: "/tmp/completed-while-away.gsr",
+            total_runs: 1,
+            total_result: 1,
+          },
+        });
+      });
+      await page.getByRole("button", { name: "运行模拟" }).click();
+      await page.getByText("结果：completed-while-away.gsr").waitFor();
+      await screenshot(page, "electron/simulation-navigation");
     }
 
     const result_scenarios = scenarios.filter((scenario) =>
