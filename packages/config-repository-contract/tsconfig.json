@@ -3,10 +3,11 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "strict": true,
-    "outDir": "dist",
+    "declaration": true,
     "rootDir": "src",
-    "types": ["node"]
+    "outDir": "dist",
+    "strict": true,
+    "skipLibCheck": true
   },
   "include": ["src"]
 }

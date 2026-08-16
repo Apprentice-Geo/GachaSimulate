@@ -88,6 +88,15 @@ manifest 不声明结果 item。
 参数必填；`result_item` 由每次模拟请求提供，必须引用已声明 item。若该 item 没有展示名，
 Analysis/GSR 使用 item ID 作为名称。
 
+配置仓库可调用 `validate_config_files(config, terminations)` 批量校验源码。该入口不接收
+manifest 或 `result_item`：先完整校验一次 `config.yaml`，失败时返回
+`["config.yaml"]`；成功后使用独立工作状态按输入顺序校验每个 termination，并返回失败
+文件名。空 termination 列表仍会校验 config。
+
+仓库分发所需的 manifest 字节长度、命名和文件集合限制由
+`@gachasimulate/config-repository-contract` 在上述 Compiler 语法校验之上施加，不属于模拟
+YAML 语义。
+
 ## 基础结构
 
 ```ebnf

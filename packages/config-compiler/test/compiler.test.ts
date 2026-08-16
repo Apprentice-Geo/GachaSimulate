@@ -7,6 +7,7 @@ import {
   compile_yaml,
   read_config_items,
   read_config_manifest,
+  validate_config_files,
 } from "../src/index.js";
 
 function padded(source: string, bytes: number): string {
@@ -196,6 +197,10 @@ test("requires a manifest and allows draw_count to be a normal writable item", (
   assert.doesNotThrow(() =>
     compile_yaml(config, termination, manifest, "draw_count"),
   );
+  assert.throws(
+    () => compile_yaml(config, termination, manifest, undefined as never),
+    /result_item/,
+  );
 });
 
 test("validates rule ids and requires every rule to contain an action", () => {
@@ -304,4 +309,71 @@ test("limits every YAML input to 1 MiB and rejects aliases", () => {
     () => read_config_items("items: &items [draw_count]\ncopy: *items\n"),
     /alias/i,
   );
+});
+
+test("validates one config against termination files in input order", () => {
+  const badField = `${termination}unknown: true\n`;
+  const badReference = termination.replace("target >= 1", "missing >= 1");
+  assert.deepEqual(
+    validate_config_files(config, [
+      { file: "first.yaml", text: termination },
+      { file: "second.yaml", text: badField },
+      { file: "third.yaml", text: badReference },
+      { file: "fourth.yaml", text: termination },
+    ]),
+    ["second.yaml", "third.yaml"],
+  );
+});
+
+test("short-circuits invalid configs and validates configs without terminations", () => {
+  assert.deepEqual(validate_config_files(config, []), []);
+  assert.deepEqual(
+    validate_config_files(`${config}unknown: true\n`, [
+      { file: "broken.yaml", text: "not: [valid" },
+    ]),
+    ["config.yaml"],
+  );
+  assert.deepEqual(
+    validate_config_files(
+      config.replace("every_draw: draw_count += 1", "every_draw: missing += 1"),
+      [],
+    ),
+    ["config.yaml"],
+  );
+});
+
+test("applies the YAML size limit to every batch input", () => {
+  assert.deepEqual(
+    validate_config_files(padded(config, YAML_TEXT_LIMIT), [
+      {
+        file: "termination.yaml",
+        text: padded(termination, YAML_TEXT_LIMIT),
+      },
+    ]),
+    [],
+  );
+  assert.deepEqual(
+    validate_config_files(padded(config, YAML_TEXT_LIMIT + 1), []),
+    ["config.yaml"],
+  );
+  assert.deepEqual(
+    validate_config_files(config, [
+      {
+        file: "too-large.yaml",
+        text: padded(termination, YAML_TEXT_LIMIT + 1),
+      },
+    ]),
+    ["too-large.yaml"],
+  );
+});
+
+test("does not swallow unexpected batch validation errors", () => {
+  const unexpected = new Error("unexpected");
+  const input = {
+    file: "termination.yaml",
+    get text(): string {
+      throw unexpected;
+    },
+  };
+  assert.throws(() => validate_config_files(config, [input]), unexpected);
 });

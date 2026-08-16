@@ -59,15 +59,15 @@ pnpm run build:web
 pnpm run test:e2e
 ```
 
-Package 的 `dist/` 不提交；Electron、CLI 和相关测试入口会在使用前构建所需 package。
+Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构建所需 package。
 
 ## 按影响范围选择
 
-- YAML 或 IR：Compiler 测试、C++ Debug/Release CTest、typecheck。
+- YAML 或 IR：Compiler 测试、`test:simulation` 中的 native pipeline、C++ Debug/Release CTest、typecheck。
+- 配置仓库 index、manifest 或包文件清单协议：`test:config-repository-contract`、`test:packages`、typecheck。
 - C++ Runtime、GSR 或 Analysis：format/tidy、Debug/Release CTest、Release install 和冒烟。
 - Electron IPC、配置扫描、模拟/分析进程生命周期或 sidecar：`test:simulation`、typecheck、lint、build。
 - 可视化输入、CDF、marker、动画或导出：`test:visualize:cdf`、build:web、e2e；导出改动另跑代表性 export。
-- TypeScript CLI：Compiler、CLI、typecheck 和 core/analyzer 冒烟。
 - 仅文档：检查命令、链接和完成状态；跨层状态文档仍按对应范围验证。
 
 ## Electron 人工验收

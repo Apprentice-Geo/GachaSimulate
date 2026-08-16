@@ -33,23 +33,6 @@ sidecar 是完整的 `VisualizeInput`，但重新打开时统计、CDF、termina
 
 Electron 当前只支持从源码启动。安装包、远端配置仓库、分析详情和 CDF 同屏预览尚未实现。
 
-## 命令行
-
-构建 workspace CLI：
-
-```bash
-pnpm --dir packages/cli build
-```
-
-从 YAML 生成 GSR 并分析：
-
-```bash
-pnpm exec gachasimulate simulate --config-dir configs/presets/basic_probability --termination termination.yaml --result-item draw_count --total-runs 10 --output results/example.gsr
-pnpm exec gachasimulate analyze --input results/example.gsr
-```
-
-`simulate` 只接受固定的 `--total-runs`，另支持 `--seed`（默认 `0`）和 `--threads`（默认 `1`）。输出必须是尚不存在的 `.gsr`；`analyze` 输出 [Analysis v2](docs/ANALYSIS_V2.md)。
-
 ## 可视化与导出
 
 独立浏览器入口用于开发和调试，继续消费完整 `VisualizeInput`：

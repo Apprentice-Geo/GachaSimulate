@@ -1,17 +1,19 @@
 {
-  "name": "@gachasimulate/cli",
+  "name": "@gachasimulate/config-repository-contract",
   "version": "1.0.0",
+  "description": "GachaSimulate configuration repository protocol validation",
   "type": "module",
-  "bin": {
-    "gachasimulate": "dist/index.js"
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "scripts": {
     "build": "pnpm --dir ../config-compiler build && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.typecheck.json",
-    "test": "pnpm build && tsx --test test/*.test.ts",
+    "test": "pnpm --dir ../config-compiler build && tsx --test test/*.test.ts",
     "prepack": "pnpm build"
   },
   "dependencies": {
