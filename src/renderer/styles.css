@@ -321,6 +321,196 @@ button:focus-visible {
   padding: 12px 14px;
 }
 
+.repository-page {
+  gap: 18px;
+  justify-content: flex-start;
+  max-width: 1120px;
+}
+
+.repository-header,
+.repository-source-heading,
+.repository-card-title,
+.repository-card-actions {
+  align-items: center;
+  display: flex;
+}
+
+.repository-header,
+.repository-source-heading {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.repository-header > div > .renderer-placeholder-mark {
+  margin-bottom: 18px;
+}
+
+.repository-header h1 {
+  margin-bottom: 0;
+}
+
+.repository-header button,
+.repository-source-heading button,
+.repository-card-actions button {
+  background: var(--color-nvidia-green);
+  border: 1px solid transparent;
+  border-radius: var(--radius-button);
+  color: var(--color-canvas);
+  min-height: 36px;
+  padding: 8px 13px;
+}
+
+.repository-header button:disabled,
+.repository-source-heading button:disabled,
+.repository-card-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.repository-status,
+.repository-source-heading > span,
+.local-directory {
+  color: var(--color-text-muted);
+}
+
+.repository-source {
+  border-top: 1px solid var(--color-hairline);
+  display: grid;
+  gap: 14px;
+  padding-top: 18px;
+  width: 100%;
+}
+
+.repository-source-heading > div {
+  display: grid;
+  gap: 7px;
+}
+
+.repository-source h2 {
+  color: var(--color-text-primary);
+  font-size: 20px;
+  margin: 0;
+}
+
+.source-badge {
+  border-left: 3px solid;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  padding-left: 8px;
+}
+
+.source-installed {
+  border-color: var(--color-cyan);
+}
+
+.source-local {
+  border-color: var(--color-sentry-pink);
+}
+
+.repository-list {
+  display: grid;
+  gap: 9px;
+}
+
+.repository-card {
+  background: var(--color-panel);
+  border: 1px solid var(--color-hairline);
+  border-left: 3px solid var(--color-text-faint);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 15px 16px;
+}
+
+.repository-card[data-status="available"] {
+  border-left-color: var(--color-nvidia-green);
+}
+
+.repository-card[data-status="installed"] {
+  border-left-color: var(--color-cyan);
+}
+
+.repository-card[data-status="update_available"] {
+  border-left-color: var(--color-pk-f);
+}
+
+.repository-card-title {
+  gap: 10px;
+}
+
+.repository-card h3 {
+  color: var(--color-text-primary);
+  font-size: 16px;
+  margin: 0;
+}
+
+.repository-card-title span {
+  border: 1px solid var(--color-hairline-strong);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+.repository-card code,
+.local-config-list code {
+  color: var(--color-cyan);
+  font-size: 11px;
+}
+
+.repository-card p,
+.repository-empty,
+.local-directory {
+  margin: 6px 0 0;
+}
+
+.repository-card p,
+.repository-empty {
+  color: var(--color-text-muted);
+}
+
+.repository-card-actions {
+  gap: 8px;
+}
+
+.repository-card-actions .secondary {
+  background: transparent;
+  border-color: var(--color-hairline-strong);
+  color: var(--color-text-primary);
+}
+
+.local-source {
+  margin-top: 6px;
+}
+
+.local-directory {
+  background: var(--color-panel-soft);
+  border-left: 3px solid var(--color-sentry-pink);
+  overflow: hidden;
+  padding: 10px 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.local-config-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.local-config-list > span {
+  background: var(--color-panel);
+  border: 1px solid var(--color-hairline);
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+}
+
+.local-config-list strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
 .result-editor {
   justify-content: flex-start;
   max-width: 760px;
@@ -384,5 +574,17 @@ button:focus-visible {
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .repository-header,
+  .repository-source-heading {
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .repository-card {
+    grid-template-columns: 1fr;
   }
 }

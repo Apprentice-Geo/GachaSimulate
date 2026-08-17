@@ -11,6 +11,7 @@ import {
 import { createServer } from "vite";
 import input from "../visualize/fixtures/example_input.json";
 import type { ResultEditorState } from "../shared/result_editor";
+import type { ConfigRepositoryState } from "../shared/installed_config";
 import type { VisualizeInput } from "../visualize/types/visualize_input";
 
 const PROJECT_ROOT = process.cwd();
@@ -19,6 +20,7 @@ const WEB_PORT = 5173;
 const SCENARIOS = [
   "electron/simulation-idle",
   "electron/simulation-navigation",
+  "electron/config-repository",
   "electron/result-editor-loaded",
   "electron/result-visualize-loaded",
   "web/result-visualize-loaded",
@@ -79,6 +81,44 @@ function result_fixture(): ResultEditorState {
   };
 }
 
+function repository_fixture(): ConfigRepositoryState {
+  return {
+    official: [
+      {
+        id: "genshin_character",
+        name: "原神角色祈愿",
+        description: "角色活动祈愿概率与保底规则。",
+        status: "installed",
+      },
+      {
+        id: "starrail_character",
+        name: "崩坏：星穹铁道角色跃迁",
+        description: "角色活动跃迁概率与保底规则。",
+        status: "update_available",
+      },
+      {
+        id: "zzz_character",
+        name: "绝区零独家频段",
+        description: "独家频段概率与保底规则。",
+        status: "available",
+      },
+    ],
+    localDirectory: "/home/user/gachasimulate-configs",
+    localConfigs: [
+      {
+        id: "sandbox",
+        name: "开发测试池",
+        description: "本地开发配置",
+        source: "local",
+        terminations: [{ file: "termination.yaml", name: "完成" }],
+        items: [{ id: "draw_count", name: "抽数" }],
+      },
+    ],
+    sourceError: null,
+    localError: null,
+  };
+}
+
 async function capture_electron(scenarios: Scenario[]): Promise<void> {
   const config_home = await mkdtemp(
     path.join(tmpdir(), "gachasimulate-ui-config-"),
@@ -128,6 +168,21 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
       await page.getByRole("button", { name: "运行模拟" }).click();
       await page.getByText("结果：completed-while-away.gsr").waitFor();
       await screenshot(page, "electron/simulation-navigation");
+    }
+
+    if (scenarios.includes("electron/config-repository")) {
+      await application.evaluate(({ ipcMain }, fixture) => {
+        for (const channel of [
+          "get-config-repository-state",
+          "refresh-config-repository",
+        ]) {
+          ipcMain.removeHandler(channel);
+          ipcMain.handle(channel, () => fixture);
+        }
+      }, repository_fixture());
+      await page.getByRole("button", { name: "配置仓库" }).click();
+      await page.getByText("原神角色祈愿").waitFor();
+      await screenshot(page, "electron/config-repository");
     }
 
     const result_scenarios = scenarios.filter((scenario) =>

@@ -1,6 +1,10 @@
 import { BarChart3, FilePenLine, FolderOpen, Play, Store } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
-import type { InstalledConfig } from "../shared/installed_config";
+import type {
+  ConfigRepositoryState,
+  InstalledConfig,
+  RepositoryConfig,
+} from "../shared/installed_config";
 import type { DisplayFields, ResultEditorState } from "../shared/result_editor";
 import { default_result_item, selected_result_item } from "./simulation_items";
 import VisualizeApp from "../visualize/App";
@@ -56,7 +60,7 @@ const status_labels: Record<SimulationStatus, string> = {
 
 function SimulationPage({ active }: { active: boolean }) {
   const [configs, set_configs] = useState<InstalledConfig[]>([]);
-  const [selected_id, set_selected_id] = useState("");
+  const [selected_key, set_selected_key] = useState("");
   const [loading, set_loading] = useState(true);
   const [config_error, set_config_error] = useState<string | null>(null);
   const [operation_error, set_operation_error] = useState<string | null>(null);
@@ -73,28 +77,38 @@ function SimulationPage({ active }: { active: boolean }) {
     unit: string;
   } | null>(null);
   const [result_path, set_result_path] = useState("");
+  const key = (config: InstalledConfig) => `${config.source}:${config.id}`;
   const selected =
-    configs.find((config) => config.id === selected_id) ?? configs[0];
+    configs.find((config) => key(config) === selected_key) ?? configs[0];
 
   useEffect(() => {
+    if (!active) return;
     if (!window.desktopApi) {
       set_config_error("配置扫描 API 不可用，请从 Electron 启动。");
       set_loading(false);
       return;
     }
+    set_config_error(null);
+    set_loading(true);
     Promise.all([
-      window.desktopApi.listInstalledConfigs(),
+      window.desktopApi.listConfigs(),
       window.desktopApi.getLogicalCpuCount(),
     ])
       .then(([value, cpu_count]) => {
         set_configs(value);
         set_logical_cpu_count(cpu_count);
-        set_selected_id(value[0]?.id ?? "");
+        set_selected_key((current) =>
+          value.some((config) => key(config) === current)
+            ? current
+            : value[0]
+              ? key(value[0])
+              : "",
+        );
         set_termination(value[0]?.terminations[0]?.file ?? "");
       })
       .catch(() => set_config_error("配置扫描失败，请检查本地配置目录。"))
       .finally(() => set_loading(false));
-  }, []);
+  }, [active]);
 
   useEffect(() => {
     if (!window.desktopApi) return;
@@ -129,6 +143,7 @@ function SimulationPage({ active }: { active: boolean }) {
     }
     set_result_item(canonical_result_item);
     const request: SimulationRequest = {
+      configSource: selected?.source ?? "installed",
       configId: selected?.id ?? "",
       termination,
       resultItem: canonical_result_item,
@@ -183,11 +198,11 @@ function SimulationPage({ active }: { active: boolean }) {
       <p className="renderer-eyebrow">SIMULATION CONSOLE</p>
       <h1 id="simulation-title">运行模拟</h1>
       {loading ? (
-        <p>正在扫描已安装配置…</p>
+        <p>正在扫描配置…</p>
       ) : config_error ? (
         <p role="alert">{config_error}</p>
       ) : configs.length === 0 ? (
-        <p>暂无可用配置，请先安装配置。</p>
+        <p>暂无可用配置，请先安装官方配置或选择本地配置目录。</p>
       ) : (
         <div className="renderer-config-form">
           <div className="simulation-primary-fields">
@@ -196,11 +211,12 @@ function SimulationPage({ active }: { active: boolean }) {
                 配置
                 <select
                   disabled={busy}
-                  value={selected?.id ?? ""}
-                  onChange={(event) => set_selected_id(event.target.value)}
+                  value={selected ? key(selected) : ""}
+                  onChange={(event) => set_selected_key(event.target.value)}
                 >
                   {configs.map((config) => (
-                    <option key={config.id} value={config.id}>
+                    <option key={key(config)} value={key(config)}>
+                      {config.source === "installed" ? "官方配置" : "本地配置"}·{" "}
                       {config.name}
                     </option>
                   ))}
@@ -457,15 +473,222 @@ function ResultEditorPage({
   );
 }
 
-function Placeholder({ page }: { page: "config-repository" }) {
+const repository_status: Record<
+  RepositoryConfig["status"],
+  { label: string; action: string | null }
+> = {
+  available: { label: "可安装", action: "安装" },
+  installed: { label: "已安装", action: null },
+  update_available: { label: "可更新", action: "更新" },
+  removed: { label: "已从源移除", action: null },
+};
+
+function ConfigRepositoryPage() {
+  const [state, set_state] = useState<ConfigRepositoryState | null>(null);
+  const [busy_id, set_busy_id] = useState<string | null>(null);
+  const [message, set_message] = useState("正在读取配置状态…");
+  const [error, set_error] = useState<string | null>(null);
+
+  const run = async (
+    label: string,
+    operation: () => Promise<ConfigRepositoryState>,
+    id: string | null = null,
+  ) => {
+    set_busy_id(id ?? label);
+    set_error(null);
+    set_message(`${label}中…`);
+    try {
+      set_state(await operation());
+      set_message(`${label}完成。`);
+    } catch (reason) {
+      set_error(reason instanceof Error ? reason.message : String(reason));
+      set_message(`${label}失败，请按提示重试。`);
+    } finally {
+      set_busy_id(null);
+    }
+  };
+
+  useEffect(() => {
+    void window.desktopApi
+      .getConfigRepositoryState()
+      .then((initial) => {
+        set_state(initial);
+        set_message("本机配置状态已读取。");
+        return window.desktopApi.refreshConfigRepository();
+      })
+      .then((refreshed) => {
+        set_state(refreshed);
+        set_message(
+          refreshed.sourceError
+            ? "官方目录离线；已安装和本地配置仍可使用。"
+            : "官方目录已刷新。",
+        );
+      })
+      .catch((reason: unknown) => {
+        set_error(reason instanceof Error ? reason.message : String(reason));
+        set_message("配置状态读取失败。");
+      });
+  }, []);
+
+  const action = (config: RepositoryConfig) => {
+    if (config.status === "available")
+      return run(
+        "安装",
+        () => window.desktopApi.installConfig(config.id),
+        config.id,
+      );
+    if (config.status === "update_available")
+      return run(
+        "更新",
+        () => window.desktopApi.updateConfig(config.id),
+        config.id,
+      );
+  };
+
   return (
-    <section className="renderer-placeholder" aria-labelledby={`${page}-title`}>
-      <div className="renderer-placeholder-mark" aria-hidden="true">
-        <Store size={24} />
+    <section
+      className="renderer-placeholder repository-page"
+      aria-labelledby="config-repository-title"
+    >
+      <header className="repository-header">
+        <div>
+          <div className="renderer-placeholder-mark" aria-hidden="true">
+            <Store size={24} />
+          </div>
+          <p className="renderer-eyebrow">CONFIGURATION CATALOG</p>
+          <h1 id="config-repository-title">配置仓库</h1>
+        </div>
+        <button
+          type="button"
+          disabled={busy_id !== null}
+          onClick={() =>
+            void run("刷新", () => window.desktopApi.refreshConfigRepository())
+          }
+        >
+          刷新官方目录
+        </button>
+      </header>
+
+      <div className="repository-status" role="status">
+        {message}
       </div>
-      <p className="renderer-eyebrow">CONFIGURATION CATALOG</p>
-      <h1 id={`${page}-title`}>配置仓库</h1>
-      <p>配置仓库正在准备中，后续将提供配置浏览与安装。</p>
+      {(error || state?.sourceError) && (
+        <div className="simulation-error" role="alert">
+          {error ?? `官方目录：${state?.sourceError}`}
+        </div>
+      )}
+
+      <section
+        className="repository-source"
+        aria-labelledby="official-source-title"
+      >
+        <div className="repository-source-heading">
+          <div>
+            <span className="source-badge source-installed">官方配置</span>
+            <h2 id="official-source-title">官方目录</h2>
+          </div>
+          <span>{state?.official.length ?? 0} 项</span>
+        </div>
+        <div className="repository-list">
+          {state?.official.length ? (
+            state.official.map((config) => {
+              const status = repository_status[config.status];
+              return (
+                <article
+                  className="repository-card"
+                  data-status={config.status}
+                  key={config.id}
+                >
+                  <div>
+                    <div className="repository-card-title">
+                      <h3>{config.name}</h3>
+                      <span>{status.label}</span>
+                    </div>
+                    <code>{config.id}</code>
+                    <p>{config.description || "暂无说明"}</p>
+                  </div>
+                  <div className="repository-card-actions">
+                    {status.action && (
+                      <button
+                        type="button"
+                        disabled={busy_id !== null}
+                        onClick={() => void action(config)}
+                      >
+                        {busy_id === config.id
+                          ? `${status.action}中…`
+                          : status.action}
+                      </button>
+                    )}
+                    {config.status !== "available" && (
+                      <button
+                        className="secondary"
+                        type="button"
+                        disabled={busy_id !== null}
+                        onClick={() =>
+                          void run(
+                            "卸载",
+                            () => window.desktopApi.uninstallConfig(config.id),
+                            config.id,
+                          )
+                        }
+                      >
+                        卸载
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })
+          ) : (
+            <p className="repository-empty">刷新官方目录以查看可安装配置。</p>
+          )}
+        </div>
+      </section>
+
+      <section
+        className="repository-source local-source"
+        aria-labelledby="local-source-title"
+      >
+        <div className="repository-source-heading">
+          <div>
+            <span className="source-badge source-local">本地配置</span>
+            <h2 id="local-source-title">开发目录</h2>
+          </div>
+          <button
+            type="button"
+            disabled={busy_id !== null}
+            onClick={() =>
+              void run("选择目录", () =>
+                window.desktopApi.selectLocalConfigDirectory(),
+              )
+            }
+          >
+            选择本地目录
+          </button>
+        </div>
+        <p
+          className="local-directory"
+          title={state?.localDirectory ?? undefined}
+        >
+          {state?.localDirectory ?? "尚未选择目录"}
+        </p>
+        {state?.localError && (
+          <div className="simulation-error" role="alert">
+            {state.localError}
+          </div>
+        )}
+        <div className="local-config-list">
+          {state?.localConfigs.map((config) => (
+            <span key={config.id}>
+              <strong>{config.name}</strong>
+              <code>{config.id}</code>
+            </span>
+          ))}
+          {state?.localDirectory && state.localConfigs.length === 0 && (
+            <p className="repository-empty">目录中没有通过校验的配置。</p>
+          )}
+        </div>
+      </section>
     </section>
   );
 }
@@ -522,7 +745,7 @@ export default function App() {
               on_select_result={select_result}
             />
           ) : active_page === "config-repository" ? (
-            <Placeholder page="config-repository" />
+            <ConfigRepositoryPage />
           ) : null}
         </div>
       </main>

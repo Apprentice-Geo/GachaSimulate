@@ -1,10 +1,8 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, net, shell } from "electron";
 import { cpus } from "node:os";
 import { join } from "node:path";
-import {
-  scan_installed_configs,
-  validate_installed_config_selection,
-} from "./config_manager";
+import { ConfigManager } from "./config_manager";
+import { download_https, type ConfigRequest } from "./config_download";
 import { ResultEditor } from "./result_editor";
 import { shutdown_native_processes, SimulationTask } from "./simulation";
 import { validate_simulation_request } from "../shared/simulation";
@@ -12,6 +10,7 @@ import type { DisplayFields } from "../shared/result_editor";
 
 let simulation: SimulationTask;
 let result_editor: ResultEditor;
+let config_manager: ConfigManager;
 let quitting = false;
 
 function shutdown(): Promise<void> {
@@ -81,29 +80,55 @@ function create_window(): void {
 }
 
 app.whenReady().then(() => {
-  const installed_dir = join(app.getPath("userData"), "configs", "installed");
+  const configs_dir = join(app.getPath("userData"), "configs");
   const results_dir = join(app.getPath("userData"), "results");
   result_editor = new ResultEditor();
+  config_manager = new ConfigManager(configs_dir, {
+    download: (url, limit) =>
+      download_https(url, limit, net.request as unknown as ConfigRequest),
+    simulation_active: () => simulation?.active ?? false,
+  });
   simulation = new SimulationTask(
-    installed_dir,
+    config_manager.installed_dir,
     results_dir,
     (event) => {
       for (const window of BrowserWindow.getAllWindows())
         window.webContents.send("simulation-event", event);
     },
-    { shutdown_native_processes: shutdown },
+    {
+      local_dir: () => config_manager.local_dir,
+      shutdown_native_processes: shutdown,
+    },
   );
-  ipcMain.handle("list-installed-configs", () =>
-    scan_installed_configs(installed_dir),
+  ipcMain.handle("list-configs", () => config_manager.list_configs());
+  ipcMain.handle("get-config-repository-state", () => config_manager.state());
+  ipcMain.handle("refresh-config-repository", () => config_manager.refresh());
+  ipcMain.handle("install-config", (_event, id: string) =>
+    config_manager.install(id),
   );
+  ipcMain.handle("update-config", (_event, id: string) =>
+    config_manager.update(id),
+  );
+  ipcMain.handle("uninstall-config", (_event, id: string) =>
+    config_manager.uninstall(id),
+  );
+  ipcMain.handle("select-local-config-directory", async () => {
+    if (simulation.active)
+      throw new Error("local directory cannot change during simulation");
+    if (config_manager.active)
+      throw new Error("a configuration change is already running");
+    const result = await dialog.showOpenDialog({
+      properties: ["openDirectory"],
+    });
+    if (result.canceled || result.filePaths.length === 0)
+      return config_manager.state();
+    return config_manager.set_local_directory(result.filePaths[0]);
+  });
   ipcMain.handle("get-logical-cpu-count", () => cpus().length);
   ipcMain.handle("start-simulation", (_event, request: unknown) => {
+    if (config_manager.active)
+      throw new Error("simulation cannot start during a configuration change");
     validate_simulation_request(request, cpus().length);
-    validate_installed_config_selection(
-      installed_dir,
-      request.configId,
-      request.termination,
-    );
     simulation.start(request);
   });
   ipcMain.handle("cancel-simulation", () => shutdown());

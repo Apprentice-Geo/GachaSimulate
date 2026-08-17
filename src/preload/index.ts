@@ -5,7 +5,16 @@ import type {
 } from "../shared/simulation";
 
 contextBridge.exposeInMainWorld("desktopApi", {
-  listInstalledConfigs: () => ipcRenderer.invoke("list-installed-configs"),
+  listConfigs: () => ipcRenderer.invoke("list-configs"),
+  getConfigRepositoryState: () =>
+    ipcRenderer.invoke("get-config-repository-state"),
+  refreshConfigRepository: () =>
+    ipcRenderer.invoke("refresh-config-repository"),
+  installConfig: (id: string) => ipcRenderer.invoke("install-config", id),
+  updateConfig: (id: string) => ipcRenderer.invoke("update-config", id),
+  uninstallConfig: (id: string) => ipcRenderer.invoke("uninstall-config", id),
+  selectLocalConfigDirectory: () =>
+    ipcRenderer.invoke("select-local-config-directory"),
   getLogicalCpuCount: () => ipcRenderer.invoke("get-logical-cpu-count"),
   startSimulation: (request: SimulationRequest) =>
     ipcRenderer.invoke("start-simulation", request),

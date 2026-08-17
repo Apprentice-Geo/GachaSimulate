@@ -22,6 +22,7 @@ import {
   type SimulationEvent,
   type SimulationStatus,
 } from "../shared/simulation";
+import { resolve_config_selection } from "./config_manager";
 
 const STDERR_LIMIT = 64 * 1024;
 const JSONL_LINE_LIMIT = 64 * 1024;
@@ -39,6 +40,7 @@ type SimulationTaskDependencies = {
   native_dir?: string;
   now?: () => Date;
   random_uuid?: () => string;
+  local_dir?: () => string | null;
 };
 
 type NativeTask = { active: boolean; cancel(): Promise<void> };
@@ -130,16 +132,14 @@ export class SimulationTask {
     if (this.active) throw new Error("a simulation is already running");
     validate_simulation_request(value, cpus().length);
     const request = value;
-    const config_dir = resolve(this.installed_dir, request.configId);
-    if (
-      !relative(resolve(this.installed_dir), config_dir) ||
-      relative(resolve(this.installed_dir), config_dir).startsWith("..") ||
-      !existsSync(config_dir)
-    )
-      throw new Error("installed config not found");
-    const termination = request.termination.endsWith(".yaml")
-      ? request.termination
-      : `${request.termination}.yaml`;
+    const config_dir = resolve_config_selection(
+      this.installed_dir,
+      this.dependencies.local_dir?.() ?? null,
+      request.configSource,
+      request.configId,
+      request.termination,
+    );
+    const termination = request.termination;
     const termination_path = resolve(config_dir, termination);
     if (
       isAbsolute(request.termination) ||

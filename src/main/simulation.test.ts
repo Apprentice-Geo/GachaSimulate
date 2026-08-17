@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { existsSync, unlinkSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 import type { ChildProcess } from "node:child_process";
@@ -14,6 +22,7 @@ import {
 } from "../shared/simulation";
 
 const request = {
+  configSource: "local" as const,
   configId: "test",
   termination: "termination.yaml",
   resultItem: "draw_count",
@@ -60,6 +69,7 @@ function create_task(
       },
       terminate_native_process: terminate,
       close_timeout_ms,
+      local_dir: () => resolve("test-fixtures/configs"),
     },
   );
   task.start(request);
@@ -77,6 +87,12 @@ test("validates strict requests, positive targets, and thread limit", () => {
   );
   assert.throws(() =>
     validate_simulation_request({ ...request, metric: "draw" }, 2),
+  );
+  assert.throws(() =>
+    validate_simulation_request({ ...request, configSource: "remote" }, 2),
+  );
+  assert.throws(() =>
+    validate_simulation_request({ ...request, downloadUrl: "https://bad" }, 2),
   );
   assert.throws(() =>
     validate_simulation_request({ ...request, resultItem: "not-an-id" }, 2),
@@ -120,6 +136,39 @@ test("resolves process outcomes", () => {
   assert.equal(resolve_process_outcome(1, false, true, false), "failed");
   assert.equal(resolve_process_outcome(0, false, false, false), "failed");
   assert.equal(resolve_process_outcome(null, false, false, true), "cancelled");
+});
+
+test("starts local and installed configs with the same id by source", () => {
+  const root = mkdtempSync(join(tmpdir(), "gachasimulate-sources-"));
+  try {
+    cpSync(
+      resolve("test-fixtures/configs/test"),
+      join(root, "installed", "test"),
+      { recursive: true },
+    );
+    writeFileSync(
+      join(root, "installed", "test", ".gachasimulate.json"),
+      JSON.stringify({ sha256: "0".repeat(64) }),
+    );
+    for (const configSource of ["local", "installed"] as const) {
+      const child = new FakeChild();
+      const task = new SimulationTask(
+        join(root, "installed"),
+        join(root, "results"),
+        () => {},
+        {
+          local_dir: () => resolve("test-fixtures/configs"),
+          spawn: () => child as unknown as ChildProcess,
+        },
+      );
+      task.start({ ...request, configSource });
+      assert.equal(task.active, true);
+      child.close(1);
+      assert.equal(task.active, false);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("cancels only after the child closes", async () => {
@@ -343,6 +392,7 @@ test("spawn failure removes the temporary IR", () => {
     resolve("results"),
     () => {},
     {
+      local_dir: () => resolve("test-fixtures/configs"),
       spawn: (_command, args) => {
         ir = args[1];
         throw new Error("spawn failed");

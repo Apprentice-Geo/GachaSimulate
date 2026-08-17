@@ -1,6 +1,7 @@
 export type SimulationTarget = { kind: "totalRuns"; value: number };
 
 export type SimulationRequest = {
+  configSource: import("./installed_config").ConfigSource;
   configId: string;
   termination: string;
   resultItem: string;
@@ -91,12 +92,22 @@ export function validate_simulation_request(
   const request = object_value(value);
   exact_keys(
     request,
-    ["configId", "termination", "resultItem", "target", "seed", "threads"],
+    [
+      "configSource",
+      "configId",
+      "termination",
+      "resultItem",
+      "target",
+      "seed",
+      "threads",
+    ],
     "simulation request",
   );
+  if (request.configSource !== "installed" && request.configSource !== "local")
+    throw new Error("invalid config source");
   if (
     typeof request.configId !== "string" ||
-    !/^[A-Za-z0-9_-]+$/.test(request.configId)
+    !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(request.configId)
   )
     throw new Error("invalid config id");
   if (
