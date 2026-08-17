@@ -3,7 +3,7 @@
 ## 文档入口
 
 - 安装、运行和常用命令：[README](<README.md>)。
-- 项目代码地图、模块边界和稳定不变量：[Architecture](<docs/ARCHITECTURE.md>)。
+- 项目代码地图、模块边界和稳定不变量：[Architecture](<ARCHITECTURE.md>)。
 - YAML 配置语法与执行顺序：[YAML Config Syntax](<docs/YAML_CONFIG_SYNTAX.md>)。
 - 可视化设计决策和维护边界：[Visualize Frontend Implementation](<docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md>)。
 - 按影响范围选择检查及 push 前完整矩阵：[Development Checks](<docs/DEVELOPMENT_CHECKS.md>)。
@@ -24,7 +24,7 @@
 - 修改 YAML 语法或配置合法性时，按 `docs/YAML_CONFIG_SYNTAX.md` 同步检查 TS Compiler、C++ IR loader 和相关测试。
 - 修改单次模拟语义时，先对齐 `docs/YAML_CONFIG_SYNTAX.md` 中的执行顺序，再检查 C++ Runtime 和行为测试。
 - 修改 CLI 或保存结果时，确认启动请求选择 result item、Compiler 写入对应 IR 索引、GSR v2、Analysis v2 和单一完整 `*.visualize.json` sidecar 契约，并验证独立可视化消费方仍能读取 JSON。
-- 修改 Electron IPC、配置扫描或模拟任务生命周期时，保持 `docs/ARCHITECTURE.md` 中的 main、preload、renderer 信任边界，并更新共享类型和 Electron 行为测试。
+- 修改 Electron IPC、配置扫描或模拟任务生命周期时，保持 `ARCHITECTURE.md` 中的 main、preload、renderer 信任边界，并更新共享类型和 Electron 行为测试。
 - 修改可视化输入、CDF、marker、统计展示、动画或导出时，遵循 `docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md` 的维护边界和共享契约。
 - 修改 benchmark 时，优先覆盖完整批量模拟路径；跨 case 对比性能时注意不同配置的 `total_result` 可能不同。
 

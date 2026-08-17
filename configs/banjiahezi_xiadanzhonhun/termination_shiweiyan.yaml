@@ -1,6 +1,0 @@
-retained_items:
-- shiweiyan: 1
-termination_rule:
-  condition:
-    check: shiweiyan >= 1
-    actions: terminate obtained shiweiyan

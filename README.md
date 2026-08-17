@@ -56,4 +56,4 @@ Remotion 导出固定 3840x2160、60fps 的 `cdf-animation.mp4` 和 `cdf-result.
 
 ## 开发检查
 
-模块边界见 [Architecture](docs/ARCHITECTURE.md)，push 前检查见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)。
+模块边界见 [Architecture](ARCHITECTURE.md)，push 前检查见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)。

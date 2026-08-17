@@ -423,4 +423,4 @@ Use this template
 以下原编号事项只保留占位，不在本计划中自行决定：
 
 17. 现有配置迁移和开发预置清理范围：待后续确认，configs目录可以暂时保留，后续人工完成迁移再移除。
-18. 官方配置仓库建立后的真实默认 URL：待官方仓库建立后填写。
+18. 官方配置仓库建立后的真实默认 URL：https://github.com/Apprentice-Geo/GachaSimulate-Configs

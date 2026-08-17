@@ -49,7 +49,7 @@ function create_task(
   let command = "";
   let args: string[] = [];
   const task = new SimulationTask(
-    resolve("configs"),
+    resolve("test-fixtures/configs"),
     resolve("results"),
     (event) => events.push(event),
     {
@@ -339,7 +339,7 @@ test("keeps only a successfully completed GSR", async () => {
 test("spawn failure removes the temporary IR", () => {
   let ir = "";
   const task = new SimulationTask(
-    resolve("configs"),
+    resolve("test-fixtures/configs"),
     resolve("results"),
     () => {},
     {

@@ -21,7 +21,8 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 - `src/renderer/`：桌面界面与任务状态，不直接访问 Node.js。
 - `src/visualize/`：平台无关的输入校验、视图模型和共享场景，以 `VisualizeInput` 为边界。
 - `src/export/`：文件系统和 Remotion 导出宿主，依赖 `src/visualize/`。
-- `configs/` 与 `benchmark/cases/`：配置、预置和跨实现 benchmark case。
+- `test-fixtures/configs/`：主仓库测试与语义 fixture；`benchmark/cases/`：独立 benchmark 配置。
+- 正式配置由 `GachaSimulate-Configs` 维护，不纳入主仓库运行时目录。
 
 ## 边界与不变量
 
@@ -34,4 +35,4 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 
 ## 专项文档
 
-配置语法见 `YAML_CONFIG_SYNTAX.md`，结果格式见 `GSR_V2.md`，分析格式见 `ANALYSIS_V2.md`，可视化边界见 `VISUALIZE_FRONTEND_IMPLEMENTATION.md`，检查矩阵见 `DEVELOPMENT_CHECKS.md`。
+配置语法见 `docs/YAML_CONFIG_SYNTAX.md`，结果格式见 `docs/GSR_V2.md`，分析格式见 `docs/ANALYSIS_V2.md`，可视化边界见 `docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md`，检查矩阵见 `docs/DEVELOPMENT_CHECKS.md`。
