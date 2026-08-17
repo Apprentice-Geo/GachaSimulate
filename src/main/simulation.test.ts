@@ -335,7 +335,12 @@ test("requires a matching terminal event and exit code", () => {
 
 test("uses only trusted native paths and removes temporary IR on close", () => {
   const { args, child, command } = create_task(async () => {});
-  assert.equal(command, resolve("build/native/bin/gachasimulate-core"));
+  assert.equal(
+    command,
+    resolve(
+      `build/native/bin/gachasimulate-core${process.platform === "win32" ? ".exe" : ""}`,
+    ),
+  );
   assert.deepEqual(args.slice(2, -2), [
     "--total-runs",
     "1",
@@ -348,7 +353,7 @@ test("uses only trusted native paths and removes temporary IR on close", () => {
   assert.equal(existsSync(ir), true);
   assert.match(
     args.at(-1) ?? "",
-    /results\/test-termination-totalRuns-1-seed0-threads1-.*\.gsr$/,
+    /results[\\/]test-termination-totalRuns-1-seed0-threads1-.*\.gsr$/,
   );
   child.close(1);
   assert.equal(existsSync(ir), false);

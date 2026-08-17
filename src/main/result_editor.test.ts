@@ -87,7 +87,9 @@ test("uses the v2 analyzer and saves a complete single sidecar", async () => {
     );
     assert.equal(
       value.calls[0].command,
-      resolve("build/native/bin/gachasimulate-analyze"),
+      resolve(
+        `build/native/bin/gachasimulate-analyze${process.platform === "win32" ? ".exe" : ""}`,
+      ),
     );
     assert.deepEqual(value.calls[0].args, ["--input", value.path]);
     assert.deepEqual(state.input, {
