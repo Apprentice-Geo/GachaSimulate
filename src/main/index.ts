@@ -136,7 +136,9 @@ app.whenReady().then(() => {
   );
   ipcMain.handle("list-configs", () => config_manager.list_configs());
   ipcMain.handle("get-config-repository-state", () => config_manager.state());
-  ipcMain.handle("refresh-config-repository", () => config_manager.refresh());
+  ipcMain.handle("refresh-config-repository", (_event, force: boolean) =>
+    config_manager.refresh(force === true),
+  );
   ipcMain.handle("install-config", (_event, id: string) =>
     config_manager.install(id),
   );

@@ -8,8 +8,8 @@ contextBridge.exposeInMainWorld("desktopApi", {
   listConfigs: () => ipcRenderer.invoke("list-configs"),
   getConfigRepositoryState: () =>
     ipcRenderer.invoke("get-config-repository-state"),
-  refreshConfigRepository: () =>
-    ipcRenderer.invoke("refresh-config-repository"),
+  refreshConfigRepository: (force = false) =>
+    ipcRenderer.invoke("refresh-config-repository", force),
   installConfig: (id: string) => ipcRenderer.invoke("install-config", id),
   updateConfig: (id: string) => ipcRenderer.invoke("update-config", id),
   uninstallConfig: (id: string) => ipcRenderer.invoke("uninstall-config", id),

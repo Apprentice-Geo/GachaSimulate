@@ -272,6 +272,63 @@ test("offline refresh keeps installed configs available for use and uninstall", 
   }
 });
 
+test("refresh throttles automatic calls, merges concurrency, and allows force", async () => {
+  const root = temporary();
+  try {
+    const archive = zip(package_entries());
+    let downloads = 0;
+    let current_time = 0;
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => (release = resolve));
+    const current = new ConfigManager(join(root, "configs"), {
+      download: async () => {
+        downloads += 1;
+        if (downloads === 1) await waiting;
+        return index_for(archive);
+      },
+      simulation_active: () => false,
+      now: () => current_time,
+    });
+
+    const first = current.refresh();
+    const concurrent = current.refresh();
+    release();
+    await Promise.all([first, concurrent]);
+    assert.equal(downloads, 1);
+
+    await current.refresh();
+    assert.equal(downloads, 1);
+    await current.refresh(true);
+    assert.equal(downloads, 2);
+
+    current_time += 5 * 60 * 1_000;
+    await current.refresh();
+    assert.equal(downloads, 3);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("failed refresh also throttles automatic retries", async () => {
+  const root = temporary();
+  try {
+    let downloads = 0;
+    const current = new ConfigManager(join(root, "configs"), {
+      download: async () => {
+        downloads += 1;
+        throw new Error("offline");
+      },
+      simulation_active: () => false,
+      now: () => 0,
+    });
+    assert.match((await current.refresh()).sourceError ?? "", /offline/);
+    await current.refresh();
+    assert.equal(downloads, 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("installs a validated archive and startup removes stale staging", async () => {
   const root = temporary();
   try {

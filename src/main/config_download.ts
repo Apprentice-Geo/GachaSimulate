@@ -4,6 +4,7 @@ export const CONFIG_INDEX_DOWNLOAD_LIMIT = 1024 * 1024;
 export const CONFIG_ZIP_DOWNLOAD_LIMIT = 8 * 1024 * 1024;
 export const CONFIG_DOWNLOAD_TIMEOUT_MS = 30_000;
 export const CONFIG_REDIRECT_LIMIT = 5;
+export const CONFIG_RETRY_AFTER_LIMIT_MS = 30_000;
 
 type ResponseLike = NodeJS.ReadableStream & {
   statusCode: number;
@@ -27,12 +28,22 @@ function location_header(response: ResponseLike): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function retry_after_ms(response: ResponseLike): number {
+  const raw = response.headers["retry-after"];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) return 1_000;
+  if (/^\d+$/.test(value)) return Number(value) * 1_000;
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? 1_000 : Math.max(0, date - Date.now());
+}
+
 export async function download_https(
   url: string,
   limit: number,
   request: ConfigRequest,
   timeout_ms = CONFIG_DOWNLOAD_TIMEOUT_MS,
   redirects = 0,
+  retries = 0,
 ): Promise<Buffer> {
   if (new URL(url).protocol !== "https:")
     throw new Error("configuration downloads require HTTPS");
@@ -89,7 +100,36 @@ export async function download_https(
           request,
           timeout_ms,
           redirects + 1,
+          retries,
         ).then((value) => finish(undefined, value), finish);
+        return;
+      }
+      if (status === 429 && retries === 0) {
+        const delay = retry_after_ms(response);
+        if (delay <= CONFIG_RETRY_AFTER_LIMIT_MS) {
+          ignore_client_errors = true;
+          clearTimeout(timer);
+          response.destroy();
+          client.abort();
+          setTimeout(() => {
+            void download_https(
+              url,
+              limit,
+              request,
+              timeout_ms,
+              redirects,
+              retries + 1,
+            ).then((value) => finish(undefined, value), finish);
+          }, delay);
+          return;
+        }
+        finish(
+          new Error(
+            "configuration download returned HTTP 429; Retry-After exceeds 30 seconds",
+          ),
+        );
+        response.destroy();
+        client.abort();
         return;
       }
       if (status < 200 || status >= 300) {

@@ -141,6 +141,57 @@ test("rejects non-2xx, inactivity, request failure, and interrupted bodies", asy
   );
 });
 
+test("retries HTTP 429 once within Retry-After limit", async () => {
+  const requested: string[] = [];
+  const body = await download_https(
+    "https://example.test/index.json",
+    10,
+    fake_request(
+      [
+        { status: 429, headers: { "retry-after": "0" } },
+        { chunks: [Buffer.from("done")] },
+      ],
+      requested,
+    ),
+  );
+  assert.equal(body.toString(), "done");
+  assert.equal(requested.length, 2);
+
+  const limited: string[] = [];
+  await assert.rejects(
+    () =>
+      download_https(
+        "https://example.test/index.json",
+        10,
+        fake_request(
+          [{ status: 429, headers: { "retry-after": "31" } }],
+          limited,
+        ),
+      ),
+    /exceeds 30 seconds/,
+  );
+  assert.equal(limited.length, 1);
+
+  const retried: string[] = [];
+  await assert.rejects(() =>
+    download_https(
+      "https://example.test/index.json",
+      10,
+      fake_request(
+        [
+          {
+            status: 429,
+            headers: { "retry-after": "Thu, 01 Jan 1970 00:00:00 GMT" },
+          },
+          { status: 429 },
+        ],
+        retried,
+      ),
+    ),
+  );
+  assert.equal(retried.length, 2);
+});
+
 test("rejects a non-HTTPS initial URL", async () => {
   await assert.rejects(() =>
     download_https("http://example.test/index.json", 10, fake_request([])),

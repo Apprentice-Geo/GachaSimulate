@@ -496,7 +496,11 @@ function ConfigRepositoryPage() {
   ) => {
     set_busy_id(id ?? label);
     set_error(null);
-    set_message(`${label}中…`);
+    set_message(
+      label === "刷新"
+        ? "正在刷新官方目录；若远端限流，最多等待 30 秒后重试一次，应用其他功能不受影响。"
+        : `${label}中…`,
+    );
     try {
       set_state(await operation());
       set_message(`${label}完成。`);
@@ -513,7 +517,9 @@ function ConfigRepositoryPage() {
       .getConfigRepositoryState()
       .then((initial) => {
         set_state(initial);
-        set_message("本机配置状态已读取。");
+        set_message(
+          "正在刷新官方目录；若远端限流，最多等待 30 秒后重试一次，应用其他功能不受影响。",
+        );
         return window.desktopApi.refreshConfigRepository();
       })
       .then((refreshed) => {
@@ -562,7 +568,9 @@ function ConfigRepositoryPage() {
           type="button"
           disabled={busy_id !== null}
           onClick={() =>
-            void run("刷新", () => window.desktopApi.refreshConfigRepository())
+            void run("刷新", () =>
+              window.desktopApi.refreshConfigRepository(true),
+            )
           }
         >
           刷新官方目录

@@ -38,6 +38,7 @@ const INSTALL_METADATA = ".gachasimulate.json";
 const SETTINGS_FILE = "local-config.json";
 const SHA256 = /^[0-9a-f]{64}$/;
 const CONFIG_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+const CONFIG_REFRESH_TTL_MS = 5 * 60 * 1_000;
 
 type InstalledRecord = { config: InstalledConfig; sha256: string };
 
@@ -239,6 +240,7 @@ async function extract_zip(buffer: Buffer, destination: string): Promise<void> {
 type ConfigManagerDependencies = {
   download: (url: string, limit: number) => Promise<Buffer>;
   simulation_active: () => boolean;
+  now?: () => number;
   random_uuid?: () => string;
   rename?: typeof renameSync;
 };
@@ -248,6 +250,8 @@ export class ConfigManager {
   private remote_error: string | null = null;
   private local_directory: string | null = null;
   private changing = false;
+  private refreshed_at: number | null = null;
+  private refresh_in_flight: Promise<ConfigRepositoryState> | null = null;
   readonly installed_dir: string;
   private readonly staging_dir: string;
   private readonly settings_path: string;
@@ -332,9 +336,29 @@ export class ConfigManager {
     };
   }
 
-  async refresh(): Promise<ConfigRepositoryState> {
+  async refresh(force = false): Promise<ConfigRepositoryState> {
     if (this.changing)
       throw new Error("a configuration change is already running");
+    if (this.refresh_in_flight) return this.refresh_in_flight;
+    const now = this.dependencies.now ?? Date.now;
+    if (
+      !force &&
+      this.refreshed_at !== null &&
+      now() - this.refreshed_at < CONFIG_REFRESH_TTL_MS
+    )
+      return this.state();
+
+    const refresh = this.refresh_remote();
+    this.refresh_in_flight = refresh;
+    try {
+      return await refresh;
+    } finally {
+      this.refreshed_at = now();
+      this.refresh_in_flight = null;
+    }
+  }
+
+  private async refresh_remote(): Promise<ConfigRepositoryState> {
     try {
       const body = await this.dependencies.download(
         OFFICIAL_CONFIG_INDEX_URL,
