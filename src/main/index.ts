@@ -1,6 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain, net, shell } from "electron";
+import { execFile, spawn } from "node:child_process";
 import { cpus } from "node:os";
 import { join } from "node:path";
+import { promisify } from "node:util";
 import { ConfigManager } from "./config_manager";
 import { download_https, type ConfigRequest } from "./config_download";
 import { ResultEditor } from "./result_editor";
@@ -12,6 +14,38 @@ let simulation: SimulationTask;
 let result_editor: ResultEditor;
 let config_manager: ConfigManager;
 let quitting = false;
+
+const exec_file = promisify(execFile);
+
+async function open_directory(path: string): Promise<void> {
+  if (process.platform === "linux" && process.env.WSL_DISTRO_NAME) {
+    try {
+      const { stdout } = await exec_file("wslpath", ["-w", path]);
+      await new Promise<void>((resolve, reject) => {
+        const child = spawn("explorer.exe", [stdout.trim()], {
+          detached: true,
+          stdio: "ignore",
+        });
+        child.once("error", reject);
+        child.once("spawn", () => {
+          child.unref();
+          resolve();
+        });
+      });
+      return;
+    } catch (error) {
+      throw new Error(
+        `WSL Explorer failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { cause: error },
+      );
+    }
+  }
+
+  const error = await shell.openPath(path);
+  if (error) throw new Error(error);
+}
 
 function shutdown(): Promise<void> {
   return shutdown_native_processes(simulation, result_editor);
@@ -134,6 +168,7 @@ app.whenReady().then(() => {
   ipcMain.handle("cancel-simulation", () => shutdown());
   ipcMain.handle("select-gsr-result", async () => {
     const result = await dialog.showOpenDialog({
+      defaultPath: results_dir,
       properties: ["openFile"],
       filters: [{ name: "GachaSimulate 结果", extensions: ["gsr"] }],
     });
@@ -143,10 +178,7 @@ app.whenReady().then(() => {
   ipcMain.handle("save-result-fields", (_event, fields: DisplayFields) =>
     result_editor.save(fields),
   );
-  ipcMain.handle("open-results-directory", async () => {
-    const error = await shell.openPath(results_dir);
-    if (error) throw new Error(error);
-  });
+  ipcMain.handle("open-results-directory", () => open_directory(results_dir));
   create_window();
 
   app.on("activate", () => {
