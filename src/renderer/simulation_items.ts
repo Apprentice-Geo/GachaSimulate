@@ -13,3 +13,15 @@ export function selected_result_item(
   const id = input.trim();
   return items.some((item) => item.id === id) ? id : null;
 }
+
+export function filter_result_items(
+  items: ConfigItem[],
+  query: string,
+): ConfigItem[] {
+  const needle = query.trim().toLocaleLowerCase();
+  return needle
+    ? items.filter(({ id, name }) =>
+        `${id}\n${name}`.toLocaleLowerCase().includes(needle),
+      )
+    : items;
+}

@@ -53,6 +53,10 @@ function shutdown(): Promise<void> {
 
 function create_window(): void {
   const window = new BrowserWindow({
+    width: 1600,
+    height: 900,
+    minWidth: 1280,
+    minHeight: 720,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,

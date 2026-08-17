@@ -1,16 +1,30 @@
-import { BarChart3, FilePenLine, FolderOpen, Play, Store } from "lucide-react";
-import { useState, useEffect, type ReactNode } from "react";
+import {
+  BarChart3,
+  FilePenLine,
+  FolderOpen,
+  Play,
+  Search,
+  Store,
+} from "lucide-react";
+import { useState, useEffect, type CSSProperties, type ReactNode } from "react";
 import type {
   ConfigRepositoryState,
   InstalledConfig,
   RepositoryConfig,
 } from "../shared/installed_config";
 import type { DisplayFields, ResultEditorState } from "../shared/result_editor";
-import { default_result_item, selected_result_item } from "./simulation_items";
+import {
+  default_result_item,
+  filter_result_items,
+  selected_result_item,
+} from "./simulation_items";
 import VisualizeApp from "../visualize/App";
+import { get_metric_color } from "../visualize/view/cdf_view_model";
+import { get_distribution_statistic_groups } from "../visualize/view/statistic_view_config";
 import {
   validate_simulation_request,
   type SimulationRequest,
+  type SimulationStage,
   type SimulationStatus,
 } from "../shared/simulation";
 
@@ -58,6 +72,10 @@ const status_labels: Record<SimulationStatus, string> = {
   cancelled: "已取消",
 };
 
+const result_statistic_keys = get_distribution_statistic_groups().flatMap(
+  ({ keys }) => keys,
+);
+
 function SimulationPage({ active }: { active: boolean }) {
   const [configs, set_configs] = useState<InstalledConfig[]>([]);
   const [selected_key, set_selected_key] = useState("");
@@ -66,11 +84,13 @@ function SimulationPage({ active }: { active: boolean }) {
   const [operation_error, set_operation_error] = useState<string | null>(null);
   const [termination, set_termination] = useState("");
   const [result_item, set_result_item] = useState("");
+  const [item_query, set_item_query] = useState("");
   const [target_value, set_target_value] = useState("10");
   const [seed, set_seed] = useState("0");
   const [threads, set_threads] = useState("1");
   const [logical_cpu_count, set_logical_cpu_count] = useState(1);
   const [status, set_status] = useState<SimulationStatus>("idle");
+  const [stage, set_stage] = useState<SimulationStage | null>(null);
   const [progress, set_progress] = useState<{
     completed: number;
     total: number;
@@ -80,6 +100,8 @@ function SimulationPage({ active }: { active: boolean }) {
   const key = (config: InstalledConfig) => `${config.source}:${config.id}`;
   const selected =
     configs.find((config) => key(config) === selected_key) ?? configs[0];
+  const filtered_items = filter_result_items(selected?.items ?? [], item_query);
+  const selected_item = selected?.items.find(({ id }) => id === result_item);
 
   useEffect(() => {
     if (!active) return;
@@ -115,6 +137,8 @@ function SimulationPage({ active }: { active: boolean }) {
     return window.desktopApi.onSimulationEvent(
       ({ status: next_status, event, message }) => {
         set_status(next_status);
+        if (event?.type === "started") set_stage("loading_config");
+        if (event?.type === "stage") set_stage(event.stage);
         if (event?.type === "progress") set_progress(event);
         if (event?.type === "completed") set_result_path(event.result_path);
         if (message) set_operation_error(message);
@@ -125,6 +149,7 @@ function SimulationPage({ active }: { active: boolean }) {
   useEffect(() => {
     set_termination(selected?.terminations[0]?.file ?? "");
     set_result_item(default_result_item(selected?.items ?? []));
+    set_item_query("");
   }, [selected]);
 
   const busy = ["starting", "running", "saving", "cancelling"].includes(status);
@@ -132,6 +157,7 @@ function SimulationPage({ active }: { active: boolean }) {
     set_operation_error(null);
     set_progress(null);
     set_result_path("");
+    set_stage("loading_config");
     const canonical_result_item = selected_result_item(
       result_item,
       selected?.items ?? [],
@@ -186,17 +212,34 @@ function SimulationPage({ active }: { active: boolean }) {
     }
   };
 
+  const stage_index = {
+    loading_config: 0,
+    simulating: 1,
+    saving: 2,
+  }[stage ?? "loading_config"];
+  const trace_state = (index: number) => {
+    if (status === "completed") return "done";
+    if (["failed", "cancelled"].includes(status) && index === stage_index)
+      return "failed";
+    if (status === "idle" || index > stage_index) return "pending";
+    return index < stage_index ? "done" : "active";
+  };
+
   return (
     <section
       hidden={!active}
       className="renderer-placeholder simulation-page"
       aria-labelledby="simulation-title"
     >
-      <div className="renderer-placeholder-mark" aria-hidden="true">
-        <Play size={24} />
-      </div>
-      <p className="renderer-eyebrow">SIMULATION CONSOLE</p>
-      <h1 id="simulation-title">运行模拟</h1>
+      <header className="page-heading">
+        <div className="renderer-placeholder-mark" aria-hidden="true">
+          <Play size={20} />
+        </div>
+        <div>
+          <p className="renderer-eyebrow">SIMULATION CONSOLE</p>
+          <h1 id="simulation-title">运行模拟</h1>
+        </div>
+      </header>
       {loading ? (
         <p>正在扫描配置…</p>
       ) : config_error ? (
@@ -204,8 +247,15 @@ function SimulationPage({ active }: { active: boolean }) {
       ) : configs.length === 0 ? (
         <p>暂无可用配置，请先安装官方配置或选择本地配置目录。</p>
       ) : (
-        <div className="renderer-config-form">
-          <div className="simulation-primary-fields">
+        <div className="simulation-workbench">
+          <section className="instrument-panel simulation-selection">
+            <div className="panel-heading">
+              <div>
+                <p className="panel-kicker">输入 / INPUT</p>
+                <h2>配置与统计物品</h2>
+              </div>
+              <code>{selected?.id}</code>
+            </div>
             <div className="simulation-config-fields">
               <label>
                 配置
@@ -229,119 +279,175 @@ function SimulationPage({ active }: { active: boolean }) {
                   value={termination}
                   onChange={(event) => set_termination(event.target.value)}
                 >
-                  {selected?.terminations.map((termination) => (
-                    <option key={termination.file} value={termination.file}>
-                      {termination.name}
+                  {selected?.terminations.map((item) => (
+                    <option key={item.file} value={item.file}>
+                      {item.name}
                     </option>
                   ))}
                 </select>
               </label>
-              <div className="simulation-item-picker">
-                <label>
-                  统计物品 ID
-                  <input
-                    autoComplete="off"
-                    disabled={busy}
-                    list="simulation-item-options"
-                    value={result_item}
-                    onChange={(event) => set_result_item(event.target.value)}
-                  />
-                  <datalist id="simulation-item-options">
-                    {selected?.items.map((item) => (
-                      <option key={item.id} value={item.id} />
-                    ))}
-                  </datalist>
-                </label>
-                <ul
-                  aria-label="当前配置物品"
-                  className="simulation-item-panel"
-                  tabIndex={0}
-                >
-                  {selected?.items.map((item) => (
-                    <li
-                      data-current={result_item.trim() === item.id || undefined}
-                      key={item.id}
-                    >
-                      <code>{item.id}</code>: {item.name}
-                    </li>
-                  ))}
-                </ul>
+            </div>
+            <p className="config-description">{selected?.description}</p>
+            <div className="item-list-heading">
+              <div>
+                <span>统计物品</span>
+                <small>
+                  {filtered_items.length} / {selected?.items.length ?? 0}
+                </small>
               </div>
-              <p>{selected?.description}</p>
+              <label className="item-search">
+                <Search aria-hidden="true" size={15} />
+                <span className="sr-only">搜索统计物品</span>
+                <input
+                  autoComplete="off"
+                  disabled={busy}
+                  placeholder="搜索 ID 或中文名称"
+                  type="search"
+                  value={item_query}
+                  onChange={(event) => set_item_query(event.target.value)}
+                />
+              </label>
             </div>
-            <fieldset disabled={busy}>
-              <legend>目标</legend>
-              <span>固定次数</span>
-              <input
-                aria-label="目标值"
-                type="number"
-                min="1"
-                value={target_value}
-                onChange={(event) => set_target_value(event.target.value)}
-              />
-            </fieldset>
-          </div>
-          <div className="simulation-fields">
-            <label>
-              随机种子
-              <input
-                disabled={busy}
-                type="number"
-                step="1"
-                value={seed}
-                onChange={(event) => set_seed(event.target.value)}
-              />
-            </label>
-            <label>
-              线程数（1–{logical_cpu_count}）
-              <input
-                disabled={busy}
-                type="number"
-                min="1"
-                max={logical_cpu_count}
-                step="1"
-                value={threads}
-                onChange={(event) => set_threads(event.target.value)}
-              />
-            </label>
-          </div>
-          <div className="simulation-actions">
-            <button type="button" disabled={busy} onClick={() => void start()}>
-              <Play size={16} aria-hidden="true" />
-              启动模拟
-            </button>
-            <button
-              type="button"
-              disabled={!busy || status === "cancelling"}
-              onClick={() => void cancel()}
+            <div
+              aria-label="当前配置统计物品"
+              className="simulation-item-panel"
+              role="radiogroup"
             >
-              取消
-            </button>
-          </div>
-          {operation_error && (
-            <div className="simulation-error" role="alert">
-              错误：{operation_error}
+              {filtered_items.map((item) => (
+                <label className="simulation-item" key={item.id}>
+                  <input
+                    checked={result_item === item.id}
+                    disabled={busy}
+                    name="result-item"
+                    type="radio"
+                    value={item.id}
+                    onChange={() => set_result_item(item.id)}
+                  />
+                  <span>
+                    <code>{item.id}</code>
+                    <strong>{item.name}</strong>
+                  </span>
+                </label>
+              ))}
+              {filtered_items.length === 0 && (
+                <p className="item-empty">没有匹配项，请更换 ID 或名称。</p>
+              )}
             </div>
-          )}
-          <div className="simulation-status" role="status">
-            <span>状态：{status_labels[status]}</span>
-            {progress && (
-              <span>
-                进度：{progress.completed}/{progress.total}
+          </section>
+
+          <section className="instrument-panel simulation-control">
+            <div className="panel-heading">
+              <div>
+                <p className="panel-kicker">执行 / EXECUTE</p>
+                <h2>运行控制</h2>
+              </div>
+              <span className="status-badge" data-status={status}>
+                {status_labels[status]}
               </span>
-            )}
-            {result_path && (
-              <span title={result_path}>
-                结果：{result_path.split(/[\\/]/).pop()}
-              </span>
-            )}
-            {result_path && (
-              <button type="button" onClick={() => void open_results()}>
-                <FolderOpen size={16} aria-hidden="true" />
-                打开结果目录
+            </div>
+            <div className="simulation-fields">
+              <label className="target-field">
+                固定次数
+                <input
+                  disabled={busy}
+                  min="1"
+                  type="number"
+                  value={target_value}
+                  onChange={(event) => set_target_value(event.target.value)}
+                />
+              </label>
+              <label>
+                随机种子
+                <input
+                  disabled={busy}
+                  step="1"
+                  type="number"
+                  value={seed}
+                  onChange={(event) => set_seed(event.target.value)}
+                />
+              </label>
+              <label>
+                线程数 <span>1–{logical_cpu_count}</span>
+                <input
+                  disabled={busy}
+                  max={logical_cpu_count}
+                  min="1"
+                  step="1"
+                  type="number"
+                  value={threads}
+                  onChange={(event) => set_threads(event.target.value)}
+                />
+              </label>
+            </div>
+            <div className="output-item">
+              <span>当前输出物品</span>
+              <strong>{selected_item?.name ?? "未选择"}</strong>
+              <code>{selected_item?.id ?? "—"}</code>
+            </div>
+            <div className="simulation-actions">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void start()}
+              >
+                <Play size={16} aria-hidden="true" />
+                启动模拟
               </button>
+              <button
+                type="button"
+                disabled={!busy || status === "cancelling"}
+                onClick={() => void cancel()}
+              >
+                取消
+              </button>
+            </div>
+            {operation_error && (
+              <div className="simulation-error" role="alert">
+                错误：{operation_error}
+              </div>
             )}
-          </div>
+            <ol className="simulation-trace" aria-label="模拟任务轨迹">
+              {[
+                ["编译配置", "YAML → IR"],
+                [
+                  "运行模拟",
+                  progress
+                    ? `${progress.completed} / ${progress.total} runs`
+                    : "等待 core",
+                ],
+                [
+                  "保存 GSR",
+                  result_path ? result_path.split(/[\\/]/).pop() : "等待写入",
+                ],
+              ].map(([label, detail], index) => (
+                <li data-state={trace_state(index)} key={label}>
+                  <i aria-hidden="true" />
+                  <span>
+                    <strong>{label}</strong>
+                    <small title={index === 2 ? result_path : undefined}>
+                      {detail}
+                    </small>
+                  </span>
+                </li>
+              ))}
+            </ol>
+            {progress && (
+              <progress
+                aria-label="模拟进度"
+                max={progress.total}
+                value={progress.completed}
+              />
+            )}
+            <div className="simulation-status" role="status">
+              <span>状态 / {status_labels[status]}</span>
+              {result_path && (
+                <button type="button" onClick={() => void open_results()}>
+                  <FolderOpen size={16} aria-hidden="true" />
+                  打开结果目录
+                </button>
+              )}
+            </div>
+          </section>
         </div>
       )}
     </section>
@@ -407,8 +513,9 @@ function ResultEditorPage({
     key: keyof DisplayFields,
     label: string,
     multiline = false,
+    class_name = "",
   ) => (
-    <label>
+    <label className={class_name}>
       {label}
       {multiline ? (
         <textarea
@@ -441,29 +548,99 @@ function ResultEditorPage({
       className="renderer-placeholder result-editor"
       aria-labelledby="result-title"
     >
-      <div className="renderer-placeholder-mark" aria-hidden="true">
-        <BarChart3 size={24} />
-      </div>
-      <p className="renderer-eyebrow">GSR RESULT EDITOR</p>
-      <h1 id="result-title">结果展示信息</h1>
-      <button type="button" disabled={busy} onClick={() => void select()}>
-        选择 GSR
-      </button>
-      {state && fields && (
-        <div className="result-editor-form">
-          <p title={state.path}>文件：{state.filename}</p>
-          <p>结果指标：{state.input.result_item.name}</p>
-          {field("title", "标题")}
-          {field("target", "目标")}
-          {field("note", "说明", true)}
-          {field("price", "价格")}
-          {field("unit", "单位")}
-          <p title={state.sidecar_path}>
-            sidecar：{state.sidecar_path.split(/[\\/]/).pop()}
-          </p>
+      <header className="page-heading result-editor-header">
+        <div className="renderer-placeholder-mark" aria-hidden="true">
+          <FilePenLine size={20} />
+        </div>
+        <div>
+          <p className="renderer-eyebrow">GSR RESULT EDITOR</p>
+          <h1 id="result-title">结果展示信息</h1>
+        </div>
+        {state && (
+          <button
+            className="secondary"
+            type="button"
+            disabled={busy}
+            onClick={() => void select()}
+          >
+            更换 GSR
+          </button>
+        )}
+      </header>
+      {!state && (
+        <div className="result-editor-empty">
+          <div className="instrument-panel result-editor-empty-panel">
+            <p className="panel-kicker">GSR WORKFLOW</p>
+            <h2>载入模拟结果</h2>
+            <p>
+              选择 GSR 文件并完成分析后，即可编辑标题、目标、说明、价格和单位。
+            </p>
+            <button type="button" disabled={busy} onClick={() => void select()}>
+              <FolderOpen size={16} aria-hidden="true" />
+              选择 GSR
+            </button>
+          </div>
         </div>
       )}
-      <p role="status">{status}</p>
+      {state && fields && (
+        <div className="result-editor-workbench">
+          <div className="instrument-panel result-editor-form">
+            <div className="panel-heading">
+              <div>
+                <p className="panel-kicker">展示字段 / DISPLAY</p>
+                <h2>可视化文案</h2>
+              </div>
+              <span>失焦自动保存</span>
+            </div>
+            {field("title", "标题")}
+            {field("target", "目标")}
+            {field("note", "说明", true, "result-note")}
+            {field("price", "价格", false, "result-price")}
+            {field("unit", "单位", false, "result-unit")}
+          </div>
+          <aside className="instrument-panel result-metrics">
+            <div className="panel-heading">
+              <div>
+                <p className="panel-kicker">分析 / ANALYSIS</p>
+                <h2>结果预览</h2>
+              </div>
+            </div>
+            <div className="result-metric-primary">
+              <span>结果指标</span>
+              <strong>{state.input.result_item.name}</strong>
+              <code>{state.input.result_item.id}</code>
+            </div>
+            <div className="result-totals">
+              <div>
+                <span>累计模拟次数</span>
+                <strong>{state.input.runs.toLocaleString("zh-CN")}</strong>
+              </div>
+            </div>
+            <dl className="quantile-preview">
+              {result_statistic_keys.map((key) => (
+                <div
+                  key={key}
+                  style={
+                    {
+                      "--metric-color": get_metric_color(key),
+                    } as CSSProperties
+                  }
+                >
+                  <dt>{key}</dt>
+                  <dd>
+                    {state.input.statistic[key].toLocaleString("zh-CN", {
+                      maximumFractionDigits: 1,
+                    })}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </aside>
+        </div>
+      )}
+      <p className="result-save-status" role="status">
+        {status}
+      </p>
       {error && (
         <p className="simulation-error" role="alert">
           错误：{error}
@@ -550,17 +727,28 @@ function ConfigRepositoryPage() {
         config.id,
       );
   };
+  const repository_counts = {
+    installed:
+      state?.official.filter(({ status }) => status !== "available").length ??
+      0,
+    update:
+      state?.official.filter(({ status }) => status === "update_available")
+        .length ?? 0,
+    available:
+      state?.official.filter(({ status }) => status === "available").length ??
+      0,
+  };
 
   return (
     <section
       className="renderer-placeholder repository-page"
       aria-labelledby="config-repository-title"
     >
-      <header className="repository-header">
+      <header className="page-heading repository-header">
+        <div className="renderer-placeholder-mark" aria-hidden="true">
+          <Store size={20} />
+        </div>
         <div>
-          <div className="renderer-placeholder-mark" aria-hidden="true">
-            <Store size={24} />
-          </div>
           <p className="renderer-eyebrow">CONFIGURATION CATALOG</p>
           <h1 id="config-repository-title">配置仓库</h1>
         </div>
@@ -577,8 +765,24 @@ function ConfigRepositoryPage() {
         </button>
       </header>
 
-      <div className="repository-status" role="status">
-        {message}
+      <div className="repository-overview">
+        <dl>
+          <div>
+            <dt>已安装</dt>
+            <dd>{repository_counts.installed}</dd>
+          </div>
+          <div>
+            <dt>可更新</dt>
+            <dd>{repository_counts.update}</dd>
+          </div>
+          <div>
+            <dt>可安装</dt>
+            <dd>{repository_counts.available}</dd>
+          </div>
+        </dl>
+        <div className="repository-status" role="status">
+          {message}
+        </div>
       </div>
       {(error || state?.sourceError) && (
         <div className="simulation-error" role="alert">

@@ -11,7 +11,10 @@ import {
 import { createServer } from "vite";
 import input from "../visualize/fixtures/example_input.json";
 import type { ResultEditorState } from "../shared/result_editor";
-import type { ConfigRepositoryState } from "../shared/installed_config";
+import type {
+  ConfigRepositoryState,
+  InstalledConfig,
+} from "../shared/installed_config";
 import type { VisualizeInput } from "../visualize/types/visualize_input";
 
 const PROJECT_ROOT = process.cwd();
@@ -21,6 +24,7 @@ const SCENARIOS = [
   "electron/simulation-idle",
   "electron/simulation-navigation",
   "electron/config-repository",
+  "electron/result-editor-empty",
   "electron/result-editor-loaded",
   "electron/result-visualize-loaded",
   "web/result-visualize-loaded",
@@ -119,6 +123,42 @@ function repository_fixture(): ConfigRepositoryState {
   };
 }
 
+function simulation_fixture(): InstalledConfig[] {
+  const names = [
+    ["draw_count", "抽数"],
+    ["target", "目标角色"],
+    ["miss", "未命中"],
+    ["featured_character", "限定角色"],
+    ["standard_character", "常驻角色"],
+    ["featured_weapon", "限定武器"],
+    ["standard_weapon", "常驻武器"],
+    ["guarantee_count", "保底计数"],
+    ["pity_count", "当前水位"],
+    ["spark_point", "兑换点数"],
+    ["token", "商店代币"],
+    ["bonus_item", "额外物品"],
+    ["rare_item", "稀有物品"],
+    ["common_item", "普通物品"],
+    ["path_point", "定轨点数"],
+    ["exchange_count", "兑换次数"],
+    ["duplicate_count", "重复获取"],
+    ["total_reward", "奖励总数"],
+  ] as const;
+  return [
+    {
+      id: "instrument_fixture",
+      name: "概率仪器台验收配置",
+      description: "包含长统计物品列表，用于检查搜索、选择和滚动区域。",
+      source: "installed",
+      terminations: [
+        { file: "target.yaml", name: "获得目标物品" },
+        { file: "budget.yaml", name: "达到预算上限" },
+      ],
+      items: names.map(([id, name]) => ({ id, name })),
+    },
+  ];
+}
+
 async function capture_electron(scenarios: Scenario[]): Promise<void> {
   const config_home = await mkdtemp(
     path.join(tmpdir(), "gachasimulate-ui-config-"),
@@ -139,16 +179,18 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
       env: { ...env, XDG_CONFIG_HOME: config_home },
     });
     const page = await application.firstWindow();
-    await application.evaluate(({ BrowserWindow }) => {
-      BrowserWindow.getAllWindows()[0]?.setContentSize(1920, 1080);
-    });
+    await application.evaluate(({ BrowserWindow, ipcMain }, fixture) => {
+      ipcMain.removeHandler("list-configs");
+      ipcMain.handle("list-configs", () => fixture);
+      BrowserWindow.getAllWindows()[0]?.setContentSize(2560, 1440);
+    }, simulation_fixture());
     await page.waitForFunction(
-      () => window.innerWidth === 1920 && window.innerHeight === 1080,
+      () => window.innerWidth === 2560 && window.innerHeight === 1440,
     );
     await page.reload({ waitUntil: "domcontentloaded" });
 
     if (scenarios.includes("electron/simulation-idle")) {
-      await page.getByText("状态：待运行").waitFor();
+      await page.getByText("状态 / 待运行").waitFor();
       await screenshot(page, "electron/simulation-idle");
     }
 
@@ -166,7 +208,9 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
         });
       });
       await page.getByRole("button", { name: "运行模拟" }).click();
-      await page.getByText("结果：completed-while-away.gsr").waitFor();
+      await page
+        .getByText("completed-while-away.gsr", { exact: true })
+        .waitFor();
       await screenshot(page, "electron/simulation-navigation");
     }
 
@@ -190,14 +234,33 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
     );
     if (result_scenarios.length === 0) return;
 
-    await application.evaluate(({ ipcMain }, fixture) => {
-      ipcMain.removeHandler("select-gsr-result");
-      ipcMain.handle("select-gsr-result", () => fixture);
-    }, result_fixture());
     await page.getByRole("button", { name: "结果编辑" }).click();
     await page.locator("#simulation-title").waitFor({ state: "hidden" });
-    await page.getByRole("button", { name: "选择 GSR" }).click();
-    await page.getByText("文件：example.gsr").waitFor();
+
+    if (scenarios.includes("electron/result-editor-empty")) {
+      await page.getByRole("heading", { name: "载入模拟结果" }).waitFor();
+      await screenshot(page, "electron/result-editor-empty");
+    }
+
+    if (
+      !scenarios.includes("electron/result-editor-loaded") &&
+      !scenarios.includes("electron/result-visualize-loaded")
+    )
+      return;
+
+    await application.evaluate(({ ipcMain }, fixture) => {
+      let selection_count = 0;
+      ipcMain.removeHandler("select-gsr-result");
+      ipcMain.handle("select-gsr-result", () =>
+        selection_count++ === 0 ? null : fixture,
+      );
+    }, result_fixture());
+    const select_button = page.getByRole("button", { name: "选择 GSR" });
+    await select_button.focus();
+    await page.keyboard.press("Enter");
+    await page.getByText("未选择文件。", { exact: true }).waitFor();
+    await select_button.click();
+    await page.getByRole("button", { name: "更换 GSR" }).waitFor();
 
     if (scenarios.includes("electron/result-editor-loaded")) {
       await screenshot(page, "electron/result-editor-loaded");
