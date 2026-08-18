@@ -18,7 +18,8 @@
 namespace gachasimulate {
 namespace {
 using Json = nlohmann::json;
-constexpr size_t kMaxFile = 64 * 1024 * 1024, kMaxArena = 1'000'000, kMaxConditionDepth = 256;
+constexpr size_t kMaxFile = 64 * 1024 * 1024, kMaxArena = 1'000'000, kMaxConditionDepth = 256,
+                 kMaxRunSteps = 1'000'000, kMaxFrameDepth = 1'024;
 [[noreturn]] void fail(const std::string &message) {
   throw std::runtime_error("invalid IR: " + message);
 }
@@ -109,6 +110,7 @@ struct State {
   std::vector<uint8_t> once;
   bool stop{};
   uint32_t reason{};
+  size_t steps{};
   std::mt19937_64 rng;
 };
 struct Frame {
@@ -118,6 +120,8 @@ struct Frame {
 };
 
 bool condition(const RuntimeProgram &p, State &s, uint32_t id, std::vector<Range> &output) {
+  if (++s.steps > kMaxRunSteps)
+    throw std::runtime_error("runtime step limit exceeded");
   const auto &node = p.conditions[id];
   if (!node.logic) {
     const auto left = s.inventory[node.item];
@@ -154,16 +158,21 @@ bool condition(const RuntimeProgram &p, State &s, uint32_t id, std::vector<Range
 }
 void execute(const RuntimeProgram &p, State &s, Range initial) {
   std::vector<Frame> frames;
+  const auto push = [&](Frame frame) {
+    if (frames.size() >= kMaxFrameDepth)
+      throw std::runtime_error("runtime frame depth limit exceeded");
+    frames.push_back(frame);
+  };
   const auto enqueue_resolve = [&](uint32_t item) {
     const auto &r = p.resolves[item];
     if (!r.actions.count || s.inventory[item] <= r.retain)
       return;
     const auto batches = static_cast<uint64_t>(s.inventory[item] - r.retain) / r.reduce_per_batch;
     if (batches)
-      frames.push_back({r.actions, 0, batches});
+      push({r.actions, 0, batches});
   };
   if (initial.count)
-    frames.push_back({initial, 0, 1});
+    push({initial, 0, 1});
   while (!frames.empty() && !s.stop) {
     auto &frame = frames.back();
     if (frame.offset == frame.range.count) {
@@ -175,6 +184,8 @@ void execute(const RuntimeProgram &p, State &s, Range initial) {
       continue;
     }
     const auto &action = p.actions[frame.range.begin + frame.offset++];
+    if (++s.steps > kMaxRunSteps)
+      throw std::runtime_error("runtime step limit exceeded");
     switch (action.kind) {
     case ActionKind::Add:
       if (!add_checked(s.inventory[action.target], action.amount))
@@ -196,7 +207,7 @@ void execute(const RuntimeProgram &p, State &s, Range initial) {
       const auto first = p.entries.begin() + pool.entries.begin;
       const auto entry = std::lower_bound(first, first + pool.entries.count, value,
                                           [](const Entry &e, double v) { return e.threshold < v; });
-      frames.push_back({entry->actions, 0, 1});
+      push({entry->actions, 0, 1});
       break;
     }
     case ActionKind::Change:
@@ -414,6 +425,7 @@ RunResult single_run(const RuntimeProgram &p, uint64_t run_seed) {
           std::vector<int64_t>(p.resolves.size()),
           std::vector<uint8_t>(p.rules.size()),
           false,
+          0,
           0,
           std::mt19937_64(run_seed)};
   execute(p, s, p.initial);

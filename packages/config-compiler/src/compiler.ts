@@ -44,9 +44,11 @@ export function prepare_config(configValue: unknown): PreparedConfig {
     return strings.length - 1;
   };
   const itemIds = new Map<string, number>();
+  const itemNames: string[] = [];
   const items: { id: number; name: number }[] = [];
   config_items(config.items).forEach(({ id, name }) => {
     itemIds.set(id, items.length);
+    itemNames.push(id);
     items.push({ id: stringId(id), name: stringId(name) });
   });
   const pools: { id: number; entries: ActionRange }[] = [];
@@ -230,18 +232,157 @@ export function prepare_config(configValue: unknown): PreparedConfig {
       actions: range(values, `${path}.actions`),
     };
   });
-  const everyPathHasAction = (raw: unknown, path: string): boolean => {
-    const node = map(raw, path);
-    if (actions(node.actions, `${path}.actions`).length) return true;
-    if ("check" in node) return false;
-    const children = list(node.children, `${path}.children`);
-    return ["OR", "||"].includes(node.op as string)
-      ? children.every((child, index) =>
-          everyPathHasAction(child, `${path}.children[${index}]`),
-        )
-      : children.some((child, index) =>
-          everyPathHasAction(child, `${path}.children[${index}]`),
+  const nodeNames = [
+    ...rawPools.map(
+      (entry, index) =>
+        `pool ${Object.keys(map(entry, `config.pools[${index}]`))[0]}`,
+    ),
+    ...itemNames.map((id) => `resolve ${id}`),
+  ];
+  const nodeRanges: ActionRange[][] = nodeNames.map(() => []);
+  pools.forEach((pool, poolIndex) => {
+    for (let i = 0; i < pool.entries.count; ++i)
+      nodeRanges[poolIndex].push(pool_entries[pool.entries.begin + i].actions);
+  });
+  resolve.forEach((entry, item) => {
+    if (entry.actions.count)
+      nodeRanges[pools.length + item].push(entry.actions);
+  });
+  const edges = nodeNames.map(() => new Set<number>());
+  const directWrites = nodeNames.map(() => new Set<number>());
+  nodeRanges.forEach((ranges, node) => {
+    ranges.forEach((actionRange) => {
+      for (let i = 0; i < actionRange.count; ++i) {
+        const entry = actionArena[actionRange.begin + i];
+        if (entry.kind === "terminate") break;
+        if (
+          entry.kind === "add_item" ||
+          entry.kind === "reduce_item" ||
+          entry.kind === "set_item"
+        ) {
+          const item = entry.item as number;
+          directWrites[node].add(item);
+          if (entry.kind !== "reduce_item" && resolve[item].actions.count)
+            edges[node].add(pools.length + item);
+        } else if (entry.kind === "draw") {
+          edges[node].add(entry.pool as number);
+        }
+      }
+    });
+  });
+  const adjacency = edges.map((targets) => [...targets]);
+  const colors = nodeNames.map(() => 0);
+  const postorder: number[] = [];
+  colors.forEach((color, node) => {
+    if (color !== 0) return;
+    colors[node] = 1;
+    const stack = [{ node, targets: adjacency[node], next: 0 }];
+    while (stack.length) {
+      const frame = stack.at(-1)!;
+      if (frame.next === frame.targets.length) {
+        colors[frame.node] = 2;
+        postorder.push(frame.node);
+        stack.pop();
+        continue;
+      }
+      const target = frame.targets[frame.next++];
+      if (colors[target] === 1) {
+        const cycle = [
+          ...stack
+            .slice(stack.findIndex((entry) => entry.node === target))
+            .map((entry) => entry.node),
+          target,
+        ];
+        fail(
+          "config",
+          `synchronous action cycle: ${cycle.map((id) => nodeNames[id]).join(" -> ")}`,
         );
+      }
+      if (colors[target] === 0) {
+        colors[target] = 1;
+        stack.push({ node: target, targets: adjacency[target], next: 0 });
+      }
+    }
+  });
+  const mayWriteCache = new Map<number, boolean[]>();
+  const mayWrite = (item: number): boolean[] => {
+    const cached = mayWriteCache.get(item);
+    if (cached) return cached;
+    const result = directWrites.map((items) => items.has(item));
+    postorder.forEach((node) => {
+      if (!result[node])
+        result[node] = adjacency[node].some((target) => result[target]);
+    });
+    mayWriteCache.set(item, result);
+    return result;
+  };
+  const repeatExits = (raw: unknown, path: string): void => {
+    const node = map(raw, path);
+    if (!("check" in node))
+      fail(path, "repeat condition must be a single check");
+    if (typeof node.check !== "string")
+      fail(`${path}.check`, "must be a condition string");
+    const check = CHECK.exec(node.check.trim());
+    if (!check) fail(`${path}.check`, "unsupported condition");
+    const checkedItem = itemIds.get(check[1]);
+    if (checkedItem == null)
+      fail(`${path}.check`, `unknown item id: ${check[1]}`);
+    const nestedWrites = mayWrite(checkedItem);
+    const checkedWrites: RegExpExecArray[] = [];
+    let nestedWrite = false;
+    for (const value of actions(node.actions, `${path}.actions`)) {
+      const item = ACTION.exec(value.trim());
+      if (item) {
+        const target = itemIds.get(item[1]);
+        if (target === checkedItem) checkedWrites.push(item);
+        if (
+          target != null &&
+          item[2] !== "-=" &&
+          resolve[target].actions.count &&
+          nestedWrites[pools.length + target]
+        )
+          nestedWrite = true;
+        continue;
+      }
+      const [command, target] = value.trim().split(/\s+/, 2);
+      if (command === "terminate") return;
+      const pool = command === "draw" ? poolIds.get(target) : undefined;
+      if (pool != null && nestedWrites[pool]) nestedWrite = true;
+    }
+    if (nestedWrite)
+      fail(
+        `${path}.actions`,
+        `nested pool or item resolver may write checked item: ${check[1]}`,
+      );
+    if (checkedWrites.length !== 1)
+      fail(`${path}.actions`, "must write checked item exactly once");
+    const write = checkedWrites[0];
+    const amount = Number(write[3]);
+    const compare = check[2];
+    const value = Number(check[3]);
+    const assignmentIsFalse =
+      write[2] === "=" &&
+      !(compare === "=="
+        ? amount === value
+        : compare === "!="
+          ? amount !== value
+          : compare === "<"
+            ? amount < value
+            : compare === "<="
+              ? amount <= value
+              : compare === ">"
+                ? amount > value
+                : amount >= value);
+    const monotonicExit =
+      amount > 0 &&
+      (((compare === ">=" || compare === ">") && write[2] === "-=") ||
+        ((compare === "<=" || compare === "<") && write[2] === "+=") ||
+        (compare === "==" && (write[2] === "+=" || write[2] === "-=")));
+    if (!assignmentIsFalse && !monotonicExit)
+      fail(
+        `${path}.actions`,
+        "the checked item write does not make the condition false",
+      );
   };
   const conditionHasAction = (raw: unknown, path: string): boolean => {
     const node = map(raw, path);
@@ -279,24 +420,16 @@ export function prepare_config(configValue: unknown): PreparedConfig {
         `config.rules[${index}].${id}.condition`,
         "must contain at least one action",
       );
-    if (
-      mode === "repeat" &&
-      !everyPathHasAction(
-        rule.condition,
-        `config.rules[${index}].${id}.condition`,
-      )
-    )
-      fail(
-        `config.rules[${index}].${id}.condition`,
-        "every repeat path must contain at least one action",
-      );
+    const conditionId = condition(
+      rule.condition,
+      `config.rules[${index}].${id}.condition`,
+    );
+    if (mode === "repeat")
+      repeatExits(rule.condition, `config.rules[${index}].${id}.condition`);
     rules.push({
       id: stringId(id),
       mode,
-      condition: condition(
-        rule.condition,
-        `config.rules[${index}].${id}.condition`,
-      ),
+      condition: conditionId,
     });
   });
   const initial = range(

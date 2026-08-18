@@ -66,6 +66,14 @@ std::string fixture_text(const char *path) {
 std::filesystem::path output_path(const char *name) {
   return std::filesystem::temp_directory_path() / (std::string("gachasimulate_") + name + ".gsr");
 }
+template <class F> std::string error_message(F &&call) {
+  try {
+    call();
+  } catch (const std::runtime_error &error) {
+    return error.what();
+  }
+  return {};
+}
 
 void expect_gsr(const std::filesystem::path &path, uint64_t runs, uint64_t total_result,
                 const std::string &result_id, const std::string &result_name) {
@@ -106,6 +114,27 @@ TEST(Runtime, SkipsIncompleteResolveBatch) {
   const auto result = gachasimulate::single_run(program, 7);
   EXPECT_EQ(result.inventory[1], 1);
   EXPECT_EQ(result.reason, "done");
+}
+
+TEST(Runtime, LimitsSynchronousFrameDepth) {
+  auto program = gachasimulate::load_ir_file(fixture_path().string());
+  program.actions[0] = {gachasimulate::ActionKind::Draw, 0, 0};
+  EXPECT_EQ(error_message([&] { gachasimulate::single_run(program, 7); }),
+            "runtime frame depth limit exceeded");
+}
+
+TEST(Runtime, LimitsRepeatAndCrossDrawSteps) {
+  auto repeat = gachasimulate::load_ir_file(fixture_path().string());
+  repeat.resolves[1] = {};
+  repeat.conditions[0].actions = {0, 1};
+  repeat.rules.push_back({0, gachasimulate::RuleMode::Repeat, 0});
+  EXPECT_EQ(error_message([&] { gachasimulate::single_run(repeat, 7); }),
+            "runtime step limit exceeded");
+
+  auto no_termination = gachasimulate::load_ir_file(fixture_path().string());
+  no_termination.conditions[0].value = std::numeric_limits<int64_t>::max();
+  EXPECT_EQ(error_message([&] { gachasimulate::simulate_fixed_runs(no_termination, 3, 123, 2); }),
+            "runtime step limit exceeded");
 }
 
 TEST(Runtime, RejectsV1AndInvalidPoolReference) {

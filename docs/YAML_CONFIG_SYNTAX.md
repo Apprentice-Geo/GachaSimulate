@@ -235,7 +235,16 @@ rule 的 `mode`：
 
 - `once`：命中并执行一次后，从后续 rule 阶段移除。
 - `per_draw`：每轮最多执行一次，下一轮仍会重新检查。
-- `repeat`：命中执行后，在同一轮立即重新检查同一 rule，直到不满足或模拟终止。配置作者必须确保 actions 会改变条件，否则可能无法结束。
+- `repeat`：命中执行后，在同一轮立即重新检查同一 rule，直到不满足或模拟终止。其
+  `condition` 必须是单个 `check`，且 Compiler 必须能按下列规则证明退出：
+  - actions 直接包含 `terminate`；或
+  - actions 对被检查 item 恰好有一次直接写入，且嵌套 pool 或 item resolver 不会写入该
+    item；`>=`/`>` 使用正数 `-=`，`<=`/`<` 使用正数 `+=`，`==` 使用正数
+    `+=`/`-=`，`!=` 使用 `=` 赋为比较值；或
+  - 使用一次 `=` 将被检查 item 赋为明确不满足当前比较的非负常量。
+
+逻辑条件树、错误方向、多个直接写入以及经 pool 或 item resolver 间接写回被检查 item 的
+`repeat` 均为编译错误。
 
 `change pool_id` 会立即改变主 pool。发生在 `every_draw` 中会影响本轮主 pool 抽取；发生在 pool entry 或 rule 中通常影响后续抽取。
 
@@ -249,7 +258,22 @@ rule 的 `mode`：
 - 分解批次数量由当前库存、`retain` 和 `ResolveActions` 中唯一的 `item -= n` 决定。
 - `termination*.yaml` 的 `retained_items` 会并入 `item_resolve` 的保留数量；同一 item 实际保留值取两者较大值。
 - `ResolveActions` 可以包含 `draw pool_id`，用于把随机礼包、随机皮肤等展开为另一个 pool 的抽取。
-- 不建议让分解 actions 重新产生同一个可分解 item；这类循环依赖难以理解，也可能导致模拟无法结束。
+- pool 和 item resolver 构成的同步调用图必须无环。pool entry 中的 `draw`、对带 resolver
+  item 的 `+=`/`=`，以及 resolver actions 中的同类调用都会形成调用边；Compiler 合并同一
+  pool 所有 entry 的边，并忽略直接 `terminate` 后的不可达 actions。自环、pool 间环、
+  resolver 间环及混合环均为编译错误，不分析随机出口或状态变化是否可能令其退出。
+
+## 终止安全边界
+
+Compiler 会验证同步调用图无环、`repeat` 可证明退出，并继续要求 termination condition 的
+每条可命中路径包含 `terminate`。这只保证命中某条 termination 路径后的局部执行能够结束；
+Compiler 不证明 termination condition 在任意随机过程下最终必然命中。
+
+Runtime 为每个 run 独立限制最多 `1,000,000` 个 steps 和 `1,024` 层同步 action frames。
+每次 action dispatch 和每个 condition node 求值各消耗一个 step，预算不会在单次抽取之间
+重置。超过限制分别报错 `runtime step limit exceeded` 或
+`runtime frame depth limit exceeded`。任一 run 超限会令整次模拟失败；不会截断 run、保存
+部分统计结果或写出部分 GSR。
 
 ## 示例
 

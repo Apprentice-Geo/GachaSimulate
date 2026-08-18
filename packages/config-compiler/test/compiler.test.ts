@@ -271,6 +271,220 @@ test("validates rule ids and requires every rule to contain an action", () => {
     );
 });
 
+test("accepts only repeat rules with a provable local exit", () => {
+  const valid = `${config}rules:
+  - down:
+      mode: repeat
+      condition: {check: target >= 1, actions: target -= 1}
+  - up:
+      mode: repeat
+      condition: {check: target <= 1, actions: target += 1}
+  - leave_equal:
+      mode: repeat
+      condition: {check: target == 1, actions: target += 1}
+  - reach_equal:
+      mode: repeat
+      condition: {check: target != 1, actions: target = 1}
+  - assign_false:
+      mode: repeat
+      condition: {check: target >= 1, actions: target = 0}
+  - stop:
+      mode: repeat
+      condition: {check: target >= 1, actions: terminate done}
+`;
+  assert.doesNotThrow(() =>
+    compile_yaml(valid, termination, manifest, "draw_count"),
+  );
+
+  for (const [condition, message] of [
+    [
+      "{check: target >= 1, actions: draw_count += 1}",
+      /write checked item exactly once/,
+    ],
+    [
+      "{check: target >= 1, actions: target += 1}",
+      /does not make the condition false/,
+    ],
+    [
+      "{check: target >= 1, actions: [target -= 1, target -= 1]}",
+      /write checked item exactly once/,
+    ],
+    [
+      "{op: AND, children: [{check: target >= 1, actions: target -= 1}]}",
+      /single check/,
+    ],
+  ] as const)
+    assert.throws(
+      () =>
+        compile_yaml(
+          `${config}rules:\n  - bad:\n      mode: repeat\n      condition: ${condition}\n`,
+          termination,
+          manifest,
+          "draw_count",
+        ),
+      message,
+    );
+});
+
+test("rejects repeat writes through nested pools or resolvers", () => {
+  const nested = `schema_version: 2
+items: [draw_count, target, token]
+pools:
+- main:
+  - probability: 1
+    actions: target += 1
+- nested:
+  - probability: 1
+    actions: target += 1
+item_resolve:
+- item: token
+  retain: 0
+  actions: [token -= 1, target += 1]
+rules:
+- pool_write:
+    mode: repeat
+    condition:
+      check: target >= 1
+      actions: [draw nested, target -= 1]
+`;
+  assert.throws(
+    () => compile_yaml(nested, termination, manifest, "draw_count"),
+    /nested pool or item resolver may write checked item: target/,
+  );
+  assert.throws(
+    () =>
+      compile_yaml(
+        nested
+          .replace("[draw nested, target -= 1]", "[token += 1, target -= 1]")
+          .replace("- pool_write:", "- resolver_write:"),
+        termination,
+        manifest,
+        "draw_count",
+      ),
+    /nested pool or item resolver may write checked item: target/,
+  );
+});
+
+test("rejects synchronous pool and item resolver call cycles", () => {
+  const base = `schema_version: 2
+items: [draw_count, target, gift, token]
+`;
+  for (const [body, cycle] of [
+    [
+      `pools:
+- main:
+  - probability: 1
+    actions: draw main
+`,
+      /pool main -> pool main/,
+    ],
+    [
+      `pools:
+- a:
+  - probability: 1
+    actions: draw b
+- b:
+  - probability: 1
+    actions: draw a
+`,
+      /pool a -> pool b -> pool a/,
+    ],
+    [
+      `pools:
+- main:
+  - probability: 1
+    actions: gift += 1
+item_resolve:
+- item: gift
+  retain: 0
+  actions: [gift -= 1, draw main]
+`,
+      /pool main -> resolve gift -> pool main/,
+    ],
+    [
+      `pools:
+- main:
+  - probability: 1
+    actions: target += 1
+item_resolve:
+- item: gift
+  retain: 0
+  actions: [gift -= 1, token += 1]
+- item: token
+  retain: 0
+  actions: [token -= 1, gift += 1]
+`,
+      /resolve gift -> resolve token -> resolve gift/,
+    ],
+  ] as const)
+    assert.throws(
+      () => compile_yaml(base + body, termination, manifest, "draw_count"),
+      cycle,
+    );
+});
+
+test("allows acyclic nested draws and ignores calls after terminate", () => {
+  const acyclic = `schema_version: 2
+items: [draw_count, target, gift]
+pools:
+- main:
+  - probability: 1
+    actions: gift += 1
+- nested:
+  - probability: 1
+    actions: target += 1
+item_resolve:
+- item: gift
+  retain: 0
+  actions: [gift -= 1, draw nested]
+`;
+  assert.doesNotThrow(() =>
+    compile_yaml(acyclic, termination, manifest, "draw_count"),
+  );
+  assert.doesNotThrow(() =>
+    compile_yaml(
+      acyclic.replace(
+        "actions: gift += 1",
+        "actions: [terminate done, draw main]",
+      ),
+      termination,
+      manifest,
+      "draw_count",
+    ),
+  );
+});
+
+test("compiles a long acyclic resolver chain without overflowing the call stack", () => {
+  const resolverCount = 10_000;
+  const resolverItems = Array.from(
+    { length: resolverCount },
+    (_, index) => `i${index}`,
+  );
+  const source = `schema_version: 2
+items: [draw_count, target, guard, ${resolverItems.join(", ")}]
+pools:
+- main:
+  - probability: 1
+    actions: i0 += 1
+item_resolve:
+${resolverItems
+  .map(
+    (item, index) => `- item: ${item}
+  retain: 0
+  actions: [${item} -= 1, ${resolverItems[index + 1] ?? "target"} += 1]`,
+  )
+  .join("\n")}
+rules:
+- bounded:
+    mode: repeat
+    condition: {check: guard >= 1, actions: [draw main, guard -= 1]}
+`;
+  assert.ok(Buffer.byteLength(source) < YAML_TEXT_LIMIT);
+  assert.doesNotThrow(() =>
+    compile_yaml(source, termination, manifest, "draw_count"),
+  );
+});
+
 test("rejects resolve actions that reduce another item", () => {
   assert.throws(
     () =>
