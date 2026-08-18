@@ -5,10 +5,13 @@ import {
   selectComposition,
 } from "@remotion/renderer";
 import { promises as fs } from "node:fs";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import path from "node:path";
-import { load_input_from_value } from "../visualize/data/load_input";
+import { validate_analysis } from "../visualize/data/analysis";
+import { validate_display_config } from "../visualize/data/validate_display_config";
 import { CDF_COMPOSITION_ID } from "../visualize/remotion/constants";
-import { build_visualize_view_model } from "../visualize/view/cdf_view_model";
+import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
 import {
   DEFAULT_OUTPUT_DIR,
   ensure_output_dir,
@@ -18,27 +21,43 @@ import {
 } from "./paths";
 
 interface CliArgs {
-  input: string | null;
+  gsr: string | null;
+  display: string | null;
 }
 
 function parse_args(argv: string[]): CliArgs {
-  const input_index = argv.indexOf("--input");
+  const gsr_index = argv.indexOf("--gsr");
+  const display_index = argv.indexOf("--display");
   return {
-    input:
-      input_index >= 0 && argv[input_index + 1] ? argv[input_index + 1] : null,
+    gsr: gsr_index >= 0 && argv[gsr_index + 1] ? argv[gsr_index + 1] : null,
+    display:
+      display_index >= 0 && argv[display_index + 1]
+        ? argv[display_index + 1]
+        : null,
   };
 }
 
-async function load_cdf_view_model(input_path: string) {
-  const resolved_input_path = resolve_project_relative_path(input_path);
-  const input_text = await fs.readFile(resolved_input_path, "utf8");
-  const input_json = JSON.parse(input_text) as unknown;
-  const normalized_input = await load_input_from_value(input_json);
-  return build_visualize_view_model(normalized_input);
+async function load_cdf_view_model(gsr_path: string, display_path: string) {
+  const gsr = resolve_project_relative_path(gsr_path);
+  const display = resolve_project_relative_path(display_path);
+  const analyze = promisify(execFile);
+  const command = path.join(
+    PROJECT_ROOT,
+    "build/native/bin",
+    `gachasimulate-analyze${process.platform === "win32" ? ".exe" : ""}`,
+  );
+  const { stdout } = await analyze(command, ["--input", gsr], {
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  const analysis = validate_analysis(JSON.parse(stdout));
+  const display_config = validate_display_config(
+    JSON.parse(await fs.readFile(display, "utf8")),
+  );
+  return build_cdf_view_model(analysis, display_config);
 }
 
-async function export_cdf(input_path: string) {
-  const data = await load_cdf_view_model(input_path);
+async function export_cdf(gsr_path: string, display_path: string) {
+  const data = await load_cdf_view_model(gsr_path, display_path);
   const output_dir = DEFAULT_OUTPUT_DIR;
   const png_path = path.join(output_dir, "cdf-result.png");
   const mp4_path = path.join(output_dir, "cdf-animation.mp4");
@@ -82,13 +101,13 @@ async function export_cdf(input_path: string) {
 
 async function main() {
   const args = parse_args(process.argv.slice(2));
-  if (!args.input) {
+  if (!args.gsr || !args.display) {
     throw new Error(
-      "缺少 --input 参数。用法：pnpm run export:cdf -- --input <json文件路径>",
+      "缺少 --gsr 或 --display 参数。用法：pnpm run export:cdf -- --gsr <file.gsr> --display <file.visualize.json>",
     );
   }
 
-  await export_cdf(args.input);
+  await export_cdf(args.gsr, args.display);
 }
 
 main()

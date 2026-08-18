@@ -8,10 +8,20 @@ import type {
   VisualizeInput,
 } from "../types/visualize_input";
 import { CDF_MARKER_VIEW_CONFIG } from "./cdf_view_config";
+import { build_cdf_view_model as build_cdf_input } from "../data/normalize_input";
+import type { AnalysisV2 } from "../types/analysis";
+import type { DisplayConfig } from "../types/display_config";
 import {
   STATISTIC_VIEW_CONFIG,
   STATISTIC_VIEW_ORDER,
 } from "./statistic_view_config";
+
+export function build_cdf_view_model(
+  analysis: AnalysisV2,
+  display: DisplayConfig,
+): NormalizedVisualizeData {
+  return build_visualize_view_model(build_cdf_input(analysis, display));
+}
 
 function format_number(value: number, fraction_digits = 0): string {
   return new Intl.NumberFormat("zh-CN", {

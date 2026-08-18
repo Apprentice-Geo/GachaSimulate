@@ -27,7 +27,7 @@ Electron 开发前必须存在 `build/native/bin/gachasimulate-core` 和 `gachas
 
 - `<stem>.visualize.json`
 
-sidecar 是完整的 `VisualizeInput`，但重新打开时统计、CDF、termination、result item、total 和 timestamp 始终从 GSR 重新分析，只恢复 `title`、`target`、`note`、`price` 和 `unit`。
+sidecar 是独立的 `DisplayConfig v1`，只保存 `title`、`target`、`result_item_name`、`note`、`price` 和 `unit`；分析、result item ID、CDF、termination、total 和 runs 始终从 GSR 重新获取。
 
 桌面数据位于 `app.getPath("userData")` 下的 `configs/installed/` 与 `results/`。
 
@@ -35,7 +35,7 @@ Electron 当前只支持从源码启动，安装包尚未实现。
 
 ## 可视化与导出
 
-独立浏览器入口用于开发和调试，继续消费完整 `VisualizeInput`：
+独立浏览器入口用于开发和调试，使用开发 fixture；桌面 Electron 负责组合 GSR 分析与 DisplayConfig：
 
 ```bash
 pnpm run dev:web
@@ -49,7 +49,7 @@ http://127.0.0.1:5173/?input=results/<stem>.visualize.json
 
 ```bash
 pnpm run build:web
-pnpm run export:cdf -- --input <json文件路径>
+pnpm run export:cdf -- --gsr <file.gsr> --display <file.visualize.json>
 ```
 
 Remotion 导出固定 3840x2160、60fps 的 `cdf-animation.mp4` 和 `cdf-result.png`。使用或分发前请确认许可证条款。

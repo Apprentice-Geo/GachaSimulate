@@ -16,6 +16,7 @@ import type {
   InstalledConfig,
 } from "../shared/installed_config";
 import type { VisualizeInput } from "../visualize/types/visualize_input";
+import type { AnalysisV2 } from "../visualize/types/analysis";
 
 const PROJECT_ROOT = process.cwd();
 const OUTPUT_DIR = path.join(PROJECT_ROOT, "tmp", "ui-captures");
@@ -76,11 +77,34 @@ function result_fixture(): ResultEditorState {
     fields: {
       title: fixture.title,
       target: fixture.target,
+      result_item_name: fixture.result_item.name,
       note: fixture.note,
       price: fixture.price,
       unit: fixture.unit,
     },
-    input: fixture,
+    analysis: {
+      analysis_version: 2,
+      result_item: fixture.result_item,
+      totals: { runs: String(fixture.runs), result: String(fixture.total) },
+      values: fixture.values.map(String),
+      cumulative: fixture.cumulative,
+      statistic: Object.fromEntries(
+        Object.entries(fixture.statistic).map(([key, value]) => [
+          key,
+          String(value),
+        ]),
+      ) as unknown as AnalysisV2["statistic"],
+      termination_reason: fixture.termination_reason,
+    },
+    display: {
+      display_version: 1,
+      title: fixture.title,
+      target: fixture.target,
+      result_item_name: fixture.result_item.name,
+      note: fixture.note,
+      price: fixture.price,
+      unit: fixture.unit,
+    },
     sidecar_path: "/tmp/example.visualize.json",
   };
 }

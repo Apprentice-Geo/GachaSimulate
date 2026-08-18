@@ -4,7 +4,7 @@
 
 ## 定位
 
-`src/visualize/` 是平台无关的结果可视化层。它把未知的 `VisualizeInput` 转换为经过校验的展示模型，供独立浏览器入口和素材导出使用。Node.js 文件系统、Remotion bundler/renderer 和导出进程入口位于 `src/export/`，只依赖本层，不被本层反向依赖。
+`src/visualize/` 是平台无关的结果可视化层。它把 `AnalysisV2 + DisplayConfig v1` 转换为经过校验的展示模型，供 Electron 和素材导出使用。Node.js 文件系统、Remotion bundler/renderer 和导出进程入口位于 `src/export/`，只依赖本层，不被本层反向依赖。
 
 素材导出是长期保留能力。当前独立浏览器入口用于开发和调试，不保证长期存在。
 
@@ -25,7 +25,7 @@ unknown input
 
 原始输入不能绕过校验直接进入组件。组件消费 normalized data 或 view model，不承担 schema 校验、CDF 计算或展示规则编排。
 
-Electron 的结果编辑页和结果可视化页共享当前 GSR 会话。任一页面选择 GSR 后，main 调用 C++ analyzer、校验 Analysis v2 并复用 `analysis_to_visualize`；编辑页失焦保存五个展示字段后同步共享 input，可视化页可直接重播动画。sidecar 统一为 `<stem>.visualize.json`，保存完整 `VisualizeInput`，重新打开时只恢复 `title`、`target`、`note`、`price` 和 `unit`。浏览器入口继续读取完整 JSON，但不能形成另一套校验和计算实现；Electron 禁止任意 JSON 导入。
+Electron 的结果编辑页和结果可视化页共享当前 GSR 会话。main 调用 C++ analyzer 并校验 Analysis v2；编辑页只保存 DisplayConfig v1，可视化页用 `AnalysisV2 + DisplayConfig` 生成共享视图模型。旧完整 JSON 不做隐式兼容。
 
 ## 模块地图
 
@@ -38,7 +38,7 @@ Electron 的结果编辑页和结果可视化页共享当前 GSR 会话。任一
 - `src/export/`：位于可视化层之外的 Node.js 素材导出宿主。
 - `types/`：原始输入、normalized data 和 view model 类型。
 
-重要符号包括 `VisualizeInput`、`NormalizedVisualizeInputData`、`NormalizedVisualizeData` 和 `VisualizeScene`。需要定位具体实现时，优先搜索这些符号及上述模块，而不是依赖本文档中的文件清单。
+重要符号包括 `AnalysisV2`、`DisplayConfig`、`build_cdf_view_model` 和 `VisualizeScene`。需要定位具体实现时，优先搜索这些符号及上述模块，而不是依赖本文档中的文件清单。
 
 ## 设计决策
 
@@ -60,7 +60,7 @@ Electron 展示和素材导出复用同一套输入处理、视图模型、画�
 
 ### 输入契约
 
-`docs/schemas/visualize_input.schema.json` 是生产方和消费方共享的结构契约，其中 `result_item` 标识本次结果 item，`total` 表示所有 run 的期末结果总和，`runs` 表示累计模拟次数。TypeScript 还会检查 schema 无法完整表达的业务规则。旧字段不做隐式兼容；需要兼容时应明确修改契约和迁移策略。
+`docs/schemas/analysis_v2.schema.json` 和 `docs/schemas/display_config.schema.json` 是共享结构契约。`result_item.id`、`total` 和 `runs` 来自 AnalysisV2；`result_item_name` 只控制展示名称。旧字段不做隐式兼容；需要兼容时应明确修改契约和迁移策略。
 
 ## 维护边界
 

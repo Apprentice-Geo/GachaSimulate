@@ -8,7 +8,7 @@ GachaSimulate 将 YAML 抽卡规则编译为中间表示，由 C++ Runtime 执�
 
 ```text
 YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
-     -> analysis_to_visualize -> VisualizeInput
+     -> AnalysisV2 + DisplayConfig v1 -> CDF ViewModel
 ```
 
 ## 代码地图
@@ -19,7 +19,7 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 - `src/main/`：受信任的 Electron 宿主；`SimulationTask` 管理 core 与模拟产物，`ResultEditor` 管理 analyzer 与结果会话。
 - `src/preload/`：main 与 renderer 之间的固定 IPC 桥。
 - `src/renderer/`：桌面界面与任务状态，不直接访问 Node.js。
-- `src/visualize/`：平台无关的输入校验、视图模型和共享场景，以 `VisualizeInput` 为边界。
+- `src/visualize/`：平台无关的 AnalysisV2/DisplayConfig 校验、CDF 视图模型和共享场景。
 - `src/export/`：文件系统和 Remotion 导出宿主，依赖 `src/visualize/`。
 - `test-fixtures/configs/`：主仓库测试与语义 fixture；`benchmark/cases/`：独立 benchmark 配置。
 - 正式配置由 `GachaSimulate-Configs` 维护，不纳入主仓库运行时目录。
@@ -32,7 +32,7 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 - Electron renderer 不决定可执行文件和受信任文件路径；这些能力只存在于 main，并通过 preload 暴露固定操作。
 - `src/visualize/` 不依赖 Electron、Node.js 或导出宿主；Electron 展示与素材导出复用同一套输入处理和场景。
 - 启动原生进程的一层负责终止、等待和清理；失败任务不得留下临时 IR 或半成品结果。
-- IR、GSR、Analysis 和 VisualizeInput 是跨层契约。修改契约时必须同时检查生产方、消费方和行为测试。
+- IR、GSR、AnalysisV2 和 DisplayConfig 是跨层契约。修改契约时必须同时检查生产方、消费方和行为测试。
 
 ## 专项文档
 

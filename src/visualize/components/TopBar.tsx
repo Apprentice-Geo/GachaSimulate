@@ -19,6 +19,7 @@ export function TopBar({ data, animation_progress }: TopBarProps) {
     ? [
         `模拟目标：${data.target}`,
         `累计模拟次数：${format_statistic(data.runs, "")} 次`,
+        `累计${data.result_item.name}：${format_statistic(data.total, data.display_unit)}`,
         ...(data.price ? [data.price] : []),
       ]
     : ["导入模拟器输出 JSON 后生成结果页面"];

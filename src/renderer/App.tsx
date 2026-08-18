@@ -27,6 +27,7 @@ import {
 import VisualizeApp from "../visualize/App";
 import { get_metric_color } from "../visualize/view/cdf_view_model";
 import { get_distribution_statistic_groups } from "../visualize/view/statistic_view_config";
+import type { VisualizeInput } from "../visualize/types/visualize_input";
 import {
   MAX_TOTAL_RUNS,
   validate_simulation_request,
@@ -40,6 +41,30 @@ type Page =
   | "config-repository"
   | "result-editor"
   | "result-visualize";
+
+function editor_visualize_input(state: ResultEditorState): VisualizeInput {
+  const { analysis, display } = state;
+  return {
+    title: display.title,
+    target: display.target,
+    result_item: { ...analysis.result_item, name: display.result_item_name },
+    total: Number(analysis.totals.result),
+    runs: Number(analysis.totals.runs),
+    note: display.note,
+    statistic: Object.fromEntries(
+      Object.entries(analysis.statistic).map(([key, value]) => [
+        key,
+        Number(value),
+      ]),
+    ) as unknown as VisualizeInput["statistic"],
+    termination_reason: analysis.termination_reason,
+    timestamp: 0,
+    values: analysis.values.map(Number),
+    cumulative: analysis.cumulative,
+    price: display.price,
+    unit: display.unit,
+  };
+}
 
 const pages: Array<{
   id: Page;
@@ -622,6 +647,7 @@ function ResultEditorPage({
             </div>
             {field("title", "标题")}
             {field("target", "目标")}
+            {field("result_item_name", "统计物品展示名称")}
             {field("note", "说明", true, "result-note")}
             {field("price", "价格", false, "result-price")}
             {field("unit", "单位", false, "result-unit")}
@@ -635,13 +661,15 @@ function ResultEditorPage({
             </div>
             <div className="result-metric-primary">
               <span>结果指标</span>
-              <strong>{state.input.result_item.name}</strong>
-              <code>{state.input.result_item.id}</code>
+              <strong>{state.display.result_item_name}</strong>
+              <code>{state.analysis.result_item.id}</code>
             </div>
             <div className="result-totals">
               <div>
                 <span>累计模拟次数</span>
-                <strong>{state.input.runs.toLocaleString("zh-CN")}</strong>
+                <strong>
+                  {Number(state.analysis.totals.runs).toLocaleString("zh-CN")}
+                </strong>
               </div>
             </div>
             <dl className="quantile-preview">
@@ -656,9 +684,12 @@ function ResultEditorPage({
                 >
                   <dt>{key}</dt>
                   <dd>
-                    {state.input.statistic[key].toLocaleString("zh-CN", {
-                      maximumFractionDigits: 1,
-                    })}
+                    {Number(state.analysis.statistic[key]).toLocaleString(
+                      "zh-CN",
+                      {
+                        maximumFractionDigits: 1,
+                      },
+                    )}
                   </dd>
                 </div>
               ))}
@@ -981,7 +1012,7 @@ export default function App() {
             />
           ) : active_page === "result-visualize" ? (
             <VisualizeApp
-              input={result_state?.input ?? null}
+              input={result_state ? editor_visualize_input(result_state) : null}
               on_select_result={select_result}
             />
           ) : active_page === "config-repository" ? (
