@@ -10,6 +10,7 @@ import {
   useState,
   useEffect,
   useRef,
+  useMemo,
   type CSSProperties,
   type ReactNode,
 } from "react";
@@ -25,7 +26,14 @@ import {
   selected_result_item,
 } from "./simulation_items";
 import VisualizeApp from "../visualize/App";
-import { get_metric_color } from "../visualize/view/cdf_view_model";
+import { ANIMATION_TOTAL_MS } from "../visualize/animation/timeline";
+import { build_animation_progress } from "../visualize/animation/progress";
+import { CDFChart } from "../visualize/components/CDFChart";
+import { build_cdf_view_model } from "../visualize/data/normalize_input";
+import {
+  build_visualize_view_model,
+  get_metric_color,
+} from "../visualize/view/cdf_view_model";
 import { get_distribution_statistic_groups } from "../visualize/view/statistic_view_config";
 import type { VisualizeInput } from "../visualize/types/visualize_input";
 import {
@@ -280,7 +288,10 @@ function SimulationPage({ active }: { active: boolean }) {
         <p>暂无可用配置，请先安装官方配置或选择本地配置目录。</p>
       ) : (
         <div className="simulation-workbench">
-          <section className="instrument-panel simulation-selection">
+          <section
+            className="instrument-panel simulation-selection"
+            data-testid="simulation-selection"
+          >
             <div className="panel-heading">
               <div>
                 <p className="panel-kicker">输入 / INPUT</p>
@@ -343,6 +354,7 @@ function SimulationPage({ active }: { active: boolean }) {
             <div
               aria-label="当前配置统计物品"
               className="simulation-item-panel"
+              data-testid="simulation-item-list"
               role="radiogroup"
             >
               {filtered_items.map((item) => (
@@ -502,6 +514,16 @@ function ResultEditorPage({
   const fields_ref = useRef<DisplayFields | null>(null);
   const save_queue = useRef(Promise.resolve());
   const save_version = useRef(0);
+  const preview_data =
+    state && fields
+      ? build_visualize_view_model(
+          build_cdf_view_model(state.analysis, { ...state.display, ...fields }),
+        )
+      : null;
+  const preview_animation = useMemo(
+    () => build_animation_progress(ANIMATION_TOTAL_MS),
+    [],
+  );
 
   const apply_state = (next: ResultEditorState) => {
     on_state(next);
@@ -635,65 +657,101 @@ function ResultEditorPage({
           </div>
         </div>
       )}
-      {state && fields && (
+      {state && fields && preview_data && (
         <div className="result-editor-workbench">
-          <div className="instrument-panel result-editor-form">
-            <div className="panel-heading">
-              <div>
-                <p className="panel-kicker">展示字段 / DISPLAY</p>
-                <h2>可视化文案</h2>
-              </div>
-              <span>失焦自动保存</span>
-            </div>
-            {field("title", "标题")}
-            {field("target", "目标")}
-            {field("result_item_name", "统计物品展示名称")}
-            {field("note", "说明", true, "result-note")}
-            {field("price", "价格", false, "result-price")}
-            {field("unit", "单位", false, "result-unit")}
-          </div>
-          <aside className="instrument-panel result-metrics">
-            <div className="panel-heading">
-              <div>
-                <p className="panel-kicker">分析 / ANALYSIS</p>
-                <h2>结果预览</h2>
-              </div>
-            </div>
-            <div className="result-metric-primary">
-              <span>结果指标</span>
-              <strong>{state.display.result_item_name}</strong>
-              <code>{state.analysis.result_item.id}</code>
-            </div>
-            <div className="result-totals">
-              <div>
-                <span>累计模拟次数</span>
-                <strong>
-                  {Number(state.analysis.totals.runs).toLocaleString("zh-CN")}
-                </strong>
-              </div>
-            </div>
-            <dl className="quantile-preview">
-              {result_statistic_keys.map((key) => (
-                <div
-                  key={key}
-                  style={
-                    {
-                      "--metric-color": get_metric_color(key),
-                    } as CSSProperties
-                  }
-                >
-                  <dt>{key}</dt>
-                  <dd>
-                    {Number(state.analysis.statistic[key]).toLocaleString(
-                      "zh-CN",
-                      {
-                        maximumFractionDigits: 1,
-                      },
-                    )}
-                  </dd>
+          <div className="result-editor-left">
+            <div className="instrument-panel result-editor-form">
+              <div className="panel-heading">
+                <div>
+                  <p className="panel-kicker">展示字段 / DISPLAY</p>
+                  <h2>可视化文案</h2>
                 </div>
-              ))}
-            </dl>
+                <span>失焦自动保存</span>
+              </div>
+              {field("title", "标题")}
+              {field("target", "目标")}
+              {field("result_item_name", "统计物品展示名称")}
+              {field("note", "说明", false, "result-note")}
+              {field("price", "价格", false, "result-price")}
+              {field("unit", "单位", false, "result-unit")}
+            </div>
+            <section
+              className="instrument-panel result-preview"
+              data-testid="result-preview"
+            >
+              <div className="panel-heading">
+                <div>
+                  <p className="panel-kicker">分析 / ANALYSIS</p>
+                  <h2>核心指标</h2>
+                </div>
+              </div>
+              <div
+                className="result-preview-scroll"
+                data-testid="result-preview-scroll"
+              >
+                <div className="result-preview-body">
+                  <div className="result-preview-summary">
+                    <div className="result-metric-primary">
+                      <span>结果指标</span>
+                      <strong>{fields.result_item_name}</strong>
+                      <code>{state.analysis.result_item.id}</code>
+                    </div>
+                    <div className="result-totals">
+                      <div>
+                        <span>累计模拟次数</span>
+                        <strong>
+                          {preview_data.runs.toLocaleString("zh-CN")}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>累计{preview_data.result_item.name}</span>
+                        <strong>{preview_data.total_display}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <dl className="quantile-preview">
+                    {result_statistic_keys.map((key) => (
+                      <div
+                        key={key}
+                        style={
+                          {
+                            "--metric-color": get_metric_color(key),
+                          } as CSSProperties
+                        }
+                      >
+                        <dt>{key}</dt>
+                        <dd>
+                          {Number(state.analysis.statistic[key]).toLocaleString(
+                            "zh-CN",
+                            {
+                              maximumFractionDigits: 1,
+                            },
+                          )}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              </div>
+            </section>
+          </div>
+          <aside
+            className="instrument-panel result-cdf-preview"
+            data-testid="result-cdf-preview"
+          >
+            <div className="panel-heading">
+              <div>
+                <p className="panel-kicker">分布 / DISTRIBUTION</p>
+                <h2>可视化预览</h2>
+              </div>
+            </div>
+            <div className="result-cdf-chart">
+              <CDFChart
+                animation_progress={preview_animation}
+                compact
+                data={preview_data}
+              />
+            </div>
           </aside>
         </div>
       )}

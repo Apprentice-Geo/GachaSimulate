@@ -56,7 +56,7 @@ button:focus-visible,
 
 .renderer-shell {
   display: grid;
-  font-size: 15px;
+  font-size: 16px;
   grid-template-columns: 88px minmax(0, 1fr);
   height: 100%;
   min-width: 0;
@@ -108,7 +108,8 @@ button:focus-visible,
 }
 
 .renderer-nav-label {
-  margin: 0 8px 10px;
+  margin: 0 0 10px;
+  text-align: center;
 }
 
 .renderer-nav-button {
@@ -180,8 +181,9 @@ button:focus-visible,
 
 .renderer-content {
   height: 100%;
-  min-height: 100%;
+  min-height: 0;
   min-width: 0;
+  overflow: hidden;
   position: relative;
 }
 
@@ -202,14 +204,19 @@ button:focus-visible,
   align-items: center;
   display: grid;
   gap: 14px;
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: 52px minmax(0, 1fr);
   margin-bottom: 20px;
   width: 100%;
 }
 
 .renderer-placeholder-mark {
-  height: 44px;
-  width: 44px;
+  height: 52px;
+  width: 52px;
+}
+
+.renderer-placeholder-mark svg {
+  height: 24px;
+  width: 24px;
 }
 
 .renderer-placeholder h1 {
@@ -282,6 +289,7 @@ button:focus-visible,
   display: grid;
   grid-template-rows: auto auto auto auto minmax(0, 1fr);
   min-height: 0;
+  overflow: hidden;
 }
 
 .simulation-control {
@@ -385,10 +393,14 @@ button:focus-visible,
 }
 
 .simulation-item-panel {
+  align-self: start;
+  align-content: start;
   background: var(--color-panel-soft);
   border: 1px solid var(--color-hairline);
   display: grid;
   gap: 3px;
+  height: fit-content;
+  max-height: 100%;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -400,7 +412,9 @@ button:focus-visible,
   cursor: pointer;
   display: block !important;
   position: relative;
-  padding: 8px 10px;
+  box-sizing: border-box;
+  height: 42px;
+  padding: 9px 10px;
 }
 
 .simulation-item:hover {
@@ -443,6 +457,9 @@ button:focus-visible,
   color: var(--color-text-primary);
   font-size: 15px;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .item-empty {
@@ -666,8 +683,8 @@ button:focus-visible,
 
 .repository-header,
 .result-editor-header {
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-  margin-bottom: 0;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  margin-bottom: 20px;
 }
 
 .repository-overview {
@@ -915,35 +932,66 @@ button:focus-visible,
   display: grid;
   flex: 1;
   gap: 18px;
-  grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.75fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
   min-height: 0;
   width: 100%;
+}
+
+.result-editor-left {
+  display: grid;
+  gap: 18px;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
 }
 
 .result-editor-form {
   display: grid;
   gap: 14px;
-  grid-template-rows: auto auto auto minmax(auto, 1fr) auto auto;
-  min-height: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .result-editor-form .panel-heading {
   margin-bottom: 0;
 }
 
+.result-editor-form .panel-heading,
+.result-editor-form > label:first-of-type,
+.result-editor-form > label:nth-of-type(2),
+.result-editor-form > label:nth-of-type(3),
 .result-editor-form .result-note {
-  align-self: center;
+  grid-column: 1 / -1;
 }
 
-.result-editor-form textarea {
-  height: 82px;
-  min-height: 82px;
-  resize: vertical;
-}
-
-.result-metrics {
+.result-preview {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.result-preview-scroll {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.result-preview-body {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(150px, 0.75fr) minmax(0, 1.25fr);
+}
+
+.result-preview-summary {
+  min-width: 0;
+}
+
+.result-cdf-preview {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.result-cdf-chart {
+  min-height: 0;
+  width: 100%;
 }
 
 .result-metric-primary,
@@ -957,7 +1005,7 @@ button:focus-visible,
 .result-totals {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: 1fr;
   margin-top: 16px;
 }
 
@@ -976,8 +1024,8 @@ button:focus-visible,
   gap: 7px;
   grid-auto-rows: minmax(70px, auto);
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 24px 0 0;
-  padding-top: 24px;
+  margin: 0;
+  padding-top: 0;
 }
 
 .quantile-preview > div {
@@ -1028,14 +1076,17 @@ button:focus-visible,
     flex: none;
   }
 
+  .result-editor-left {
+    grid-template-rows: auto auto;
+  }
+
   .simulation-selection,
   .result-editor-form {
     grid-template-rows: auto;
   }
 
   .simulation-item-panel {
-    min-height: 218px;
-    max-height: 330px;
+    max-height: calc(100vh - 300px);
   }
 
   .repository-overview {
@@ -1045,6 +1096,23 @@ button:focus-visible,
 
   .repository-status {
     text-align: left;
+  }
+}
+
+@media (max-width: 1300px) {
+  .simulation-workbench {
+    flex: none;
+    height: calc(100vh - 120px);
+    max-height: calc(100vh - 120px);
+  }
+
+  .simulation-selection {
+    height: calc(100vh - 120px);
+    max-height: calc(100vh - 120px);
+  }
+
+  .simulation-item-panel {
+    max-height: calc(100vh - 390px);
   }
 }
 
@@ -1093,12 +1161,12 @@ button:focus-visible,
   .page-heading,
   .repository-header,
   .result-editor-header {
-    grid-template-columns: 38px minmax(0, 1fr);
+    grid-template-columns: 44px minmax(0, 1fr);
   }
 
   .renderer-placeholder-mark {
-    height: 38px;
-    width: 38px;
+    height: 44px;
+    width: 44px;
   }
 
   .page-heading > button {
@@ -1127,6 +1195,10 @@ button:focus-visible,
   .result-editor-form .result-price,
   .result-editor-form .result-unit {
     grid-column: 1 / -1;
+  }
+
+  .result-preview-body {
+    grid-template-columns: 1fr;
   }
 
   .repository-overview dl {

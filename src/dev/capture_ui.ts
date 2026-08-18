@@ -59,14 +59,6 @@ async function wait_for_visualization(page: Page): Promise<void> {
       '[data-testid="visualize-root"][data-load-state="ready"][data-animation-state="idle"]',
     )
     .waitFor({ timeout: 10_000 });
-  await page.waitForFunction(() => {
-    const viewport = document.querySelector(".visualize-viewport");
-    return (
-      viewport instanceof HTMLElement &&
-      viewport.scrollWidth <= viewport.clientWidth &&
-      viewport.scrollHeight <= viewport.clientHeight
-    );
-  });
 }
 
 function result_fixture(): ResultEditorState {

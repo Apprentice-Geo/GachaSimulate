@@ -24,6 +24,10 @@ import { ANIMATION_TIMELINE, ANIMATION_TOTAL_MS } from "../animation/timeline";
 import type { MarkerView } from "../view/cdf_overlay_layout";
 import type { CDFMarker, VisualizeInput } from "../types/visualize_input";
 import {
+  get_marker_visual,
+  MARKER_VISUALS,
+} from "../components/cdf_marker_visuals";
+import {
   VISUALIZE_INPUT_REQUIRED_KEYS,
   VISUALIZE_STATISTIC_REQUIRED_KEYS,
 } from "../types/visualize_input";
@@ -297,6 +301,54 @@ test("resolve_marker_label_collisions returns adjusted copies", () => {
   assert.notEqual(adjusted_views[1], views[1]);
   assert.equal(adjusted_views[0].label_y, 50);
   assert.equal(adjusted_views[1].label_y, 36);
+});
+
+test("compact CDF markers keep data and scales geometry while shrinking visuals", () => {
+  const markers: CDFMarker[] = [
+    {
+      key: "P50",
+      label: "P50",
+      draw: 40,
+      level: 0.5,
+      color: "red",
+      weight: "primary",
+    },
+    {
+      key: "MAX",
+      label: "MAX",
+      draw: 80,
+      level: 1,
+      color: "blue",
+      weight: "strong",
+    },
+  ];
+  const plot_area = { x: 10, y: 20, width: 200, height: 100 };
+  const x_scale = (draw: unknown) => Number(draw) * 2;
+  const y_scale = (level: unknown) => 120 - Number(level) * 100;
+  const normal = build_marker_views(markers, plot_area, x_scale, y_scale);
+  const compact = build_marker_views(
+    markers,
+    plot_area,
+    x_scale,
+    y_scale,
+    true,
+  );
+
+  assert.deepEqual(
+    compact.map(({ marker, x, y }) => [marker, x, y]),
+    normal.map(({ marker, x, y }) => [marker, x, y]),
+  );
+  assert.equal(compact[0].label_text, normal[0].label_text);
+  for (const weight of Object.keys(MARKER_VISUALS) as CDFMarker["weight"][]) {
+    const normal_visual = get_marker_visual(weight);
+    const compact_visual = get_marker_visual(weight, true);
+    assert.ok(compact_visual.point_radius < normal_visual.point_radius);
+    assert.ok(compact_visual.stroke_width < normal_visual.stroke_width);
+    assert.ok(compact_visual.label_font_size < normal_visual.label_font_size);
+    assert.ok(
+      compact_visual.label_stroke_width < normal_visual.label_stroke_width,
+    );
+  }
 });
 
 test("build_curve_path clamps cumulative values", () => {

@@ -212,6 +212,42 @@
   position: relative;
 }
 
+.cdf-chart-shell-compact {
+  aspect-ratio: 16 / 10;
+  border-width: 1px;
+  height: auto;
+  min-height: 240px;
+}
+
+.cdf-chart-shell-compact .y-axis-title,
+.cdf-chart-shell-compact .axis-title {
+  font-size: 14px;
+}
+
+.cdf-chart-shell-compact .recharts-cartesian-axis-tick-value {
+  font-size: 12px !important;
+}
+
+.cdf-chart-shell-compact .marker-label {
+  font-size: var(--marker-label-font-size);
+  stroke-width: var(--marker-label-stroke-width);
+}
+
+.cdf-chart-shell-compact .cdf-curve-path {
+  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.32));
+  stroke-width: 2px;
+}
+
+.cdf-chart-shell-compact .marker-line,
+.cdf-chart-shell-compact .mean-horizontal-line {
+  stroke-dasharray: 4 6;
+}
+
+.cdf-chart-shell.cdf-chart-shell-compact::before {
+  height: 14px;
+  width: 14px;
+}
+
 .cdf-chart-shell::before {
   background: var(--color-nvidia-green);
   content: "";

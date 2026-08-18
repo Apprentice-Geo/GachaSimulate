@@ -51,6 +51,15 @@ export const MARKER_VISUALS: Record<CDFMarker["weight"], CDFMarkerVisual> = {
 
 export function get_marker_visual(
   weight: CDFMarker["weight"],
+  compact = false,
 ): CDFMarkerVisual {
-  return MARKER_VISUALS[weight];
+  const visual = MARKER_VISUALS[weight];
+  if (!compact) return visual;
+  return {
+    ...visual,
+    stroke_width: visual.stroke_width * 0.38,
+    point_radius: visual.point_radius * 0.32,
+    label_font_size: visual.label_font_size * 0.32,
+    label_stroke_width: visual.label_stroke_width * 0.32,
+  };
 }

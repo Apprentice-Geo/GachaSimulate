@@ -72,6 +72,8 @@ Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构
 
 ## Electron 人工验收
 
+UI 回归分工：`capture:ui` 只准备场景并输出截图；布局、滚动、renderer 缩放和真实 DOM/SVG 几何由 `pnpm run test:electron-layout` 独立检查。内部滚动区域必须有明确滚动所有者，panel 标题不能放入内容滚动容器；缩放按实际 CSS viewport 验证。CDF compact/default 同时检查纯几何参数与最终 DOM。结果字段只在失焦时保存，WSL2/WSLg 输入法能力不作为 renderer 输入框自动化断言。
+
 - 固定次数能运行，threads 边界正确，任务互斥。
 - 取消、窗口关闭和应用退出后无残留 core/analyzer；失败任务不留下临时 IR 或半成品 GSR。
 - 完成后能打开结果目录并选择 GSR。

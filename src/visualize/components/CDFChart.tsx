@@ -12,12 +12,21 @@ const CHART_MARGIN = {
   bottom: 68,
   left: 96,
 }; // 控制 Recharts 图表内容相对外层 SVG 的留白
+const COMPACT_CHART_MARGIN = {
+  top: 28,
+  right: 24,
+  bottom: 34,
+  left: 44,
+};
 const Y_AXIS_WIDTH = 108; //  Y 轴宽度
+const COMPACT_Y_AXIS_WIDTH = 44;
 const X_AXIS_HEIGHT = 104; //  X 轴高度
+const COMPACT_X_AXIS_HEIGHT = 40;
 const Y_CDF_AXIS_TICKS = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1];
 interface CDFChartProps {
   data: NormalizedVisualizeData;
   animation_progress: AnimationProgress;
+  compact?: boolean;
   fixed_size?: { width: number; height: number };
   style?: CSSProperties;
 }
@@ -35,16 +44,20 @@ function format_draw(value: number): string {
 export function CDFChart({
   data,
   animation_progress,
+  compact = false,
   fixed_size,
   style,
 }: CDFChartProps) {
   const [chart_ref, chart_size] = use_element_size<HTMLDivElement>();
   const render_size = fixed_size ?? chart_size;
+  const margin = compact ? COMPACT_CHART_MARGIN : CHART_MARGIN;
+  const y_axis_width = compact ? COMPACT_Y_AXIS_WIDTH : Y_AXIS_WIDTH;
+  const x_axis_height = compact ? COMPACT_X_AXIS_HEIGHT : X_AXIS_HEIGHT;
 
   return (
     <div
       ref={chart_ref}
-      className="cdf-chart-shell"
+      className={`cdf-chart-shell${compact ? " cdf-chart-shell-compact" : ""}`}
       data-testid="cdf-chart"
       style={style}
     >
@@ -54,7 +67,7 @@ export function CDFChart({
         <LineChart
           data={data.chart_points}
           height={render_size.height}
-          margin={CHART_MARGIN}
+          margin={margin}
           syncId="cdf-chart"
           width={render_size.width}
           style={{
@@ -72,9 +85,12 @@ export function CDFChart({
             dataKey="draw"
             domain={[0, data.x_domain_max]}
             stroke={CDF_CHART_VIEW_CONFIG.axis_color}
-            tick={{ fill: CDF_CHART_VIEW_CONFIG.x_tick_color, fontSize: 32 }}
+            tick={{
+              fill: CDF_CHART_VIEW_CONFIG.x_tick_color,
+              fontSize: compact ? 14 : 32,
+            }}
             tickFormatter={format_draw}
-            height={X_AXIS_HEIGHT}
+            height={x_axis_height}
             label={{
               value: data.axis_title,
               position: "insideBottom",
@@ -88,15 +104,22 @@ export function CDFChart({
             dataKey="cumulative"
             domain={[0, 1]}
             stroke={CDF_CHART_VIEW_CONFIG.axis_color}
-            tick={{ fill: CDF_CHART_VIEW_CONFIG.y_tick_color, fontSize: 28 }}
+            tick={{
+              fill: CDF_CHART_VIEW_CONFIG.y_tick_color,
+              fontSize: compact ? 13 : 28,
+            }}
             tickFormatter={format_percent}
             ticks={Y_CDF_AXIS_TICKS}
             tickMargin={10}
             tickLine={{ stroke: CDF_CHART_VIEW_CONFIG.axis_tick_color }}
             type="number"
-            width={Y_AXIS_WIDTH}
+            width={y_axis_width}
           />
-          <CDFOverlay data={data} animation_progress={animation_progress} />
+          <CDFOverlay
+            compact={compact}
+            data={data}
+            animation_progress={animation_progress}
+          />
         </LineChart>
       )}
     </div>
