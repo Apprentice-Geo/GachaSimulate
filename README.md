@@ -31,7 +31,7 @@ sidecar 是完整的 `VisualizeInput`，但重新打开时统计、CDF、termina
 
 桌面数据位于 `app.getPath("userData")` 下的 `configs/installed/` 与 `results/`。
 
-Electron 当前只支持从源码启动。安装包、远端配置仓库、分析详情和 CDF 同屏预览尚未实现。
+Electron 当前只支持从源码启动，安装包尚未实现。
 
 ## 可视化与导出
 
