@@ -119,8 +119,11 @@ test("renders generic result item wording, units, and opaque price text", async 
   await expect(
     page.getByText("单抽 10 RMB；十连抽 90 RMB", { exact: true }),
   ).toBeVisible();
+  await expect(page.locator(".outline")).toHaveText(
+    "单抽 10 RMB；十连抽 90 RMB",
+  );
   await expect(page.locator(".top-meta")).not.toContainText(
-    "十连抽 90 RMB 测试币",
+    "单抽 10 RMB；十连抽 90 RMB",
   );
   await expect(
     page.getByTestId("stat-P50").locator(".metric-value"),

@@ -197,7 +197,7 @@ export class SimulationTask {
     this.final_output = join(this.results_dir, result_basename(request));
     this.temporary_output = join(
       this.results_dir,
-      `.${(this.dependencies.random_uuid ?? randomUUID)()}.gsr.tmp`,
+      `.${(this.dependencies.random_uuid ?? randomUUID)()}.tmp.gsr`,
     );
     this.temporary_dir = mkdtempSync(join(tmpdir(), "gachasimulate-electron-"));
     const ir = join(this.temporary_dir, "program.json");

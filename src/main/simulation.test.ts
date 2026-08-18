@@ -461,7 +461,7 @@ test("uses only trusted native paths and removes temporary IR on close", () => {
   ]);
   const ir = args[1];
   assert.equal(existsSync(ir), true);
-  assert.match(basename(args.at(-1) ?? ""), /^\.[0-9a-f-]+\.gsr\.tmp$/);
+  assert.match(basename(args.at(-1) ?? ""), /^\.[0-9a-f-]+\.tmp\.gsr$/);
   child.close(1);
   assert.equal(existsSync(ir), false);
 });

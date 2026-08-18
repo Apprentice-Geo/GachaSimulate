@@ -20,7 +20,6 @@ export function TopBar({ data, animation_progress }: TopBarProps) {
         `模拟目标：${data.target}`,
         `累计模拟次数：${format_statistic(data.runs, "")} 次`,
         `累计${data.result_item.name}：${format_statistic(data.total, data.display_unit)}`,
-        ...(data.price ? [data.price] : []),
       ]
     : ["导入模拟器输出 JSON 后生成结果页面"];
   const title_style = (index: number) =>
@@ -40,10 +39,9 @@ export function TopBar({ data, animation_progress }: TopBarProps) {
             GACHASIMULATE CDF ANALYSIS
           </div>
           <h1 style={title_style(1)}>{data?.title ?? "抽卡模拟 CDF 分析"}</h1>
-          {data && (
+          {data?.price && (
             <p className="outline" style={title_style(2)}>
-              P50 为 {format_statistic(data.statistic.P50, data.display_unit)}，
-              P95 为 {format_statistic(data.statistic.P95, data.display_unit)}。
+              {data.price}
             </p>
           )}
         </div>
