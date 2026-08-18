@@ -1,4 +1,5 @@
 export type SimulationTarget = { kind: "totalRuns"; value: number };
+export const MAX_TOTAL_RUNS = 1_000_000_007;
 
 export type SimulationRequest = {
   configSource: import("./installed_config").ConfigSource;
@@ -131,8 +132,8 @@ export function validate_simulation_request(
   exact_keys(target, ["kind", "value"], "target");
   if (target.kind !== "totalRuns") throw new Error("target must be totalRuns");
   const target_value = integer(target.value, "target", 1);
-  if (target_value > 100_000_000)
-    throw new Error("totalRuns must be <= 100000000");
+  if (target_value > MAX_TOTAL_RUNS)
+    throw new Error(`totalRuns must be <= ${MAX_TOTAL_RUNS}`);
 }
 
 export function parse_simulation_line(

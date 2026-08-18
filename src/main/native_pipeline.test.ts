@@ -18,10 +18,14 @@ test("runs YAML through the native simulation and analysis pipeline", (context) 
       compile_yaml(
         `schema_version: 2
 items: [{draw_count: 抽数}, target]
+item_resolve:
+  - item: target
+    retain: 4294967296
+    actions: target -= 4294967296
 pools:
   - main:
       - probability: 1
-        actions: target += 1
+        actions: target += 4294967297
 every_draw: draw_count += 1
 `,
         `retained_items: []

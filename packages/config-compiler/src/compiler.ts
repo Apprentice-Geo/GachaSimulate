@@ -124,6 +124,8 @@ export function prepare_config(configValue: unknown): PreparedConfig {
         entry[isWeight ? "weight" : "probability"],
         `${path}.${isWeight ? "weight" : "probability"}`,
       );
+      if (isWeight && !Number.isFinite(total))
+        fail(`config.pools[${index}].${id}`, "weight sum must be finite");
       pool_entries.push({
         threshold: total,
         actions: range(

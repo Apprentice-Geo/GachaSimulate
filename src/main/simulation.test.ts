@@ -105,6 +105,10 @@ function complete(value: ReturnType<typeof create_task>): string {
 
 test("validates strict requests, positive targets, and thread limit", () => {
   validate_simulation_request(request, 2);
+  validate_simulation_request(
+    { ...request, target: { kind: "totalRuns", value: 1_000_000_007 } },
+    2,
+  );
   assert.throws(() =>
     validate_simulation_request({ ...request, threads: 3 }, 2),
   );
@@ -131,7 +135,7 @@ test("validates strict requests, positive targets, and thread limit", () => {
   );
   assert.throws(() =>
     validate_simulation_request(
-      { ...request, target: { kind: "totalRuns", value: 100_000_001 } },
+      { ...request, target: { kind: "totalRuns", value: 1_000_000_008 } },
       2,
     ),
   );

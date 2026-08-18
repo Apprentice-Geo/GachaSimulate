@@ -13,8 +13,8 @@
 namespace gachasimulate {
 namespace {
 constexpr uint64_t kHeaderSize = 96;
-constexpr uint64_t kMaxFileSize = 4ULL * 1024 * 1024 * 1024;
-constexpr uint64_t kMaxRuns = 500'000'000;
+constexpr uint64_t kMaxFileSize = 16ULL * 1024 * 1024 * 1024;
+constexpr uint64_t kMaxRuns = 1'000'000'007;
 constexpr uint32_t kMaxReasons = 65'536;
 constexpr uint32_t kMaxStringSize = 1024 * 1024;
 
@@ -156,7 +156,7 @@ GsrData read_gsr_v2(const std::string &path) {
     throw std::runtime_error("cannot open GSR");
   const auto end = input.tellg();
   if (end < 0 || static_cast<uint64_t>(end) > kMaxFileSize)
-    throw std::runtime_error("invalid GSR: file exceeds 4 GiB");
+    throw std::runtime_error("invalid GSR: file exceeds 16 GiB");
   const auto actual_size = static_cast<uint64_t>(end);
   input.seekg(0);
   std::array<char, 4> magic{};
@@ -269,7 +269,7 @@ void write_gsr_v2(const std::string &path, const RuntimeProgram &p, const BatchR
   const auto reason_offset = checked_section(result_offset, r.values.size(), 8, "result section");
   const auto string_offset = checked_section(reason_offset, reasons.size(), 4, "reason section");
   if (strings_size > kMaxFileSize - string_offset)
-    throw std::runtime_error("GSR exceeds 4 GiB");
+    throw std::runtime_error("GSR exceeds 16 GiB");
   const auto file_size = string_offset + strings_size;
   std::ofstream out(std::filesystem::u8path(path), std::ios::binary | std::ios::trunc);
   if (!out)

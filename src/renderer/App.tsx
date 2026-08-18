@@ -28,6 +28,7 @@ import VisualizeApp from "../visualize/App";
 import { get_metric_color } from "../visualize/view/cdf_view_model";
 import { get_distribution_statistic_groups } from "../visualize/view/statistic_view_config";
 import {
+  MAX_TOTAL_RUNS,
   validate_simulation_request,
   type SimulationRequest,
   type SimulationStage,
@@ -356,6 +357,7 @@ function SimulationPage({ active }: { active: boolean }) {
                 固定次数
                 <input
                   disabled={busy}
+                  max={MAX_TOTAL_RUNS}
                   min="1"
                   type="number"
                   value={target_value}

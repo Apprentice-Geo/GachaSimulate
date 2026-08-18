@@ -41,8 +41,8 @@ struct Rule {
   uint32_t condition{};
 };
 struct Resolve {
-  uint32_t retain{};
-  uint32_t reduce_per_batch{};
+  int64_t retain{};
+  int64_t reduce_per_batch{};
   Range actions;
 };
 struct RuntimeProgram {
@@ -72,7 +72,7 @@ struct BatchResult {
   uint64_t total_result{};
 };
 RuntimeProgram load_ir_file(const std::string &utf8_path);
-RunResult single_run(const RuntimeProgram &program, int64_t seed);
+RunResult single_run(const RuntimeProgram &program, uint64_t run_seed);
 BatchResult simulate_fixed_runs(const RuntimeProgram &program, uint64_t total_runs, int64_t seed,
                                 uint32_t threads,
                                 const std::function<void(uint64_t)> &progress = {},

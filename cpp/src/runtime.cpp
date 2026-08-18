@@ -350,9 +350,11 @@ RuntimeProgram load_ir_file(const std::string &path) {
   for (uint32_t item = 0; item < resolves.size(); ++item) {
     const auto &value = resolves[item];
     object(value, {"retain", "reduce_per_batch", "actions"});
-    Resolve r{u32(field(value, "retain"), "retain"),
-              u32(field(value, "reduce_per_batch"), "reduce_per_batch"),
+    Resolve r{i64(field(value, "retain"), "retain"),
+              i64(field(value, "reduce_per_batch"), "reduce_per_batch"),
               range(field(value, "actions"), "resolve actions", p.actions.size())};
+    if (r.retain < 0 || r.reduce_per_batch < 0)
+      fail("resolve values must be non-negative");
     uint32_t reductions = 0;
     for (uint32_t i = 0; i < r.actions.count; ++i) {
       const auto &a = p.actions[r.actions.begin + i];
@@ -407,10 +409,13 @@ RuntimeProgram load_ir_file(const std::string &path) {
   return p;
 }
 
-RunResult single_run(const RuntimeProgram &p, int64_t seed) {
-  State s{
-      0, std::vector<int64_t>(p.resolves.size()),     std::vector<uint8_t>(p.rules.size()), false,
-      0, std::mt19937_64(static_cast<uint64_t>(seed))};
+RunResult single_run(const RuntimeProgram &p, uint64_t run_seed) {
+  State s{0,
+          std::vector<int64_t>(p.resolves.size()),
+          std::vector<uint8_t>(p.rules.size()),
+          false,
+          0,
+          std::mt19937_64(run_seed)};
   execute(p, s, p.initial);
   while (!s.stop) {
     execute(p, s, p.every_draw);
@@ -448,8 +453,8 @@ RunResult single_run(const RuntimeProgram &p, int64_t seed) {
 }
 
 namespace {
-uint64_t mix_seed(int64_t seed, uint32_t chunk) {
-  uint64_t x = static_cast<uint64_t>(seed) + 0x9e3779b97f4a7c15ULL * (chunk + 1);
+uint64_t derive_run_seed(int64_t global_seed, uint64_t run_index) {
+  uint64_t x = static_cast<uint64_t>(global_seed) + 0x9e3779b97f4a7c15ULL * (run_index + 1);
   x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
   x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
   return x ^ (x >> 31);
@@ -459,12 +464,12 @@ uint32_t effective_threads(uint64_t work, uint32_t threads) {
     throw std::runtime_error("threads must be positive");
   return static_cast<uint32_t>(std::min<uint64_t>(threads, work));
 }
-void append(BatchResult &target, const RuntimeProgram &p, const RunResult &run) {
+void store(BatchResult &target, uint64_t run_index, const RuntimeProgram &p, const RunResult &run) {
   const auto value = run.inventory[p.result_item];
   if (value < 0)
     throw std::runtime_error("runtime negative result item");
-  target.values.push_back(static_cast<uint64_t>(value));
-  target.reasons.push_back(run.reason_id);
+  target.values[run_index] = static_cast<uint64_t>(value);
+  target.reasons[run_index] = run.reason_id;
 }
 void finish(BatchResult &r) {
   for (auto value : r.values) {
@@ -474,12 +479,13 @@ void finish(BatchResult &r) {
   }
 }
 template <class Work>
-BatchResult batches(const RuntimeProgram &p, uint64_t work, int64_t seed, uint32_t threads,
-                    uint32_t requested_chunks, Work &&do_chunk,
+BatchResult batches(uint64_t work, uint32_t threads, uint32_t requested_chunks, Work &&do_chunk,
                     const std::function<void(uint64_t)> &progress) {
   const auto chunks = effective_threads(work, requested_chunks ? requested_chunks : threads);
   const auto workers = effective_threads(chunks, threads);
-  std::vector<BatchResult> parts(chunks);
+  BatchResult result;
+  result.values.resize(work);
+  result.reasons.resize(work);
   std::atomic<uint32_t> next_chunk{}, finished_workers{};
   std::atomic<uint64_t> done{};
   std::atomic<bool> stop{};
@@ -492,7 +498,7 @@ BatchResult batches(const RuntimeProgram &p, uint64_t work, int64_t seed, uint32
         const auto chunk = next_chunk.fetch_add(1);
         if (chunk >= chunks)
           break;
-        do_chunk(chunk, chunks, parts[chunk], done);
+        do_chunk(chunk, chunks, result, done);
       }
     } catch (...) {
       std::lock_guard lock(mutex);
@@ -526,11 +532,6 @@ BatchResult batches(const RuntimeProgram &p, uint64_t work, int64_t seed, uint32
     std::rethrow_exception(error);
   if (progress && done != reported)
     progress(done.load());
-  BatchResult result;
-  for (auto &part : parts) {
-    result.values.insert(result.values.end(), part.values.begin(), part.values.end());
-    result.reasons.insert(result.reasons.end(), part.reasons.begin(), part.reasons.end());
-  }
   finish(result);
   return result;
 }
@@ -539,15 +540,14 @@ BatchResult batches(const RuntimeProgram &p, uint64_t work, int64_t seed, uint32
 BatchResult simulate_fixed_runs(const RuntimeProgram &p, uint64_t total_runs, int64_t seed,
                                 uint32_t threads, const std::function<void(uint64_t)> &progress,
                                 uint32_t chunks) {
-  if (!total_runs || total_runs > 100'000'000)
+  if (!total_runs || total_runs > 1'000'000'007)
     throw std::runtime_error("total-runs out of range");
   return batches(
-      p, total_runs, seed, threads, chunks,
-      [&](uint32_t chunk, uint32_t chunks, BatchResult &part, std::atomic<uint64_t> &done) {
+      total_runs, threads, chunks,
+      [&](uint32_t chunk, uint32_t chunks, BatchResult &result, std::atomic<uint64_t> &done) {
         const auto begin = total_runs * chunk / chunks, end = total_runs * (chunk + 1) / chunks;
-        std::mt19937_64 rng(mix_seed(seed, chunk));
         for (auto i = begin; i < end; ++i) {
-          append(part, p, single_run(p, static_cast<int64_t>(rng())));
+          store(result, i, p, single_run(p, derive_run_seed(seed, i)));
           ++done;
         }
       },

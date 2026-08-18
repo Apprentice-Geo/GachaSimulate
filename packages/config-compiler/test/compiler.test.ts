@@ -155,6 +155,46 @@ test("emits the resolve batch reduction without making consumers rescan actions"
   );
 });
 
+test("keeps safe-integer resolve values above uint32", () => {
+  const large = 4_294_967_296;
+  const { ir } = compile_yaml(
+    config.replace(
+      "pools:\n",
+      `item_resolve:\n  - item: target\n    retain: ${large}\n    actions: target -= ${large}\npools:\n`,
+    ),
+    termination,
+    manifest,
+    "draw_count",
+  );
+  const resolve = (ir.item_resolve as Record<string, number>[])[1];
+  assert.equal(resolve.retain, large);
+  assert.equal(resolve.reduce_per_batch, large);
+});
+
+test("rejects an infinite weighted pool sum but normalizes large finite weights", () => {
+  const weighted = config.replace(
+    "- probability: 1\n        actions: target += 1",
+    "- weight: 8e307\n        actions: target += 1\n      - weight: 8e307\n        actions: target += 1",
+  );
+  const { ir } = compile_yaml(weighted, termination, manifest, "draw_count");
+  assert.deepEqual(
+    (ir.pool_entries as { threshold: number }[]).map(
+      ({ threshold }) => threshold,
+    ),
+    [0.5, 1],
+  );
+  assert.throws(
+    () =>
+      compile_yaml(
+        weighted.replaceAll("8e307", "1e308"),
+        termination,
+        manifest,
+        "draw_count",
+      ),
+    /config\.pools\[0\]\.main: weight sum must be finite/,
+  );
+});
+
 test("rejects duplicate YAML keys, old schemas, metrics, and unknown result items", () => {
   assert.throws(
     () =>

@@ -38,7 +38,7 @@ Sections appear in this order:
 checked `u64` sum of all result values. Reason indexes refer to the sorted,
 deduplicated reason string table.
 
-Readers and writers reject files above 4 GiB, more than 500,000,000 runs,
+Readers and writers reject files above 16 GiB, more than 1,000,000,007 runs,
 more than 65,536 reasons, empty or over-1 MiB strings, invalid UTF-8, invalid
 offsets, trailing data, and arithmetic overflow. Legacy headers and all
 separate metric/cost sections are rejected; this repository has no legacy

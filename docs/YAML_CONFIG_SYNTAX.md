@@ -139,6 +139,7 @@ RetainedItemList = [ { ItemId: NonNegativeInteger }, ... ]
 - 同一个 pool 内只能统一使用 `probability` 或统一使用 `weight`。
 - 使用 `probability` 时，单个概率必须大于 `0`，同一个 pool 的概率和必须为 `1`。
 - 使用 `weight` 时，单个权重必须大于 `0`。
+- 使用 `weight` 时，同一个 pool 的权重总和也必须是有限数。
 - pool entry 的 `actions` 可省略，省略等价空动作。
 - `RuleId` 必须唯一。
 - `every_draw` 可省略。若配置需要抽数，应将 `draw_count += 1` 放在 actions 首项；随后按声明顺序执行其余 actions。
@@ -244,6 +245,7 @@ rule 的 `mode`：
 
 - `item += n` 或 `item = n` 后，如果该 item 配置了 `item_resolve`，会立即根据库存和 `retain` 执行分解 actions；`item -= n` 不触发。
 - `retain` 表示至少保留的库存数量。
+- `retain`、`retained_items` 数量和分解动作中的减少量必须是不超过 TypeScript safe integer 上限的非负整数；IR Runtime 使用 `i64` 保存这些值。
 - 分解批次数量由当前库存、`retain` 和 `ResolveActions` 中唯一的 `item -= n` 决定。
 - `termination*.yaml` 的 `retained_items` 会并入 `item_resolve` 的保留数量；同一 item 实际保留值取两者较大值。
 - `ResolveActions` 可以包含 `draw pool_id`，用于把随机礼包、随机皮肤等展开为另一个 pool 的抽取。
