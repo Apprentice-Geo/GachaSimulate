@@ -112,11 +112,16 @@ test("reads config items with the compiler's item validation", () => {
     { id: "draw_count", name: "draw_count" },
     { id: "target", name: "目标" },
   ]);
+  assert.deepEqual(read_config_items('items: [{emoji: "😀"}]\n'), [
+    { id: "emoji", name: "😀" },
+  ]);
   for (const source of [
     "items: []\n",
     "items: [bad-id]\n",
     "items: [same, same]\n",
     "items: [{valid: ''}]\n",
+    'items: [{valid: "\uD800"}]\n',
+    'items: [{valid: "\uDC00"}]\n',
     "items: [unterminated\n",
   ])
     assert.throws(() => read_config_items(source), CompilerError);

@@ -1,12 +1,13 @@
 import { compile_yaml, YAML_TEXT_LIMIT } from "@gachasimulate/config-compiler";
 import { spawn, execFile } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   unlinkSync,
@@ -27,6 +28,7 @@ import { resolve_config_selection } from "./config_manager";
 const STDERR_LIMIT = 64 * 1024;
 const JSONL_LINE_LIMIT = 64 * 1024;
 const TERMINATION_TIMEOUT_MS = 10_000;
+const RESULT_STEM_LIMIT = 255 - Buffer.byteLength(".visualize.json");
 
 type SimulationTaskDependencies = {
   spawn?: (
@@ -38,7 +40,6 @@ type SimulationTaskDependencies = {
   shutdown_native_processes?: () => Promise<void>;
   close_timeout_ms?: number;
   native_dir?: string;
-  now?: () => Date;
   random_uuid?: () => string;
   local_dir?: () => string | null;
 };
@@ -57,6 +58,28 @@ export async function shutdown_native_processes(
 
 function readable_error(reason: unknown): Error {
   return reason instanceof Error ? reason : new Error(String(reason));
+}
+
+function result_basename(
+  request: import("../shared/simulation").SimulationRequest,
+): string {
+  const termination = request.termination
+    .replace(/\.yaml$/i, "")
+    .replace(/[^A-Za-z0-9_-]/g, "_");
+  const readable = `${request.configSource}-${request.configId}-${termination}-${request.resultItem}`;
+  const hash = createHash("sha256")
+    .update(
+      [
+        request.configSource,
+        request.configId,
+        request.termination,
+        request.resultItem,
+      ].join("\0"),
+    )
+    .digest("hex")
+    .slice(0, 12);
+  const suffix = `-${hash}-runs${request.target.value}-seed${request.seed}-threads${request.threads}`;
+  return `${readable.slice(0, RESULT_STEM_LIMIT - suffix.length)}${suffix}.gsr`;
 }
 
 export async function terminate_native_process(
@@ -110,7 +133,12 @@ export class SimulationTask {
   private protocol_stop_started = false;
   private stderr = "";
   private temporary_dir: string | null = null;
-  private expected_output = "";
+  private temporary_output = "";
+  private final_output = "";
+  private completed_event: Extract<
+    SimulationEvent,
+    { type: "completed" }
+  > | null = null;
 
   constructor(
     private readonly installed_dir: string,
@@ -166,16 +194,10 @@ export class SimulationTask {
     );
 
     mkdirSync(this.results_dir, { recursive: true });
-    const timestamp = (this.dependencies.now ?? (() => new Date()))()
-      .toISOString()
-      .replace(/[-:.]/g, "");
-    const id = (this.dependencies.random_uuid ?? randomUUID)();
-    const termination_stem = termination
-      .replace(/\.yaml$/i, "")
-      .replace(/[^A-Za-z0-9_-]/g, "_");
-    this.expected_output = join(
+    this.final_output = join(this.results_dir, result_basename(request));
+    this.temporary_output = join(
       this.results_dir,
-      `${request.configId}-${termination_stem}-${request.target.kind}-${request.target.value}-seed${request.seed}-threads${request.threads}-${timestamp}-${id}.gsr`,
+      `.${(this.dependencies.random_uuid ?? randomUUID)()}.gsr.tmp`,
     );
     this.temporary_dir = mkdtempSync(join(tmpdir(), "gachasimulate-electron-"));
     const ir = join(this.temporary_dir, "program.json");
@@ -197,7 +219,7 @@ export class SimulationTask {
       "--threads",
       String(request.threads),
       "--output",
-      this.expected_output,
+      this.temporary_output,
     ];
     this.cancelled = false;
     this.saw_completed = false;
@@ -206,6 +228,7 @@ export class SimulationTask {
     this.core_error = null;
     this.process_error = null;
     this.protocol_stop_started = false;
+    this.completed_event = null;
     this.stderr = "";
     this.notify({ status: "starting" });
     let child: ChildProcess;
@@ -274,6 +297,21 @@ export class SimulationTask {
         } catch (error) {
           cleanup_error ??= readable_error(error);
         }
+      } else {
+        try {
+          renameSync(this.temporary_output, this.final_output);
+          this.temporary_output = "";
+          rmSync(`${this.final_output.slice(0, -4)}.visualize.json`, {
+            force: true,
+          });
+        } catch (error) {
+          cleanup_error ??= readable_error(error);
+          try {
+            this.cleanup_output();
+          } catch (cleanup) {
+            cleanup_error ??= readable_error(cleanup);
+          }
+        }
       }
       this.child = null;
       this.child_close = null;
@@ -283,7 +321,11 @@ export class SimulationTask {
       } else if (this.protocol_error) {
         this.notify({ status: "failed", message: this.protocol_error });
       } else if (outcome === "cancelled") this.notify({ status: "cancelled" });
-      else if (outcome === "completed") this.notify({ status: "completed" });
+      else if (outcome === "completed")
+        this.notify({
+          status: "completed",
+          event: { ...this.completed_event!, result_path: this.final_output },
+        });
       else
         this.notify({
           status: "failed",
@@ -303,8 +345,9 @@ export class SimulationTask {
   }
 
   private cleanup_output(): void {
-    if (this.expected_output && existsSync(this.expected_output))
-      unlinkSync(this.expected_output);
+    if (this.temporary_output && existsSync(this.temporary_output))
+      unlinkSync(this.temporary_output);
+    this.temporary_output = "";
   }
 
   private handle_line(line: string): void {
@@ -354,9 +397,11 @@ export class SimulationTask {
 
   private handle_event(event: SimulationEvent): void {
     if (event.type === "completed") {
-      if (resolve(event.result_path) !== resolve(this.expected_output))
+      if (resolve(event.result_path) !== resolve(this.temporary_output))
         throw new Error("core returned an unexpected result path");
       this.saw_completed = true;
+      this.completed_event = event;
+      return;
     }
     if (event.type === "error") {
       this.saw_error = true;

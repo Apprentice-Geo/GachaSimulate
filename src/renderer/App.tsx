@@ -6,7 +6,13 @@ import {
   Search,
   Store,
 } from "lucide-react";
-import { useState, useEffect, type CSSProperties, type ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import type {
   ConfigRepositoryState,
   InstalledConfig,
@@ -463,18 +469,26 @@ function ResultEditorPage({
 }) {
   const [fields, set_fields] = useState<DisplayFields | null>(null);
   const [status, set_status] = useState("请选择 GSR 文件。");
-  const [busy, set_busy] = useState(false);
+  const [loading, set_loading] = useState(false);
+  const [saving, set_saving] = useState(false);
   const [error, set_error] = useState<string | null>(null);
+  const fields_ref = useRef<DisplayFields | null>(null);
+  const save_queue = useRef(Promise.resolve());
+  const save_version = useRef(0);
 
   const apply_state = (next: ResultEditorState) => {
     on_state(next);
+    fields_ref.current = next.fields;
     set_fields(next.fields);
   };
 
-  useEffect(() => set_fields(state?.fields ?? null), [state]);
+  useEffect(() => {
+    fields_ref.current = state?.fields ?? null;
+    set_fields(fields_ref.current);
+  }, [state]);
 
   const select = async () => {
-    set_busy(true);
+    set_loading(true);
     set_error(null);
     set_status("正在分析…");
     try {
@@ -489,25 +503,41 @@ function ResultEditorPage({
       set_error(reason instanceof Error ? reason.message : String(reason));
       set_status("分析失败。");
     } finally {
-      set_busy(false);
+      set_loading(false);
     }
   };
 
-  const save = async () => {
-    if (!fields) return;
-    set_busy(true);
+  const save = () => {
+    const snapshot = fields_ref.current;
+    if (!snapshot) return;
+    const version = ++save_version.current;
+    set_saving(true);
     set_error(null);
     set_status("正在保存…");
-    try {
-      apply_state(await window.desktopApi.saveResultFields(fields));
-      set_status("已保存。");
-    } catch (reason) {
-      set_error(reason instanceof Error ? reason.message : String(reason));
-      set_status("保存失败，现有 sidecar 未被覆盖。");
-    } finally {
-      set_busy(false);
-    }
+    save_queue.current = save_queue.current.then(async () => {
+      try {
+        const next = await window.desktopApi.saveResultFields(snapshot);
+        if (version === save_version.current) {
+          if (fields_ref.current === snapshot) apply_state(next);
+          set_status("已保存。");
+        }
+      } catch (reason) {
+        if (version === save_version.current) {
+          set_error(reason instanceof Error ? reason.message : String(reason));
+          set_status("保存失败，现有 sidecar 未被覆盖。");
+        }
+      } finally {
+        if (version === save_version.current) set_saving(false);
+      }
+    });
   };
+
+  const change_field = (key: keyof DisplayFields, value: string) =>
+    set_fields((current) => {
+      if (!current) return current;
+      fields_ref.current = { ...current, [key]: value };
+      return fields_ref.current;
+    });
 
   const field = (
     key: keyof DisplayFields,
@@ -519,25 +549,17 @@ function ResultEditorPage({
       {label}
       {multiline ? (
         <textarea
-          disabled={busy}
+          disabled={loading}
           value={fields?.[key] ?? ""}
-          onBlur={() => void save()}
-          onChange={(event) =>
-            set_fields((current) =>
-              current ? { ...current, [key]: event.target.value } : current,
-            )
-          }
+          onBlur={save}
+          onChange={(event) => change_field(key, event.target.value)}
         />
       ) : (
         <input
-          disabled={busy}
+          disabled={loading}
           value={fields?.[key] ?? ""}
-          onBlur={() => void save()}
-          onChange={(event) =>
-            set_fields((current) =>
-              current ? { ...current, [key]: event.target.value } : current,
-            )
-          }
+          onBlur={save}
+          onChange={(event) => change_field(key, event.target.value)}
         />
       )}
     </label>
@@ -560,7 +582,7 @@ function ResultEditorPage({
           <button
             className="secondary"
             type="button"
-            disabled={busy}
+            disabled={loading || saving}
             onClick={() => void select()}
           >
             更换 GSR
@@ -575,7 +597,11 @@ function ResultEditorPage({
             <p>
               选择 GSR 文件并完成分析后，即可编辑标题、目标、说明、价格和单位。
             </p>
-            <button type="button" disabled={busy} onClick={() => void select()}>
+            <button
+              type="button"
+              disabled={loading || saving}
+              onClick={() => void select()}
+            >
               <FolderOpen size={16} aria-hidden="true" />
               选择 GSR
             </button>

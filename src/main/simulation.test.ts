@@ -4,14 +4,15 @@ import {
   cpSync,
   existsSync,
   mkdtempSync,
+  readFileSync,
+  renameSync,
   rmSync,
-  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { PassThrough } from "node:stream";
-import test from "node:test";
+import test, { after } from "node:test";
 import type { ChildProcess } from "node:child_process";
 import { shutdown_native_processes, SimulationTask } from "./simulation";
 import {
@@ -30,6 +31,12 @@ const request = {
   seed: 0,
   threads: 1,
 };
+
+const simulation_results = mkdtempSync(
+  join(tmpdir(), "gachasimulate-simulation-results-"),
+);
+let result_directory_id = 0;
+after(() => rmSync(simulation_results, { recursive: true, force: true }));
 
 class FakeChild extends EventEmitter {
   readonly pid = 123;
@@ -52,6 +59,8 @@ class FakeChild extends EventEmitter {
 function create_task(
   terminate: (child: ChildProcess) => Promise<void>,
   close_timeout_ms = 100,
+  simulation_request = request,
+  results_dir = join(simulation_results, String(result_directory_id++)),
 ) {
   const child = new FakeChild();
   const events: DesktopSimulationEvent[] = [];
@@ -59,7 +68,7 @@ function create_task(
   let args: string[] = [];
   const task = new SimulationTask(
     resolve("test-fixtures/configs"),
-    resolve("results"),
+    results_dir,
     (event) => events.push(event),
     {
       spawn: (next_command, next_args) => {
@@ -72,9 +81,26 @@ function create_task(
       local_dir: () => resolve("test-fixtures/configs"),
     },
   );
-  task.start(request);
+  task.start(simulation_request);
   child.stdout.write('{"type":"started"}\n');
   return { args, child, command, events, task };
+}
+
+function complete(value: ReturnType<typeof create_task>): string {
+  const temporary = value.args.at(-1)!;
+  writeFileSync(temporary, "complete");
+  value.child.stdout.write(
+    `${JSON.stringify({
+      type: "completed",
+      result_path: temporary,
+      total_runs: 1,
+      total_result: 1,
+    })}\n`,
+  );
+  value.child.close(0);
+  const event = value.events.at(-1)?.event;
+  assert.equal(event?.type, "completed");
+  return event.result_path;
 }
 
 test("validates strict requests, positive targets, and thread limit", () => {
@@ -150,22 +176,101 @@ test("starts local and installed configs with the same id by source", () => {
       join(root, "installed", "test", ".gachasimulate.json"),
       JSON.stringify({ sha256: "0".repeat(64) }),
     );
+    const paths: string[] = [];
     for (const configSource of ["local", "installed"] as const) {
       const child = new FakeChild();
+      const events: DesktopSimulationEvent[] = [];
+      let output = "";
       const task = new SimulationTask(
         join(root, "installed"),
         join(root, "results"),
-        () => {},
+        (event) => events.push(event),
         {
           local_dir: () => resolve("test-fixtures/configs"),
-          spawn: () => child as unknown as ChildProcess,
+          spawn: (_command, args) => {
+            output = args.at(-1)!;
+            return child as unknown as ChildProcess;
+          },
         },
       );
       task.start({ ...request, configSource });
       assert.equal(task.active, true);
-      child.close(1);
+      writeFileSync(output, "complete");
+      child.stdout.write(
+        `${JSON.stringify({
+          type: "completed",
+          result_path: output,
+          total_runs: 1,
+          total_result: 1,
+        })}\n`,
+      );
+      child.close(0);
+      const event = events.at(-1)?.event;
+      assert.equal(event?.type, "completed");
+      paths.push(event.result_path);
       assert.equal(task.active, false);
     }
+    assert.notEqual(paths[0], paths[1]);
+    assert.match(basename(paths[0]), /^local-/);
+    assert.match(basename(paths[1]), /^installed-/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("leaves room for the visualize sidecar with long valid names", () => {
+  const root = mkdtempSync(join(tmpdir(), "gachasimulate-long-result-"));
+  try {
+    const config_dir = join(root, "configs", "test");
+    cpSync(resolve("test-fixtures/configs/test"), config_dir, {
+      recursive: true,
+    });
+    const termination = `${"t".repeat(240)}.yaml`;
+    renameSync(
+      join(config_dir, "termination.yaml"),
+      join(config_dir, termination),
+    );
+    const manifest_path = join(config_dir, "manifest.yaml");
+    writeFileSync(
+      manifest_path,
+      readFileSync(manifest_path, "utf8").replace(
+        "termination.yaml",
+        termination,
+      ),
+    );
+    const child = new FakeChild();
+    const events: DesktopSimulationEvent[] = [];
+    let output = "";
+    const task = new SimulationTask(
+      join(root, "installed"),
+      join(root, "results"),
+      (event) => events.push(event),
+      {
+        local_dir: () => join(root, "configs"),
+        spawn: (_command, args) => {
+          output = args.at(-1)!;
+          return child as unknown as ChildProcess;
+        },
+      },
+    );
+    task.start({ ...request, termination });
+    writeFileSync(output, "complete");
+    child.stdout.write(
+      `${JSON.stringify({
+        type: "completed",
+        result_path: output,
+        total_runs: 1,
+        total_result: 1,
+      })}\n`,
+    );
+    child.close(0);
+    const event = events.at(-1)?.event;
+    assert.equal(event?.type, "completed");
+    assert.ok(
+      Buffer.byteLength(
+        basename(event.result_path).replace(/\.gsr$/, ".visualize.json"),
+      ) <= 255,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -318,7 +423,8 @@ test("requires a matching terminal event and exit code", () => {
 
   for (const scenario of cases) {
     const { args, child, events } = create_task(async () => {});
-    if (scenario.line === "completed")
+    if (scenario.line === "completed") {
+      writeFileSync(args.at(-1)!, "complete");
       child.stdout.write(
         `${JSON.stringify({
           type: "completed",
@@ -327,7 +433,7 @@ test("requires a matching terminal event and exit code", () => {
           total_result: 1,
         })}\n`,
       );
-    else if (scenario.line) child.stdout.write(`${scenario.line}\n`);
+    } else if (scenario.line) child.stdout.write(`${scenario.line}\n`);
     child.close(scenario.code);
     assert.equal(events.at(-1)?.status, scenario.status);
   }
@@ -351,29 +457,15 @@ test("uses only trusted native paths and removes temporary IR on close", () => {
   ]);
   const ir = args[1];
   assert.equal(existsSync(ir), true);
-  assert.match(
-    args.at(-1) ?? "",
-    /results[\\/]test-termination-totalRuns-1-seed0-threads1-.*\.gsr$/,
-  );
+  assert.match(basename(args.at(-1) ?? ""), /^\.[0-9a-f-]+\.gsr\.tmp$/);
   child.close(1);
   assert.equal(existsSync(ir), false);
 });
 
 test("keeps only a successfully completed GSR", async () => {
   const success = create_task(async () => {});
-  const success_output = success.args.at(-1)!;
-  writeFileSync(success_output, "complete");
-  success.child.stdout.write(
-    `${JSON.stringify({
-      type: "completed",
-      result_path: success_output,
-      total_runs: 1,
-      total_result: 1,
-    })}\n`,
-  );
-  success.child.close(0);
+  const success_output = complete(success);
   assert.equal(existsSync(success_output), true);
-  unlinkSync(success_output);
 
   const failed = create_task(async () => {});
   const failed_output = failed.args.at(-1)!;
@@ -388,6 +480,65 @@ test("keeps only a successfully completed GSR", async () => {
   cancelled.child.close(null, "SIGTERM");
   await stopping;
   assert.equal(existsSync(cancelled_output), false);
+});
+
+test("uses deterministic result identities and replaces stale results", () => {
+  const results = join(simulation_results, "replacement");
+  const first = create_task(async () => {}, 100, request, results);
+  const final = complete(first);
+  const sidecar = final.replace(/\.gsr$/, ".visualize.json");
+  writeFileSync(final, "old result");
+  writeFileSync(sidecar, "old sidecar");
+
+  const replacement = create_task(async () => {}, 100, request, results);
+  const replaced = complete(replacement);
+
+  assert.equal(replaced, final);
+  assert.equal(readFileSync(final, "utf8"), "complete");
+  assert.equal(existsSync(sidecar), false);
+  assert.match(
+    basename(final),
+    /^local-test-termination-draw_count-[0-9a-f]{12}-runs1-seed0-threads1\.gsr$/,
+  );
+});
+
+test("failed replacement preserves the previous result and sidecar", async () => {
+  const results = join(simulation_results, "failed-replacement");
+  const initial = create_task(async () => {}, 100, request, results);
+  const final = complete(initial);
+  const sidecar = final.replace(/\.gsr$/, ".visualize.json");
+  writeFileSync(final, "old result");
+  writeFileSync(sidecar, "old sidecar");
+
+  const failed = create_task(async () => {}, 100, request, results);
+  writeFileSync(failed.args.at(-1)!, "partial");
+  failed.child.close(1);
+  assert.equal(readFileSync(final, "utf8"), "old result");
+  assert.equal(readFileSync(sidecar, "utf8"), "old sidecar");
+
+  const cancelled = create_task(async () => {}, 100, request, results);
+  writeFileSync(cancelled.args.at(-1)!, "partial");
+  const stopping = cancelled.task.cancel();
+  cancelled.child.close(null, "SIGTERM");
+  await stopping;
+  assert.equal(readFileSync(final, "utf8"), "old result");
+  assert.equal(readFileSync(sidecar, "utf8"), "old sidecar");
+});
+
+test("includes result item in the deterministic identity", () => {
+  const results = join(simulation_results, "result-items");
+  const draw = create_task(async () => {}, 100, request, results);
+  const target = create_task(
+    async () => {},
+    100,
+    { ...request, resultItem: "target_item_1" },
+    results,
+  );
+  const draw_path = complete(draw);
+  const target_path = complete(target);
+
+  assert.notEqual(draw_path, target_path);
+  assert.match(basename(target_path), /^local-test-termination-target_item_1-/);
 });
 
 test("spawn failure removes the temporary IR", () => {

@@ -3,6 +3,8 @@ import type { ConfigItem } from "./types.js";
 
 export const YAML_TEXT_LIMIT = 1024 * 1024;
 export const ID = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const LONE_SURROGATE =
+  /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/u;
 
 export class CompilerError extends Error {
   constructor(
@@ -105,6 +107,8 @@ export function config_items(value: unknown): ConfigItem[] {
       fail(`config.items[${index}]`, `duplicate item id: ${id}`);
     if (typeof name !== "string" || !name)
       fail(`config.items[${index}]`, "name must be a non-empty string");
+    if (LONE_SURROGATE.test(name))
+      fail(`config.items[${index}]`, "name must contain valid Unicode");
     itemIds.add(id);
     return { id, name };
   });
