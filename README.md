@@ -10,6 +10,7 @@ Monte Carlo 抽卡模拟器。TypeScript Compiler 将 YAML 和本次选择的结
 
 ```bash
 pnpm install --frozen-lockfile
+pnpm run hooks:install
 cd cpp
 cmake --preset linux-release
 cmake --build --preset linux-release

@@ -11,6 +11,7 @@
   },
   "scripts": {
     "dev": "pnpm run build:packages && electron-vite dev",
+    "hooks:install": "git config core.hooksPath .githooks",
     "dev:web": "vite",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,mjs,cjs,css,json}\" \"e2e/**/*.{ts,tsx,js,mjs,cjs,json}\" \"docs/schemas/**/*.json\" \"*.{ts,js,mjs,cjs,json,html}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,mjs,cjs,css,json}\" \"e2e/**/*.{ts,tsx,js,mjs,cjs,json}\" \"docs/schemas/**/*.json\" \"*.{ts,js,mjs,cjs,json,html}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs,json}\"",

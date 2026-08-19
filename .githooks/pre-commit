@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+mapfile -d '' -t staged_files < <(git diff --cached --name-only -z --diff-filter=ACMR)
+if ((${#staged_files[@]} == 0)); then
+  exit 0
+fi
+
+mapfile -d '' -t unstaged_files < <(git diff --name-only -z --diff-filter=ACMR)
+declare -A staged_set=()
+for path in "${staged_files[@]}"; do
+  staged_set["$path"]=1
+done
+
+overlapping_files=()
+for path in "${unstaged_files[@]}"; do
+  if [[ ${staged_set["$path"]+present} == present ]]; then
+    overlapping_files+=("$path")
+  fi
+done
+if ((${#overlapping_files[@]} > 0)); then
+  echo "[pre-commit] staged files also have unstaged changes:" >&2
+  printf '  %s\n' "${overlapping_files[@]}" >&2
+  echo "Stage the final file contents before committing." >&2
+  exit 1
+fi
+
+echo "[pre-commit] checking staged whitespace"
+git diff --cached --check
+
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "[pre-commit] missing required command: $1" >&2
+    exit 1
+  fi
+}
+
+node_changed=0
+packages_changed=0
+simulation_changed=0
+visualize_changed=0
+e2e_changed=0
+electron_build=0
+web_build=0
+cpp_changed=0
+
+format_files=()
+lint_files=()
+
+for path in "${staged_files[@]}"; do
+  case "$path" in
+    src/*|e2e/*|packages/*/src/*|packages/*/test/*|docs/schemas/*|package.json|*.config.*|tsconfig*.json|index.html)
+      node_changed=1
+      case "$path" in
+        *.ts|*.tsx|*.js|*.mjs|*.cjs|*.css|*.json|*.html)
+          format_files+=("$path")
+          ;;
+      esac
+      case "$path" in
+        *.ts|*.tsx|*.js|*.mjs|*.cjs)
+          lint_files+=("$path")
+          ;;
+      esac
+      ;;
+    packages/*|test-fixtures/configs/*|docs/YAML_CONFIG_SYNTAX.md|pnpm-lock.yaml|pnpm-workspace.yaml)
+      node_changed=1
+      ;;
+  esac
+
+  case "$path" in
+    packages/*)
+      packages_changed=1
+      ;;
+    src/main/*|src/shared/*|src/preload/*|src/renderer/*|test-fixtures/configs/*|docs/YAML_CONFIG_SYNTAX.md)
+      simulation_changed=1
+      ;;
+    src/visualize/*|src/export/*|docs/schemas/*|docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md)
+      visualize_changed=1
+      web_build=1
+      ;;
+    e2e/*)
+      e2e_changed=1
+      web_build=1
+      ;;
+    src/main/*|src/preload/*|src/renderer/*|src/dev/electron_layout.test.ts|electron.vite.config.ts)
+      electron_build=1
+      ;;
+    index.html|vite.config.ts|playwright.config.ts)
+      web_build=1
+      ;;
+    package.json|pnpm-lock.yaml|pnpm-workspace.yaml|tsconfig*.json)
+      electron_build=1
+      web_build=1
+      ;;
+    cpp/*|.clang-format|.clang-tidy|docs/YAML_CONFIG_SYNTAX.md)
+      cpp_changed=1
+      ;;
+  esac
+done
+
+if ((node_changed)); then
+  require_command pnpm
+
+  if ((${#format_files[@]} > 0)); then
+    echo "[pre-commit] checking Prettier"
+    pnpm exec prettier --check "${format_files[@]}"
+  fi
+
+  if ((${#lint_files[@]} > 0)); then
+    echo "[pre-commit] checking ESLint"
+    pnpm exec eslint "${lint_files[@]}"
+  fi
+
+  echo "[pre-commit] checking TypeScript"
+  pnpm run typecheck
+
+  if ((packages_changed)); then
+    echo "[pre-commit] testing packages"
+    pnpm run test:packages
+  fi
+
+  if ((simulation_changed)); then
+    echo "[pre-commit] testing simulation"
+    pnpm run test:simulation
+  fi
+
+  if ((visualize_changed)); then
+    echo "[pre-commit] testing visualization"
+    pnpm run test:visualize:cdf
+  fi
+
+  if ((e2e_changed)); then
+    echo "[pre-commit] testing end-to-end behavior"
+    pnpm run test:e2e
+  fi
+
+  if ((electron_build)); then
+    echo "[pre-commit] building Electron"
+    pnpm run build
+  fi
+
+  if ((web_build)); then
+    echo "[pre-commit] building web visualization"
+    pnpm run build:web
+  fi
+fi
+
+if ((cpp_changed)); then
+  require_command clang-format
+  require_command clang-tidy
+  require_command clang++
+  require_command cmake
+  require_command ninja
+
+  echo "[pre-commit] checking C++ formatting"
+  find cpp/include cpp/src cpp/tests -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
+    | xargs -0 clang-format --dry-run --Werror
+
+  echo "[pre-commit] building and testing C++ Debug"
+  (
+    cd cpp
+    cmake --preset linux-debug
+    cmake --build --preset linux-debug
+    ctest --preset linux-debug
+  )
+
+  echo "[pre-commit] running clang-tidy"
+  (
+    cd cpp
+    find src tests -name '*.cpp' -print0 \
+      | xargs -0 clang-tidy -p ../build/cpp/linux-debug
+  )
+fi
