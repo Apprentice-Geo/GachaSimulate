@@ -75,6 +75,9 @@ jobs:
       - name: Check frontend formatting
         run: pnpm run format:check
 
+      - name: Check repository hook
+        run: test -x .githooks/pre-commit && bash -n .githooks/pre-commit
+
   frontend-lint:
     name: Frontend lint
     runs-on: ubuntu-latest
@@ -154,6 +157,9 @@ jobs:
       - name: Build frontend
         run: pnpm run build
 
+      - name: Build web visualization
+        run: pnpm run build:web
+
       - name: Run visualize CDF tests
         run: pnpm run test:visualize:cdf
 
@@ -162,6 +168,75 @@ jobs:
 
       - name: Build and test packages
         run: pnpm run test:packages
+
+      - name: Run CDF export smoke
+        run: |
+          mkdir -p tmp
+          smoke_dir="$(mktemp -d tmp/ci-export.XXXXXX)"
+          cleanup() {
+            rm -rf "$smoke_dir"
+            rm -f outputs/cdf-result.png outputs/cdf-animation.mp4 outputs/cdf-animation.webm
+          }
+          trap cleanup EXIT
+          gsr="$smoke_dir/smoke.gsr"
+          display="$smoke_dir/smoke.visualize.json"
+          build/native/bin/gachasimulate-core \
+            --ir "$(realpath cpp/tests/batch_fixture_ir.json)" \
+            --total-runs 10 \
+            --seed 0 \
+            --threads 1 \
+            --output "$PWD/$gsr"
+          node --input-type=module -e '
+            import { writeFileSync } from "node:fs";
+            writeFileSync(process.argv[1], JSON.stringify({
+              display_version: 1,
+              title: "CI export",
+              target: "test",
+              result_item_name: "draw_count",
+              note: "",
+              price: "",
+              unit: ""
+            }));
+          ' "$display"
+          pnpm run export:cdf -- --gsr "$gsr" --display "$display"
+          test -s outputs/cdf-result.png
+          test -s outputs/cdf-animation.mp4
+
+  electron-layout:
+    name: Electron layout
+    runs-on: ubuntu-24.04
+    needs: cpp
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download native binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: native-binaries
+          path: build/native/bin
+
+      - name: Restore native binary permissions
+        run: chmod +x build/native/bin/*
+
+      - name: Install virtual display
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run Electron layout tests
+        run: xvfb-run --auto-servernum --server-args="-screen 0 2560x1440x24" pnpm run test:electron-layout
 
   e2e:
     name: Playwright e2e
