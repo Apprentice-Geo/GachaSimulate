@@ -680,7 +680,7 @@ button:focus-visible,
 .repository-page {
   gap: 14px;
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .repository-header,
@@ -738,8 +738,15 @@ button:focus-visible,
 }
 
 .repository-source {
-  display: grid;
+  background: var(--color-panel);
+  border: 1px solid var(--color-hairline);
+  box-sizing: border-box;
+  display: flex;
+  flex: 8 1 0;
+  flex-direction: column;
   gap: 10px;
+  min-height: 0;
+  padding: 14px;
   width: 100%;
 }
 
@@ -789,8 +796,11 @@ button:focus-visible,
 
 .repository-list {
   display: grid;
+  flex: 1;
   gap: 10px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .repository-card {
@@ -864,9 +874,8 @@ button:focus-visible,
 
 .local-source {
   background: rgba(250, 127, 170, 0.025);
-  border: 1px solid var(--color-hairline);
+  flex: 2 1 0;
   margin-top: 2px;
-  padding: 14px;
 }
 
 .local-directory {
@@ -882,8 +891,11 @@ button:focus-visible,
 
 .local-config-list {
   display: grid;
+  flex: 1;
   gap: 7px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .local-config-list > span {

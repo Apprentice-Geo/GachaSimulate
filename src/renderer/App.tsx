@@ -876,7 +876,7 @@ function ConfigRepositoryPage() {
       )}
 
       <section
-        className="repository-source"
+        className="repository-source official-source"
         aria-labelledby="official-source-title"
       >
         <div className="repository-source-heading">

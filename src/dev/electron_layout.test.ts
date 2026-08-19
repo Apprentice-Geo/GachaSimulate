@@ -21,8 +21,15 @@ function repository_fixture(): ConfigRepositoryState {
       description: "用于检查配置仓库滚动区域。",
       status: "available" as const,
     })),
-    localDirectory: null,
-    localConfigs: [],
+    localDirectory: "/tmp/gachasimulate-configs",
+    localConfigs: Array.from({ length: 32 }, (_, index) => ({
+      id: `local_config_${index}`,
+      name: `本地配置 ${index}`,
+      description: "用于检查配置仓库滚动区域。",
+      source: "local" as const,
+      terminations: [{ file: "termination.yaml", name: "完成" }],
+      items: [{ id: "draw_count", name: "抽数" }],
+    })),
     sourceError: null,
     localError: null,
   };
@@ -222,9 +229,32 @@ async function assert_layout(
   await page.getByRole("button", { name: "配置仓库" }).click();
   await page.getByText("测试配置 0").waitFor();
 
-  const repository_scroll = await page
-    .locator(".repository-page")
-    .evaluate((node) => {
+  const repository = page.locator(".repository-page");
+  const official = page.locator(".official-source");
+  const local = page.locator(".local-source");
+  const [official_box, local_box] = await Promise.all([
+    official.boundingBox(),
+    local.boundingBox(),
+  ]);
+  assert.ok(official_box && local_box);
+  assert.ok(official_box.height > local_box.height * 3);
+  assert.equal(
+    await repository.evaluate((node) => node.scrollHeight <= node.clientHeight),
+    true,
+  );
+
+  const official_heading_before = await official
+    .locator(".repository-source-heading")
+    .boundingBox();
+  const local_heading_before = await local
+    .locator(".repository-source-heading")
+    .boundingBox();
+  assert.ok(official_heading_before && local_heading_before);
+  for (const list of [
+    official.locator(".repository-list"),
+    local.locator(".local-config-list"),
+  ]) {
+    const scroll = await list.evaluate((node) => {
       const element = node as HTMLElement;
       const result = {
         scrollHeight: element.scrollHeight,
@@ -235,8 +265,17 @@ async function assert_layout(
       result.scrollTop = element.scrollTop;
       return result;
     });
-  assert.ok(repository_scroll.scrollHeight > repository_scroll.clientHeight);
-  assert.ok(repository_scroll.scrollTop > 0);
+    assert.ok(scroll.scrollHeight > scroll.clientHeight);
+    assert.ok(scroll.scrollTop > 0);
+  }
+  assert.deepEqual(
+    await official.locator(".repository-source-heading").boundingBox(),
+    official_heading_before,
+  );
+  assert.deepEqual(
+    await local.locator(".repository-source-heading").boundingBox(),
+    local_heading_before,
+  );
 }
 
 test("Electron renderer layout contracts hold at both supported sizes", async () => {
