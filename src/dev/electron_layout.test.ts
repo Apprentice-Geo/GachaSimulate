@@ -8,9 +8,25 @@ import {
   type ElectronApplication,
   type Page,
 } from "playwright";
+import type { ConfigRepositoryState } from "../shared/installed_config";
 import { result_fixture, simulation_fixture } from "./ui_fixtures";
 
 const PROJECT_ROOT = process.cwd();
+
+function repository_fixture(): ConfigRepositoryState {
+  return {
+    official: Array.from({ length: 32 }, (_, index) => ({
+      id: `config_${index}`,
+      name: `测试配置 ${index}`,
+      description: "用于检查配置仓库滚动区域。",
+      status: "available" as const,
+    })),
+    localDirectory: null,
+    localConfigs: [],
+    sourceError: null,
+    localError: null,
+  };
+}
 
 async function launch(width: number, height: number) {
   const config_home = await mkdtemp(
@@ -84,6 +100,7 @@ async function fail_with_layout(page: Page, message: string): Promise<never> {
         ".renderer-main",
         '[data-testid="simulation-item-list"]',
         '[data-testid="result-preview-scroll"]',
+        ".repository-page",
       ].map((selector) => {
         const element = document.querySelector(selector) as HTMLElement | null;
         return [
@@ -104,6 +121,7 @@ async function fail_with_layout(page: Page, message: string): Promise<never> {
     '[data-testid="result-preview"]',
     '[data-testid="result-preview-scroll"]',
     '[data-testid="result-cdf-preview"]',
+    ".repository-page",
   ]);
   throw new Error(
     `${message}: ${JSON.stringify({ ...details, rects: layout_rects })}`,
@@ -191,6 +209,34 @@ async function assert_layout(
   assert.ok(
     await page.locator('[data-testid="result-cdf-preview"] circle').count(),
   );
+
+  await application.evaluate(({ ipcMain }, fixture) => {
+    for (const channel of [
+      "get-config-repository-state",
+      "refresh-config-repository",
+    ]) {
+      ipcMain.removeHandler(channel);
+      ipcMain.handle(channel, () => fixture);
+    }
+  }, repository_fixture());
+  await page.getByRole("button", { name: "配置仓库" }).click();
+  await page.getByText("测试配置 0").waitFor();
+
+  const repository_scroll = await page
+    .locator(".repository-page")
+    .evaluate((node) => {
+      const element = node as HTMLElement;
+      const result = {
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+        scrollTop: 0,
+      };
+      element.scrollTop = element.scrollHeight;
+      result.scrollTop = element.scrollTop;
+      return result;
+    });
+  assert.ok(repository_scroll.scrollHeight > repository_scroll.clientHeight);
+  assert.ok(repository_scroll.scrollTop > 0);
 }
 
 test("Electron renderer layout contracts hold at both supported sizes", async () => {

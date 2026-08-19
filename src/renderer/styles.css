@@ -679,6 +679,8 @@ button:focus-visible,
 
 .repository-page {
   gap: 14px;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .repository-header,
