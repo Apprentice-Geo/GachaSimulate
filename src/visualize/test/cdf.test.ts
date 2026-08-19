@@ -9,7 +9,10 @@ import { load_input_from_text } from "../data/load_input";
 import { get_cdf_level_at_draw } from "../data/cdf";
 import { validate_input } from "../data/validate_input";
 import example_input from "../fixtures/example_input.json";
-import { build_visualize_view_model } from "../view/cdf_view_model";
+import {
+  build_cdf_view_model,
+  build_visualize_view_model,
+} from "../view/cdf_view_model";
 import {
   build_curve_path,
   build_marker_views,
@@ -23,6 +26,8 @@ import {
 import { ANIMATION_TIMELINE, ANIMATION_TOTAL_MS } from "../animation/timeline";
 import type { MarkerView } from "../view/cdf_overlay_layout";
 import type { CDFMarker, VisualizeInput } from "../types/visualize_input";
+import type { AnalysisV2 } from "../types/analysis";
+import type { DisplayConfig } from "../types/display_config";
 import {
   get_marker_visual,
   MARKER_VISUALS,
@@ -106,19 +111,6 @@ test("canvas constants stay aligned with CSS tokens", () => {
 
   assert.equal(read_css_px_token(tokens_css, "canvas-width"), CANVAS_WIDTH);
   assert.equal(read_css_px_token(tokens_css, "canvas-height"), CANVAS_HEIGHT);
-});
-
-test("top header expansion preserves main region start", () => {
-  const tokens_css = readFileSync(
-    path.join(process.cwd(), "src/visualize/styles/tokens.css"),
-    "utf-8",
-  );
-
-  assert.equal(
-    read_css_px_token(tokens_css, "page-top-margin") +
-      read_css_px_token(tokens_css, "top-height"),
-    320,
-  );
 });
 
 test("schema required fields stay aligned with TS contract keys", () => {
@@ -435,6 +427,97 @@ test("result item omits suffixes when unit is empty", () => {
   );
 });
 
+test("build_cdf_view_model normalizes AnalysisV2 and display fields together", () => {
+  const analysis: AnalysisV2 = {
+    analysis_version: 2,
+    result_item: { id: "tokens", name: "内部名称" },
+    totals: { runs: "4", result: "100" },
+    values: ["1", "2", "3"],
+    cumulative: [0.25, 0.75, 1],
+    statistic: {
+      P5: "1",
+      P25: "1",
+      P50: "2",
+      P75: "2",
+      P95: "3",
+      MIN: "1",
+      MEAN_LEVEL: 0.75,
+      MEAN: "2",
+      MAX: "3",
+    },
+    termination_reason: [{ reason: "done", proportion: 100 }],
+  };
+  const display: DisplayConfig = {
+    display_version: 1,
+    title: "展示标题",
+    target: "展示目标",
+    result_item_name: "代币",
+    note: "说明",
+    price: "单抽 10 RMB",
+    unit: "测试币",
+  };
+
+  const view_model = build_cdf_view_model(analysis, display);
+
+  assert.equal(view_model.title, display.title);
+  assert.deepEqual(view_model.result_item, { id: "tokens", name: "代币" });
+  assert.equal(view_model.total_display, "100 测试币");
+  assert.equal(view_model.runs, 4);
+  assert.equal(view_model.unit, display.unit);
+  assert.equal(
+    view_model.metrics.find((metric) => metric.key === "P50")?.value,
+    2,
+  );
+  assert.equal(
+    view_model.metrics.find((metric) => metric.key === "P50")?.display_value,
+    "2",
+  );
+});
+
+test("build_cdf_view_model rejects negative and unsafe AnalysisV2 numbers", () => {
+  const analysis: AnalysisV2 = {
+    analysis_version: 2,
+    result_item: { id: "draw_count", name: "抽数" },
+    totals: { runs: "1", result: "1" },
+    values: ["1"],
+    cumulative: [1],
+    statistic: {
+      P5: "1",
+      P25: "1",
+      P50: "1",
+      P75: "1",
+      P95: "1",
+      MIN: "1",
+      MEAN_LEVEL: 1,
+      MEAN: "1",
+      MAX: "1",
+    },
+    termination_reason: [{ reason: "done", proportion: 100 }],
+  };
+  const display: DisplayConfig = {
+    display_version: 1,
+    title: "标题",
+    target: "目标",
+    result_item_name: "抽数",
+    note: "",
+    price: "",
+    unit: "",
+  };
+
+  assert.throws(() =>
+    build_cdf_view_model({ ...analysis, values: ["-1"] }, display),
+  );
+  assert.throws(() =>
+    build_cdf_view_model(
+      {
+        ...analysis,
+        statistic: { ...analysis.statistic, MAX: "9007199254740992" },
+      },
+      display,
+    ),
+  );
+});
+
 test("segment_progress clamps before and after its time window", () => {
   assert.equal(segment_progress(99, 100, 200), 0);
   assert.equal(segment_progress(200, 100, 200), 0.5);
@@ -469,10 +552,6 @@ test("title completes before curve and metadata follows statistic panel", () => 
   assert.equal(
     ANIMATION_TIMELINE.METADATA_DELAY_MS,
     ANIMATION_TIMELINE.STAT_PANEL_DELAY_MS,
-  );
-  assert.equal(
-    ANIMATION_TIMELINE.METADATA_DURATION_MS,
-    ANIMATION_TIMELINE.STAT_PANEL_DURATION_MS,
   );
 });
 

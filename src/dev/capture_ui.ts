@@ -9,14 +9,11 @@ import {
   type Page,
 } from "playwright";
 import { createServer } from "vite";
-import input from "../visualize/fixtures/example_input.json";
-import type { ResultEditorState } from "../shared/result_editor";
 import type {
   ConfigRepositoryState,
   InstalledConfig,
 } from "../shared/installed_config";
-import type { VisualizeInput } from "../visualize/types/visualize_input";
-import type { AnalysisV2 } from "../visualize/types/analysis";
+import { result_fixture } from "./ui_fixtures";
 
 const PROJECT_ROOT = process.cwd();
 const OUTPUT_DIR = path.join(PROJECT_ROOT, "tmp", "ui-captures");
@@ -59,46 +56,6 @@ async function wait_for_visualization(page: Page): Promise<void> {
       '[data-testid="visualize-root"][data-load-state="ready"][data-animation-state="idle"]',
     )
     .waitFor({ timeout: 10_000 });
-}
-
-function result_fixture(): ResultEditorState {
-  const fixture = input as VisualizeInput;
-  return {
-    path: "/tmp/example.gsr",
-    filename: "example.gsr",
-    fields: {
-      title: fixture.title,
-      target: fixture.target,
-      result_item_name: fixture.result_item.name,
-      note: fixture.note,
-      price: fixture.price,
-      unit: fixture.unit,
-    },
-    analysis: {
-      analysis_version: 2,
-      result_item: fixture.result_item,
-      totals: { runs: String(fixture.runs), result: String(fixture.total) },
-      values: fixture.values.map(String),
-      cumulative: fixture.cumulative,
-      statistic: Object.fromEntries(
-        Object.entries(fixture.statistic).map(([key, value]) => [
-          key,
-          String(value),
-        ]),
-      ) as unknown as AnalysisV2["statistic"],
-      termination_reason: fixture.termination_reason,
-    },
-    display: {
-      display_version: 1,
-      title: fixture.title,
-      target: fixture.target,
-      result_item_name: fixture.result_item.name,
-      note: fixture.note,
-      price: fixture.price,
-      unit: fixture.unit,
-    },
-    sidecar_path: "/tmp/example.visualize.json",
-  };
 }
 
 function repository_fixture(): ConfigRepositoryState {

@@ -29,13 +29,8 @@ import VisualizeApp from "../visualize/App";
 import { ANIMATION_TOTAL_MS } from "../visualize/animation/timeline";
 import { build_animation_progress } from "../visualize/animation/progress";
 import { CDFChart } from "../visualize/components/CDFChart";
-import { build_cdf_view_model } from "../visualize/data/normalize_input";
-import {
-  build_visualize_view_model,
-  get_metric_color,
-} from "../visualize/view/cdf_view_model";
+import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
 import { get_distribution_statistic_groups } from "../visualize/view/statistic_view_config";
-import type { VisualizeInput } from "../visualize/types/visualize_input";
 import {
   MAX_TOTAL_RUNS,
   validate_simulation_request,
@@ -49,30 +44,6 @@ type Page =
   | "config-repository"
   | "result-editor"
   | "result-visualize";
-
-function editor_visualize_input(state: ResultEditorState): VisualizeInput {
-  const { analysis, display } = state;
-  return {
-    title: display.title,
-    target: display.target,
-    result_item: { ...analysis.result_item, name: display.result_item_name },
-    total: Number(analysis.totals.result),
-    runs: Number(analysis.totals.runs),
-    note: display.note,
-    statistic: Object.fromEntries(
-      Object.entries(analysis.statistic).map(([key, value]) => [
-        key,
-        Number(value),
-      ]),
-    ) as unknown as VisualizeInput["statistic"],
-    termination_reason: analysis.termination_reason,
-    timestamp: 0,
-    values: analysis.values.map(Number),
-    cumulative: analysis.cumulative,
-    price: display.price,
-    unit: display.unit,
-  };
-}
 
 const pages: Array<{
   id: Page;
@@ -516,10 +487,11 @@ function ResultEditorPage({
   const save_version = useRef(0);
   const preview_data =
     state && fields
-      ? build_visualize_view_model(
-          build_cdf_view_model(state.analysis, { ...state.display, ...fields }),
-        )
+      ? build_cdf_view_model(state.analysis, { ...state.display, ...fields })
       : null;
+  const preview_metrics = preview_data
+    ? new Map(preview_data.metrics.map((metric) => [metric.key, metric]))
+    : null;
   const preview_animation = useMemo(
     () => build_animation_progress(ANIMATION_TOTAL_MS),
     [],
@@ -710,26 +682,22 @@ function ResultEditorPage({
                     </div>
                   </div>
                   <dl className="quantile-preview">
-                    {result_statistic_keys.map((key) => (
-                      <div
-                        key={key}
-                        style={
-                          {
-                            "--metric-color": get_metric_color(key),
-                          } as CSSProperties
-                        }
-                      >
-                        <dt>{key}</dt>
-                        <dd>
-                          {Number(state.analysis.statistic[key]).toLocaleString(
-                            "zh-CN",
+                    {result_statistic_keys.map((key) => {
+                      const metric = preview_metrics?.get(key);
+                      return metric ? (
+                        <div
+                          key={key}
+                          style={
                             {
-                              maximumFractionDigits: 1,
-                            },
-                          )}
-                        </dd>
-                      </div>
-                    ))}
+                              "--metric-color": metric.color,
+                            } as CSSProperties
+                          }
+                        >
+                          <dt>{metric.key}</dt>
+                          <dd>{metric.display_value}</dd>
+                        </div>
+                      ) : null;
+                    })}
                   </dl>
                 </div>
               </div>
@@ -1070,7 +1038,14 @@ export default function App() {
             />
           ) : active_page === "result-visualize" ? (
             <VisualizeApp
-              input={result_state ? editor_visualize_input(result_state) : null}
+              input={
+                result_state
+                  ? build_cdf_view_model(
+                      result_state.analysis,
+                      result_state.display,
+                    )
+                  : null
+              }
               on_select_result={select_result}
             />
           ) : active_page === "config-repository" ? (

@@ -52,7 +52,7 @@ function non_negative(value: string, name: string): number {
   return number;
 }
 
-export function build_cdf_view_model(
+export function normalize_analysis_input(
   analysis: AnalysisV2,
   display: DisplayConfig,
 ): NormalizedVisualizeInputData {

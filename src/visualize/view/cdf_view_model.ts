@@ -8,7 +8,7 @@ import type {
   VisualizeInput,
 } from "../types/visualize_input";
 import { CDF_MARKER_VIEW_CONFIG } from "./cdf_view_config";
-import { build_cdf_view_model as build_cdf_input } from "../data/normalize_input";
+import { normalize_analysis_input } from "../data/normalize_input";
 import type { AnalysisV2 } from "../types/analysis";
 import type { DisplayConfig } from "../types/display_config";
 import {
@@ -20,7 +20,9 @@ export function build_cdf_view_model(
   analysis: AnalysisV2,
   display: DisplayConfig,
 ): NormalizedVisualizeData {
-  return build_visualize_view_model(build_cdf_input(analysis, display));
+  return build_visualize_view_model(
+    normalize_analysis_input(analysis, display),
+  );
 }
 
 function format_number(value: number, fraction_digits = 0): string {

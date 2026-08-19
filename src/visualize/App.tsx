@@ -11,19 +11,15 @@ import {
   get_input_path_from_url,
   load_input_from_file,
   load_input_from_project_path,
-  load_input_from_value,
 } from "./data/load_input";
-import type {
-  NormalizedVisualizeInputData,
-  VisualizeInput,
-} from "./types/visualize_input";
+import type { NormalizedVisualizeData } from "./types/visualize_input";
 import { build_visualize_view_model } from "./view/cdf_view_model";
 
 type AppState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; data: NormalizedVisualizeInputData };
+  | { status: "ready"; data: NormalizedVisualizeData };
 
 function get_error_message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -33,7 +29,7 @@ export default function App({
   input,
   on_select_result,
 }: {
-  input?: VisualizeInput | null;
+  input?: NormalizedVisualizeData | null;
   on_select_result?: () => Promise<boolean>;
 }) {
   const external = input !== undefined;
@@ -80,8 +76,11 @@ export default function App({
   const load_project_input = useCallback(async (input_path: string) => {
     set_state({ status: "loading" });
     try {
-      const data = await load_input_from_project_path(input_path);
-      set_state({ status: "ready", data });
+      const input = await load_input_from_project_path(input_path);
+      set_state({
+        status: "ready",
+        data: build_visualize_view_model(input),
+      });
     } catch (error) {
       set_state({ status: "error", message: get_error_message(error) });
     }
@@ -90,8 +89,11 @@ export default function App({
   const handle_file_import = useCallback(async (file: File) => {
     set_state({ status: "loading" });
     try {
-      const data = await load_input_from_file(file);
-      set_state({ status: "ready", data });
+      const input = await load_input_from_file(file);
+      set_state({
+        status: "ready",
+        data: build_visualize_view_model(input),
+      });
     } catch (error) {
       set_state({ status: "error", message: get_error_message(error) });
     }
@@ -104,9 +106,7 @@ export default function App({
       const selected = await on_select_result();
       if (!selected) {
         set_state(
-          input
-            ? { status: "ready", data: await load_input_from_value(input) }
-            : { status: "idle" },
+          input ? { status: "ready", data: input } : { status: "idle" },
         );
       }
     } catch (error) {
@@ -120,11 +120,7 @@ export default function App({
       set_state({ status: "idle" });
       return;
     }
-    void load_input_from_value(input).then(
-      (data) => set_state({ status: "ready", data }),
-      (error) =>
-        set_state({ status: "error", message: get_error_message(error) }),
-    );
+    set_state({ status: "ready", data: input });
   }, [external, input]);
 
   useEffect(() => {
@@ -170,11 +166,7 @@ export default function App({
     };
   }, []);
 
-  const data = useMemo(
-    () =>
-      state.status === "ready" ? build_visualize_view_model(state.data) : null,
-    [state],
-  );
+  const data = state.status === "ready" ? state.data : null;
   const animation_progress = useMemo(
     () => build_animation_progress(animation_elapsed_ms),
     [animation_elapsed_ms],

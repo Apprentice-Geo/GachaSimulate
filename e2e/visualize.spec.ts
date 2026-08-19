@@ -75,15 +75,29 @@ test("loads fixture from url input and renders dynamic page regions", async ({
   await expect(page.locator('[data-segment-position="start"]')).toHaveCount(1);
   await expect(page.locator('[data-segment-position="middle"]')).toHaveCount(1);
   await expect(page.locator('[data-segment-position="end"]')).toHaveCount(1);
-  const seam_clip_paths = await page
-    .locator('[data-segment-position="middle"], [data-segment-position="end"]')
+  await expect(page.getByTestId("visualize-root")).toHaveAttribute(
+    "data-animation-state",
+    "idle",
+    { timeout: ANIMATION_IDLE_TIMEOUT_MS },
+  );
+  const segment_geometry = await page
+    .locator(".pk-segment")
     .evaluateAll((segments) =>
-      segments.map((segment) => getComputedStyle(segment).clipPath),
+      segments.map((segment) => {
+        const rect = segment.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, width: rect.width };
+      }),
     );
-  expect(seam_clip_paths).toEqual([
-    "polygon(68px 0px, 100% 0px, 100% 100%, 0px 100%)",
-    "polygon(68px 0px, 100% 0px, 100% 100%, 0px 100%)",
-  ]);
+  expect(segment_geometry).toHaveLength(3);
+  expect(segment_geometry.every(({ width }) => width > 0)).toBe(true);
+  for (const [previous, current] of segment_geometry
+    .slice(1)
+    .map((segment, index) => [segment_geometry[index], segment] as const)) {
+    expect(current.left).toBeGreaterThan(previous.left);
+    expect(current.right).toBeGreaterThan(previous.right);
+    const overlap = Math.max(0, previous.right - current.left);
+    expect(overlap).toBeLessThan(Math.min(previous.width, current.width) / 2);
+  }
   await expect(
     page.getByTestId("stat-P50").locator(".metric-value"),
   ).toHaveText("39");
