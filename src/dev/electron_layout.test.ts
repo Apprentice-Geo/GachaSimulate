@@ -13,16 +13,16 @@ import { result_fixture, simulation_fixture } from "./ui_fixtures";
 
 const PROJECT_ROOT = process.cwd();
 
-function repository_fixture(): ConfigRepositoryState {
+function repository_fixture(count = 32): ConfigRepositoryState {
   return {
-    official: Array.from({ length: 32 }, (_, index) => ({
+    official: Array.from({ length: count }, (_, index) => ({
       id: `config_${index}`,
       name: `测试配置 ${index}`,
       description: "用于检查配置仓库滚动区域。",
       status: "available" as const,
     })),
     localDirectory: "/tmp/gachasimulate-configs",
-    localConfigs: Array.from({ length: 32 }, (_, index) => ({
+    localConfigs: Array.from({ length: count }, (_, index) => ({
       id: `local_config_${index}`,
       name: `本地配置 ${index}`,
       description: "用于检查配置仓库滚动区域。",
@@ -237,7 +237,8 @@ async function assert_layout(
     local.boundingBox(),
   ]);
   assert.ok(official_box && local_box);
-  assert.ok(official_box.height > local_box.height * 3);
+  assert.ok(official_box.height / local_box.height > 2);
+  assert.ok(official_box.height / local_box.height < 2.7);
   assert.equal(
     await repository.evaluate((node) => node.scrollHeight <= node.clientHeight),
     true,
@@ -276,6 +277,30 @@ async function assert_layout(
     await local.locator(".repository-source-heading").boundingBox(),
     local_heading_before,
   );
+
+  await application.evaluate(({ ipcMain }, fixture) => {
+    for (const channel of [
+      "get-config-repository-state",
+      "refresh-config-repository",
+    ]) {
+      ipcMain.removeHandler(channel);
+      ipcMain.handle(channel, () => fixture);
+    }
+  }, repository_fixture(1));
+  await page.getByRole("button", { name: "运行模拟" }).click();
+  await page.getByRole("button", { name: "配置仓库" }).click();
+  await page.getByText("测试配置 0").waitFor();
+  for (const [list, card] of [
+    [official.locator(".repository-list"), official.locator(".repository-card")],
+    [local.locator(".local-config-list"), local.locator("span")],
+  ]) {
+    const [list_box, card_box] = await Promise.all([
+      list.boundingBox(),
+      card.boundingBox(),
+    ]);
+    assert.ok(list_box && card_box);
+    assert.ok(card_box.height < list_box.height);
+  }
 }
 
 test("Electron renderer layout contracts hold at both supported sizes", async () => {
