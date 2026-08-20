@@ -1,5 +1,5 @@
 import type { ScaleFunction } from "recharts";
-import type { CDFMarker, CDFPoint } from "../types/visualize_input";
+import type { CDFMarker, CDFPoint } from "../types/cdf";
 import { CDF_MARKER_VIEW_CONFIG } from "./cdf_view_config";
 
 export interface MarkerView {

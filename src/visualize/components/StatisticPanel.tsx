@@ -1,10 +1,7 @@
 import type { CSSProperties } from "react";
 import { fade_style, metric_style } from "../animation/progress";
 import type { AnimationProgress } from "../animation/progress";
-import type {
-  NormalizedVisualizeData,
-  StatisticMetric,
-} from "../types/visualize_input";
+import type { CDFViewModel, StatisticMetric } from "../types/cdf";
 import {
   get_distribution_statistic_groups,
   get_statistic_description,
@@ -12,7 +9,7 @@ import {
 import type { DistributionStatisticKey } from "../view/statistic_view_config";
 
 interface StatisticPanelProps {
-  data: NormalizedVisualizeData | null;
+  data: CDFViewModel | null;
   animation_progress: AnimationProgress | null;
   is_ready: boolean;
 }

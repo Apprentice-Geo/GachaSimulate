@@ -3,12 +3,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   _electron as electron,
-  chromium,
-  type Browser,
   type ElectronApplication,
   type Page,
 } from "playwright";
-import { createServer } from "vite";
 import type {
   ConfigRepositoryState,
   InstalledConfig,
@@ -17,7 +14,6 @@ import { result_fixture } from "./ui_fixtures";
 
 const PROJECT_ROOT = process.cwd();
 const OUTPUT_DIR = path.join(PROJECT_ROOT, "tmp", "ui-captures");
-const WEB_PORT = 5173;
 const SCENARIOS = [
   "electron/simulation-idle",
   "electron/simulation-navigation",
@@ -25,7 +21,6 @@ const SCENARIOS = [
   "electron/result-editor-empty",
   "electron/result-editor-loaded",
   "electron/result-visualize-loaded",
-  "web/result-visualize-loaded",
 ] as const;
 
 type Scenario = (typeof SCENARIOS)[number];
@@ -249,36 +244,6 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
   }
 }
 
-async function capture_web(): Promise<void> {
-  const server = await createServer({
-    configFile: path.join(PROJECT_ROOT, "vite.config.ts"),
-    server: {
-      host: "127.0.0.1",
-      port: WEB_PORT,
-      strictPort: true,
-    },
-  });
-  await server.listen();
-  let browser: Browser | undefined;
-
-  try {
-    browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage({
-      deviceScaleFactor: 1,
-      viewport: { height: 2160, width: 3840 },
-    });
-    await page.goto(
-      `http://127.0.0.1:${WEB_PORT}/?input=src/visualize/fixtures/example_input.json`,
-      { waitUntil: "domcontentloaded" },
-    );
-    await wait_for_visualization(page);
-    await screenshot(page, "web/result-visualize-loaded");
-  } finally {
-    await browser?.close();
-    await server.close();
-  }
-}
-
 async function main(): Promise<void> {
   const [requested = "all", ...extra] = process.argv.slice(2);
   if (
@@ -297,9 +262,6 @@ async function main(): Promise<void> {
   );
   if (electron_scenarios.length > 0) {
     await capture_electron(electron_scenarios);
-  }
-  if (scenarios.includes("web/result-visualize-loaded")) {
-    await capture_web();
   }
 }
 

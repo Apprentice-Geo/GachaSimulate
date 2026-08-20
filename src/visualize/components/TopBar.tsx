@@ -1,9 +1,9 @@
 import { metric_style } from "../animation/progress";
 import type { AnimationProgress } from "../animation/progress";
-import type { NormalizedVisualizeData } from "../types/visualize_input";
+import type { CDFViewModel } from "../types/cdf";
 
 interface TopBarProps {
-  data: NormalizedVisualizeData | null;
+  data: CDFViewModel | null;
   animation_progress: AnimationProgress | null;
 }
 

@@ -1,0 +1,23 @@
+{
+  "analysis_version": 2,
+  "result_item": { "id": "draw_count", "name": "抽数" },
+  "totals": { "runs": "1000000", "result": "100000001" },
+  "values": ["1", "27", "35", "39", "43", "50", "72"],
+  "cumulative": [0.001, 0.054, 0.295, 0.538, 0.777, 0.977, 1],
+  "statistic": {
+    "P5": "27",
+    "P25": "35",
+    "P50": "39",
+    "P75": "43",
+    "P95": "50",
+    "MIN": "1",
+    "MEAN_LEVEL": 0.47447347792404243,
+    "MEAN": "38",
+    "MAX": "72"
+  },
+  "termination_reason": [
+    { "reason": "exchange", "proportion": 76 },
+    { "reason": "skin", "proportion": 20 },
+    { "reason": "direct", "proportion": 4 }
+  ]
+}

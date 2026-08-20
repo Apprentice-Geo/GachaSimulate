@@ -157,9 +157,6 @@ jobs:
       - name: Build frontend
         run: pnpm run build
 
-      - name: Build web visualization
-        run: pnpm run build:web
-
       - name: Run visualize CDF tests
         run: pnpm run test:visualize:cdf
 
@@ -237,39 +234,3 @@ jobs:
 
       - name: Run Electron layout tests
         run: xvfb-run --auto-servernum --server-args="-screen 0 2560x1440x24" pnpm run test:electron-layout
-
-  e2e:
-    name: Playwright e2e
-    runs-on: ubuntu-latest
-    needs: frontend-build-test
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: pnpm
-
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: Run e2e tests
-        run: pnpm run test:e2e
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: |
-            playwright-report/
-            test-results/

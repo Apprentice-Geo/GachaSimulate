@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { CartesianGrid, LineChart, XAxis, YAxis } from "recharts";
 import { CDFOverlay } from "./CDFOverlay";
-import type { NormalizedVisualizeData } from "../types/visualize_input";
+import type { CDFViewModel } from "../types/cdf";
 import { CDF_CHART_VIEW_CONFIG } from "../view/cdf_view_config";
 import { use_element_size } from "../hooks/use_element_size";
 import type { AnimationProgress } from "../animation/progress";
@@ -24,7 +24,7 @@ const X_AXIS_HEIGHT = 104; //  X 轴高度
 const COMPACT_X_AXIS_HEIGHT = 40;
 const Y_CDF_AXIS_TICKS = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1];
 interface CDFChartProps {
-  data: NormalizedVisualizeData;
+  data: CDFViewModel;
   animation_progress: AnimationProgress;
   compact?: boolean;
   fixed_size?: { width: number; height: number };

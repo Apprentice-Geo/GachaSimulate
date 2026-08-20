@@ -34,10 +34,7 @@
     "src/preload/**/*.ts",
     "src/renderer/**/*.ts",
     "src/renderer/**/*.tsx",
-    "e2e/**/*.ts",
     "electron.vite.config.ts",
-    "vite.config.ts",
-    "playwright.config.ts",
     "docs/**/*.json"
   ]
 }

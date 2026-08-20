@@ -2,21 +2,19 @@ import { FolderOpen } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { fade_style } from "../animation/progress";
 import type { AnimationProgress } from "../animation/progress";
-import type { NormalizedVisualizeData } from "../types/visualize_input";
-import { ImportButton } from "./ImportButton";
+import type { CDFViewModel } from "../types/cdf";
 import { ReplayButton } from "./ReplayButton";
 import { StatisticPanel } from "./StatisticPanel";
 import { TerminationBar } from "./TerminationBar";
 import { TopBar } from "./TopBar";
 
 interface VisualizeShellProps {
-  data: NormalizedVisualizeData | null;
+  data: CDFViewModel | null;
   animation_progress: AnimationProgress | null;
   animation_state: "playing" | "primed" | "idle";
   chart_slot: ReactNode;
   is_animating: boolean;
   load_state: "idle" | "loading" | "error" | "ready";
-  on_file_import?: (file: File) => void;
   on_select_file?: () => void;
   on_replay?: () => void;
   show_controls?: boolean;
@@ -30,7 +28,6 @@ export function VisualizeShell({
   chart_slot,
   is_animating,
   load_state,
-  on_file_import,
   on_select_file,
   on_replay,
   show_controls = true,
@@ -52,34 +49,25 @@ export function VisualizeShell({
         <div className="primary-region">
           <div className="chart-region">
             {chart_slot}
-            {show_controls &&
-              on_replay &&
-              (on_file_import || on_select_file) && (
-                <div className="chart-actions" aria-label="数据操作">
-                  <ReplayButton
-                    disabled={!data}
-                    is_animating={is_animating}
-                    on_replay={on_replay}
-                  />
-                  {on_file_import && (
-                    <ImportButton
-                      compact={Boolean(data)}
-                      disabled={is_animating}
-                      on_file_import={on_file_import}
-                    />
-                  )}
-                  {on_select_file && (
-                    <button
-                      className="command-button"
-                      type="button"
-                      onClick={on_select_file}
-                    >
-                      <FolderOpen aria-hidden="true" size={18} />
-                      <span>选择结果</span>
-                    </button>
-                  )}
-                </div>
-              )}
+            {show_controls && on_replay && on_select_file && (
+              <div className="chart-actions" aria-label="数据操作">
+                <ReplayButton
+                  disabled={!data}
+                  is_animating={is_animating}
+                  on_replay={on_replay}
+                />
+                {on_select_file && (
+                  <button
+                    className="command-button"
+                    type="button"
+                    onClick={on_select_file}
+                  >
+                    <FolderOpen aria-hidden="true" size={18} />
+                    <span>选择结果</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           <TerminationBar
             animation_progress={animation_progress}

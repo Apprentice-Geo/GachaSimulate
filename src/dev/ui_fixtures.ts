@@ -1,48 +1,26 @@
-import input from "../visualize/fixtures/example_input.json";
+import analysis from "../visualize/fixtures/example_analysis.json";
+import display from "../visualize/fixtures/example_display.json";
 import type { ResultEditorState } from "../shared/result_editor";
-import type {
-  ConfigRepositoryState,
-  InstalledConfig,
-} from "../shared/installed_config";
-import type { VisualizeInput } from "../visualize/types/visualize_input";
+import type { InstalledConfig } from "../shared/installed_config";
 import type { AnalysisV2 } from "../visualize/types/analysis";
+import type { DisplayConfig } from "../visualize/types/display_config";
 
 export function result_fixture(): ResultEditorState {
-  const fixture = input as VisualizeInput;
+  const analysis_fixture = analysis as AnalysisV2;
+  const display_fixture = display as DisplayConfig;
   return {
     path: "/tmp/example.gsr",
     filename: "example.gsr",
     fields: {
-      title: fixture.title,
-      target: fixture.target,
-      result_item_name: fixture.result_item.name,
-      note: fixture.note,
-      price: fixture.price,
-      unit: fixture.unit,
+      title: display_fixture.title,
+      target: display_fixture.target,
+      result_item_name: display_fixture.result_item_name,
+      note: display_fixture.note,
+      price: display_fixture.price,
+      unit: display_fixture.unit,
     },
-    analysis: {
-      analysis_version: 2,
-      result_item: fixture.result_item,
-      totals: { runs: String(fixture.runs), result: String(fixture.total) },
-      values: fixture.values.map(String),
-      cumulative: fixture.cumulative,
-      statistic: Object.fromEntries(
-        Object.entries(fixture.statistic).map(([key, value]) => [
-          key,
-          String(value),
-        ]),
-      ) as unknown as AnalysisV2["statistic"],
-      termination_reason: fixture.termination_reason,
-    },
-    display: {
-      display_version: 1,
-      title: fixture.title,
-      target: fixture.target,
-      result_item_name: fixture.result_item.name,
-      note: fixture.note,
-      price: fixture.price,
-      unit: fixture.unit,
-    },
+    analysis: analysis_fixture,
+    display: display_fixture,
     sidecar_path: "/tmp/example.visualize.json",
   };
 }

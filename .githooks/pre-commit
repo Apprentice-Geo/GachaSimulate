@@ -4,6 +4,91 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+reset_classification() {
+  node_changed=0
+  packages_changed=0
+  simulation_changed=0
+  visualize_changed=0
+  electron_build=0
+  cpp_changed=0
+  format_files=()
+  lint_files=()
+}
+
+classify_path() {
+  local path="$1"
+
+  case "$path" in
+    src/*|packages/*/src/*|packages/*/test/*|docs/schemas/*|package.json|*.config.*|tsconfig*.json)
+      node_changed=1
+      case "$path" in
+        *.ts|*.tsx|*.js|*.mjs|*.cjs|*.css|*.json) format_files+=("$path") ;;
+      esac
+      case "$path" in
+        *.ts|*.tsx|*.js|*.mjs|*.cjs) lint_files+=("$path") ;;
+      esac
+      ;;
+  esac
+  case "$path" in
+    packages/*|test-fixtures/configs/*|docs/YAML_CONFIG_SYNTAX.md|pnpm-lock.yaml|pnpm-workspace.yaml)
+      node_changed=1
+      ;;
+  esac
+  case "$path" in packages/*) packages_changed=1 ;; esac
+  case "$path" in
+    src/main/*|src/shared/*|src/preload/*|src/renderer/*|test-fixtures/configs/*|docs/YAML_CONFIG_SYNTAX.md)
+      simulation_changed=1
+      ;;
+  esac
+  case "$path" in
+    src/visualize/*|src/export/*|docs/schemas/*|docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md)
+      visualize_changed=1
+      ;;
+  esac
+  case "$path" in
+    src/main/*|src/preload/*|src/renderer/*|src/visualize/*|src/dev/electron_layout.test.ts|electron.vite.config.ts|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|tsconfig*.json)
+      electron_build=1
+      ;;
+  esac
+  case "$path" in
+    cpp/*|.clang-format|.clang-tidy|docs/YAML_CONFIG_SYNTAX.md) cpp_changed=1 ;;
+  esac
+}
+
+self_test() {
+  reset_classification
+  classify_path src/visualize/components/CDFChart.tsx
+  if ((!node_changed || !visualize_changed || !electron_build)); then
+    echo "[pre-commit] self-test failed: visualize classification" >&2
+    exit 1
+  fi
+
+  reset_classification
+  classify_path docs/YAML_CONFIG_SYNTAX.md
+  if ((!node_changed || !simulation_changed || !cpp_changed)); then
+    echo "[pre-commit] self-test failed: cross-layer documentation classification" >&2
+    exit 1
+  fi
+
+  reset_classification
+  classify_path packages/config-compiler/src/compiler.ts
+  if ((!node_changed || !packages_changed)); then
+    echo "[pre-commit] self-test failed: package classification" >&2
+    exit 1
+  fi
+
+  echo "[pre-commit] classification self-test passed"
+}
+
+if (($# > 0)); then
+  if (($# == 1)) && [[ $1 == --self-test ]]; then
+    self_test
+    exit 0
+  fi
+  echo "Usage: .githooks/pre-commit [--self-test]" >&2
+  exit 2
+fi
+
 mapfile -d '' -t staged_files < <(git diff --cached --name-only -z --diff-filter=ACMR)
 if ((${#staged_files[@]} == 0)); then
   exit 0
@@ -38,67 +123,9 @@ require_command() {
   fi
 }
 
-node_changed=0
-packages_changed=0
-simulation_changed=0
-visualize_changed=0
-e2e_changed=0
-electron_build=0
-web_build=0
-cpp_changed=0
-
-format_files=()
-lint_files=()
-
+reset_classification
 for path in "${staged_files[@]}"; do
-  case "$path" in
-    src/*|e2e/*|packages/*/src/*|packages/*/test/*|docs/schemas/*|package.json|*.config.*|tsconfig*.json|index.html)
-      node_changed=1
-      case "$path" in
-        *.ts|*.tsx|*.js|*.mjs|*.cjs|*.css|*.json|*.html)
-          format_files+=("$path")
-          ;;
-      esac
-      case "$path" in
-        *.ts|*.tsx|*.js|*.mjs|*.cjs)
-          lint_files+=("$path")
-          ;;
-      esac
-      ;;
-    packages/*|test-fixtures/configs/*|docs/YAML_CONFIG_SYNTAX.md|pnpm-lock.yaml|pnpm-workspace.yaml)
-      node_changed=1
-      ;;
-  esac
-
-  case "$path" in
-    packages/*)
-      packages_changed=1
-      ;;
-    src/main/*|src/shared/*|src/preload/*|src/renderer/*|test-fixtures/configs/*|docs/YAML_CONFIG_SYNTAX.md)
-      simulation_changed=1
-      ;;
-    src/visualize/*|src/export/*|docs/schemas/*|docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md)
-      visualize_changed=1
-      web_build=1
-      ;;
-    e2e/*)
-      e2e_changed=1
-      web_build=1
-      ;;
-    src/main/*|src/preload/*|src/renderer/*|src/dev/electron_layout.test.ts|electron.vite.config.ts)
-      electron_build=1
-      ;;
-    index.html|vite.config.ts|playwright.config.ts)
-      web_build=1
-      ;;
-    package.json|pnpm-lock.yaml|pnpm-workspace.yaml|tsconfig*.json)
-      electron_build=1
-      web_build=1
-      ;;
-    cpp/*|.clang-format|.clang-tidy|docs/YAML_CONFIG_SYNTAX.md)
-      cpp_changed=1
-      ;;
-  esac
+  classify_path "$path"
 done
 
 if ((node_changed)); then
@@ -108,7 +135,6 @@ if ((node_changed)); then
     echo "[pre-commit] checking Prettier"
     pnpm exec prettier --check "${format_files[@]}"
   fi
-
   if ((${#lint_files[@]} > 0)); then
     echo "[pre-commit] checking ESLint"
     pnpm exec eslint "${lint_files[@]}"
@@ -116,35 +142,21 @@ if ((node_changed)); then
 
   echo "[pre-commit] checking TypeScript"
   pnpm run typecheck
-
   if ((packages_changed)); then
     echo "[pre-commit] testing packages"
     pnpm run test:packages
   fi
-
   if ((simulation_changed)); then
     echo "[pre-commit] testing simulation"
     pnpm run test:simulation
   fi
-
   if ((visualize_changed)); then
     echo "[pre-commit] testing visualization"
     pnpm run test:visualize:cdf
   fi
-
-  if ((e2e_changed)); then
-    echo "[pre-commit] testing end-to-end behavior"
-    pnpm run test:e2e
-  fi
-
   if ((electron_build)); then
     echo "[pre-commit] building Electron"
     pnpm run build
-  fi
-
-  if ((web_build)); then
-    echo "[pre-commit] building web visualization"
-    pnpm run build:web
   fi
 fi
 

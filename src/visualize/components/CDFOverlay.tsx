@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { useMemo } from "react";
 import { usePlotArea, useXAxisScale, useYAxisScale } from "recharts";
 import { get_marker_visual } from "./cdf_marker_visuals";
-import type { NormalizedVisualizeData } from "../types/visualize_input";
+import type { CDFViewModel } from "../types/cdf";
 import { CDF_CHART_VIEW_CONFIG } from "../view/cdf_view_config";
 import {
   build_curve_path,
@@ -11,7 +11,7 @@ import {
 import type { AnimationProgress } from "../animation/progress";
 
 interface CDFOverlayProps {
-  data: NormalizedVisualizeData;
+  data: CDFViewModel;
   animation_progress: AnimationProgress;
   compact?: boolean;
 }

@@ -1,4 +1,4 @@
-import type { CDFMarker, MarkerKey } from "../types/visualize_input";
+import type { CDFMarker, MarkerKey } from "../types/cdf";
 
 interface CDFMarkerViewConfig {
   label: string;

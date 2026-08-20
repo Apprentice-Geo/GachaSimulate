@@ -1,4 +1,7 @@
-import type { TerminationReasonInput } from "./visualize_input";
+export interface TerminationReason {
+  reason: string;
+  proportion: number;
+}
 
 export interface AnalysisV2 {
   analysis_version: 2;
@@ -17,5 +20,5 @@ export interface AnalysisV2 {
     MEAN_LEVEL: number;
     MAX: string;
   };
-  termination_reason: TerminationReasonInput[];
+  termination_reason: TerminationReason[];
 }

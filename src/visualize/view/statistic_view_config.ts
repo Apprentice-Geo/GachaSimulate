@@ -1,4 +1,4 @@
-import type { StatisticKey } from "../types/visualize_input";
+import type { StatisticKey } from "../types/cdf";
 
 export type DistributionStatisticKey = StatisticKey;
 

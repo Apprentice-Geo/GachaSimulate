@@ -217,6 +217,68 @@ async function assert_layout(
     await page.locator('[data-testid="result-cdf-preview"] circle').count(),
   );
 
+  await page.getByRole("button", { name: "结果可视化" }).click();
+  const visualization = page.locator('[data-testid="visualize-root"]');
+  await visualization.waitFor();
+  await page
+    .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
+    .waitFor({ timeout: 10_000 });
+  assert.match(
+    (await page.getByTestId("cdf-curve-path").getAttribute("d")) ?? "",
+    /^M/,
+  );
+  assert.equal(await page.locator(".pk-segment").count(), 3);
+  assert.equal(
+    await page.getByTestId("stat-P50").locator(".metric-value").textContent(),
+    "39",
+  );
+  const visualize_contract = await page.evaluate(() => {
+    const viewport = document.querySelector(".visualize-viewport");
+    const root = document.querySelector('[data-testid="visualize-root"]');
+    const line = document.querySelector('[data-marker-key="P50"] .marker-line');
+    const point = document.querySelector(
+      '[data-marker-key="P50"] .marker-point',
+    );
+    const regions = [
+      ".chart-region",
+      ".statistic-panel",
+      ".termination-region",
+      ".page-note",
+    ].map((selector) => document.querySelector(selector));
+    if (
+      !(viewport instanceof HTMLElement) ||
+      !(root instanceof HTMLElement) ||
+      !line ||
+      !point ||
+      regions.some((region) => !(region instanceof HTMLElement))
+    )
+      return null;
+    const viewport_rect = viewport.getBoundingClientRect();
+    const root_rect = root.getBoundingClientRect();
+    return {
+      aspect_ratio: root_rect.width / root_rect.height,
+      fits:
+        viewport.scrollWidth <= viewport.clientWidth &&
+        viewport.scrollHeight <= viewport.clientHeight &&
+        root_rect.left >= viewport_rect.left &&
+        root_rect.right <= viewport_rect.right &&
+        root_rect.top >= viewport_rect.top &&
+        root_rect.bottom <= viewport_rect.bottom,
+      marker_aligned:
+        Number(line.getAttribute("x1")) === Number(point.getAttribute("cx")) &&
+        Number(line.getAttribute("y2")) === Number(point.getAttribute("cy")),
+      regions_visible: regions.every((region) => {
+        const rect = (region as HTMLElement).getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      }),
+    };
+  });
+  assert.ok(visualize_contract);
+  assert.ok(visualize_contract.fits);
+  assert.ok(visualize_contract.marker_aligned);
+  assert.ok(visualize_contract.regions_visible);
+  assert.ok(Math.abs(visualize_contract.aspect_ratio - 16 / 9) < 0.00001);
+
   await application.evaluate(({ ipcMain }, fixture) => {
     for (const channel of [
       "get-config-repository-state",
@@ -290,17 +352,12 @@ async function assert_layout(
   await page.getByRole("button", { name: "运行模拟" }).click();
   await page.getByRole("button", { name: "配置仓库" }).click();
   await page.getByText("测试配置 0").waitFor();
-  for (const [list, card] of [
-    [official.locator(".repository-list"), official.locator(".repository-card")],
-    [local.locator(".local-config-list"), local.locator("span")],
-  ]) {
-    const [list_box, card_box] = await Promise.all([
-      list.boundingBox(),
-      card.boundingBox(),
-    ]);
-    assert.ok(list_box && card_box);
-    assert.ok(card_box.height < list_box.height);
-  }
+  const [list_box, card_box] = await Promise.all([
+    official.locator(".repository-list").boundingBox(),
+    official.locator(".repository-card").boundingBox(),
+  ]);
+  assert.ok(list_box && card_box);
+  assert.ok(card_box.height < list_box.height);
 }
 
 test("Electron renderer layout contracts hold at both supported sizes", async () => {

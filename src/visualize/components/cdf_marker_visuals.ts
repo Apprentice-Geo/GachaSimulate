@@ -1,4 +1,4 @@
-import type { CDFMarker } from "../types/visualize_input";
+import type { CDFMarker } from "../types/cdf";
 
 interface CDFMarkerVisual {
   opacity: number;

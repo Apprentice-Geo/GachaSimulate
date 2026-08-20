@@ -2,17 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import schema from "../../../docs/schemas/visualize_input.schema.json";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../constants";
-import { normalize_input } from "../data/normalize_input";
-import { load_input_from_text } from "../data/load_input";
 import { get_cdf_level_at_draw } from "../data/cdf";
-import { validate_input } from "../data/validate_input";
-import example_input from "../fixtures/example_input.json";
-import {
-  build_cdf_view_model,
-  build_visualize_view_model,
-} from "../view/cdf_view_model";
+import { build_cdf_view_model } from "../view/cdf_view_model";
 import {
   build_curve_path,
   build_marker_views,
@@ -25,65 +17,13 @@ import {
 } from "../animation/progress";
 import { ANIMATION_TIMELINE, ANIMATION_TOTAL_MS } from "../animation/timeline";
 import type { MarkerView } from "../view/cdf_overlay_layout";
-import type { CDFMarker, VisualizeInput } from "../types/visualize_input";
+import type { CDFMarker } from "../types/cdf";
 import type { AnalysisV2 } from "../types/analysis";
 import type { DisplayConfig } from "../types/display_config";
 import {
   get_marker_visual,
   MARKER_VISUALS,
 } from "../components/cdf_marker_visuals";
-import {
-  VISUALIZE_INPUT_REQUIRED_KEYS,
-  VISUALIZE_STATISTIC_REQUIRED_KEYS,
-} from "../types/visualize_input";
-
-type VisualizeInputSchema = {
-  required: string[];
-  properties: {
-    statistic: {
-      required: string[];
-    };
-  };
-};
-
-function make_valid_input(
-  overrides: Partial<VisualizeInput> = {},
-): VisualizeInput {
-  const base_input: VisualizeInput = {
-    title: "核心模拟结果",
-    target: "target",
-    result_item: { id: "draw_count", name: "抽数" },
-    total: 3,
-    runs: 4,
-    note: "",
-    timestamp: 0,
-    values: [1, 2, 3],
-    cumulative: [0.25, 0.75, 1],
-    price: "",
-    unit: "",
-    statistic: {
-      P5: 1,
-      P25: 1,
-      P50: 2,
-      P75: 2,
-      P95: 3,
-      MIN: 1,
-      MEAN_LEVEL: 0.75,
-      MEAN: 2,
-      MAX: 3,
-    },
-    termination_reason: [{ reason: "success", proportion: 100 }],
-  };
-
-  return {
-    ...base_input,
-    ...overrides,
-    statistic: {
-      ...base_input.statistic,
-      ...overrides.statistic,
-    },
-  };
-}
 
 function read_css_px_token(css: string, token_name: string): number {
   const match = new RegExp(`--${token_name}:\\s*(\\d+)px`).exec(css);
@@ -111,102 +51,6 @@ test("canvas constants stay aligned with CSS tokens", () => {
 
   assert.equal(read_css_px_token(tokens_css, "canvas-width"), CANVAS_WIDTH);
   assert.equal(read_css_px_token(tokens_css, "canvas-height"), CANVAS_HEIGHT);
-});
-
-test("schema required fields stay aligned with TS contract keys", () => {
-  const visualize_schema = schema as VisualizeInputSchema;
-
-  assert.deepEqual(
-    [...visualize_schema.required].sort(),
-    [...VISUALIZE_INPUT_REQUIRED_KEYS].sort(),
-  );
-  assert.deepEqual(
-    [...visualize_schema.properties.statistic.required].sort(),
-    [...VISUALIZE_STATISTIC_REQUIRED_KEYS].sort(),
-  );
-});
-
-test("fixture visualize input satisfies schema and business rules", () => {
-  const result = validate_input(example_input);
-
-  assert.equal(result.valid, true);
-  assert.deepEqual(result.errors, []);
-});
-
-test("selected file text passes through JSON, schema, and normalization", async () => {
-  const normalized = await load_input_from_text(
-    JSON.stringify(make_valid_input()),
-  );
-  assert.deepEqual(normalized.result_item, { id: "draw_count", name: "抽数" });
-  assert.equal(normalized.total_display, "3");
-  assert.equal(normalized.runs, 4);
-
-  await assert.rejects(load_input_from_text("not json"), SyntaxError);
-  await assert.rejects(load_input_from_text('{"title":"missing fields"}'));
-});
-
-test("validate_input enforces termination reason contract", () => {
-  assert.equal(validate_input(make_valid_input()).valid, true);
-  assert.equal(
-    validate_input(
-      make_valid_input({
-        termination_reason: [
-          { reason: "success", proportion: 70 },
-          { reason: "exchange", proportion: 30 },
-        ],
-      }),
-    ).valid,
-    true,
-  );
-
-  const many_reasons = validate_input(
-    make_valid_input({
-      termination_reason: [
-        { reason: "success", proportion: 40 },
-        { reason: "exchange", proportion: 30 },
-        { reason: "other", proportion: 30 },
-      ],
-    }),
-  );
-  assert.equal(many_reasons.valid, true);
-
-  const invalid_total = validate_input(
-    make_valid_input({
-      termination_reason: [
-        { reason: "success", proportion: 60 },
-        { reason: "exchange", proportion: 30 },
-      ],
-    }),
-  );
-  assert.equal(invalid_total.valid, false);
-  assert.match(invalid_total.errors.join("\n"), /合计必须为 100/);
-});
-
-test("validate_input rejects the old draw-specific contract", () => {
-  const old_input = {
-    title: "旧输入",
-    target: "target",
-    metric: "draw",
-    note: "",
-    timestamp: 0,
-    values: [1, 2, 3],
-    cumulative: [0.25, 0.75, 1],
-    statistic: {
-      P5: 1,
-      P25: 1,
-      P50: 2,
-      P75: 2,
-      P95: 3,
-      MIN: 1,
-      MEAN_LEVEL: 0.75,
-      MEAN: 2,
-      MAX: 3,
-      COST: 0,
-    },
-    termination_reason: [{ reason: "success", proportion: 100 }],
-  };
-
-  assert.equal(validate_input(old_input).valid, false);
 });
 
 test("build_marker_views positions labels for p50 and mean", () => {
@@ -360,73 +204,6 @@ test("build_curve_path clamps cumulative values", () => {
   );
 });
 
-test("build_visualize_view_model derives result-item values and markers", () => {
-  const input: VisualizeInput = {
-    title: "核心模拟结果",
-    target: "target",
-    result_item: { id: "tokens", name: "代币" },
-    total: 100,
-    runs: 2,
-    note: "",
-    timestamp: 0,
-    values: [1, 2],
-    cumulative: [0.5, 1],
-    price: "单抽 10 RMB；十连抽 90 RMB",
-    unit: "测试币",
-    statistic: {
-      P5: 1,
-      P25: 1,
-      P50: 1,
-      P75: 2,
-      P95: 2,
-      MIN: 1,
-      MEAN_LEVEL: 0.75,
-      MEAN: 1.5,
-      MAX: 2,
-    },
-    termination_reason: [{ reason: "success", proportion: 100 }],
-  };
-
-  const normalized_input = normalize_input(input);
-  assert.equal("metrics" in normalized_input, false);
-  assert.equal("markers" in normalized_input, false);
-  assert.equal(normalized_input.total_display, "100 测试币");
-  assert.equal(normalized_input.axis_title, "结束时的代币");
-  assert.equal(normalized_input.price, "单抽 10 RMB；十连抽 90 RMB");
-
-  const view_model = build_visualize_view_model(normalized_input);
-  assert.deepEqual(
-    view_model.metrics.map((metric) => metric.key),
-    STATISTIC_VIEW_ORDER,
-  );
-  assert.equal(
-    view_model.metrics.find((metric) => metric.key === "P50")?.display_value,
-    "1",
-  );
-  assert.equal(
-    view_model.markers.find((marker) => marker.key === "P50")?.weight,
-    "primary",
-  );
-});
-
-test("result item omits suffixes when unit is empty", () => {
-  const normalized_input = normalize_input(
-    make_valid_input({
-      price: "",
-      unit: "",
-    }),
-  );
-  const view_model = build_visualize_view_model(normalized_input);
-
-  assert.equal(normalized_input.total_display, "3");
-  assert.equal(normalized_input.axis_title, "结束时的抽数");
-  assert.equal(normalized_input.price, "");
-  assert.equal(
-    view_model.metrics.find((metric) => metric.key === "P50")?.display_value,
-    "2",
-  );
-});
-
 test("build_cdf_view_model normalizes AnalysisV2 and display fields together", () => {
   const analysis: AnalysisV2 = {
     analysis_version: 2,
@@ -461,9 +238,18 @@ test("build_cdf_view_model normalizes AnalysisV2 and display fields together", (
 
   assert.equal(view_model.title, display.title);
   assert.deepEqual(view_model.result_item, { id: "tokens", name: "代币" });
-  assert.equal(view_model.total_display, "100 测试币");
+  assert.equal(view_model.total, 100);
   assert.equal(view_model.runs, 4);
-  assert.equal(view_model.unit, display.unit);
+  assert.equal(view_model.display_unit, display.unit);
+  assert.equal(view_model.axis_title, "结束时的代币");
+  assert.deepEqual(
+    view_model.metrics.map((metric) => metric.key),
+    STATISTIC_VIEW_ORDER,
+  );
+  assert.equal(
+    view_model.markers.find((marker) => marker.key === "P50")?.weight,
+    "primary",
+  );
   assert.equal(
     view_model.metrics.find((metric) => metric.key === "P50")?.value,
     2,

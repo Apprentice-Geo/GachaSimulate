@@ -7,13 +7,3 @@ export interface DisplayConfig {
   price: string;
   unit: string;
 }
-
-export const DISPLAY_CONFIG_KEYS = [
-  "display_version",
-  "title",
-  "target",
-  "result_item_name",
-  "note",
-  "price",
-  "unit",
-] as const;
