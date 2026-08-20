@@ -223,8 +223,17 @@ void execute(const RuntimeProgram &p, State &s, Range initial) {
 }
 } // namespace
 
+std::filesystem::path utf8_path(std::string_view value) {
+#ifdef _WIN32
+  return std::filesystem::path(
+      std::u8string(reinterpret_cast<const char8_t *>(value.data()), value.size()));
+#else
+  return std::filesystem::path(std::string(value));
+#endif
+}
+
 RuntimeProgram load_ir_file(const std::string &path) {
-  std::ifstream input(std::filesystem::u8path(path), std::ios::binary | std::ios::ate);
+  std::ifstream input(utf8_path(path), std::ios::binary | std::ios::ate);
   if (!input)
     throw std::runtime_error("cannot open IR");
   const auto size = input.tellg();
@@ -234,7 +243,7 @@ RuntimeProgram load_ir_file(const std::string &path) {
   const auto root = Json::parse(input);
   object(root, {"ir_version", "result_item", "items", "strings", "actions", "pools", "pool_entries",
                 "rules", "condition_nodes", "condition_children", "item_resolve", "initial",
-                "every_draw", "termination", "termination_condition"});
+                "every_draw", "termination_condition"});
   if (u32(field(root, "ir_version"), "ir_version") != 2)
     fail("unsupported ir_version");
   RuntimeProgram p;
@@ -398,7 +407,6 @@ RuntimeProgram load_ir_file(const std::string &path) {
   }
   p.initial = range(field(root, "initial"), "initial", p.actions.size());
   p.every_draw = range(field(root, "every_draw"), "every_draw", p.actions.size());
-  (void)range(field(root, "termination"), "termination", p.actions.size());
   p.termination_condition = u32(field(root, "termination_condition"), "termination condition");
   if (p.termination_condition >= p.conditions.size())
     fail("invalid termination condition");

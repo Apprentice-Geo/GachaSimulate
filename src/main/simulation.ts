@@ -14,7 +14,14 @@ import {
   writeFileSync,
 } from "node:fs";
 import { cpus, tmpdir } from "node:os";
-import { basename, isAbsolute, join, relative, resolve } from "node:path";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "node:path";
 import {
   parse_simulation_line,
   resolve_process_outcome,
@@ -45,6 +52,22 @@ type SimulationTaskDependencies = {
 };
 
 type NativeTask = { active: boolean; cancel(): Promise<void> };
+
+export function resolve_native_executable(
+  name: string,
+  override?: string,
+): string {
+  const directory = resolve(
+    override ??
+      (process.env.ELECTRON_RENDERER_URL || !process.resourcesPath
+        ? join(process.cwd(), "build", "native", "bin")
+        : join(process.resourcesPath, "native", "bin")),
+  );
+  return join(
+    directory,
+    `${name}${process.platform === "win32" ? ".exe" : ""}`,
+  );
+}
 
 export async function shutdown_native_processes(
   ...tasks: Array<NativeTask | undefined>
@@ -201,16 +224,11 @@ export class SimulationTask {
     );
     this.temporary_dir = mkdtempSync(join(tmpdir(), "gachasimulate-electron-"));
     const ir = join(this.temporary_dir, "program.json");
-    const native_dir = resolve(
-      this.dependencies.native_dir ??
-        (process.env.ELECTRON_RENDERER_URL || !process.resourcesPath
-          ? join(process.cwd(), "build", "native", "bin")
-          : join(process.resourcesPath, "native", "bin")),
+    const command = resolve_native_executable(
+      "gachasimulate-core",
+      this.dependencies.native_dir,
     );
-    const command = join(
-      native_dir,
-      `gachasimulate-core${process.platform === "win32" ? ".exe" : ""}`,
-    );
+    const native_dir = dirname(command);
     const args = [
       "--ir",
       ir,
@@ -255,13 +273,11 @@ export class SimulationTask {
     child.stdout?.setEncoding("utf8");
     child.stderr?.setEncoding("utf8");
     let stdout = "";
-    // ? 是可选链运算符 若前面是 null 或 undefined 则返回 undefined 否则返回前面的值
     child.stdout?.on("data", (chunk: string) => {
       if (this.protocol_error) return;
       stdout += chunk;
       // 以换行符分隔 兼容 windows 的 \r\n 和 linux 的 \n
       const lines = stdout.split(/\r?\n/);
-      // ?? 是空值合并运算符 若前面是 null 或 undefined 则返回后面的值 否则返回前面的值
       // 将最后一个保存到 stdout 中 以便下一次接收数据时继续处理
       stdout = lines.pop() ?? "";
       for (const line of lines) {

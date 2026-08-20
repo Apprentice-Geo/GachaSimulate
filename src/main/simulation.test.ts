@@ -14,7 +14,11 @@ import { basename, join, resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import test, { after } from "node:test";
 import type { ChildProcess } from "node:child_process";
-import { shutdown_native_processes, SimulationTask } from "./simulation";
+import {
+  resolve_native_executable,
+  shutdown_native_processes,
+  SimulationTask,
+} from "./simulation";
 import {
   parse_simulation_line,
   resolve_process_outcome,
@@ -464,6 +468,10 @@ test("uses only trusted native paths and removes temporary IR on close", () => {
   assert.match(basename(args.at(-1) ?? ""), /^\.[0-9a-f-]+\.tmp\.gsr$/);
   child.close(1);
   assert.equal(existsSync(ir), false);
+  assert.equal(
+    resolve_native_executable("tool", "/tmp/native"),
+    resolve(`/tmp/native/tool${process.platform === "win32" ? ".exe" : ""}`),
+  );
 });
 
 test("keeps only a successfully completed GSR", async () => {

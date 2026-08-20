@@ -7,7 +7,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
   DISPLAY_FIELD_KEYS,
@@ -18,7 +18,10 @@ import type { AnalysisV2 } from "../visualize/types/analysis";
 import type { DisplayConfig } from "../visualize/types/display_config";
 import { validate_analysis } from "../visualize/data/analysis";
 import { validate_display_config } from "../visualize/data/validate_display_config";
-import { terminate_native_process } from "./simulation";
+import {
+  resolve_native_executable,
+  terminate_native_process,
+} from "./simulation";
 
 const JSON_LIMIT = 16 * 1024 * 1024;
 const STDERR_LIMIT = 64 * 1024;
@@ -169,15 +172,9 @@ export class ResultEditor {
 
   private analyze(path: string): Promise<AnalysisV2> {
     if (this.child) throw new Error("analyzer is already running");
-    const native_dir = resolve(
-      this.dependencies.native_dir ??
-        (process.env.ELECTRON_RENDERER_URL || !process.resourcesPath
-          ? join(process.cwd(), "build", "native", "bin")
-          : join(process.resourcesPath, "native", "bin")),
-    );
-    const command = join(
-      native_dir,
-      `gachasimulate-analyze${process.platform === "win32" ? ".exe" : ""}`,
+    const command = resolve_native_executable(
+      "gachasimulate-analyze",
+      this.dependencies.native_dir,
     );
     if (!existsSync(command))
       throw new Error(`native analyzer not found: ${command}`);

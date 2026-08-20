@@ -18,12 +18,14 @@
 #include <vector>
 
 namespace {
-std::filesystem::path fixture_path() { return std::filesystem::u8path(GACHASIMULATE_TEST_FIXTURE); }
+std::filesystem::path fixture_path() {
+  return gachasimulate::utf8_path(GACHASIMULATE_TEST_FIXTURE);
+}
 std::filesystem::path cost_fixture_path() {
-  return std::filesystem::u8path(GACHASIMULATE_TEST_COST_FIXTURE);
+  return gachasimulate::utf8_path(GACHASIMULATE_TEST_COST_FIXTURE);
 }
 std::filesystem::path random_fixture_path() {
-  return std::filesystem::u8path(GACHASIMULATE_TEST_RANDOM_FIXTURE);
+  return gachasimulate::utf8_path(GACHASIMULATE_TEST_RANDOM_FIXTURE);
 }
 
 template <class T> T read(const std::vector<unsigned char> &data, size_t offset) {
@@ -54,7 +56,7 @@ std::string hex(const std::vector<unsigned char> &data) {
   return result;
 }
 std::string fixture_text(const char *path) {
-  std::ifstream input(std::filesystem::u8path(path));
+  std::ifstream input(gachasimulate::utf8_path(path));
   std::ostringstream output;
   output << input.rdbuf();
   auto result = output.str();
@@ -65,6 +67,14 @@ std::string fixture_text(const char *path) {
 }
 std::filesystem::path output_path(const char *name) {
   return std::filesystem::temp_directory_path() / (std::string("gachasimulate_") + name + ".gsr");
+}
+std::string path_utf8(const std::filesystem::path &path) {
+#ifdef _WIN32
+  const auto value = path.u8string();
+  return {reinterpret_cast<const char *>(value.data()), value.size()};
+#else
+  return path.string();
+#endif
 }
 template <class F> std::string error_message(F &&call) {
   try {
@@ -105,6 +115,21 @@ TEST(Runtime, RunsPoolResolveAndTerminationFixture) {
   EXPECT_EQ(result.inventory[0], 1);
   EXPECT_EQ(result.inventory[1], 1);
   EXPECT_EQ(result.reason, "done");
+}
+
+TEST(Paths, SupportsUtf8IrAndGsrFilenames) {
+  const auto ir_path = std::filesystem::temp_directory_path() /
+                       gachasimulate::utf8_path("gachasimulate_\xE4\xB8\xAD\xE6\x96\x87_ir.json");
+  const auto gsr_path = std::filesystem::temp_directory_path() /
+                        gachasimulate::utf8_path("gachasimulate_\xE7\xBB\x93\xE6\x9E\x9C.gsr");
+  std::filesystem::copy_file(fixture_path(), ir_path,
+                             std::filesystem::copy_options::overwrite_existing);
+  const auto program = gachasimulate::load_ir_file(path_utf8(ir_path));
+  gachasimulate::write_gsr_v2(path_utf8(gsr_path), program,
+                              gachasimulate::simulate_fixed_runs(program, 1, 0, 1), 0);
+  EXPECT_EQ(gachasimulate::read_gsr_v2(path_utf8(gsr_path)).runs, 1U);
+  std::filesystem::remove(ir_path);
+  std::filesystem::remove(gsr_path);
 }
 
 TEST(Runtime, SkipsIncompleteResolveBatch) {

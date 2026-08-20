@@ -20,13 +20,16 @@ export function fail(path: string, message: string): never {
   throw new CompilerError(path, message);
 }
 
-export function map(value: unknown, path: string): Record<string, unknown> {
+export function require_mapping(
+  value: unknown,
+  path: string,
+): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
     fail(path, "must be a mapping");
   return value as Record<string, unknown>;
 }
 
-export function list(value: unknown, path: string): unknown[] {
+export function require_list(value: unknown, path: string): unknown[] {
   if (!Array.isArray(value)) fail(path, "must be a list");
   return value;
 }
@@ -48,13 +51,13 @@ export function integer(
   return value;
 }
 
-export function number(value: unknown, path: string): number {
+export function require_positive_number(value: unknown, path: string): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0)
     fail(path, "must be a finite positive number");
   return value;
 }
 
-export function keys(
+export function reject_unknown_keys(
   value: Record<string, unknown>,
   path: string,
   allowed: string[],
@@ -65,7 +68,8 @@ export function keys(
 
 export function actions(value: unknown, path: string): string[] {
   if (value == null) return [];
-  const result = typeof value === "string" ? [value] : list(value, path);
+  const result =
+    typeof value === "string" ? [value] : require_list(value, path);
   result.forEach((item, index) => {
     if (typeof item !== "string")
       fail(`${path}[${index}]`, "must be an action string");
@@ -83,21 +87,21 @@ export function parse_yaml(
   if (document.errors.length)
     fail(name, document.errors[0].message.replace(/\n.*/s, ""));
   try {
-    return map(document.toJS({ maxAliasCount: 0 }), name);
+    return require_mapping(document.toJS({ maxAliasCount: 0 }), name);
   } catch (error) {
     fail(name, error instanceof Error ? error.message : String(error));
   }
 }
 
 export function config_items(value: unknown): ConfigItem[] {
-  const rawItems = list(value, "config.items");
+  const rawItems = require_list(value, "config.items");
   if (!rawItems.length) fail("config.items", "must be non-empty");
   const itemIds = new Set<string>();
   return rawItems.map((entry, index) => {
     let id: string, name: string;
     if (typeof entry === "string") id = name = entry;
     else {
-      const single = map(entry, `config.items[${index}]`);
+      const single = require_mapping(entry, `config.items[${index}]`);
       if (Object.keys(single).length !== 1)
         fail(`config.items[${index}]`, "must be a single-key mapping");
       [id, name] = Object.entries(single)[0] as [string, string];

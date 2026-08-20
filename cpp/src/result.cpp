@@ -151,7 +151,7 @@ nlohmann::json termination(const GsrData &data) {
 } // namespace
 
 GsrData read_gsr_v2(const std::string &path) {
-  std::ifstream input(std::filesystem::u8path(path), std::ios::binary | std::ios::ate);
+  std::ifstream input(utf8_path(path), std::ios::binary | std::ios::ate);
   if (!input)
     throw std::runtime_error("cannot open GSR");
   const auto end = input.tellg();
@@ -271,7 +271,7 @@ void write_gsr_v2(const std::string &path, const RuntimeProgram &p, const BatchR
   if (strings_size > kMaxFileSize - string_offset)
     throw std::runtime_error("GSR exceeds 16 GiB");
   const auto file_size = string_offset + strings_size;
-  std::ofstream out(std::filesystem::u8path(path), std::ios::binary | std::ios::trunc);
+  std::ofstream out(utf8_path(path), std::ios::binary | std::ios::trunc);
   if (!out)
     throw std::runtime_error("cannot create output");
   out.write("GSR\0", 4);

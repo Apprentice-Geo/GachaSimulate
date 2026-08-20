@@ -43,6 +43,7 @@ test("compiles v2 YAML with the simulation-selected result item", () => {
   assert.equal(draw.result_item, 0);
   assert.equal(target.result_item, 1);
   assert.deepEqual((draw.items as { id: number }[]).length, 2);
+  assert.equal("termination" in draw, false);
 });
 
 test("keeps direct nested condition children contiguous", () => {

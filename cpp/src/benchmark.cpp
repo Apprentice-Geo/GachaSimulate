@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
       else
         usage();
     }
-    const auto path = std::filesystem::u8path(output);
+    const auto path = gachasimulate::utf8_path(output);
     if (ir.empty() || !runs || !threads || !path.is_absolute() || path.extension() != ".gsr" ||
         std::filesystem::exists(path))
       usage();

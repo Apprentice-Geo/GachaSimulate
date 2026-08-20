@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace gachasimulate {
@@ -72,6 +74,7 @@ struct BatchResult {
   uint64_t total_result{};
 };
 RuntimeProgram load_ir_file(const std::string &utf8_path);
+std::filesystem::path utf8_path(std::string_view value);
 RunResult single_run(const RuntimeProgram &program, uint64_t run_seed);
 BatchResult simulate_fixed_runs(const RuntimeProgram &program, uint64_t total_runs, int64_t seed,
                                 uint32_t threads,

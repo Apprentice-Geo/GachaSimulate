@@ -5,10 +5,10 @@ import {
   config_items,
   fail,
   integer,
-  keys,
-  list,
-  map,
-  number,
+  reject_unknown_keys,
+  require_list,
+  require_mapping,
+  require_positive_number,
   parse_yaml,
 } from "./validation.js";
 import { validate_config_manifest } from "./manifest.js";
@@ -25,8 +25,8 @@ type PreparedConfig = {
 };
 
 export function prepare_config(configValue: unknown): PreparedConfig {
-  const config = map(configValue, "config");
-  keys(config, "config", [
+  const config = require_mapping(configValue, "config");
+  reject_unknown_keys(config, "config", [
     "schema_version",
     "items",
     "pools",
@@ -90,10 +90,10 @@ export function prepare_config(configValue: unknown): PreparedConfig {
       return { kind: "terminate", reason: stringId(target) };
     fail(path, `unsupported action: ${value}`);
   };
-  const rawPools = list(config.pools, "config.pools");
+  const rawPools = require_list(config.pools, "config.pools");
   if (!rawPools.length) fail("config.pools", "must be non-empty");
   rawPools.forEach((entry, index) => {
-    const single = map(entry, `config.pools[${index}]`);
+    const single = require_mapping(entry, `config.pools[${index}]`);
     if (Object.keys(single).length !== 1)
       fail(`config.pools[${index}]`, "must be a single-key mapping");
     const id = Object.keys(single)[0];
@@ -104,9 +104,9 @@ export function prepare_config(configValue: unknown): PreparedConfig {
   });
   rawPools.forEach((entry, index) => {
     const [id, rawEntries] = Object.entries(
-      map(entry, `config.pools[${index}]`),
+      require_mapping(entry, `config.pools[${index}]`),
     )[0];
-    const entries = list(rawEntries, `config.pools[${index}].${id}`);
+    const entries = require_list(rawEntries, `config.pools[${index}].${id}`);
     if (!entries.length)
       fail(`config.pools[${index}].${id}`, "must be non-empty");
     const begin = pool_entries.length;
@@ -114,15 +114,15 @@ export function prepare_config(configValue: unknown): PreparedConfig {
     let weighted: boolean | undefined;
     entries.forEach((raw, entryIndex) => {
       const path = `config.pools[${index}].${id}[${entryIndex}]`;
-      const entry = map(raw, path);
-      keys(entry, path, ["probability", "weight", "actions"]);
+      const entry = require_mapping(raw, path);
+      reject_unknown_keys(entry, path, ["probability", "weight", "actions"]);
       const isWeight = "weight" in entry;
       if ("probability" in entry === isWeight)
         fail(path, "must contain exactly one of probability or weight");
       if (weighted != null && weighted !== isWeight)
         fail(path, "cannot mix probability and weight");
       weighted = isWeight;
-      total += number(
+      total += require_positive_number(
         entry[isWeight ? "weight" : "probability"],
         `${path}.${isWeight ? "weight" : "probability"}`,
       );
@@ -148,13 +148,13 @@ export function prepare_config(configValue: unknown): PreparedConfig {
   let conditions: Record<string, unknown>[] = [];
   let condition_children: number[] = [];
   const condition = (raw: unknown, path: string): number => {
-    const node = map(raw, path);
+    const node = require_mapping(raw, path);
     const own = range(
       actions(node.actions, `${path}.actions`),
       `${path}.actions`,
     );
     if ("check" in node) {
-      keys(node, path, ["check", "actions"]);
+      reject_unknown_keys(node, path, ["check", "actions"]);
       if (typeof node.check !== "string")
         fail(`${path}.check`, "must be a condition string");
       const match = CHECK.exec(node.check.trim());
@@ -171,10 +171,10 @@ export function prepare_config(configValue: unknown): PreparedConfig {
         }) - 1
       );
     }
-    keys(node, path, ["op", "children", "actions"]);
+    reject_unknown_keys(node, path, ["op", "children", "actions"]);
     if (!["AND", "OR", "&&", "||"].includes(node.op as string))
       fail(`${path}.op`, "unsupported logic op");
-    const children = list(node.children, `${path}.children`);
+    const children = require_list(node.children, `${path}.children`);
     if (!children.length) fail(`${path}.children`, "must be non-empty");
     const begin = condition_children.length;
     condition_children.push(...children.map(() => 0));
@@ -201,11 +201,11 @@ export function prepare_config(configValue: unknown): PreparedConfig {
   const resolves =
     config.item_resolve == null
       ? []
-      : list(config.item_resolve, "config.item_resolve");
+      : require_list(config.item_resolve, "config.item_resolve");
   resolves.forEach((raw, index) => {
     const path = `config.item_resolve[${index}]`;
-    const value = map(raw, path);
-    keys(value, path, ["item", "retain", "actions"]);
+    const value = require_mapping(raw, path);
+    reject_unknown_keys(value, path, ["item", "retain", "actions"]);
     const item =
       typeof value.item === "string" ? itemIds.get(value.item) : undefined;
     if (item == null || resolve[item].actions.count)
@@ -235,7 +235,7 @@ export function prepare_config(configValue: unknown): PreparedConfig {
   const nodeNames = [
     ...rawPools.map(
       (entry, index) =>
-        `pool ${Object.keys(map(entry, `config.pools[${index}]`))[0]}`,
+        `pool ${Object.keys(require_mapping(entry, `config.pools[${index}]`))[0]}`,
     ),
     ...itemNames.map((id) => `resolve ${id}`),
   ];
@@ -317,7 +317,7 @@ export function prepare_config(configValue: unknown): PreparedConfig {
     return result;
   };
   const repeatExits = (raw: unknown, path: string): void => {
-    const node = map(raw, path);
+    const node = require_mapping(raw, path);
     if (!("check" in node))
       fail(path, "repeat condition must be a single check");
     if (typeof node.check !== "string")
@@ -385,19 +385,19 @@ export function prepare_config(configValue: unknown): PreparedConfig {
       );
   };
   const conditionHasAction = (raw: unknown, path: string): boolean => {
-    const node = map(raw, path);
+    const node = require_mapping(raw, path);
     if (actions(node.actions, `${path}.actions`).length) return true;
     if ("check" in node) return false;
-    return list(node.children, `${path}.children`).some((child, index) =>
-      conditionHasAction(child, `${path}.children[${index}]`),
+    return require_list(node.children, `${path}.children`).some(
+      (child, index) => conditionHasAction(child, `${path}.children[${index}]`),
     );
   };
   const rules: Record<string, unknown>[] = [];
   const ruleIds = new Set<string>();
   const rawRules =
-    config.rules == null ? [] : list(config.rules, "config.rules");
+    config.rules == null ? [] : require_list(config.rules, "config.rules");
   rawRules.forEach((raw, index) => {
-    const value = map(raw, `config.rules[${index}]`);
+    const value = require_mapping(raw, `config.rules[${index}]`);
     if (Object.keys(value).length !== 1)
       fail(`config.rules[${index}]`, "must be a single-key mapping");
     const [id, body] = Object.entries(value)[0];
@@ -405,8 +405,11 @@ export function prepare_config(configValue: unknown): PreparedConfig {
     if (ruleIds.has(id))
       fail(`config.rules[${index}]`, `duplicate rule id: ${id}`);
     ruleIds.add(id);
-    const rule = map(body, `config.rules[${index}].${id}`);
-    keys(rule, `config.rules[${index}].${id}`, ["mode", "condition"]);
+    const rule = require_mapping(body, `config.rules[${index}].${id}`);
+    reject_unknown_keys(rule, `config.rules[${index}].${id}`, [
+      "mode",
+      "condition",
+    ]);
     const mode = rule.mode ?? "once";
     if (!["once", "per_draw", "repeat"].includes(mode as string))
       fail(`config.rules[${index}].${id}.mode`, "unsupported mode");
@@ -446,7 +449,7 @@ export function prepare_config(configValue: unknown): PreparedConfig {
   const baseConditionChildren = condition_children;
   const baseResolve = resolve;
   const everyPathTerminates = (raw: unknown, path: string): boolean => {
-    const node = map(raw, path);
+    const node = require_mapping(raw, path);
     if (
       actions(node.actions, `${path}.actions`).some((entry) =>
         entry.trim().startsWith("terminate "),
@@ -454,7 +457,7 @@ export function prepare_config(configValue: unknown): PreparedConfig {
     )
       return true;
     if ("check" in node) return false;
-    const children = list(node.children, `${path}.children`);
+    const children = require_list(node.children, `${path}.children`);
     return ["OR", "||"].includes(node.op as string)
       ? children.every((child, index) =>
           everyPathTerminates(child, `${path}.children[${index}]`),
@@ -474,21 +477,24 @@ export function prepare_config(configValue: unknown): PreparedConfig {
         actions: { ...entry.actions },
       }));
 
-      const termination = map(terminationValue, "termination");
-      keys(termination, "termination", ["retained_items", "termination_rule"]);
+      const termination = require_mapping(terminationValue, "termination");
+      reject_unknown_keys(termination, "termination", [
+        "retained_items",
+        "termination_rule",
+      ]);
       if ("schema_version" in termination)
         fail(
           "termination.schema_version",
           "must inherit config schema_version",
         );
-      const retained = list(
+      const retained = require_list(
         termination.retained_items,
         "termination.retained_items",
       );
       const retainedIds = new Set<string>();
       retained.forEach((raw, index) => {
         const path = `termination.retained_items[${index}]`;
-        const value = map(raw, path);
+        const value = require_mapping(raw, path);
         if (Object.keys(value).length !== 1)
           fail(path, "must be a single-key mapping");
         const [id, count] = Object.entries(value)[0];
@@ -501,11 +507,13 @@ export function prepare_config(configValue: unknown): PreparedConfig {
           integer(count, `${path}.${id}`),
         );
       });
-      const termRule = map(
+      const termRule = require_mapping(
         termination.termination_rule,
         "termination.termination_rule",
       );
-      keys(termRule, "termination.termination_rule", ["condition"]);
+      reject_unknown_keys(termRule, "termination.termination_rule", [
+        "condition",
+      ]);
       if (
         !everyPathTerminates(
           termRule.condition,
@@ -524,7 +532,6 @@ export function prepare_config(configValue: unknown): PreparedConfig {
         if (resultItem == null)
           fail("result_item", `unknown item id: ${result_item}`);
       }
-      const terminationRange = { begin: actionArena.length, count: 0 };
       const termination_condition = condition(
         termRule.condition,
         "termination.termination_rule.condition",
@@ -545,7 +552,6 @@ export function prepare_config(configValue: unknown): PreparedConfig {
           item_resolve: resolve,
           initial,
           every_draw,
-          termination: terminationRange,
           termination_condition,
         },
       };
@@ -566,8 +572,8 @@ export function compile(
   manifestValue: unknown,
   result_item: string,
 ): CompiledProgram {
-  map(configValue, "config");
-  map(terminationValue, "termination");
+  require_mapping(configValue, "config");
+  require_mapping(terminationValue, "termination");
   validate_config_manifest(manifestValue);
   return prepare_config(configValue).apply_termination(
     terminationValue,

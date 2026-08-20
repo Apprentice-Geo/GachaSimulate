@@ -1,11 +1,17 @@
 import type { ConfigManifest } from "./types.js";
-import { fail, keys, list, map, parse_yaml } from "./validation.js";
+import {
+  fail,
+  reject_unknown_keys,
+  require_list,
+  require_mapping,
+  parse_yaml,
+} from "./validation.js";
 
 const MANIFEST_ID = /^[A-Za-z0-9_-]+$/;
 
 export function validate_config_manifest(value: unknown): ConfigManifest {
-  const manifest = map(value, "manifest");
-  keys(manifest, "manifest", [
+  const manifest = require_mapping(value, "manifest");
+  reject_unknown_keys(manifest, "manifest", [
     "id",
     "name",
     "description",
@@ -18,12 +24,15 @@ export function validate_config_manifest(value: unknown): ConfigManifest {
     fail("manifest.name", "must be a non-empty string");
   if (typeof manifest.description !== "string")
     fail("manifest.description", "must be a string");
-  const terminations = list(manifest.terminations, "manifest.terminations");
+  const terminations = require_list(
+    manifest.terminations,
+    "manifest.terminations",
+  );
   if (!terminations.length) fail("manifest.terminations", "must be non-empty");
   const parsedTerminations = terminations.map((raw, index) => {
     const path = `manifest.terminations[${index}]`;
-    const termination = map(raw, path);
-    keys(termination, path, ["file", "name"]);
+    const termination = require_mapping(raw, path);
+    reject_unknown_keys(termination, path, ["file", "name"]);
     if (
       typeof termination.file !== "string" ||
       !termination.file ||

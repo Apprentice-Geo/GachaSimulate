@@ -48,9 +48,20 @@ if(BUILD_TESTING)
   add_test(NAME Cli.EmitsJsonlProtocol COMMAND ${CMAKE_COMMAND}
     -DCORE=$<TARGET_FILE:gachasimulate-core>
     -DFIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_fixture_ir.json
-    -DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/cli_protocol_test.gsr
+    -DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/cli_中文输出.gsr
     -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli_protocol_test.cmake)
 endif()
 
 add_executable(gachasimulate-benchmark src/benchmark.cpp)
 target_link_libraries(gachasimulate-benchmark PRIVATE gachasimulate_runtime gachasimulate_result)
+
+set(first_party_targets
+  gachasimulate_runtime
+  gachasimulate_result
+  gachasimulate-core
+  gachasimulate-analyze
+  gachasimulate-benchmark)
+if(BUILD_TESTING)
+  list(APPEND first_party_targets gachasimulate_runtime_tests)
+endif()
+set_property(TARGET ${first_party_targets} PROPERTY COMPILE_WARNING_AS_ERROR ON)
