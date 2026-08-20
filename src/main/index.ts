@@ -1,4 +1,12 @@
-import { app, BrowserWindow, dialog, ipcMain, net, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  net,
+  shell,
+} from "electron";
 import { execFile, spawn } from "node:child_process";
 import { cpus } from "node:os";
 import { join } from "node:path";
@@ -14,6 +22,9 @@ let simulation: SimulationTask;
 let result_editor: ResultEditor;
 let config_manager: ConfigManager;
 let quitting = false;
+
+if (process.platform === "win32")
+  app.commandLine.appendSwitch("force-device-scale-factor", "1");
 
 const exec_file = promisify(execFile);
 
@@ -118,6 +129,8 @@ function create_window(): void {
 }
 
 app.whenReady().then(() => {
+  if (process.platform === "win32") Menu.setApplicationMenu(null);
+
   const configs_dir = join(app.getPath("userData"), "configs");
   const results_dir = join(app.getPath("userData"), "results");
   result_editor = new ResultEditor();
