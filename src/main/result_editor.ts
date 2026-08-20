@@ -171,7 +171,9 @@ export class ResultEditor {
     if (this.child) throw new Error("analyzer is already running");
     const native_dir = resolve(
       this.dependencies.native_dir ??
-        join(process.cwd(), "build", "native", "bin"),
+        (process.env.ELECTRON_RENDERER_URL || !process.resourcesPath
+          ? join(process.cwd(), "build", "native", "bin")
+          : join(process.resourcesPath, "native", "bin")),
     );
     const command = join(
       native_dir,

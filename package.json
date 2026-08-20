@@ -1,14 +1,10 @@
 {
   "name": "gachasimulate",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "packageManager": "pnpm@11.3.0",
   "description": "",
   "main": "out/main/index.js",
   "private": true,
-  "directories": {
-    "doc": "docs",
-    "test": "tests"
-  },
   "scripts": {
     "dev": "pnpm run build:packages && electron-vite dev",
     "hooks:install": "git config core.hooksPath .githooks",
@@ -18,6 +14,7 @@
     "lint": "eslint \"src/**/*.{ts,tsx,js,mjs,cjs}\" \"e2e/**/*.{ts,tsx,js,mjs,cjs}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs}\" \"*.{ts,js,mjs,cjs}\"",
     "typecheck": "pnpm run build:packages && tsc --noEmit && pnpm --recursive --filter './packages/*' typecheck",
     "build": "pnpm run build:packages && tsc --noEmit && electron-vite build",
+    "package:win": "pnpm run build && node node_modules/electron-builder/cli.js --win nsis",
     "build:web": "tsc --noEmit && vite build",
     "capture:ui": "pnpm run build:packages && electron-vite build && tsx src/dev/capture_ui.ts",
     "preview": "vite preview",
@@ -44,6 +41,22 @@
     "url": "https://github.com/Apprentice-Geo/GachaSimulate/issues"
   },
   "homepage": "https://github.com/Apprentice-Geo/GachaSimulate#readme",
+  "build": {
+    "appId": "com.gachasimulate.app",
+    "productName": "GachaSimulate",
+    "files": [
+      "out/**"
+    ],
+    "extraResources": [
+      {
+        "from": "build/native",
+        "to": "native"
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  },
   "dependencies": {
     "@gachasimulate/config-compiler": "workspace:*",
     "@gachasimulate/config-repository-contract": "workspace:*",
@@ -71,6 +84,7 @@
     "@types/yauzl": "^3.4.0",
     "@vitejs/plugin-react": "^6.0.1",
     "electron": "^43.3.0",
+    "electron-builder": "^26.9.0",
     "electron-vite": "^5.0.0",
     "eslint": "^10.3.0",
     "playwright": "1.61.0",
