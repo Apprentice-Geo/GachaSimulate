@@ -62,11 +62,13 @@ Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构
 
 ## 按影响范围选择
 
-- YAML 或 IR：Compiler 测试、`test:simulation` 中的 native pipeline、C++ Debug/Release CTest、typecheck。
-- 配置仓库 index、manifest 或包文件清单协议：`test:config-repository-contract`、`test:packages`、typecheck。
+- YAML：`test:packages` 中的 Compiler 测试和 typecheck；若改变 IR，继续执行 IR 对应检查。
+- IR：`test:packages` 中的 Compiler 测试、`test:simulation` 中的 native pipeline、C++ Debug/Release CTest 和 typecheck。
+- 配置仓库 index、manifest 或包文件清单协议：`test:config-repository-contract`、`test:packages`、`test:simulation` 中的下载/安装行为测试和 typecheck。
 - C++ Runtime、GSR 或 Analysis：format/tidy、Debug/Release CTest、Release install 和冒烟。
 - Electron IPC、配置扫描、模拟/分析进程生命周期或 sidecar：`test:simulation`、typecheck、lint、build。
-- 可视化输入、CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑代表性实际 export。
+- AnalysisV2 或 DisplayConfig 输入契约：同步核对 JSON Schema、semantic validator、TypeScript 类型和共享 fixture，并执行 `test:visualize:cdf`、`test:simulation`、typecheck 和 build。
+- CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑代表性实际 export。
 - 仅文档：检查命令、链接和完成状态；跨层状态文档仍按对应范围验证。
 
 ## Electron 人工验收

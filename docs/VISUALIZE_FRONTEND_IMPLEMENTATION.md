@@ -60,11 +60,13 @@ Electron 将固定 3840×2160 画布按宿主可用区域等比缩小并双向�
 
 ### 输入契约
 
-`AnalysisV2 + DisplayConfig v1` 是唯一可视化输入契约，对应 `docs/schemas/analysis_v2.schema.json` 和 `docs/schemas/display_config.schema.json`。`result_item.id`、`total` 和 `runs` 来自 AnalysisV2；`result_item_name` 只控制展示名称。旧完整 JSON 和旧字段不做隐式兼容；需要兼容时应明确修改契约和迁移策略。
+`AnalysisV2 + DisplayConfig v1` 是唯一可视化输入契约，对应 `docs/schemas/analysis_v2.schema.json` 和 `docs/schemas/display_config.schema.json`。`result_item.id`、`totals.result` 和 `totals.runs` 来自 AnalysisV2；`result_item_name` 只控制展示名称。旧完整 JSON 和旧字段不做隐式兼容；需要兼容时应明确修改契约和迁移策略。
+
+JSON Schema 是字段、类型、必填项和局部取值约束的权威。`validate_analysis` 另行定义数组长度、递增顺序、CDF 终点和 termination 比例等跨字段不变量；`validate_display_config` 当前只执行对应 Schema，没有额外语义规则。`types/` 中的 TypeScript 类型是消费方的静态视图，不独立定义格式。
 
 ## 维护边界
 
-- 修改输入结构时，同步更新 JSON schema、`types/`、`data/` 中的校验规则和相关测试。
+- 修改输入结构或跨字段不变量时，同步更新对应 JSON Schema、semantic validator、`types/`、共享 fixture 和相关测试；没有额外语义规则时不为 validator 重复实现 Schema 约束。
 - 修改 CDF、marker、统计分组或布局计算时，优先在 `data/` 或 `view/` 维护，不把计算散入组件。
 - 修改动画节奏时，集中修改 `animation/`，保证 Electron 展示和导出继续使用同一时间轴。
 - 修改画布规格或共享视觉 token 时，同时检查交互展示、Remotion composition、导出结果和相关文档。

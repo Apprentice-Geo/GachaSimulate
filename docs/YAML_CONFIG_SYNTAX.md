@@ -95,7 +95,8 @@ manifest 或 `result_item`：先完整校验一次 `config.yaml`，失败时返�
 
 仓库分发所需的 manifest 字节长度、命名和文件集合限制由
 `@gachasimulate/config-repository-contract` 在上述 Compiler 语法校验之上施加，不属于模拟
-YAML 语义。
+YAML 语义，详见 [配置仓库协议 v1](CONFIG_REPOSITORY_V1.md)。Compiler 生成的临时进程契约见
+[IR v2](IR_V2.md)。
 
 ## 基础结构
 

@@ -27,13 +27,27 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 ## 边界与不变量
 
 - Config Compiler 是 YAML 到 IR 的唯一权威；C++ 不解析 YAML。
+- Config Compiler 定义 IR 的结构及 YAML 到 IR 的表示规则；C++ loader 将临时 IR 文件视为不可信输入并执行防御性校验，但不独立扩展 IR 表示。IR 只用于配套版本的 Compiler 与 Runtime 之间传递单次任务，不是持久化或跨版本兼容格式。
 - C++ Runtime 是模拟语义的唯一权威；GSR 是持久化模拟结果，analyzer 不重新模拟。
 - 固定 `global_seed` 时，每个 run 的随机流只由 `global_seed + run_index` 派生，不依赖 threads、chunk 数、执行顺序或 `total_runs`。该算法不兼容旧版基于 chunk 的随机序列，因此切换后相同 seed 的历史结果会改变一次；跨标准库的浮点分布也不承诺逐位一致。
 - Electron renderer 不决定可执行文件和受信任文件路径；这些能力只存在于 main，并通过 preload 暴露固定操作。
 - `src/visualize/` 不依赖 Electron、Node.js 或导出宿主；Electron 展示与素材导出复用同一套输入处理和场景。
 - 启动原生进程的一层负责终止、等待和清理；失败任务不得留下临时 IR 或半成品结果。
-- IR、GSR、AnalysisV2 和 DisplayConfig 是跨层契约。修改契约时必须同时检查生产方、消费方和行为测试。
+- 修改跨层契约时，必须同时检查生产方、消费方、机器定义、兼容策略和行为测试。
+
+## 契约索引
+
+| 契约 | 用途与边界 | 版本与兼容性 | 定义权威 | 生产方 | 消费方 | 文档 |
+| --- | --- | --- | --- | --- | --- | --- |
+| YAML Config | 用户配置输入 | schema v2 | Config Compiler validator | 配置作者 | Config Compiler | [`YAML_CONFIG_SYNTAX.md`](docs/YAML_CONFIG_SYNTAX.md) |
+| IR | TS 到 C++ 的临时 JSON 进程契约 | IR v2；只支持配套版本，不持久化 | Config Compiler；C++ loader 负责不可信输入防御 | Config Compiler | C++ Runtime | [`IR_V2.md`](docs/IR_V2.md) |
+| GSR | 持久化模拟结果 | GSR v2；不读取旧格式 | C++ codec 与固定 fixture | C++ Runtime | C++ analyzer | [`GSR_V2.md`](docs/GSR_V2.md) |
+| Analysis | analyzer 的 JSON 输出 | AnalysisV2；不隐式兼容旧字段 | JSON Schema 定义结构，semantic validator 定义跨字段不变量 | C++ analyzer | Electron、素材导出 | [`ANALYSIS_V2.md`](docs/ANALYSIS_V2.md) |
+| DisplayConfig | 独立可视化 sidecar | v1；不隐式兼容旧字段 | JSON Schema | Electron 结果编辑 | Electron、素材导出 | [`VISUALIZE_FRONTEND_IMPLEMENTATION.md`](docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md) |
+| Config Repository | 配置仓库 index、manifest 和包文件集合 | v1 | config-repository-contract validator | 配置仓库 | Electron 配置安装 | [`CONFIG_REPOSITORY_V1.md`](docs/CONFIG_REPOSITORY_V1.md) |
+
+JSON 契约按约束范围划分权威：JSON Schema 定义字段、类型、必填项和局部取值约束；semantic validator 定义 Schema 之外的跨字段不变量；TypeScript 类型只是消费方的静态视图。契约测试负责验证这些定义与生产方、消费方保持一致，不另行定义格式。
 
 ## 专项文档
 
-配置语法见 `docs/YAML_CONFIG_SYNTAX.md`，结果格式见 `docs/GSR_V2.md`，分析格式见 `docs/ANALYSIS_V2.md`，可视化边界见 `docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md`，检查矩阵见 `docs/DEVELOPMENT_CHECKS.md`。
+配置语法见 `docs/YAML_CONFIG_SYNTAX.md`，IR 见 `docs/IR_V2.md`，配置仓库协议见 `docs/CONFIG_REPOSITORY_V1.md`，结果格式见 `docs/GSR_V2.md`，分析格式见 `docs/ANALYSIS_V2.md`，可视化边界见 `docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md`，检查矩阵见 `docs/DEVELOPMENT_CHECKS.md`。

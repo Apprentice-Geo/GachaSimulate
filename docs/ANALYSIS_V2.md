@@ -1,9 +1,6 @@
 # Analysis JSON v2
 
-`gachasimulate-analyze --input <file.gsr>` writes one JSON object to stdout;
-diagnostics go to stderr and failures return non-zero. The object must satisfy
-[`analysis_v2.schema.json`](schemas/analysis_v2.schema.json), with no unknown
-fields.
+`gachasimulate-analyze --input <file.gsr>` 向 stdout 写出一个 JSON 对象；诊断信息写入 stderr，失败时返回非零退出码。该对象必须满足 [`analysis_v2.schema.json`](schemas/analysis_v2.schema.json)，且不能包含未知字段。
 
 ```json
 {
@@ -23,25 +20,16 @@ fields.
     "MEAN_LEVEL": 0.5,
     "MAX": "2"
   },
-  "termination_reason": []
+  "termination_reason": [{ "reason": "done", "proportion": 100 }]
 }
 ```
 
-The result item is selected when the simulation starts; the Compiler writes its
-item index into IR. Its display name falls back to the item ID when no name is provided. All integer values are canonical
-decimal strings. `values` is the sorted, strictly increasing set of distinct
-期末结果 values; `cumulative` gives the CDF at each value and ends at `1`.
-`totals.result` is the sum of every run's result value.
+result item 在模拟启动时选择，Compiler 将其 item index 写入 IR；未提供展示名称时使用 item ID。所有整数值字段都使用 canonical decimal string。`values` 是排序后严格递增的不同期末 result item 值；`cumulative` 给出各值对应的 CDF，最后一项为 `1`。`totals.result` 是所有 run 的 result value 总和。
 
-Percentiles, mean, CDF, and termination-reason algorithms are unchanged from
-the previous analysis implementation: percentile uses `(n - 1) * p / 100`
-linear interpolation truncated toward zero, mean is truncated toward zero,
-`MEAN_LEVEL` is the proportion of sorted observations `<= MEAN`, and integer
-termination percentages use the largest-remainder method with reason-name
-ordering as the tie-breaker.
+percentile、mean、CDF 和 termination reason 算法沿用上一版分析实现：percentile 使用 `(n - 1) * p / 100` 线性插值并向零截断；mean 向零截断；`MEAN_LEVEL` 是排序后 observation 中 `<= MEAN` 的比例；整数 termination percentage 使用 largest-remainder method，并以 reason name 顺序作为 tie-breaker。
 
-The TypeScript `validate_analysis` adapter enforces the AnalysisV2 schema and
-cross-field invariants. View-model construction converts canonical integers to
-JavaScript safe integers, rejects negative or out-of-range values, and merges a
-separately validated DisplayConfig in memory. It never writes a sidecar or
-changes the GSR.
+JSON Schema 是字段、类型、必填项和局部取值约束的权威。TypeScript `validate_analysis` adapter 在执行 Schema 后继续检查跨字段不变量：`values` 与 `cumulative` 等长并分别严格递增、CDF 最后一项为 `1`、termination proportion 总和为 `100`。TypeScript 类型只是消费方的静态视图，不独立定义格式。
+
+validator 不重新计算 `totals.result`、statistic 或 CDF 来验证它们之间的数学关系；这些输出算法由 C++ analyzer 及其行为测试保证。
+
+view-model 构建会将 canonical integer 转换为 JavaScript safe integer，拒绝负数或超出范围的值，并在内存中合并经过独立校验的 DisplayConfig；该过程不会写入 sidecar 或修改 GSR。
