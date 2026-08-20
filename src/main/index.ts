@@ -24,6 +24,7 @@ let config_manager: ConfigManager;
 let quitting = false;
 
 if (process.platform === "win32")
+  // Windows 的字体缩放会影响设计好的 UI
   app.commandLine.appendSwitch("force-device-scale-factor", "1");
 
 const exec_file = promisify(execFile);
@@ -129,7 +130,7 @@ function create_window(): void {
 }
 
 app.whenReady().then(() => {
-  if (process.platform === "win32") Menu.setApplicationMenu(null);
+  Menu.setApplicationMenu(null);
 
   const configs_dir = join(app.getPath("userData"), "configs");
   const results_dir = join(app.getPath("userData"), "results");

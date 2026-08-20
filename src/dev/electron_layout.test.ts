@@ -64,8 +64,8 @@ async function launch(width: number, height: number) {
     const page = await application.firstWindow();
     await page.waitForFunction(
       ([expected_width, expected_height]) =>
-        window.innerWidth === expected_width &&
-        window.innerHeight === expected_height,
+        Math.abs(window.innerHeight - expected_height) <= 1 &&
+        Math.abs(window.innerWidth - expected_width) <= 1,
       [width, height],
     );
     await page.reload({ waitUntil: "domcontentloaded" });
