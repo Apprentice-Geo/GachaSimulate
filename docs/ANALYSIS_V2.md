@@ -40,7 +40,8 @@ linear interpolation truncated toward zero, mean is truncated toward zero,
 termination percentages use the largest-remainder method with reason-name
 ordering as the tie-breaker.
 
-The TypeScript adapter validates canonical integers, rejects negatives where
-the contract requires unsigned values and values beyond JavaScript's safe
-integer range, then calls the shared visualisation input validation. It merges
-display fields in memory and never writes a sidecar or changes the GSR.
+The TypeScript `validate_analysis` adapter enforces the AnalysisV2 schema and
+cross-field invariants. View-model construction converts canonical integers to
+JavaScript safe integers, rejects negative or out-of-range values, and merges a
+separately validated DisplayConfig in memory. It never writes a sidecar or
+changes the GSR.

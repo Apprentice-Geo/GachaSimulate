@@ -6,21 +6,18 @@ Monte Carlo 抽卡模拟器。TypeScript Compiler 将 YAML 和本次选择的结
 
 日常开发和 CI 使用 WSL2/Linux bash；不要混用 Windows 侧的 Node、pnpm、C++ 工具或 `node_modules`。Electron 图形界面需要 WSLg。
 
-开发环境需要 Node.js 24、pnpm 11.3.0、Clang、CMake 和 Ninja。首次安装依赖、构建 Release 原生产物并启动 Electron：
+开发环境需要 Node.js 24、pnpm 11.3.0、Clang、CMake 和 Ninja。首次安装依赖与 hook：
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm run hooks:install
-cd cpp
-cmake --preset linux-release
-cmake --build --preset linux-release
-ctest --preset linux-release
-cmake --install ../build/cpp/linux-release --prefix ../build/native
-cd ..
-pnpm run dev
 ```
 
-Electron 开发前必须存在 `build/native/bin/gachasimulate-core` 和 `gachasimulate-analyze`。
+按 [Development Checks](docs/DEVELOPMENT_CHECKS.md) 完成 C++ Release install 后启动 Electron：
+
+```bash
+pnpm run dev
+```
 
 ## Electron
 
@@ -32,24 +29,13 @@ sidecar 是独立的 `DisplayConfig v1`，只保存 `title`、`target`、`result
 
 桌面数据位于 `app.getPath("userData")` 下的 `configs/installed/` 与 `results/`。
 
-Electron 当前只支持从源码启动，安装包尚未实现。
+仓库的 `v*` tag workflow 会构建并测试 Windows 原生程序、生成 NSIS 安装包并发布 GitHub Release；是否已有公开 Release 以仓库 Release 页面为准。
 
 ## 可视化与导出
 
-独立浏览器入口用于开发和调试，使用开发 fixture；桌面 Electron 负责组合 GSR 分析与 DisplayConfig：
+Electron 展示和 Remotion 导出共享 `AnalysisV2 + DisplayConfig v1` 输入、CDF 视图模型、画面与动画。导出命令：
 
 ```bash
-pnpm run dev:web
-```
-
-```text
-http://127.0.0.1:5173/?input=results/<stem>.visualize.json
-```
-
-构建与导出：
-
-```bash
-pnpm run build:web
 pnpm run export:cdf -- --gsr <file.gsr> --display <file.visualize.json>
 ```
 

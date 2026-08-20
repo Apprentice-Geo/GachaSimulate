@@ -54,9 +54,8 @@ pnpm run typecheck
 pnpm run test:packages
 pnpm run test:simulation
 pnpm run test:visualize:cdf
+pnpm run test:electron-layout
 pnpm run build
-pnpm run build:web
-pnpm run test:e2e
 ```
 
 Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构建所需 package。
@@ -67,7 +66,7 @@ Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构
 - 配置仓库 index、manifest 或包文件清单协议：`test:config-repository-contract`、`test:packages`、typecheck。
 - C++ Runtime、GSR 或 Analysis：format/tidy、Debug/Release CTest、Release install 和冒烟。
 - Electron IPC、配置扫描、模拟/分析进程生命周期或 sidecar：`test:simulation`、typecheck、lint、build。
-- 可视化输入、CDF、marker、动画或导出：`test:visualize:cdf`、build:web、e2e；导出改动另跑代表性 export。
+- 可视化输入、CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑代表性实际 export。
 - 仅文档：检查命令、链接和完成状态；跨层状态文档仍按对应范围验证。
 
 ## Electron 人工验收
