@@ -17,16 +17,19 @@ reset_classification() {
 
 classify_path() {
   local path="$1"
+  local file_checkable="${2:-1}"
 
   case "$path" in
     src/*|packages/*/src/*|packages/*/test/*|docs/schemas/*|package.json|*.config.*|tsconfig*.json)
       node_changed=1
-      case "$path" in
-        *.ts|*.tsx|*.js|*.mjs|*.cjs|*.css|*.json) format_files+=("$path") ;;
-      esac
-      case "$path" in
-        *.ts|*.tsx|*.js|*.mjs|*.cjs) lint_files+=("$path") ;;
-      esac
+      if ((file_checkable)); then
+        case "$path" in
+          *.ts|*.tsx|*.js|*.mjs|*.cjs|*.css|*.json) format_files+=("$path") ;;
+        esac
+        case "$path" in
+          *.ts|*.tsx|*.js|*.mjs|*.cjs) lint_files+=("$path") ;;
+        esac
+      fi
       ;;
   esac
   case "$path" in
@@ -55,6 +58,24 @@ classify_path() {
   esac
 }
 
+collect_changed_paths() {
+  mapfile -d '' -t staged_files < <(git diff --cached --name-only -z --diff-filter=ACMR)
+  mapfile -d '' -t deleted_files < <(git diff --cached --name-only -z --diff-filter=D)
+  mapfile -d '' -t unstaged_files < <(git diff --name-only -z --diff-filter=ACMRD)
+}
+
+array_contains() {
+  local expected="$1"
+  shift
+  local value
+  for value in "$@"; do
+    if [[ $value == "$expected" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 self_test() {
   reset_classification
   classify_path src/visualize/components/CDFChart.tsx
@@ -77,7 +98,40 @@ self_test() {
     exit 1
   fi
 
-  echo "[pre-commit] classification self-test passed"
+  local delete_path=src/visualize/components/CDFChart.tsx
+  local temp_index
+  temp_index="$(mktemp)"
+  GIT_INDEX_FILE="$temp_index" git read-tree HEAD
+  GIT_INDEX_FILE="$temp_index" git update-index --force-remove -- "$delete_path"
+  GIT_INDEX_FILE="$temp_index" collect_changed_paths
+  rm -f "$temp_index"
+
+  if ! array_contains "$delete_path" "${deleted_files[@]}"; then
+    echo "[pre-commit] self-test failed: deleted path collection" >&2
+    exit 1
+  fi
+  if array_contains "$delete_path" "${staged_files[@]}"; then
+    echo "[pre-commit] self-test failed: deleted path passed to file checks" >&2
+    exit 1
+  fi
+
+  reset_classification
+  for path in "${staged_files[@]}"; do
+    classify_path "$path"
+  done
+  for path in "${deleted_files[@]}"; do
+    classify_path "$path" 0
+  done
+  if ((!node_changed || !visualize_changed || !electron_build)); then
+    echo "[pre-commit] self-test failed: deleted path classification" >&2
+    exit 1
+  fi
+  if ((${#format_files[@]} > 0 || ${#lint_files[@]} > 0)); then
+    echo "[pre-commit] self-test failed: deleted path scheduled for file checks" >&2
+    exit 1
+  fi
+
+  echo "[pre-commit] self-test passed"
 }
 
 if (($# > 0)); then
@@ -89,14 +143,13 @@ if (($# > 0)); then
   exit 2
 fi
 
-mapfile -d '' -t staged_files < <(git diff --cached --name-only -z --diff-filter=ACMR)
-if ((${#staged_files[@]} == 0)); then
+collect_changed_paths
+if ((${#staged_files[@]} + ${#deleted_files[@]} == 0)); then
   exit 0
 fi
 
-mapfile -d '' -t unstaged_files < <(git diff --name-only -z --diff-filter=ACMR)
 declare -A staged_set=()
-for path in "${staged_files[@]}"; do
+for path in "${staged_files[@]}" "${deleted_files[@]}"; do
   staged_set["$path"]=1
 done
 
@@ -126,6 +179,9 @@ require_command() {
 reset_classification
 for path in "${staged_files[@]}"; do
   classify_path "$path"
+done
+for path in "${deleted_files[@]}"; do
+  classify_path "$path" 0
 done
 
 if ((node_changed)); then
