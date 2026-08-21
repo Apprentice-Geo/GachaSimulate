@@ -1,5 +1,6 @@
+schema_version: 2
 items:
-  - draw_count: Draw count
+  - draw_count: 抽数
   - target
   - token
 pools:
@@ -8,7 +9,7 @@ pools:
         actions: target += 1
       - probability: 0.9
         actions: token += 1
-every_draw:
-  - draw_count += 1
 initial:
   - change main
+every_draw:
+  - draw_count += 1

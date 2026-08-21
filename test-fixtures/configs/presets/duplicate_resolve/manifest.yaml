@@ -1,0 +1,6 @@
+id: duplicate_resolve
+name: duplicate_resolve
+description: duplicate_resolve
+terminations:
+- file: termination.yaml
+  name: 收集完成

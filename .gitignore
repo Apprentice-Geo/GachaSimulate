@@ -8,11 +8,13 @@ __pycache__/
 *.egg-info/
 /images/
 results/
-/node_modules/
+node_modules/
 /.pnpm-store/
 /dist/
+/packages/*/dist/
 /out/
 /outputs/
+/tmp/
 .pytest_cache/
 .pytest_tmp/
 /test-results/

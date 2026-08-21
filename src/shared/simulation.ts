@@ -1,16 +1,14 @@
-import { parse } from "yaml";
-
-export type SimulationTarget =
-  | { kind: "totalRuns"; value: number }
-  | { kind: "targetTotalDraw"; value: number };
+export type SimulationTarget = { kind: "totalRuns"; value: number };
+export const MAX_TOTAL_RUNS = 1_000_000_007;
 
 export type SimulationRequest = {
+  configSource: import("./installed_config").ConfigSource;
   configId: string;
   termination: string;
+  resultItem: string;
   target: SimulationTarget;
   seed: number;
-  workers: number;
-  metric: "draw" | "cost";
+  threads: number;
 };
 
 export type SimulationStatus =
@@ -32,14 +30,13 @@ export type SimulationEvent =
       type: "progress";
       completed: number;
       total: number;
-      unit: "runs" | "draws";
+      unit: "runs";
     }
   | {
       type: "completed";
       result_path: string;
-      visualize_path: string;
       total_runs: number;
-      total_draw: number;
+      total_result: number;
     }
   | { type: "error"; message: string };
 
@@ -76,59 +73,67 @@ function text(value: unknown, name: string): string {
   return value;
 }
 
-export function validate_simulation_request(
-  request: SimulationRequest,
-  logical_cpu_count = 1,
+function exact_keys(
+  value: Record<string, unknown>,
+  expected: string[],
+  name: string,
 ): void {
-  if (!/^[A-Za-z0-9_-]+$/.test(request.configId))
+  const actual = Object.keys(value);
+  if (
+    actual.length !== expected.length ||
+    actual.some((key) => !expected.includes(key))
+  )
+    throw new Error(`${name} contains unsupported fields`);
+}
+
+export function validate_simulation_request(
+  value: unknown,
+  logical_cpu_count = 1,
+): asserts value is SimulationRequest {
+  const request = object_value(value);
+  exact_keys(
+    request,
+    [
+      "configSource",
+      "configId",
+      "termination",
+      "resultItem",
+      "target",
+      "seed",
+      "threads",
+    ],
+    "simulation request",
+  );
+  if (request.configSource !== "installed" && request.configSource !== "local")
+    throw new Error("invalid config source");
+  if (
+    typeof request.configId !== "string" ||
+    !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(request.configId)
+  )
     throw new Error("invalid config id");
   if (
+    typeof request.termination !== "string" ||
     !request.termination ||
     request.termination.includes("\\") ||
     request.termination.includes("/")
   )
     throw new Error("termination must be a filename");
-  if (!Number.isInteger(request.seed))
-    throw new Error("seed must be an integer");
-  integer(request.workers, "workers", 1);
-  if (request.workers > logical_cpu_count)
-    throw new Error(`workers must be <= ${logical_cpu_count}`);
-  if (request.metric !== "draw" && request.metric !== "cost")
-    throw new Error("invalid metric");
   if (
-    request.target.kind !== "totalRuns" &&
-    request.target.kind !== "targetTotalDraw"
+    typeof request.resultItem !== "string" ||
+    !/^[A-Za-z_][A-Za-z0-9_]*$/.test(request.resultItem)
   )
-    throw new Error("exactly one target is required");
-  integer(request.target.value, "target", 1);
-}
-
-export function validate_config_yaml(
-  config_text: string,
-  metric: SimulationRequest["metric"],
-): void {
-  const config = object_value(parse(config_text));
-  const items = config.items;
-  const item_id = (item: unknown): string =>
-    typeof item === "string"
-      ? item
-      : (Object.keys(object_value(item))[0] ?? "");
-  if (
-    !Array.isArray(items) ||
-    !items.some((item) => item_id(item) === "draw_count")
-  )
-    throw new Error("config must define draw_count item");
-  if (metric === "cost" && !items.some((item) => item_id(item) === "cost"))
-    throw new Error("metric cost requires a configured cost item");
-}
-
-export function validate_termination_yaml(termination_text: string): void {
-  const termination = object_value(parse(termination_text));
-  if (
-    !termination.termination_rule ||
-    typeof termination.termination_rule !== "object"
-  )
-    throw new Error("termination_rule is required");
+    throw new Error("resultItem must be an item id");
+  if (!Number.isSafeInteger(request.seed))
+    throw new Error("seed must be a safe integer");
+  const threads = integer(request.threads, "threads", 1);
+  if (threads > logical_cpu_count)
+    throw new Error(`threads must be <= ${logical_cpu_count}`);
+  const target = object_value(request.target);
+  exact_keys(target, ["kind", "value"], "target");
+  if (target.kind !== "totalRuns") throw new Error("target must be totalRuns");
+  const target_value = integer(target.value, "target", 1);
+  if (target_value > MAX_TOTAL_RUNS)
+    throw new Error(`totalRuns must be <= ${MAX_TOTAL_RUNS}`);
 }
 
 export function parse_simulation_line(
@@ -159,10 +164,7 @@ export function parse_simulation_line(
     case "progress": {
       const completed = integer(event.completed, "completed");
       const total = integer(event.total, "total", 1);
-      if (
-        completed > total ||
-        (event.unit !== "runs" && event.unit !== "draws")
-      )
+      if (completed > total || event.unit !== "runs")
         throw new Error("invalid progress event");
       return { type: "progress", completed, total, unit: event.unit };
     }
@@ -170,9 +172,8 @@ export function parse_simulation_line(
       return {
         type: "completed",
         result_path: text(event.result_path, "result_path"),
-        visualize_path: text(event.visualize_path, "visualize_path"),
         total_runs: integer(event.total_runs, "total_runs", 1),
-        total_draw: integer(event.total_draw, "total_draw", 1),
+        total_result: integer(event.total_result, "total_result"),
       };
     case "error":
       return { type: "error", message: text(event.message, "message") };

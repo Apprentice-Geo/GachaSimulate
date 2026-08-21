@@ -5,12 +5,23 @@ import type {
 } from "../shared/simulation";
 
 contextBridge.exposeInMainWorld("desktopApi", {
-  listInstalledConfigs: () => ipcRenderer.invoke("list-installed-configs"),
+  listConfigs: () => ipcRenderer.invoke("list-configs"),
+  getConfigRepositoryState: () =>
+    ipcRenderer.invoke("get-config-repository-state"),
+  refreshConfigRepository: (force = false) =>
+    ipcRenderer.invoke("refresh-config-repository", force),
+  installConfig: (id: string) => ipcRenderer.invoke("install-config", id),
+  updateConfig: (id: string) => ipcRenderer.invoke("update-config", id),
+  uninstallConfig: (id: string) => ipcRenderer.invoke("uninstall-config", id),
+  selectLocalConfigDirectory: () =>
+    ipcRenderer.invoke("select-local-config-directory"),
   getLogicalCpuCount: () => ipcRenderer.invoke("get-logical-cpu-count"),
   startSimulation: (request: SimulationRequest) =>
     ipcRenderer.invoke("start-simulation", request),
   cancelSimulation: () => ipcRenderer.invoke("cancel-simulation"),
-  selectVisualizeFile: () => ipcRenderer.invoke("select-visualize-file"),
+  selectGsrResult: () => ipcRenderer.invoke("select-gsr-result"),
+  saveResultFields: (fields: import("../shared/result_editor").DisplayFields) =>
+    ipcRenderer.invoke("save-result-fields", fields),
   openResultsDirectory: () => ipcRenderer.invoke("open-results-directory"),
   onSimulationEvent: (listener: (event: DesktopSimulationEvent) => void) => {
     const handler = (

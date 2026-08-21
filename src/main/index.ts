@@ -1,20 +1,74 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import { readFileSync } from "node:fs";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  net,
+  shell,
+} from "electron";
+import { execFile, spawn } from "node:child_process";
 import { cpus } from "node:os";
 import { join } from "node:path";
-import {
-  initialize_installed_configs,
-  scan_installed_configs,
-  validate_installed_config_selection,
-} from "./config_manager";
-import { SimulationTask } from "./simulation";
-import type { SimulationRequest } from "../shared/simulation";
+import { promisify } from "node:util";
+import { ConfigManager } from "./config_manager";
+import { download_https, type ConfigRequest } from "./config_download";
+import { ResultEditor } from "./result_editor";
+import { shutdown_native_processes, SimulationTask } from "./simulation";
+import { validate_simulation_request } from "../shared/simulation";
+import type { DisplayFields } from "../shared/result_editor";
 
 let simulation: SimulationTask;
+let result_editor: ResultEditor;
+let config_manager: ConfigManager;
 let quitting = false;
+
+if (process.platform === "win32")
+  // Windows 的字体缩放会影响设计好的 UI
+  app.commandLine.appendSwitch("force-device-scale-factor", "1");
+
+const exec_file = promisify(execFile);
+
+async function open_directory(path: string): Promise<void> {
+  if (process.platform === "linux" && process.env.WSL_DISTRO_NAME) {
+    try {
+      const { stdout } = await exec_file("wslpath", ["-w", path]);
+      await new Promise<void>((resolve, reject) => {
+        const child = spawn("explorer.exe", [stdout.trim()], {
+          detached: true,
+          stdio: "ignore",
+        });
+        child.once("error", reject);
+        child.once("spawn", () => {
+          child.unref();
+          resolve();
+        });
+      });
+      return;
+    } catch (error) {
+      throw new Error(
+        `WSL Explorer failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { cause: error },
+      );
+    }
+  }
+
+  const error = await shell.openPath(path);
+  if (error) throw new Error(error);
+}
+
+function shutdown(): Promise<void> {
+  return shutdown_native_processes(simulation, result_editor);
+}
 
 function create_window(): void {
   const window = new BrowserWindow({
+    width: 1600,
+    height: 900,
+    minWidth: 1280,
+    minHeight: 720,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -23,6 +77,18 @@ function create_window(): void {
   });
 
   window.on("close", (event) => {
+    if (result_editor?.active && !simulation?.active) {
+      event.preventDefault();
+      if (quitting) return;
+      quitting = true;
+      void shutdown().then(
+        () => window.destroy(),
+        () => {
+          quitting = false;
+        },
+      );
+      return;
+    }
     if (!simulation?.active) return;
     event.preventDefault();
     if (quitting) return;
@@ -41,7 +107,7 @@ function create_window(): void {
           return;
         }
         try {
-          await simulation.cancel();
+          await shutdown();
           window.destroy();
         } catch (error) {
           quitting = false;
@@ -64,44 +130,75 @@ function create_window(): void {
 }
 
 app.whenReady().then(() => {
-  const installed_dir = join(app.getPath("userData"), "configs", "installed");
-  initialize_installed_configs(
-    installed_dir,
-    join(process.cwd(), "configs", "presets"),
-  );
+  Menu.setApplicationMenu(null);
+
+  const configs_dir = join(app.getPath("userData"), "configs");
   const results_dir = join(app.getPath("userData"), "results");
-  simulation = new SimulationTask(installed_dir, results_dir, (event) => {
-    for (const window of BrowserWindow.getAllWindows())
-      window.webContents.send("simulation-event", event);
+  result_editor = new ResultEditor();
+  config_manager = new ConfigManager(configs_dir, {
+    download: (url, limit) =>
+      download_https(url, limit, net.request as unknown as ConfigRequest),
+    simulation_active: () => simulation?.active ?? false,
   });
-  ipcMain.handle("list-installed-configs", () =>
-    scan_installed_configs(installed_dir),
+  simulation = new SimulationTask(
+    config_manager.installed_dir,
+    results_dir,
+    (event) => {
+      for (const window of BrowserWindow.getAllWindows())
+        window.webContents.send("simulation-event", event);
+    },
+    {
+      local_dir: () => config_manager.local_dir,
+      shutdown_native_processes: shutdown,
+    },
   );
+  ipcMain.handle("list-configs", () => config_manager.list_configs());
+  ipcMain.handle("get-config-repository-state", () => config_manager.state());
+  ipcMain.handle("refresh-config-repository", (_event, force: boolean) =>
+    config_manager.refresh(force === true),
+  );
+  ipcMain.handle("install-config", (_event, id: string) =>
+    config_manager.install(id),
+  );
+  ipcMain.handle("update-config", (_event, id: string) =>
+    config_manager.update(id),
+  );
+  ipcMain.handle("uninstall-config", (_event, id: string) =>
+    config_manager.uninstall(id),
+  );
+  ipcMain.handle("select-local-config-directory", async () => {
+    if (simulation.active)
+      throw new Error("local directory cannot change during simulation");
+    if (config_manager.active)
+      throw new Error("a configuration change is already running");
+    const result = await dialog.showOpenDialog({
+      properties: ["openDirectory"],
+    });
+    if (result.canceled || result.filePaths.length === 0)
+      return config_manager.state();
+    return config_manager.set_local_directory(result.filePaths[0]);
+  });
   ipcMain.handle("get-logical-cpu-count", () => cpus().length);
-  ipcMain.handle("start-simulation", (_event, request: SimulationRequest) => {
-    validate_installed_config_selection(
-      installed_dir,
-      request.configId,
-      request.termination,
-    );
+  ipcMain.handle("start-simulation", (_event, request: unknown) => {
+    if (config_manager.active)
+      throw new Error("simulation cannot start during a configuration change");
+    validate_simulation_request(request, cpus().length);
     simulation.start(request);
   });
-  ipcMain.handle("cancel-simulation", () => simulation.cancel());
-  ipcMain.handle("select-visualize-file", async () => {
+  ipcMain.handle("cancel-simulation", () => shutdown());
+  ipcMain.handle("select-gsr-result", async () => {
     const result = await dialog.showOpenDialog({
+      defaultPath: results_dir,
       properties: ["openFile"],
-      filters: [{ name: "可视化结果", extensions: ["json"] }],
+      filters: [{ name: "GachaSimulate 结果", extensions: ["gsr"] }],
     });
     if (result.canceled || result.filePaths.length === 0) return null;
-    const path = result.filePaths[0];
-    if (!path.endsWith("_visualize.json"))
-      throw new Error("请选择以 _visualize.json 结尾的文件");
-    return { path, text: readFileSync(path, "utf8") };
+    return result_editor.open(result.filePaths[0]);
   });
-  ipcMain.handle("open-results-directory", async () => {
-    const error = await shell.openPath(results_dir);
-    if (error) throw new Error(error);
-  });
+  ipcMain.handle("save-result-fields", (_event, fields: DisplayFields) =>
+    result_editor.save(fields),
+  );
+  ipcMain.handle("open-results-directory", () => open_directory(results_dir));
   create_window();
 
   app.on("activate", () => {
@@ -115,4 +212,21 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+app.on("before-quit", (event) => {
+  if (!simulation?.active && !result_editor?.active) return;
+  event.preventDefault();
+  if (quitting) return;
+  quitting = true;
+  void shutdown().then(
+    () => app.quit(),
+    (error) => {
+      quitting = false;
+      dialog.showErrorBox(
+        "无法退出 GachaSimulate",
+        error instanceof Error ? error.message : String(error),
+      );
+    },
+  );
 });

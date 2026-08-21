@@ -9,131 +9,51 @@ permissions:
   contents: read
 
 jobs:
-  python-format:
-    name: Python format
-    runs-on: ubuntu-latest
+  cpp:
+    name: C++ build and quality
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Install C++ tools
+        run: sudo apt-get update && sudo apt-get install -y clang clang-format clang-tidy ninja-build
+
+      - name: Check C++ formatting
+        run: find cpp/include cpp/src cpp/tests -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 | xargs -0 clang-format --dry-run --Werror
+
+      - name: Build and test Debug
+        working-directory: cpp
+        run: |
+          cmake --preset linux-debug
+          cmake --build --preset linux-debug
+          ctest --preset linux-debug
+
+      - name: Run clang-tidy
+        working-directory: cpp
+        run: find src tests -name '*.cpp' -print0 | xargs -0 clang-tidy -p ../build/cpp/linux-debug
+
+      - name: Build, test, and smoke Release
+        working-directory: cpp
+        run: |
+          cmake --preset linux-release
+          cmake --build --preset linux-release
+          ctest --preset linux-release
+          cmake --install ../build/cpp/linux-release --prefix ../build/native
+          smoke_dir="$(mktemp -d)"
+          ir="$(realpath tests/batch_fixture_ir.json)"
+          ../build/native/bin/gachasimulate-core --ir "$ir" --total-runs 10 --seed 0 --threads 1 --output "$smoke_dir/fixed.gsr"
+          ../build/native/bin/gachasimulate-analyze --input "$smoke_dir/fixed.gsr"
+
+      - name: Upload native binaries
+        uses: actions/upload-artifact@v4
         with:
-          python-version: "3.12"
+          name: native-binaries
+          path: build/native/bin
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-
-      - name: Install Python dependencies
-        run: uv sync --locked
-
-      - name: Check Python formatting
-        run: uv run ruff format --check .
-
-  python-lint:
-    name: Python lint
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-
-      - name: Install Python dependencies
-        run: uv sync --locked
-
-      - name: Lint Python
-        run: uv run ruff check .
-
-  python-typecheck:
-    name: Python typecheck
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-
-      - name: Install Python dependencies
-        run: uv sync --locked
-
-      - name: Typecheck Python
-        run: uv run pyright
-
-  python-build:
-    name: Python build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-
-      - name: Install Python dependencies
-        run: uv sync --locked
-
-      - name: Build Python package
-        run: uv build --wheel
-
-  python-test:
-    name: Python tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-
-      - name: Install Python dependencies
-        run: uv sync --locked
-
-      - name: Install Python package
-        run: uv pip install --no-deps --editable .
-
-      - name: Run Python tests
-        run: uv run --no-sync pytest
-
-  frontend-format:
-    name: Frontend format
+  node-quality:
+    name: Node.js static quality
     runs-on: ubuntu-latest
 
     steps:
@@ -152,58 +72,22 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check frontend formatting
+      - name: Check Node.js formatting
         run: pnpm run format:check
 
-  frontend-lint:
-    name: Frontend lint
-    runs-on: ubuntu-latest
+      - name: Check repository hook
+        run: test -x .githooks/pre-commit && bash -n .githooks/pre-commit && .githooks/pre-commit --self-test
 
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: pnpm
-
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Lint frontend
+      - name: Lint Node.js
         run: pnpm run lint
 
-  frontend-typecheck:
-    name: Frontend typecheck
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: pnpm
-
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Typecheck frontend
+      - name: Typecheck Node.js
         run: pnpm run typecheck
 
-  frontend-build-test:
-    name: Frontend build and tests
+  node-build-test:
+    name: Node.js build and tests
     runs-on: ubuntu-latest
+    needs: cpp
 
     steps:
       - name: Check out repository
@@ -220,6 +104,15 @@ jobs:
 
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Download native binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: native-binaries
+          path: build/native/bin
+
+      - name: Restore native binary permissions
+        run: chmod +x build/native/bin/*
 
       - name: Build frontend
         run: pnpm run build
@@ -230,10 +123,46 @@ jobs:
       - name: Run simulation tests
         run: pnpm run test:simulation
 
-  e2e:
-    name: Playwright e2e
-    runs-on: ubuntu-latest
-    needs: frontend-build-test
+      - name: Build and test packages
+        run: pnpm run test:packages
+
+      - name: Run CDF export smoke
+        run: |
+          mkdir -p tmp
+          smoke_dir="$(mktemp -d tmp/ci-export.XXXXXX)"
+          cleanup() {
+            rm -rf "$smoke_dir"
+            rm -f outputs/cdf-result.png outputs/cdf-animation.mp4 outputs/cdf-animation.webm
+          }
+          trap cleanup EXIT
+          gsr="$smoke_dir/smoke.gsr"
+          display="$smoke_dir/smoke.visualize.json"
+          build/native/bin/gachasimulate-core \
+            --ir "$(realpath cpp/tests/batch_fixture_ir.json)" \
+            --total-runs 10 \
+            --seed 0 \
+            --threads 1 \
+            --output "$PWD/$gsr"
+          node --input-type=module -e '
+            import { writeFileSync } from "node:fs";
+            writeFileSync(process.argv[1], JSON.stringify({
+              display_version: 1,
+              title: "CI export",
+              target: "test",
+              result_item_name: "draw_count",
+              note: "",
+              price: "",
+              unit: ""
+            }));
+          ' "$display"
+          pnpm run export:cdf -- --gsr "$gsr" --display "$display"
+          test -s outputs/cdf-result.png
+          test -s outputs/cdf-animation.mp4
+
+  electron-layout:
+    name: Electron renderer layout
+    runs-on: ubuntu-24.04
+    needs: cpp
 
     steps:
       - name: Check out repository
@@ -251,17 +180,17 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: Run e2e tests
-        run: pnpm run test:e2e
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Download native binaries
+        uses: actions/download-artifact@v4
         with:
-          name: playwright-report
-          path: |
-            playwright-report/
-            test-results/
+          name: native-binaries
+          path: build/native/bin
+
+      - name: Restore native binary permissions
+        run: chmod +x build/native/bin/*
+
+      - name: Install virtual display
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run Electron renderer layout tests
+        run: xvfb-run --auto-servernum --server-args="-screen 0 2560x1440x24" pnpm run test:electron-layout

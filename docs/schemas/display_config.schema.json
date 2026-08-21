@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GachaSimulate DisplayConfig v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "display_version",
+    "title",
+    "target",
+    "result_item_name",
+    "note",
+    "price",
+    "unit"
+  ],
+  "properties": {
+    "display_version": { "const": 1 },
+    "title": { "type": "string" },
+    "target": { "type": "string" },
+    "result_item_name": { "type": "string", "minLength": 1 },
+    "note": { "type": "string" },
+    "price": { "type": "string" },
+    "unit": { "type": "string" }
+  }
+}

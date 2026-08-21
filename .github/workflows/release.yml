@@ -1,0 +1,69 @@
+name: Release Windows
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}\build\electron-builder-cache
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Verify tag version
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          if ($env:GITHUB_REF_NAME -ne "v$version") {
+            throw "tag $env:GITHUB_REF_NAME must match package version v$version"
+          }
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and test native runtime
+        shell: pwsh
+        run: |
+          cmake -S cpp -B build/cpp/windows-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/cpp/windows-release
+          ctest --test-dir build/cpp/windows-release --output-on-failure
+          cmake --install build/cpp/windows-release --prefix build/native
+
+      - name: Package Windows installer
+        run: pnpm run package:win
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GachaSimulate-${{ github.ref_name }}-windows-x64
+          path: dist/GachaSimulate Setup *.exe
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $installer = Get-ChildItem 'dist/GachaSimulate Setup *.exe' | Select-Object -First 1
+          gh release create $env:GITHUB_REF_NAME $installer.FullName --generate-notes

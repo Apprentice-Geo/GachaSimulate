@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GachaSimulate analysis v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "analysis_version",
+    "result_item",
+    "totals",
+    "values",
+    "cumulative",
+    "statistic",
+    "termination_reason"
+  ],
+  "properties": {
+    "analysis_version": { "const": 2 },
+    "result_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "name": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runs", "result"],
+      "properties": {
+        "runs": { "$ref": "#/$defs/positive" },
+        "result": { "$ref": "#/$defs/unsigned" }
+      }
+    },
+    "values": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/unsigned" }
+    },
+    "cumulative": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+    },
+    "statistic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "P5",
+        "P25",
+        "P50",
+        "P75",
+        "P95",
+        "MIN",
+        "MEAN",
+        "MEAN_LEVEL",
+        "MAX"
+      ],
+      "properties": {
+        "P5": { "$ref": "#/$defs/unsigned" },
+        "P25": { "$ref": "#/$defs/unsigned" },
+        "P50": { "$ref": "#/$defs/unsigned" },
+        "P75": { "$ref": "#/$defs/unsigned" },
+        "P95": { "$ref": "#/$defs/unsigned" },
+        "MIN": { "$ref": "#/$defs/unsigned" },
+        "MEAN": { "$ref": "#/$defs/unsigned" },
+        "MEAN_LEVEL": { "type": "number", "minimum": 0, "maximum": 1 },
+        "MAX": { "$ref": "#/$defs/unsigned" }
+      }
+    },
+    "termination_reason": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reason", "proportion"],
+        "properties": {
+          "reason": { "$ref": "#/$defs/non_empty_string" },
+          "proportion": { "type": "integer", "minimum": 0, "maximum": 100 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "positive": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+    "unsigned": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)$" }
+  }
+}

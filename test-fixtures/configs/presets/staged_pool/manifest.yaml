@@ -1,0 +1,6 @@
+id: staged_pool
+name: staged_pool
+description: staged_pool
+terminations:
+- file: termination.yaml
+  name: 达到阶段目标

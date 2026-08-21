@@ -1,0 +1,4 @@
+# ponytail: these noisy baseline checks stay off until their existing findings are fixed.
+Checks: '-*,bugprone-*,performance-*,portability-*,-bugprone-easily-swappable-parameters,-bugprone-exception-escape,-bugprone-implicit-widening-of-multiplication-result,-bugprone-narrowing-conversions,-bugprone-return-const-ref-from-parameter'
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*/cpp/include/.*'

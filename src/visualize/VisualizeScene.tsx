@@ -3,7 +3,7 @@ import { fade_style } from "./animation/progress";
 import type { AnimationProgress } from "./animation/progress";
 import { CDFChart } from "./components/CDFChart";
 import { VisualizeShell } from "./components/VisualizeShell";
-import type { NormalizedVisualizeData } from "./types/visualize_input";
+import type { CDFViewModel } from "./types/cdf";
 
 const EXPORT_CHART_SIZE = {
   width: 2816,
@@ -11,11 +11,10 @@ const EXPORT_CHART_SIZE = {
 } as const;
 
 interface VisualizeSceneProps {
-  data: NormalizedVisualizeData;
+  data: CDFViewModel;
   animation_progress: AnimationProgress;
   animation_state: "playing" | "primed" | "idle";
   is_animating: boolean;
-  on_file_import?: (file: File) => void;
   on_select_file?: () => void;
   on_replay?: () => void;
   show_controls?: boolean;
@@ -28,7 +27,6 @@ export function VisualizeScene({
   animation_progress,
   animation_state,
   is_animating,
-  on_file_import,
   on_select_file,
   on_replay,
   show_controls = true,
@@ -50,7 +48,6 @@ export function VisualizeScene({
       data={data}
       is_animating={is_animating}
       load_state="ready"
-      on_file_import={on_file_import}
       on_select_file={on_select_file}
       on_replay={on_replay}
       show_controls={show_controls}

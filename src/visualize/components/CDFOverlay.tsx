@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { useMemo } from "react";
 import { usePlotArea, useXAxisScale, useYAxisScale } from "recharts";
 import { get_marker_visual } from "./cdf_marker_visuals";
-import type { NormalizedVisualizeData } from "../types/visualize_input";
+import type { CDFViewModel } from "../types/cdf";
 import { CDF_CHART_VIEW_CONFIG } from "../view/cdf_view_config";
 import {
   build_curve_path,
@@ -11,17 +11,23 @@ import {
 import type { AnimationProgress } from "../animation/progress";
 
 interface CDFOverlayProps {
-  data: NormalizedVisualizeData;
+  data: CDFViewModel;
   animation_progress: AnimationProgress;
+  compact?: boolean;
 }
 
-export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
+export function CDFOverlay({
+  data,
+  animation_progress,
+  compact = false,
+}: CDFOverlayProps) {
   const plot_area = usePlotArea();
   const x_scale = useXAxisScale();
   const y_scale = useYAxisScale();
   const marker_views = useMemo(
-    () => build_marker_views(data.markers, plot_area, x_scale, y_scale),
-    [plot_area, x_scale, y_scale, data.markers],
+    () =>
+      build_marker_views(data.markers, plot_area, x_scale, y_scale, compact),
+    [plot_area, x_scale, y_scale, data.markers, compact],
   );
   const curve_path = useMemo(
     () => build_curve_path(data.chart_points, x_scale, y_scale),
@@ -29,7 +35,7 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
   );
   const mean_marker = marker_views.find((view) => view.marker.key === "MEAN");
   const mean_marker_visual = mean_marker
-    ? get_marker_visual(mean_marker.marker.weight)
+    ? get_marker_visual(mean_marker.marker.weight, compact)
     : null;
 
   if (!plot_area) {
@@ -37,7 +43,10 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
   }
 
   return (
-    <g aria-hidden="true" className="marker-overlay">
+    <g
+      aria-hidden="true"
+      className={`marker-overlay${compact ? " marker-overlay-compact" : ""}`}
+    >
       <path
         className="cdf-curve-path"
         d={curve_path}
@@ -68,7 +77,7 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
       )}
 
       {marker_views.map((view, index) => {
-        const marker_visual = get_marker_visual(view.marker.weight);
+        const marker_visual = get_marker_visual(view.marker.weight, compact);
         const marker_line_progress = animation_progress.marker_line(index);
         const marker_group_progress = animation_progress.marker_group(index);
 
@@ -108,7 +117,9 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
               fill={view.marker.color}
               r={marker_visual.point_radius}
               style={{
+                fontSize: `${marker_visual.label_font_size}px`,
                 opacity: marker_group_progress.opacity,
+                strokeWidth: `${marker_visual.label_stroke_width}px`,
                 transform: `translateY(${marker_group_progress.translate_y}px)`,
               }}
             />

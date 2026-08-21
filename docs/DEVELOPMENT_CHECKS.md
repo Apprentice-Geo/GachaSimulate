@@ -1,97 +1,85 @@
 # Development Checks
 
-本文档记录 push 前建议执行的检查。先运行与改动直接相关的检查，准备提交或完成跨层改动时再运行全量矩阵。
+命令默认从仓库根目录的 WSL2/Linux bash 执行。只使用 WSL 内的 Node/pnpm、Clang、CMake、Ninja 和 `node_modules`。
 
 ## 前置准备
 
-安装 Python 依赖：
-
-```powershell
-uv sync
-```
-
-安装 Node 依赖：
-
-```powershell
+```bash
 pnpm install --frozen-lockfile
 ```
 
-## Push 前全量检查
+Electron 开发前必须完成 C++ Release install：
 
-Python 检查：
-
-```powershell
-uv run ruff format --check .
-uv run ruff check .
-uv run pyright
-uv build --wheel
-uv run pytest
+```bash
+cd cpp
+cmake --preset linux-release
+cmake --build --preset linux-release
+ctest --preset linux-release
+cmake --install ../build/cpp/linux-release --prefix ../build/native
+cd ..
 ```
 
-Electron、TypeScript 和可视化检查：
+## C++ 完整检查
 
-```powershell
+```bash
+find cpp/include cpp/src cpp/tests -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 | xargs -0 clang-format --dry-run --Werror
+
+cd cpp
+cmake --preset linux-debug
+cmake --build --preset linux-debug
+ctest --preset linux-debug
+find src tests -name '*.cpp' -print0 | xargs -0 clang-tidy -p ../build/cpp/linux-debug
+cmake --preset linux-release
+cmake --build --preset linux-release
+ctest --preset linux-release
+cmake --install ../build/cpp/linux-release --prefix ../build/native
+cd ..
+```
+
+冒烟：
+
+```bash
+smoke_dir="$(mktemp -d)"
+ir="$(realpath cpp/tests/batch_fixture_ir.json)"
+build/native/bin/gachasimulate-core --ir "$ir" --total-runs 10 --seed 0 --threads 1 --output "$smoke_dir/fixed.gsr"
+build/native/bin/gachasimulate-analyze --input "$smoke_dir/fixed.gsr"
+```
+
+## Node/Electron 完整检查
+
+```bash
 pnpm run format:check
 pnpm run lint
 pnpm run typecheck
-pnpm run build
+pnpm run test:packages
 pnpm run test:simulation
 pnpm run test:visualize:cdf
-pnpm run test:e2e
+pnpm run test:electron-layout
+pnpm run build
 ```
 
-这些命令覆盖当前 CI 的格式化、lint、类型检查、Electron 构建和测试门禁。`pnpm run build` 构建 Electron main、preload 和 renderer；它不是独立浏览器入口的构建命令。只出现 Vite chunk size warning 且退出码为 `0` 时，检查仍视为通过。
+Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构建所需 package。
 
-## 按影响范围选择检查
+## 按影响范围选择
 
-- Python 模拟、配置语义、CLI 或结果保存：运行对应 pytest 后，至少运行 Python 格式、lint 和类型检查。
-- Electron 配置扫描、IPC、任务状态或进程生命周期：运行 `pnpm run test:simulation`、`pnpm run typecheck` 和 `pnpm run build`。
-- 可视化输入、CDF、marker、统计展示或动画：运行 `pnpm run test:visualize:cdf` 和 `pnpm run test:e2e`。
-- 独立浏览器入口：额外运行 `pnpm run build:web`。该入口目前用于开发和调试，不属于长期产品能力。
-- 导出规格或画面：运行可视化检查，并使用代表性输入执行 `pnpm run export:cdf -- --input <json文件路径>` 检查 PNG 和 MP4。
-- 仅修改文档：人工检查内容、命令和链接；若文档描述跨层完成状态，仍按其影响范围运行对应检查。
+- YAML：`test:packages` 中的 Compiler 测试和 typecheck；若改变 IR，继续执行 IR 对应检查。
+- IR：`test:packages` 中的 Compiler 测试、`test:simulation` 中的 native pipeline、C++ Debug/Release CTest 和 typecheck。
+- 配置仓库 index、manifest 或包文件清单协议：`test:config-repository-contract`、`test:packages`、`test:simulation` 中的下载/安装行为测试和 typecheck。
+- C++ Runtime、GSR 或 Analysis：format/tidy、Debug/Release CTest、Release install 和冒烟。
+- Electron IPC、配置扫描、模拟/分析进程生命周期或 sidecar：`test:simulation`、typecheck、lint、build。
+- AnalysisV2 或 DisplayConfig 输入契约：同步核对 JSON Schema、semantic validator、TypeScript 类型和共享 fixture，并执行 `test:visualize:cdf`、`test:simulation`、typecheck 和 build。
+- CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑代表性实际 export。
+- 仅文档：检查命令、链接和完成状态；跨层状态文档仍按对应范围验证。
 
 ## Electron 人工验收
 
-`pnpm run dev` 是交互式开发命令，不在 CI 中运行。修改桌面流程后，应按影响范围人工确认：
+UI 回归分工：`capture:ui` 只准备场景并输出截图；布局、滚动、renderer 缩放和真实 DOM/SVG 几何由 `pnpm run test:electron-layout` 独立检查。内部滚动区域必须有明确滚动所有者，panel 标题不能放入内容滚动容器；缩放按实际 CSS viewport 验证。CDF compact/default 同时检查纯几何参数与最终 DOM。结果字段只在失焦时保存，WSL2/WSLg 输入法能力不作为 renderer 输入框自动化断言。
 
-- 单窗口应用能够启动，三个页面可以切换。
-- 固定次数和累计抽数能够使用串行或多进程运行，并显示状态、进度和结果。
-- 活动任务期间不能开始第二个任务。
-- 取消多进程任务或在运行中关闭应用后，没有残留 Python worker。
-- 模拟完成后可以打开结果目录。
-- 合法 `_visualize.json` 可以展示，读取失败或输入不合法时应用不会崩溃。
+- 固定次数能运行，threads 边界正确，任务互斥。
+- 取消、窗口关闭和应用退出后无残留 core/analyzer；失败任务不留下临时 IR 或半成品 GSR。
+- 完成后能打开结果目录并选择 GSR。
+- 启动前选择的任意合法 result item 都能分析；损坏/超限 GSR 和 analyzer 失败显示上下文错误。
+- 六个展示字段失焦后原子保存对应 DisplayConfig sidecar；重新打开只恢复展示配置，分析字段来自 GSR。
+- 非法 sidecar 不被自动覆盖；结果编辑和结果可视化页面可用键盘操作并共享 GSR 选择。
 
-## 常见修复命令
-
-如果 Python 格式检查失败，执行：
-
-```powershell
-uv run ruff format .
-```
-
-如果 Python lint 失败，先查看 `ruff check` 输出。部分安全的自动修复可以用：
-
-```powershell
-uv run ruff check . --fix
-```
-
-如果 Node 侧格式检查失败，执行：
-
-```powershell
-pnpm run format
-```
-
-如果 ESLint、TypeScript、pyright 或构建失败，优先按报错定位具体文件，不要用批量改动掩盖问题。
-
-## 和 CI 的对应关系
-
-- `ruff format --check .`：Python 格式化检查。
-- `ruff check .`：Python lint。
-- `pyright`：Python 类型检查。
-- `uv build --wheel`：Python wheel 构建检查。
-- `pnpm run format:check`：TypeScript、CSS 和 schema 格式化检查。
-- `pnpm run lint`：TypeScript 和 React ESLint 检查。
-- `pnpm run typecheck`：Electron、共享类型和可视化 TypeScript 类型检查。
-- `pnpm run build`：Electron main、preload 和 renderer 构建检查。
-- `pytest`、`test:simulation`、`test:visualize:cdf`、`test:e2e`：Python、Electron 和可视化行为门禁。
+格式失败时执行 `pnpm run format`；其它失败按首个具体错误修复，不用批量改动掩盖问题。

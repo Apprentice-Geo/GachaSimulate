@@ -1,0 +1,271 @@
+import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import {
+  _electron as electron,
+  type ElectronApplication,
+  type Page,
+} from "playwright";
+import type {
+  ConfigRepositoryState,
+  InstalledConfig,
+} from "../shared/installed_config";
+import { result_fixture } from "./ui_fixtures";
+
+const PROJECT_ROOT = process.cwd();
+const OUTPUT_DIR = path.join(PROJECT_ROOT, "tmp", "ui-captures");
+const SCENARIOS = [
+  "electron/simulation-idle",
+  "electron/simulation-navigation",
+  "electron/config-repository",
+  "electron/result-editor-empty",
+  "electron/result-editor-loaded",
+  "electron/result-visualize-loaded",
+] as const;
+
+type Scenario = (typeof SCENARIOS)[number];
+
+function output_path(scenario: Scenario): string {
+  return path.join(OUTPUT_DIR, `${scenario.replace("/", "--")}.png`);
+}
+
+async function screenshot(page: Page, scenario: Scenario): Promise<void> {
+  await page.evaluate(() => document.fonts.ready);
+  const destination = output_path(scenario);
+  await page.screenshot({
+    animations: "disabled",
+    caret: "hide",
+    path: destination,
+  });
+  console.log(destination);
+}
+
+async function wait_for_visualization(page: Page): Promise<void> {
+  await page
+    .locator(
+      '[data-testid="visualize-root"][data-load-state="ready"][data-animation-state="playing"]',
+    )
+    .waitFor({ timeout: 10_000 });
+  await page
+    .locator(
+      '[data-testid="visualize-root"][data-load-state="ready"][data-animation-state="idle"]',
+    )
+    .waitFor({ timeout: 10_000 });
+}
+
+function repository_fixture(): ConfigRepositoryState {
+  return {
+    official: [
+      {
+        id: "genshin_character",
+        name: "原神角色祈愿",
+        description: "角色活动祈愿概率与保底规则。",
+        status: "installed",
+      },
+      {
+        id: "starrail_character",
+        name: "崩坏：星穹铁道角色跃迁",
+        description: "角色活动跃迁概率与保底规则。",
+        status: "update_available",
+      },
+      {
+        id: "zzz_character",
+        name: "绝区零独家频段",
+        description: "独家频段概率与保底规则。",
+        status: "available",
+      },
+    ],
+    localDirectory: "/home/user/gachasimulate-configs",
+    localConfigs: [
+      {
+        id: "sandbox",
+        name: "开发测试池",
+        description: "本地开发配置",
+        source: "local",
+        terminations: [{ file: "termination.yaml", name: "完成" }],
+        items: [{ id: "draw_count", name: "抽数" }],
+      },
+    ],
+    sourceError: null,
+    localError: null,
+  };
+}
+
+function simulation_fixture(): InstalledConfig[] {
+  const names = [
+    ["draw_count", "抽数"],
+    ["target", "目标角色"],
+    ["miss", "未命中"],
+    ["featured_character", "限定角色"],
+    ["standard_character", "常驻角色"],
+    ["featured_weapon", "限定武器"],
+    ["standard_weapon", "常驻武器"],
+    ["guarantee_count", "保底计数"],
+    ["pity_count", "当前水位"],
+    ["spark_point", "兑换点数"],
+    ["token", "商店代币"],
+    ["bonus_item", "额外物品"],
+    ["rare_item", "稀有物品"],
+    ["common_item", "普通物品"],
+    ["path_point", "定轨点数"],
+    ["exchange_count", "兑换次数"],
+    ["duplicate_count", "重复获取"],
+    ["total_reward", "奖励总数"],
+  ] as const;
+  return [
+    {
+      id: "instrument_fixture",
+      name: "概率仪器台验收配置",
+      description: "包含长统计物品列表，用于检查搜索、选择和滚动区域。",
+      source: "installed",
+      terminations: [
+        { file: "target.yaml", name: "获得目标物品" },
+        { file: "budget.yaml", name: "达到预算上限" },
+      ],
+      items: names.map(([id, name]) => ({ id, name })),
+    },
+  ];
+}
+
+async function capture_electron(scenarios: Scenario[]): Promise<void> {
+  const config_home = await mkdtemp(
+    path.join(tmpdir(), "gachasimulate-ui-config-"),
+  );
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    ),
+  );
+  delete env.ELECTRON_RUN_AS_NODE;
+
+  let application: ElectronApplication | undefined;
+
+  try {
+    application = await electron.launch({
+      args: [PROJECT_ROOT],
+      cwd: PROJECT_ROOT,
+      env: { ...env, XDG_CONFIG_HOME: config_home },
+    });
+    const page = await application.firstWindow();
+    await application.evaluate(({ BrowserWindow, ipcMain }, fixture) => {
+      ipcMain.removeHandler("list-configs");
+      ipcMain.handle("list-configs", () => fixture);
+      BrowserWindow.getAllWindows()[0]?.setContentSize(2560, 1440);
+    }, simulation_fixture());
+    await page.waitForFunction(
+      () => window.innerWidth === 2560 && window.innerHeight === 1440,
+    );
+    await page.reload({ waitUntil: "domcontentloaded" });
+
+    if (scenarios.includes("electron/simulation-idle")) {
+      await page.getByText("状态 / 待运行").waitFor();
+      await screenshot(page, "electron/simulation-idle");
+    }
+
+    if (scenarios.includes("electron/simulation-navigation")) {
+      await page.getByRole("button", { name: "结果编辑" }).click();
+      await application.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0]?.webContents.send("simulation-event", {
+          status: "completed",
+          event: {
+            type: "completed",
+            result_path: "/tmp/completed-while-away.gsr",
+            total_runs: 1,
+            total_result: 1,
+          },
+        });
+      });
+      await page.getByRole("button", { name: "运行模拟" }).click();
+      await page
+        .getByText("completed-while-away.gsr", { exact: true })
+        .waitFor();
+      await screenshot(page, "electron/simulation-navigation");
+    }
+
+    if (scenarios.includes("electron/config-repository")) {
+      await application.evaluate(({ ipcMain }, fixture) => {
+        for (const channel of [
+          "get-config-repository-state",
+          "refresh-config-repository",
+        ]) {
+          ipcMain.removeHandler(channel);
+          ipcMain.handle(channel, () => fixture);
+        }
+      }, repository_fixture());
+      await page.getByRole("button", { name: "配置仓库" }).click();
+      await page.getByText("原神角色祈愿").waitFor();
+      await screenshot(page, "electron/config-repository");
+    }
+
+    const result_scenarios = scenarios.filter((scenario) =>
+      scenario.startsWith("electron/result-"),
+    );
+    if (result_scenarios.length === 0) return;
+
+    await page.getByRole("button", { name: "结果编辑" }).click();
+    await page.locator("#simulation-title").waitFor({ state: "hidden" });
+
+    if (scenarios.includes("electron/result-editor-empty")) {
+      await page.getByRole("heading", { name: "载入模拟结果" }).waitFor();
+      await screenshot(page, "electron/result-editor-empty");
+    }
+
+    if (
+      !scenarios.includes("electron/result-editor-loaded") &&
+      !scenarios.includes("electron/result-visualize-loaded")
+    )
+      return;
+
+    await application.evaluate(({ ipcMain }, fixture) => {
+      let selection_count = 0;
+      ipcMain.removeHandler("select-gsr-result");
+      ipcMain.handle("select-gsr-result", () =>
+        selection_count++ === 0 ? null : fixture,
+      );
+    }, result_fixture());
+    const select_button = page.getByRole("button", { name: "选择 GSR" });
+    await select_button.focus();
+    await page.keyboard.press("Enter");
+    await page.getByText("未选择文件。", { exact: true }).waitFor();
+    await select_button.click();
+    await page.getByRole("button", { name: "更换 GSR" }).waitFor();
+
+    if (scenarios.includes("electron/result-editor-loaded")) {
+      await screenshot(page, "electron/result-editor-loaded");
+    }
+    if (scenarios.includes("electron/result-visualize-loaded")) {
+      await page.getByRole("button", { name: "结果可视化" }).click();
+      await wait_for_visualization(page);
+      await screenshot(page, "electron/result-visualize-loaded");
+    }
+  } finally {
+    await application?.close();
+    await rm(config_home, { force: true, recursive: true });
+  }
+}
+
+async function main(): Promise<void> {
+  const [requested = "all", ...extra] = process.argv.slice(2);
+  if (
+    extra.length > 0 ||
+    (requested !== "all" && !SCENARIOS.includes(requested as Scenario))
+  ) {
+    throw new Error(`Usage: pnpm run capture:ui [all|${SCENARIOS.join("|")}]`);
+  }
+
+  const scenarios =
+    requested === "all" ? [...SCENARIOS] : [requested as Scenario];
+  await mkdir(OUTPUT_DIR, { recursive: true });
+
+  const electron_scenarios = scenarios.filter((scenario) =>
+    scenario.startsWith("electron/"),
+  );
+  if (electron_scenarios.length > 0) {
+    await capture_electron(electron_scenarios);
+  }
+}
+
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+});

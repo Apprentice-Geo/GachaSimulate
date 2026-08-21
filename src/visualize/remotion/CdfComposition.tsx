@@ -2,10 +2,10 @@ import { useCurrentFrame, useVideoConfig } from "remotion";
 import { ANIMATION_TOTAL_MS } from "../animation/timeline";
 import { build_animation_progress } from "../animation/progress";
 import { VisualizeScene } from "../VisualizeScene";
-import type { NormalizedVisualizeData } from "../types/visualize_input";
+import type { CDFViewModel } from "../types/cdf";
 
 interface CdfCompositionProps {
-  data?: NormalizedVisualizeData;
+  data?: CDFViewModel;
 }
 
 export function CdfComposition({ data }: CdfCompositionProps) {

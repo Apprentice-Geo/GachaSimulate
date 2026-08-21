@@ -2,7 +2,7 @@
 
 本文档定义 `config.yaml` 和 `termination*.yaml` 的配置语法。
 
-配置文件使用 YAML mapping/list 结构，运行前由 validator 校验，再由 builder 编译为运行时结构。
+配置文件使用 YAML mapping/list 结构，由 `@gachasimulate/config-compiler` 校验并编译为 JSON IR；C++ Runtime 只执行 IR，不解析 YAML。
 
 ## 词法约定
 
@@ -36,14 +36,13 @@ PositiveNumber = Number where value > 0
 
 ```ebnf
 Config = {
+  "schema_version": 2,
   "items": ItemList,
   "pools": PoolList,
   "initial"?: Actions,
-  "every_draw": EveryDrawList,
+  "every_draw"?: EveryDrawList,
   "rules"?: RuleList,
   "item_resolve"?: ItemResolveList,
-  "metadata"?: Any,
-  ...metadata
 }
 ```
 
@@ -55,12 +54,49 @@ TerminationConfig = {
   "termination_rule": {
     "condition": ConditionNode
   },
-  "metadata"?: Any,
-  ...metadata
 }
 ```
 
-未参与模拟的 metadata 只允许出现在根对象顶层，builder 会忽略它们。推荐统一使用 `metadata` 字段；其他顶层未知字段也按 metadata 处理，但不作为稳定语法扩展。已定义结构内部不允许未知字段。
+根对象仅允许上述字段；展示信息放在同目录、且编译时必填的 `manifest.yaml`。
+`config.yaml` 必须声明 `schema_version: 2`；termination 继承该版本且不得重复声明。
+
+`manifest.yaml` 根对象：
+
+```ebnf
+Manifest = {
+  "id": ManifestId,
+  "name": NonEmptyString,
+  "description": String,
+  "terminations": [ ManifestTermination, ... ],
+  "metadata"?: AnyYamlValue,
+}
+ManifestId = ASCII letter, digit, "_" or "-", one or more
+ManifestTermination = {
+  "file": FileName,
+  "name": NonEmptyString,
+}
+FileName = NonEmptyString without "/" or "\\"
+```
+
+`id`、`name`、`description` 和非空 `terminations` 列表均为必填；`id` 只允许
+ASCII 字母、数字、下划线和连字符。termination 的 `file` 只能是当前配置目录下的
+非空文件名，不能包含路径分隔符；`name` 必须是非空字符串。`metadata` 可省略，
+Compiler 不约束其内部结构。根对象和 termination 条目不允许其他字段。
+
+manifest 不声明结果 item。
+`compile_yaml(config, termination, manifest, result_item)` 的 `manifest` 和 `result_item`
+参数必填；`result_item` 由每次模拟请求提供，必须引用已声明 item。若该 item 没有展示名，
+Analysis/GSR 使用 item ID 作为名称。
+
+配置仓库可调用 `validate_config_files(config, terminations)` 批量校验源码。该入口不接收
+manifest 或 `result_item`：先完整校验一次 `config.yaml`，失败时返回
+`["config.yaml"]`；成功后使用独立工作状态按输入顺序校验每个 termination，并返回失败
+文件名。空 termination 列表仍会校验 config。
+
+仓库分发所需的 manifest 字节长度、命名和文件集合限制由
+`@gachasimulate/config-repository-contract` 在上述 Compiler 语法校验之上施加，不属于模拟
+YAML 语义，详见 [配置仓库协议 v1](CONFIG_REPOSITORY_V1.md)。Compiler 生成的临时进程契约见
+[IR v2](IR_V2.md)。
 
 ## 基础结构
 
@@ -82,7 +118,7 @@ RuleBody = {
   "condition": ConditionNode
 }
 
-EveryDrawList = [ "draw_count Padding += Padding PositiveNumber", ... ]
+EveryDrawList = [ Action, ... ]
 
 ItemResolveList = [ ItemResolve, ... ]
 ItemResolve = {
@@ -96,14 +132,18 @@ RetainedItemList = [ { ItemId: NonNegativeInteger }, ... ]
 
 约束：
 
-- `items` 必须包含 `draw_count`。
-- `cost` 是可选 item；需要成本统计时，由配置 actions 按实际规则累计。运行时不会根据抽数或 metadata 推导成本。
+- 所有 item 都是普通可写 item；`draw_count`、`cost_count` 没有特殊语义。
+- 需要统计抽数时，配置必须声明普通 item `draw_count`，并在 `every_draw` 首项使用
+  `draw_count += 1`；其他统计 item 也必须由配置 actions 明确维护。
+- 每次模拟请求的 `result_item` 唯一决定 GSR 和 Analysis 保存、汇总的期末 item；Compiler 将其解析为 IR item 索引。
+- 所选 result item 的每轮期末库存必须可编码为非负 `u64`；负值或所有 run 汇总溢出时模拟失败。
 - 同一个 pool 内只能统一使用 `probability` 或统一使用 `weight`。
 - 使用 `probability` 时，单个概率必须大于 `0`，同一个 pool 的概率和必须为 `1`。
 - 使用 `weight` 时，单个权重必须大于 `0`。
+- 使用 `weight` 时，同一个 pool 的权重总和也必须是有限数。
 - pool entry 的 `actions` 可省略，省略等价空动作。
 - `RuleId` 必须唯一。
-- `EveryDrawList`  中必须包含一个 `"draw_count Padding += Padding PositiveNumber"` 
+- `every_draw` 可省略。若配置需要抽数，应将 `draw_count += 1` 放在 actions 首项；随后按声明顺序执行其余 actions。
 - `ItemResolve.actions` 必须出现，且必须是非空 action 或非空 action 列表；不能省略、不能为 `null`、不能为空列表。
 - `ItemResolve.actions` 必须包含且仅包含一个 `item -= n` 动作，且该动作必须减少当前 `ItemResolve.item`；不能包含减少其他 item 的 `-=` 动作。
 - `mode` 省略时等价 `once`。
@@ -137,7 +177,7 @@ Action =
 
 约束：
 
-- 所有 action 引用的 `item` 和 `pool_id` 必须已定义。
+- 所有 action 引用的 `item` 和 `pool_id` 必须已定义；任何 action 都可写入已声明的普通 item。
 - `Actions` 可为 `null`、单个 action 字符串、或 action 字符串列表；普通 actions 的空列表等价空动作。
 - `ResolveActions` 不能为 `null` 或空列表。
 - `terminate` 后续 action 不再执行。
@@ -186,7 +226,7 @@ CheckExpression =
 
 1. 创建空状态，主 pool 初始为 `pools` 列表中的第一个 pool。
 2. 执行 `initial` actions。
-3. 每轮抽取先执行 `every_draw` actions。
+3. 每轮按声明顺序执行 `every_draw` actions；需要抽数时由首项 `draw_count += 1` 维护普通 item。
 4. 从当前主 pool 抽取一次，并执行抽中 entry 的 actions。
 5. 按 `rules` 声明顺序执行 rule 阶段。
 6. 检查 `termination_rule`；命中后执行收集到的 termination actions。
@@ -196,7 +236,16 @@ rule 的 `mode`：
 
 - `once`：命中并执行一次后，从后续 rule 阶段移除。
 - `per_draw`：每轮最多执行一次，下一轮仍会重新检查。
-- `repeat`：命中执行后，在同一轮立即重新检查同一 rule，直到不满足或模拟终止。配置作者必须确保 actions 会改变条件，否则可能无法结束。
+- `repeat`：命中执行后，在同一轮立即重新检查同一 rule，直到不满足或模拟终止。其
+  `condition` 必须是单个 `check`，且 Compiler 必须能按下列规则证明退出：
+  - actions 直接包含 `terminate`；或
+  - actions 对被检查 item 恰好有一次直接写入，且嵌套 pool 或 item resolver 不会写入该
+    item；`>=`/`>` 使用正数 `-=`，`<=`/`<` 使用正数 `+=`，`==` 使用正数
+    `+=`/`-=`，`!=` 使用 `=` 赋为比较值；或
+  - 使用一次 `=` 将被检查 item 赋为明确不满足当前比较的非负常量。
+
+逻辑条件树、错误方向、多个直接写入以及经 pool 或 item resolver 间接写回被检查 item 的
+`repeat` 均为编译错误。
 
 `change pool_id` 会立即改变主 pool。发生在 `every_draw` 中会影响本轮主 pool 抽取；发生在 pool entry 或 rule 中通常影响后续抽取。
 
@@ -204,12 +253,28 @@ rule 的 `mode`：
 
 `item_resolve` 用于描述获得可分解物品后的即时处理：
 
-- `item += n` 增加库存后，如果该 item 配置了 `item_resolve`，会立即根据库存和 `retain` 执行分解 actions。
+- `item += n` 或 `item = n` 后，如果该 item 配置了 `item_resolve`，会立即根据库存和 `retain` 执行分解 actions；`item -= n` 不触发。
 - `retain` 表示至少保留的库存数量。
+- `retain`、`retained_items` 数量和分解动作中的减少量必须是不超过 TypeScript safe integer 上限的非负整数；IR Runtime 使用 `i64` 保存这些值。
 - 分解批次数量由当前库存、`retain` 和 `ResolveActions` 中唯一的 `item -= n` 决定。
 - `termination*.yaml` 的 `retained_items` 会并入 `item_resolve` 的保留数量；同一 item 实际保留值取两者较大值。
 - `ResolveActions` 可以包含 `draw pool_id`，用于把随机礼包、随机皮肤等展开为另一个 pool 的抽取。
-- 不建议让分解 actions 重新产生同一个可分解 item；这类循环依赖难以理解，也可能导致模拟无法结束。
+- pool 和 item resolver 构成的同步调用图必须无环。pool entry 中的 `draw`、对带 resolver
+  item 的 `+=`/`=`，以及 resolver actions 中的同类调用都会形成调用边；Compiler 合并同一
+  pool 所有 entry 的边，并忽略直接 `terminate` 后的不可达 actions。自环、pool 间环、
+  resolver 间环及混合环均为编译错误，不分析随机出口或状态变化是否可能令其退出。
+
+## 终止安全边界
+
+Compiler 会验证同步调用图无环、`repeat` 可证明退出，并继续要求 termination condition 的
+每条可命中路径包含 `terminate`。这只保证命中某条 termination 路径后的局部执行能够结束；
+Compiler 不证明 termination condition 在任意随机过程下最终必然命中。
+
+Runtime 为每个 run 独立限制最多 `1,000,000` 个 steps 和 `1,024` 层同步 action frames。
+每次 action dispatch 和每个 condition node 求值各消耗一个 step，预算不会在单次抽取之间
+重置。超过限制分别报错 `runtime step limit exceeded` 或
+`runtime frame depth limit exceeded`。任一 run 超限会令整次模拟失败；不会截断 run、保存
+部分统计结果或写出部分 GSR。
 
 ## 示例
 

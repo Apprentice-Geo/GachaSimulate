@@ -11,6 +11,14 @@
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": {
+      "@gachasimulate/config-compiler": [
+        "./packages/config-compiler/src/index.ts"
+      ],
+      "@gachasimulate/config-repository-contract": [
+        "./packages/config-repository-contract/src/index.ts"
+      ]
+    },
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
@@ -18,16 +26,15 @@
     "types": ["node"]
   },
   "include": [
+    "src/export/**/*.ts",
+    "src/dev/**/*.ts",
     "src/visualize/**/*.ts",
     "src/visualize/**/*.tsx",
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
     "src/renderer/**/*.ts",
     "src/renderer/**/*.tsx",
-    "e2e/**/*.ts",
     "electron.vite.config.ts",
-    "vite.config.ts",
-    "playwright.config.ts",
     "docs/**/*.json"
   ]
 }

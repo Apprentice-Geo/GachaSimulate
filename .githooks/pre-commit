@@ -1,0 +1,244 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+reset_classification() {
+  node_changed=0
+  packages_changed=0
+  simulation_changed=0
+  visualize_changed=0
+  electron_build=0
+  cpp_changed=0
+  format_files=()
+  lint_files=()
+}
+
+classify_path() {
+  local path="$1"
+  local file_checkable="${2:-1}"
+
+  case "$path" in
+    src/*|packages/*/src/*|packages/*/test/*|docs/schemas/*|package.json|*.config.*|tsconfig*.json)
+      node_changed=1
+      if ((file_checkable)); then
+        case "$path" in
+          *.ts|*.tsx|*.js|*.mjs|*.cjs|*.css|*.json) format_files+=("$path") ;;
+        esac
+        case "$path" in
+          *.ts|*.tsx|*.js|*.mjs|*.cjs) lint_files+=("$path") ;;
+        esac
+      fi
+      ;;
+  esac
+  case "$path" in
+    packages/*|test-fixtures/configs/*|docs/YAML_CONFIG_SYNTAX.md|pnpm-lock.yaml|pnpm-workspace.yaml)
+      node_changed=1
+      ;;
+  esac
+  case "$path" in packages/*) packages_changed=1 ;; esac
+  case "$path" in
+    src/main/*|src/shared/*|src/preload/*|src/renderer/*|test-fixtures/configs/*|docs/YAML_CONFIG_SYNTAX.md)
+      simulation_changed=1
+      ;;
+  esac
+  case "$path" in
+    src/visualize/*|src/export/*|docs/schemas/*|docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md)
+      visualize_changed=1
+      ;;
+  esac
+  case "$path" in
+    src/main/*|src/preload/*|src/renderer/*|src/visualize/*|src/dev/electron_layout.test.ts|electron.vite.config.ts|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|tsconfig*.json)
+      electron_build=1
+      ;;
+  esac
+  case "$path" in
+    cpp/*|.clang-format|.clang-tidy|docs/YAML_CONFIG_SYNTAX.md) cpp_changed=1 ;;
+  esac
+}
+
+collect_changed_paths() {
+  mapfile -d '' -t staged_files < <(git diff --cached --name-only -z --diff-filter=ACMR)
+  mapfile -d '' -t deleted_files < <(git diff --cached --name-only -z --diff-filter=D)
+  mapfile -d '' -t unstaged_files < <(git diff --name-only -z --diff-filter=ACMRD)
+}
+
+array_contains() {
+  local expected="$1"
+  shift
+  local value
+  for value in "$@"; do
+    if [[ $value == "$expected" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+self_test() {
+  reset_classification
+  classify_path src/visualize/components/CDFChart.tsx
+  if ((!node_changed || !visualize_changed || !electron_build)); then
+    echo "[pre-commit] self-test failed: visualize classification" >&2
+    exit 1
+  fi
+
+  reset_classification
+  classify_path docs/YAML_CONFIG_SYNTAX.md
+  if ((!node_changed || !simulation_changed || !cpp_changed)); then
+    echo "[pre-commit] self-test failed: cross-layer documentation classification" >&2
+    exit 1
+  fi
+
+  reset_classification
+  classify_path packages/config-compiler/src/compiler.ts
+  if ((!node_changed || !packages_changed)); then
+    echo "[pre-commit] self-test failed: package classification" >&2
+    exit 1
+  fi
+
+  local delete_path=src/visualize/components/CDFChart.tsx
+  local temp_index
+  temp_index="$(mktemp)"
+  GIT_INDEX_FILE="$temp_index" git read-tree HEAD
+  GIT_INDEX_FILE="$temp_index" git update-index --force-remove -- "$delete_path"
+  GIT_INDEX_FILE="$temp_index" collect_changed_paths
+  rm -f "$temp_index"
+
+  if ! array_contains "$delete_path" "${deleted_files[@]}"; then
+    echo "[pre-commit] self-test failed: deleted path collection" >&2
+    exit 1
+  fi
+  if array_contains "$delete_path" "${staged_files[@]}"; then
+    echo "[pre-commit] self-test failed: deleted path passed to file checks" >&2
+    exit 1
+  fi
+
+  reset_classification
+  for path in "${staged_files[@]}"; do
+    classify_path "$path"
+  done
+  for path in "${deleted_files[@]}"; do
+    classify_path "$path" 0
+  done
+  if ((!node_changed || !visualize_changed || !electron_build)); then
+    echo "[pre-commit] self-test failed: deleted path classification" >&2
+    exit 1
+  fi
+  if ((${#format_files[@]} > 0 || ${#lint_files[@]} > 0)); then
+    echo "[pre-commit] self-test failed: deleted path scheduled for file checks" >&2
+    exit 1
+  fi
+
+  echo "[pre-commit] self-test passed"
+}
+
+if (($# > 0)); then
+  if (($# == 1)) && [[ $1 == --self-test ]]; then
+    self_test
+    exit 0
+  fi
+  echo "Usage: .githooks/pre-commit [--self-test]" >&2
+  exit 2
+fi
+
+collect_changed_paths
+if ((${#staged_files[@]} + ${#deleted_files[@]} == 0)); then
+  exit 0
+fi
+
+declare -A staged_set=()
+for path in "${staged_files[@]}" "${deleted_files[@]}"; do
+  staged_set["$path"]=1
+done
+
+overlapping_files=()
+for path in "${unstaged_files[@]}"; do
+  if [[ ${staged_set["$path"]+present} == present ]]; then
+    overlapping_files+=("$path")
+  fi
+done
+if ((${#overlapping_files[@]} > 0)); then
+  echo "[pre-commit] staged files also have unstaged changes:" >&2
+  printf '  %s\n' "${overlapping_files[@]}" >&2
+  echo "Stage the final file contents before committing." >&2
+  exit 1
+fi
+
+echo "[pre-commit] checking staged whitespace"
+git diff --cached --check
+
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "[pre-commit] missing required command: $1" >&2
+    exit 1
+  fi
+}
+
+reset_classification
+for path in "${staged_files[@]}"; do
+  classify_path "$path"
+done
+for path in "${deleted_files[@]}"; do
+  classify_path "$path" 0
+done
+
+if ((node_changed)); then
+  require_command pnpm
+
+  if ((${#format_files[@]} > 0)); then
+    echo "[pre-commit] checking Prettier"
+    pnpm exec prettier --check "${format_files[@]}"
+  fi
+  if ((${#lint_files[@]} > 0)); then
+    echo "[pre-commit] checking ESLint"
+    pnpm exec eslint "${lint_files[@]}"
+  fi
+
+  echo "[pre-commit] checking TypeScript"
+  pnpm run typecheck
+  if ((packages_changed)); then
+    echo "[pre-commit] testing packages"
+    pnpm run test:packages
+  fi
+  if ((simulation_changed)); then
+    echo "[pre-commit] testing simulation"
+    pnpm run test:simulation
+  fi
+  if ((visualize_changed)); then
+    echo "[pre-commit] testing visualization"
+    pnpm run test:visualize:cdf
+  fi
+  if ((electron_build)); then
+    echo "[pre-commit] building Electron"
+    pnpm run build
+  fi
+fi
+
+if ((cpp_changed)); then
+  require_command clang-format
+  require_command clang-tidy
+  require_command clang++
+  require_command cmake
+  require_command ninja
+
+  echo "[pre-commit] checking C++ formatting"
+  find cpp/include cpp/src cpp/tests -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
+    | xargs -0 clang-format --dry-run --Werror
+
+  echo "[pre-commit] building and testing C++ Debug"
+  (
+    cd cpp
+    cmake --preset linux-debug
+    cmake --build --preset linux-debug
+    ctest --preset linux-debug
+  )
+
+  echo "[pre-commit] running clang-tidy"
+  (
+    cd cpp
+    find src tests -name '*.cpp' -print0 \
+      | xargs -0 clang-tidy -p ../build/cpp/linux-debug
+  )
+fi

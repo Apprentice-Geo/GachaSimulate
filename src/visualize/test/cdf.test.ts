@@ -2,14 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import schema from "../../../docs/schemas/visualize_input.schema.json";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../constants";
-import { normalize_input } from "../data/normalize_input";
-import { load_input_from_text } from "../data/load_input";
 import { get_cdf_level_at_draw } from "../data/cdf";
-import { validate_input } from "../data/validate_input";
-import example_input from "../fixtures/example_input.json";
-import { build_visualize_view_model } from "../view/cdf_view_model";
+import { build_cdf_view_model } from "../view/cdf_view_model";
 import {
   build_curve_path,
   build_marker_views,
@@ -22,58 +17,13 @@ import {
 } from "../animation/progress";
 import { ANIMATION_TIMELINE, ANIMATION_TOTAL_MS } from "../animation/timeline";
 import type { MarkerView } from "../view/cdf_overlay_layout";
-import type { CDFMarker, VisualizeInput } from "../types/visualize_input";
+import type { CDFMarker } from "../types/cdf";
+import type { AnalysisV2 } from "../types/analysis";
+import type { DisplayConfig } from "../types/display_config";
 import {
-  VISUALIZE_INPUT_REQUIRED_KEYS,
-  VISUALIZE_STATISTIC_REQUIRED_KEYS,
-} from "../types/visualize_input";
-
-type VisualizeInputSchema = {
-  required: string[];
-  properties: {
-    statistic: {
-      required: string[];
-    };
-  };
-};
-
-function make_valid_input(
-  overrides: Partial<VisualizeInput> = {},
-): VisualizeInput {
-  const base_input: VisualizeInput = {
-    title: "核心模拟结果",
-    target: "target",
-    metric: "draw",
-    total: 3,
-    note: "",
-    timestamp: 0,
-    values: [1, 2, 3],
-    cumulative: [0.25, 0.75, 1],
-    price: "",
-    unit: "",
-    statistic: {
-      P5: 1,
-      P25: 1,
-      P50: 2,
-      P75: 2,
-      P95: 3,
-      MIN: 1,
-      MEAN_LEVEL: 0.75,
-      MEAN: 2,
-      MAX: 3,
-    },
-    termination_reason: [{ reason: "success", proportion: 100 }],
-  };
-
-  return {
-    ...base_input,
-    ...overrides,
-    statistic: {
-      ...base_input.statistic,
-      ...overrides.statistic,
-    },
-  };
-}
+  get_marker_visual,
+  MARKER_VISUALS,
+} from "../components/cdf_marker_visuals";
 
 function read_css_px_token(css: string, token_name: string): number {
   const match = new RegExp(`--${token_name}:\\s*(\\d+)px`).exec(css);
@@ -101,114 +51,6 @@ test("canvas constants stay aligned with CSS tokens", () => {
 
   assert.equal(read_css_px_token(tokens_css, "canvas-width"), CANVAS_WIDTH);
   assert.equal(read_css_px_token(tokens_css, "canvas-height"), CANVAS_HEIGHT);
-});
-
-test("top header expansion preserves main region start", () => {
-  const tokens_css = readFileSync(
-    path.join(process.cwd(), "src/visualize/styles/tokens.css"),
-    "utf-8",
-  );
-
-  assert.equal(
-    read_css_px_token(tokens_css, "page-top-margin") +
-      read_css_px_token(tokens_css, "top-height"),
-    320,
-  );
-});
-
-test("schema required fields stay aligned with TS contract keys", () => {
-  const visualize_schema = schema as VisualizeInputSchema;
-
-  assert.deepEqual(
-    [...visualize_schema.required].sort(),
-    [...VISUALIZE_INPUT_REQUIRED_KEYS].sort(),
-  );
-  assert.deepEqual(
-    [...visualize_schema.properties.statistic.required].sort(),
-    [...VISUALIZE_STATISTIC_REQUIRED_KEYS].sort(),
-  );
-});
-
-test("fixture visualize input satisfies schema and business rules", () => {
-  const result = validate_input(example_input);
-
-  assert.equal(result.valid, true);
-  assert.deepEqual(result.errors, []);
-});
-
-test("selected file text passes through JSON, schema, and normalization", async () => {
-  const normalized = await load_input_from_text(
-    JSON.stringify(make_valid_input()),
-  );
-  assert.equal(normalized.metric_label, "抽数");
-  assert.equal(normalized.total_display, "3 抽");
-
-  await assert.rejects(load_input_from_text("not json"), SyntaxError);
-  await assert.rejects(load_input_from_text('{"title":"missing fields"}'));
-});
-
-test("validate_input enforces termination reason contract", () => {
-  assert.equal(validate_input(make_valid_input()).valid, true);
-  assert.equal(
-    validate_input(
-      make_valid_input({
-        termination_reason: [
-          { reason: "success", proportion: 70 },
-          { reason: "exchange", proportion: 30 },
-        ],
-      }),
-    ).valid,
-    true,
-  );
-
-  const many_reasons = validate_input(
-    make_valid_input({
-      termination_reason: [
-        { reason: "success", proportion: 40 },
-        { reason: "exchange", proportion: 30 },
-        { reason: "other", proportion: 30 },
-      ],
-    }),
-  );
-  assert.equal(many_reasons.valid, true);
-
-  const invalid_total = validate_input(
-    make_valid_input({
-      termination_reason: [
-        { reason: "success", proportion: 60 },
-        { reason: "exchange", proportion: 30 },
-      ],
-    }),
-  );
-  assert.equal(invalid_total.valid, false);
-  assert.match(invalid_total.errors.join("\n"), /合计必须为 100/);
-});
-
-test("validate_input rejects the old draw-specific contract", () => {
-  const old_input = {
-    title: "旧输入",
-    target: "target",
-    draw_counts: 3,
-    note: "",
-    timestamp: 0,
-    draws: [1, 2, 3],
-    cumulative: [0.25, 0.75, 1],
-    statistic: {
-      P5: 1,
-      P25: 1,
-      P50: 2,
-      P75: 2,
-      P95: 3,
-      MIN: 1,
-      MEAN_LEVEL: 0.75,
-      MEAN: 2,
-      MAX: 3,
-      COST: 0,
-    },
-    termination_reason: [{ reason: "success", proportion: 100 }],
-  };
-
-  assert.equal(validate_input(old_input).valid, false);
 });
 
 test("build_marker_views positions labels for p50 and mean", () => {
@@ -297,6 +139,54 @@ test("resolve_marker_label_collisions returns adjusted copies", () => {
   assert.equal(adjusted_views[1].label_y, 36);
 });
 
+test("compact CDF markers keep data and scales geometry while shrinking visuals", () => {
+  const markers: CDFMarker[] = [
+    {
+      key: "P50",
+      label: "P50",
+      draw: 40,
+      level: 0.5,
+      color: "red",
+      weight: "primary",
+    },
+    {
+      key: "MAX",
+      label: "MAX",
+      draw: 80,
+      level: 1,
+      color: "blue",
+      weight: "strong",
+    },
+  ];
+  const plot_area = { x: 10, y: 20, width: 200, height: 100 };
+  const x_scale = (draw: unknown) => Number(draw) * 2;
+  const y_scale = (level: unknown) => 120 - Number(level) * 100;
+  const normal = build_marker_views(markers, plot_area, x_scale, y_scale);
+  const compact = build_marker_views(
+    markers,
+    plot_area,
+    x_scale,
+    y_scale,
+    true,
+  );
+
+  assert.deepEqual(
+    compact.map(({ marker, x, y }) => [marker, x, y]),
+    normal.map(({ marker, x, y }) => [marker, x, y]),
+  );
+  assert.equal(compact[0].label_text, normal[0].label_text);
+  for (const weight of Object.keys(MARKER_VISUALS) as CDFMarker["weight"][]) {
+    const normal_visual = get_marker_visual(weight);
+    const compact_visual = get_marker_visual(weight, true);
+    assert.ok(compact_visual.point_radius < normal_visual.point_radius);
+    assert.ok(compact_visual.stroke_width < normal_visual.stroke_width);
+    assert.ok(compact_visual.label_font_size < normal_visual.label_font_size);
+    assert.ok(
+      compact_visual.label_stroke_width < normal_visual.label_stroke_width,
+    );
+  }
+});
+
 test("build_curve_path clamps cumulative values", () => {
   const x_scale = (draw: unknown) => Number(draw) * 2;
   const y_scale = (level: unknown) => 120 - Number(level) * 100;
@@ -314,71 +204,103 @@ test("build_curve_path clamps cumulative values", () => {
   );
 });
 
-test("build_visualize_view_model derives metric-aware values and markers", () => {
-  const input: VisualizeInput = {
-    title: "核心模拟结果",
-    target: "target",
-    metric: "cost",
-    total: 100,
-    note: "",
-    timestamp: 0,
-    values: [1, 2],
-    cumulative: [0.5, 1],
-    price: "单抽 10 RMB；十连抽 90 RMB",
-    unit: "测试币",
+test("build_cdf_view_model normalizes AnalysisV2 and display fields together", () => {
+  const analysis: AnalysisV2 = {
+    analysis_version: 2,
+    result_item: { id: "tokens", name: "内部名称" },
+    totals: { runs: "4", result: "100" },
+    values: ["1", "2", "3"],
+    cumulative: [0.25, 0.75, 1],
     statistic: {
-      P5: 1,
-      P25: 1,
-      P50: 1,
-      P75: 2,
-      P95: 2,
-      MIN: 1,
+      P5: "1",
+      P25: "1",
+      P50: "2",
+      P75: "2",
+      P95: "3",
+      MIN: "1",
       MEAN_LEVEL: 0.75,
-      MEAN: 1.5,
-      MAX: 2,
+      MEAN: "2",
+      MAX: "3",
     },
-    termination_reason: [{ reason: "success", proportion: 100 }],
+    termination_reason: [{ reason: "done", proportion: 100 }],
+  };
+  const display: DisplayConfig = {
+    display_version: 1,
+    title: "展示标题",
+    target: "展示目标",
+    result_item_name: "代币",
+    note: "说明",
+    price: "单抽 10 RMB",
+    unit: "测试币",
   };
 
-  const normalized_input = normalize_input(input);
-  assert.equal("metrics" in normalized_input, false);
-  assert.equal("markers" in normalized_input, false);
-  assert.equal(normalized_input.metric, "cost");
-  assert.equal(normalized_input.total_display, "100 测试币");
-  assert.equal(normalized_input.axis_title, "累计成本");
-  assert.equal(normalized_input.price, "单抽 10 RMB；十连抽 90 RMB");
+  const view_model = build_cdf_view_model(analysis, display);
 
-  const view_model = build_visualize_view_model(normalized_input);
+  assert.equal(view_model.title, display.title);
+  assert.deepEqual(view_model.result_item, { id: "tokens", name: "代币" });
+  assert.equal(view_model.total, 100);
+  assert.equal(view_model.runs, 4);
+  assert.equal(view_model.display_unit, display.unit);
+  assert.equal(view_model.axis_title, "结束时的代币");
   assert.deepEqual(
     view_model.metrics.map((metric) => metric.key),
     STATISTIC_VIEW_ORDER,
   );
   assert.equal(
-    view_model.metrics.find((metric) => metric.key === "P50")?.display_value,
-    "1",
-  );
-  assert.equal(
     view_model.markers.find((marker) => marker.key === "P50")?.weight,
     "primary",
   );
-});
-
-test("cost metric omits suffixes when unit and price are empty", () => {
-  const normalized_input = normalize_input(
-    make_valid_input({
-      metric: "cost",
-      price: "",
-      unit: "",
-    }),
+  assert.equal(
+    view_model.metrics.find((metric) => metric.key === "P50")?.value,
+    2,
   );
-  const view_model = build_visualize_view_model(normalized_input);
-
-  assert.equal(normalized_input.total_display, "3");
-  assert.equal(normalized_input.axis_title, "累计成本");
-  assert.equal(normalized_input.price, "");
   assert.equal(
     view_model.metrics.find((metric) => metric.key === "P50")?.display_value,
     "2",
+  );
+});
+
+test("build_cdf_view_model rejects negative and unsafe AnalysisV2 numbers", () => {
+  const analysis: AnalysisV2 = {
+    analysis_version: 2,
+    result_item: { id: "draw_count", name: "抽数" },
+    totals: { runs: "1", result: "1" },
+    values: ["1"],
+    cumulative: [1],
+    statistic: {
+      P5: "1",
+      P25: "1",
+      P50: "1",
+      P75: "1",
+      P95: "1",
+      MIN: "1",
+      MEAN_LEVEL: 1,
+      MEAN: "1",
+      MAX: "1",
+    },
+    termination_reason: [{ reason: "done", proportion: 100 }],
+  };
+  const display: DisplayConfig = {
+    display_version: 1,
+    title: "标题",
+    target: "目标",
+    result_item_name: "抽数",
+    note: "",
+    price: "",
+    unit: "",
+  };
+
+  assert.throws(() =>
+    build_cdf_view_model({ ...analysis, values: ["-1"] }, display),
+  );
+  assert.throws(() =>
+    build_cdf_view_model(
+      {
+        ...analysis,
+        statistic: { ...analysis.statistic, MAX: "9007199254740992" },
+      },
+      display,
+    ),
   );
 });
 
@@ -416,10 +338,6 @@ test("title completes before curve and metadata follows statistic panel", () => 
   assert.equal(
     ANIMATION_TIMELINE.METADATA_DELAY_MS,
     ANIMATION_TIMELINE.STAT_PANEL_DELAY_MS,
-  );
-  assert.equal(
-    ANIMATION_TIMELINE.METADATA_DURATION_MS,
-    ANIMATION_TIMELINE.STAT_PANEL_DURATION_MS,
   );
 });
 

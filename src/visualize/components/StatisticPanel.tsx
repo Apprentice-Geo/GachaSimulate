@@ -1,10 +1,7 @@
 import type { CSSProperties } from "react";
 import { fade_style, metric_style } from "../animation/progress";
 import type { AnimationProgress } from "../animation/progress";
-import type {
-  NormalizedVisualizeData,
-  StatisticMetric,
-} from "../types/visualize_input";
+import type { CDFViewModel, StatisticMetric } from "../types/cdf";
 import {
   get_distribution_statistic_groups,
   get_statistic_description,
@@ -12,7 +9,7 @@ import {
 import type { DistributionStatisticKey } from "../view/statistic_view_config";
 
 interface StatisticPanelProps {
-  data: NormalizedVisualizeData | null;
+  data: CDFViewModel | null;
   animation_progress: AnimationProgress | null;
   is_ready: boolean;
 }
@@ -92,9 +89,7 @@ export function StatisticPanel({
   const metrics_by_key = new Map(
     data?.metrics.map((metric) => [metric.key, metric]),
   );
-  const metric_groups = get_distribution_statistic_groups(
-    data?.metric ?? "draw",
-  );
+  const metric_groups = get_distribution_statistic_groups();
   const visible_metric_groups = metric_groups
     .map((group) => ({
       ...group,
@@ -156,7 +151,7 @@ export function StatisticPanel({
                 return (
                   <MetricRow
                     animation_progress={animation_progress}
-                    description={get_statistic_description(key, data.metric)}
+                    description={get_statistic_description(key)}
                     index={display_index_by_key.get(key) ?? 0}
                     key={metric.key}
                     metric={metric}

@@ -1,6 +1,0 @@
-retained_items:
-- shenjiangwei: 1
-termination_rule:
-  condition:
-    check: shenjiangwei >= 1
-    actions: terminate obtained shenjiangwei

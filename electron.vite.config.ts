@@ -3,7 +3,14 @@ import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [
+      externalizeDepsPlugin({
+        exclude: [
+          "@gachasimulate/config-compiler",
+          "@gachasimulate/config-repository-contract",
+        ],
+      }),
+    ],
   },
   preload: {
     plugins: [externalizeDepsPlugin()],

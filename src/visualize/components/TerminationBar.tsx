@@ -1,14 +1,12 @@
 import type { CSSProperties } from "react";
 import { fade_style } from "../animation/progress";
 import type { AnimationProgress } from "../animation/progress";
-import type {
-  NormalizedVisualizeData,
-  TerminationReasonInput,
-} from "../types/visualize_input";
+import type { TerminationReason } from "../types/analysis";
+import type { CDFViewModel } from "../types/cdf";
 import { TERMINATION_REASON_VIEW_CONFIG } from "../view/statistic_view_config";
 
 interface TerminationBarProps {
-  data: NormalizedVisualizeData | null;
+  data: CDFViewModel | null;
   animation_progress: AnimationProgress | null;
   is_ready: boolean;
 }
@@ -34,7 +32,7 @@ function get_segment_position(
   return "middle";
 }
 
-function build_segment_layout(reasons: readonly TerminationReasonInput[]) {
+function build_segment_layout(reasons: readonly TerminationReason[]) {
   let cumulative_proportion = 0;
   return reasons.map((item, index) => {
     const start = cumulative_proportion;
