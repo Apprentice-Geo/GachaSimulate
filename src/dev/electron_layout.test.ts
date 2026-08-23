@@ -5,10 +5,12 @@ import path from "node:path";
 import test from "node:test";
 import {
   _electron as electron,
+  type CDPSession,
   type ElectronApplication,
   type Page,
 } from "playwright";
 import type { ConfigRepositoryState } from "../shared/installed_config";
+import { emulate_viewport } from "./electron_viewport";
 import { result_fixture, simulation_fixture } from "./ui_fixtures";
 
 const PROJECT_ROOT = process.cwd();
@@ -44,35 +46,63 @@ async function launch(width: number, height: number) {
   ) as Record<string, string>;
   delete env.ELECTRON_RUN_AS_NODE;
   let application: ElectronApplication | undefined;
+  let cdp: CDPSession | undefined;
   try {
     application = await electron.launch({
       args: [PROJECT_ROOT],
       cwd: PROJECT_ROOT,
-      env: { ...env, XDG_CONFIG_HOME: config_home },
-    });
-    await application.evaluate(
-      ({ BrowserWindow, ipcMain }, payload) => {
-        ipcMain.removeHandler("list-configs");
-        ipcMain.handle("list-configs", () => payload.fixture);
-        BrowserWindow.getAllWindows()[0]?.setContentSize(
-          payload.width,
-          payload.height,
-        );
+      env: {
+        ...env,
+        GACHASIMULATE_ELECTRON_OFFSCREEN: "1",
+        XDG_CONFIG_HOME: config_home,
       },
-      { fixture: simulation_fixture(), width, height },
-    );
+    });
+    await application.evaluate(({ ipcMain }, fixture) => {
+      ipcMain.removeHandler("list-configs");
+      ipcMain.handle("list-configs", () => fixture);
+    }, simulation_fixture());
     const page = await application.firstWindow();
+    const automation_state = await application.evaluate(({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows()[0];
+      return {
+        background_throttling: window?.webContents.getBackgroundThrottling(),
+        offscreen: window?.webContents.isOffscreen(),
+        visible: window?.isVisible(),
+      };
+    });
+    assert.deepEqual(automation_state, {
+      background_throttling: false,
+      offscreen: true,
+      visible: false,
+    });
+    const content_size_before = await application.evaluate(
+      ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.getContentSize(),
+    );
+    cdp = await emulate_viewport(page, width, height);
+    assert.deepEqual(
+      await application.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]?.getContentSize(),
+      ),
+      content_size_before,
+    );
     await page.waitForFunction(
       ([expected_width, expected_height]) =>
-        Math.abs(window.innerHeight - expected_height) <= 1 &&
-        Math.abs(window.innerWidth - expected_width) <= 1,
+        window.innerHeight === expected_height &&
+        window.innerWidth === expected_width,
       [width, height],
     );
     await page.reload({ waitUntil: "domcontentloaded" });
-    return { application, config_home, page };
+    return { application, cdp, config_home, page };
   } catch (error) {
-    await application?.close();
-    await rm(config_home, { force: true, recursive: true });
+    try {
+      await cdp?.detach();
+    } finally {
+      try {
+        await application?.close();
+      } finally {
+        await rm(config_home, { force: true, recursive: true });
+      }
+    }
     throw error;
   }
 }
@@ -365,7 +395,7 @@ test("Electron renderer layout contracts hold at both supported sizes", async ()
     [2560, 1440],
     [1280, 720],
   ] as const) {
-    const { application, config_home, page } = await launch(width, height);
+    const { application, cdp, config_home, page } = await launch(width, height);
     try {
       await assert_layout(application, page, width, height);
     } catch (error) {
@@ -374,8 +404,15 @@ test("Electron renderer layout contracts hold at both supported sizes", async ()
         error instanceof Error ? error.message : String(error),
       );
     } finally {
-      await application.close();
-      await rm(config_home, { force: true, recursive: true });
+      try {
+        await cdp.detach();
+      } finally {
+        try {
+          await application.close();
+        } finally {
+          await rm(config_home, { force: true, recursive: true });
+        }
+      }
     }
   }
 });

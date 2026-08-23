@@ -1,6 +1,7 @@
 # Development Checks
 
-命令默认从仓库根目录的 WSL2/Linux bash 执行。只使用 WSL 内的 Node/pnpm、Clang、CMake、Ninja 和 `node_modules`。
+本文列出的标准检查命令和 CI 基准默认从仓库根目录的 WSL2/Linux bash 执行，并使用 Linux 环境内的 Node/pnpm、Clang、CMake、Ninja 和 `node_modules`。
+在其它平台开发时，应独立安装对应平台的依赖、使用独立的 CMake 构建目录和原生程序，并尽可能执行对应的等价检查。
 
 ## 前置准备
 

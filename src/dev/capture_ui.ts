@@ -1,8 +1,10 @@
+import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   _electron as electron,
+  type CDPSession,
   type ElectronApplication,
   type Page,
 } from "playwright";
@@ -10,6 +12,7 @@ import type {
   ConfigRepositoryState,
   InstalledConfig,
 } from "../shared/installed_config";
+import { emulate_viewport } from "./electron_viewport";
 import { result_fixture } from "./ui_fixtures";
 
 const PROJECT_ROOT = process.cwd();
@@ -25,6 +28,13 @@ const SCENARIOS = [
 
 type Scenario = (typeof SCENARIOS)[number];
 
+function assert_png_size(png: Buffer, width: number, height: number): void {
+  assert.ok(png.length >= 24, "Screenshot is too short to contain a PNG IHDR");
+  assert.equal(png.toString("ascii", 12, 16), "IHDR");
+  assert.equal(png.readUInt32BE(16), width);
+  assert.equal(png.readUInt32BE(20), height);
+}
+
 function output_path(scenario: Scenario): string {
   return path.join(OUTPUT_DIR, `${scenario.replace("/", "--")}.png`);
 }
@@ -32,11 +42,12 @@ function output_path(scenario: Scenario): string {
 async function screenshot(page: Page, scenario: Scenario): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
   const destination = output_path(scenario);
-  await page.screenshot({
+  const png = await page.screenshot({
     animations: "disabled",
     caret: "hide",
     path: destination,
   });
+  assert_png_size(png, 2560, 1440);
   console.log(destination);
 }
 
@@ -139,19 +150,24 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
   delete env.ELECTRON_RUN_AS_NODE;
 
   let application: ElectronApplication | undefined;
+  let cdp: CDPSession | undefined;
 
   try {
     application = await electron.launch({
       args: [PROJECT_ROOT],
       cwd: PROJECT_ROOT,
-      env: { ...env, XDG_CONFIG_HOME: config_home },
+      env: {
+        ...env,
+        GACHASIMULATE_ELECTRON_OFFSCREEN: "1",
+        XDG_CONFIG_HOME: config_home,
+      },
     });
     const page = await application.firstWindow();
-    await application.evaluate(({ BrowserWindow, ipcMain }, fixture) => {
+    await application.evaluate(({ ipcMain }, fixture) => {
       ipcMain.removeHandler("list-configs");
       ipcMain.handle("list-configs", () => fixture);
-      BrowserWindow.getAllWindows()[0]?.setContentSize(2560, 1440);
     }, simulation_fixture());
+    cdp = await emulate_viewport(page, 2560, 1440);
     await page.waitForFunction(
       () => window.innerWidth === 2560 && window.innerHeight === 1440,
     );
@@ -239,8 +255,15 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
       await screenshot(page, "electron/result-visualize-loaded");
     }
   } finally {
-    await application?.close();
-    await rm(config_home, { force: true, recursive: true });
+    try {
+      await cdp?.detach();
+    } finally {
+      try {
+        await application?.close();
+      } finally {
+        await rm(config_home, { force: true, recursive: true });
+      }
+    }
   }
 }
 

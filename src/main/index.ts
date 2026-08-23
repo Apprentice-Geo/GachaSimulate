@@ -22,6 +22,7 @@ let simulation: SimulationTask;
 let result_editor: ResultEditor;
 let config_manager: ConfigManager;
 let quitting = false;
+const electron_offscreen = process.env.GACHASIMULATE_ELECTRON_OFFSCREEN === "1";
 
 if (process.platform === "win32")
   // Windows 的字体缩放会影响设计好的 UI
@@ -69,10 +70,14 @@ function create_window(): void {
     height: 900,
     minWidth: 1280,
     minHeight: 720,
+    ...(electron_offscreen ? { show: false } : {}),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
       preload: join(__dirname, "../preload/index.js"),
+      ...(electron_offscreen
+        ? { backgroundThrottling: false, offscreen: true }
+        : {}),
     },
   });
 

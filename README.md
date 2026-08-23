@@ -2,11 +2,9 @@
 
 Monte Carlo 抽卡模拟器。TypeScript Compiler 将 YAML 和本次选择的结果 item 编译为 IR，C++ Runtime 执行模拟并输出 GSR；C++ analyzer 为该 item 生成分析数据。
 
-## WSL2/Linux 快速开始
+## 快速开始
 
-日常开发和 CI 使用 WSL2/Linux bash；不要混用 Windows 侧的 Node、pnpm、C++ 工具或 `node_modules`。Electron 图形界面需要 WSLg。
-
-开发环境需要 Node.js 24、pnpm 11.3.0、Clang、CMake 和 Ninja。首次安装依赖与 hook：
+Linux 和 CI 环境使用 Node.js 24、pnpm 11.3.0、Clang、CMake 和 Ninja，首次启动需要安装依赖与 hook：
 
 ```bash
 pnpm install --frozen-lockfile
@@ -18,6 +16,8 @@ pnpm run hooks:install
 ```bash
 pnpm run dev
 ```
+
+若在 Windows 原生环境开发，应重新安装对应平台的依赖并构建原生程序，不应复用 WSL/Linux 的 node_modules、CMake 构建目录和已安装的原生程序。
 
 ## Electron
 

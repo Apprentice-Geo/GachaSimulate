@@ -11,13 +11,14 @@
 - 可视化设计决策和维护边界：[Visualize Frontend Implementation](<docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md>)。
 - 按影响范围选择检查及 push 前完整矩阵：[Development Checks](<docs/DEVELOPMENT_CHECKS.md>)。
 
-## 默认开发环境与启动入口
+## 开发环境与启动入口
 
-- 默认在仓库根目录使用 WSL2/Linux bash 开发；Electron 界面通过 WSLg 运行。Node、pnpm、Clang、CMake 和 Ninja 都使用 WSL 内安装的版本，不要混用 Windows 可执行文件或 `node_modules`。
+- 仓库的标准开发与检查命令默认从 WSL2/Linux bash 执行；Electron 界面通过 WSLg 运行。Windows 原生环境同样可以用于开发，具体工具链和构建方法由开发者选择。
+- 在不同操作系统中开发时，分别安装对应平台的依赖并构建原生程序；不要跨平台复用 `node_modules`、CMake 构建目录或已安装的原生程序。
 - 首次准备环境：`pnpm install --frozen-lockfile`，再按 Development Checks 完成 C++ Release install。
 - 启动 Electron 桌面应用：`pnpm run dev`。Electron 直接调用 `build/native/bin` 中的 core 和 analyzer。
 - 修改 Electron UI 后，建议使用 `pnpm run capture:ui [场景名]` 截取真实渲染结果，并查看项目内 `tmp/ui-captures/` 的图片；省略场景名时截取全部内置状态。
-- C++ 日常开发与 CI 使用 WSL2/Linux + Clang + Ninja；Windows 最终构建留给打包/CD 流程。完整环境说明和检查矩阵见 Development Checks。
+- CI 使用 Linux + Clang + Ninja 作为标准检查基准；其它开发环境应执行对应的等价检查。完整环境说明和检查矩阵见 Development Checks。
 
 除上述默认入口外，不要在本文件复制链接文档中的详细命令、配置语法或实现清单。文档与实现冲突时，以源码和行为测试为准，并修正对应文档。
 
