@@ -13,7 +13,7 @@
     "lint": "eslint \"src/**/*.{ts,tsx,js,mjs,cjs}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs}\" \"*.{ts,js,mjs,cjs}\"",
     "typecheck": "pnpm run build:packages && tsc --noEmit && pnpm --recursive --filter './packages/*' typecheck",
     "build": "pnpm run build:packages && tsc --noEmit && electron-vite build",
-    "package:win": "pnpm run build && node node_modules/electron-builder/cli.js --win nsis",
+    "package:win": "pnpm run build && electron-builder --win nsis --publish never",
     "capture:ui": "pnpm run build:packages && electron-vite build && tsx src/dev/capture_ui.ts",
     "test:visualize:cdf": "tsx --test src/visualize/test/cdf.test.ts src/visualize/test/analysis.test.ts",
     "test:electron-layout": "pnpm run build:packages && electron-vite build && tsx --test src/dev/electron_layout.test.ts",
