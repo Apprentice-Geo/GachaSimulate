@@ -92,7 +92,7 @@ export class ResultEditor {
       throw new Error("请先分析 GSR 文件");
     const fields = fields_value(value);
     const path = sidecar_path(this.path);
-    const display = validate_display_config({ display_version: 1, ...fields });
+    const display = validate_display_config({ display_version: 2, ...fields });
     const temporary = `${path}.${(
       this.dependencies.random_uuid ?? randomUUID
     )()}.tmp`;
@@ -137,13 +137,13 @@ export class ResultEditor {
     const sidecar = sidecar_path(path);
     if (!existsSync(sidecar))
       return {
-        display_version: 1,
+        display_version: 2,
         title: "模拟结果分布",
         target: "未设置",
         result_item_name: authoritative.result_item.name,
         note: "MEAN 受极端值影响，P50 表示一半结果不超过该值，P95 表示 95% 结果不超过该值。MIN、MAX 受模拟次数影响，不代表理论极限。",
-        price: "",
-        unit: "",
+        subtitle: "",
+        result_item_unit: "",
       };
     return this.read_sidecar(sidecar);
   }

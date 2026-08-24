@@ -225,22 +225,24 @@ test("build_cdf_view_model normalizes AnalysisV2 and display fields together", (
     termination_reason: [{ reason: "done", proportion: 100 }],
   };
   const display: DisplayConfig = {
-    display_version: 1,
+    display_version: 2,
     title: "展示标题",
     target: "展示目标",
     result_item_name: "代币",
     note: "说明",
-    price: "单抽 10 RMB",
-    unit: "测试币",
+    subtitle: "兑换结果",
+    result_item_unit: "测试币",
   };
 
   const view_model = build_cdf_view_model(analysis, display);
 
   assert.equal(view_model.title, display.title);
+  assert.equal(view_model.subtitle, display.subtitle);
   assert.deepEqual(view_model.result_item, { id: "tokens", name: "代币" });
-  assert.equal(view_model.total, 100);
+  assert.equal(view_model.total_result, 100);
+  assert.equal(view_model.total_result_display, "100 测试币");
   assert.equal(view_model.runs, 4);
-  assert.equal(view_model.display_unit, display.unit);
+  assert.equal(view_model.result_item_unit, display.result_item_unit);
   assert.equal(view_model.axis_title, "结束时的代币");
   assert.deepEqual(
     view_model.metrics.map((metric) => metric.key),
@@ -254,10 +256,32 @@ test("build_cdf_view_model normalizes AnalysisV2 and display fields together", (
     view_model.metrics.find((metric) => metric.key === "P50")?.value,
     2,
   );
-  assert.equal(
-    view_model.metrics.find((metric) => metric.key === "P50")?.display_value,
-    "2",
+  assert.deepEqual(
+    view_model.metrics.map((metric) => metric.display_value),
+    [
+      "1 测试币",
+      "1 测试币",
+      "2 测试币",
+      "2 测试币",
+      "3 测试币",
+      "2 测试币",
+      "1 测试币",
+      "3 测试币",
+    ],
   );
+
+  const without_unit = build_cdf_view_model(analysis, {
+    ...display,
+    result_item_unit: "",
+  });
+  assert.equal(without_unit.total_result_display, "100");
+  assert.deepEqual(
+    without_unit.metrics.map((metric) => metric.display_value),
+    ["1", "1", "2", "2", "3", "2", "1", "3"],
+  );
+  assert.equal(without_unit.axis_title, view_model.axis_title);
+  assert.deepEqual(without_unit.chart_points, view_model.chart_points);
+  assert.equal(without_unit.x_domain_max, view_model.x_domain_max);
 });
 
 test("build_cdf_view_model rejects negative and unsafe AnalysisV2 numbers", () => {
@@ -281,13 +305,13 @@ test("build_cdf_view_model rejects negative and unsafe AnalysisV2 numbers", () =
     termination_reason: [{ reason: "done", proportion: 100 }],
   };
   const display: DisplayConfig = {
-    display_version: 1,
+    display_version: 2,
     title: "标题",
     target: "目标",
     result_item_name: "抽数",
     note: "",
-    price: "",
-    unit: "",
+    subtitle: "",
+    result_item_unit: "",
   };
 
   assert.throws(() =>

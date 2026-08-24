@@ -6,8 +6,8 @@ export const DISPLAY_FIELD_KEYS = [
   "target",
   "result_item_name",
   "note",
-  "price",
-  "unit",
+  "subtitle",
+  "result_item_unit",
 ] as const;
 
 export type DisplayFields = Pick<

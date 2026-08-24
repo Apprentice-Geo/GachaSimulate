@@ -8,7 +8,7 @@ GachaSimulate 将 YAML 抽卡规则编译为中间表示，由 C++ Runtime 执�
 
 ```text
 YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
-     -> AnalysisV2 + DisplayConfig v1 -> CDF ViewModel
+     -> AnalysisV2 + DisplayConfig v2 -> CDF ViewModel
 ```
 
 ## 代码地图
@@ -43,7 +43,7 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 | IR | TS 到 C++ 的临时 JSON 进程契约 | IR v2；只支持配套版本，不持久化 | Config Compiler；C++ loader 负责不可信输入防御 | Config Compiler | C++ Runtime | [`IR_V2.md`](docs/IR_V2.md) |
 | GSR | 持久化模拟结果 | GSR v2；不读取旧格式 | C++ codec 与固定 fixture | C++ Runtime | C++ analyzer | [`GSR_V2.md`](docs/GSR_V2.md) |
 | Analysis | analyzer 的 JSON 输出 | AnalysisV2；不隐式兼容旧字段 | JSON Schema 定义结构，semantic validator 定义跨字段不变量 | C++ analyzer | Electron、素材导出 | [`ANALYSIS_V2.md`](docs/ANALYSIS_V2.md) |
-| DisplayConfig | 独立可视化 sidecar | v1；不隐式兼容旧字段 | JSON Schema | Electron 结果编辑 | Electron、素材导出 | [`VISUALIZE_FRONTEND_IMPLEMENTATION.md`](docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md) |
+| DisplayConfig | 独立可视化 sidecar | v2；不隐式兼容 v1 或旧字段 | JSON Schema | Electron 结果编辑 | Electron、素材导出 | [`VISUALIZE_FRONTEND_IMPLEMENTATION.md`](docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md) |
 | Config Repository | 配置仓库 index、manifest 和包文件集合 | v1 | config-repository-contract validator | 配置仓库 | Electron 配置安装 | [`CONFIG_REPOSITORY_V1.md`](docs/CONFIG_REPOSITORY_V1.md) |
 
 JSON 契约按约束范围划分权威：JSON Schema 定义字段、类型、必填项和局部取值约束；semantic validator 定义 Schema 之外的跨字段不变量；TypeScript 类型只是消费方的静态视图。契约测试负责验证这些定义与生产方、消费方保持一致，不另行定义格式。

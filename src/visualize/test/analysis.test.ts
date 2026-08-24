@@ -35,3 +35,27 @@ test("shared fixtures satisfy AnalysisV2 and DisplayConfig contracts", () => {
   assert.deepEqual(validate_analysis(analysis_fixture), analysis_fixture);
   assert.deepEqual(validate_display_config(display_fixture), display_fixture);
 });
+
+test("DisplayConfig v2 rejects v1, legacy fields, and mixed fields", () => {
+  assert.throws(() =>
+    validate_display_config({ ...display_fixture, display_version: 1 }),
+  );
+  assert.throws(() =>
+    validate_display_config({
+      display_version: 2,
+      title: display_fixture.title,
+      target: display_fixture.target,
+      result_item_name: display_fixture.result_item_name,
+      note: display_fixture.note,
+      price: "旧副标题",
+      unit: "旧单位",
+    }),
+  );
+  assert.throws(() =>
+    validate_display_config({
+      ...display_fixture,
+      price: "旧副标题",
+      unit: "旧单位",
+    }),
+  );
+});

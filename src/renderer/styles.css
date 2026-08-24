@@ -1208,8 +1208,8 @@ button:focus-visible,
   }
 
   .result-editor-form > label,
-  .result-editor-form .result-price,
-  .result-editor-form .result-unit {
+  .result-editor-form .result-subtitle,
+  .result-editor-form .result-item-unit {
     grid-column: 1 / -1;
   }
 

@@ -219,6 +219,8 @@ async function assert_layout(
   await page.getByText("未选择文件。", { exact: true }).waitFor();
   await select.click();
   await page.getByRole("button", { name: "更换 GSR" }).waitFor();
+  await page.getByLabel("副标题", { exact: true }).waitFor();
+  await page.getByLabel("统计物品展示单位", { exact: true }).waitFor();
 
   const preview = page.locator('[data-testid="result-preview"]');
   const scroll = page.locator('[data-testid="result-preview-scroll"]');
@@ -260,7 +262,15 @@ async function assert_layout(
   assert.equal(await page.locator(".pk-segment").count(), 3);
   assert.equal(
     await page.getByTestId("stat-P50").locator(".metric-value").textContent(),
-    "39",
+    "39 抽",
+  );
+  const axis_tick_text = await page
+    .locator(".cdf-chart-shell .recharts-cartesian-axis-tick-value")
+    .allTextContents();
+  assert.ok(axis_tick_text.length > 0);
+  assert.equal(
+    axis_tick_text.some((text) => text.includes("抽")),
+    false,
   );
   const visualize_contract = await page.evaluate(() => {
     const viewport = document.querySelector(".visualize-viewport");

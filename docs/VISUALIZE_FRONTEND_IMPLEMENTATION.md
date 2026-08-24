@@ -4,7 +4,7 @@
 
 ## 定位
 
-`src/visualize/` 是平台无关的结果可视化层。它把 `AnalysisV2 + DisplayConfig v1` 转换为经过校验的展示模型，供 Electron 和素材导出使用。Node.js 文件系统、Remotion bundler/renderer 和导出进程入口位于 `src/export/`，只依赖本层，不被本层反向依赖。
+`src/visualize/` 是平台无关的结果可视化层。它把 `AnalysisV2 + DisplayConfig v2` 转换为经过校验的展示模型，供 Electron 和素材导出使用。Node.js 文件系统、Remotion bundler/renderer 和导出进程入口位于 `src/export/`，只依赖本层，不被本层反向依赖。
 
 素材导出是长期保留能力。可视化宿主只有 Electron 展示和 Remotion 导出。
 
@@ -25,7 +25,7 @@ DisplayConfig -> validate_display_config ------+   (safe-integer conversion + me
 
 AnalysisV2 和 DisplayConfig 不能绕过各自校验直接进入视图模型。组件只消费 CDF view model，不承担 schema 校验、数值转换、CDF 计算或展示规则编排。
 
-Electron 的结果编辑页和结果可视化页共享当前 GSR 会话。main 调用 C++ analyzer 并校验 Analysis v2；编辑页只保存 DisplayConfig v1，可视化页用 `AnalysisV2 + DisplayConfig` 生成共享视图模型。旧完整 JSON 不做隐式兼容。
+Electron 的结果编辑页和结果可视化页共享当前 GSR 会话。main 调用 C++ analyzer 并校验 Analysis v2；编辑页只保存 DisplayConfig v2，可视化页用 `AnalysisV2 + DisplayConfig` 生成共享视图模型。DisplayConfig v1、旧字段和旧完整 JSON 不做隐式兼容。
 
 ## 模块地图
 
@@ -52,7 +52,7 @@ Electron 展示和素材导出复用同一套输入处理、视图模型、画�
 
 可视化采用深色数据监控台方向，强调高信息密度和分析可读性，不采用营销页、游戏 HUD 或高装饰性视觉。CDF 曲线是主视觉信号，网格、坐标轴和动画保持克制。
 
-统计 marker 使用颜色和视觉权重表达分位位置及尾部风险。终止原因颜色只表示原因之间的对应关系，不表达好坏。文案使用通用的“模拟结果分布”“累计占比”“结束时的 `<item name>`”“累计模拟次数”和简短的分位说明；`unit` 只由展示字段提供。
+统计 marker 使用颜色和视觉权重表达分位位置及尾部风险。终止原因颜色只表示原因之间的对应关系，不表达好坏。文案使用通用的“模拟结果分布”“累计占比”“结束时的 `<item name>`”“累计模拟次数”和简短的分位说明；`result_item_unit` 只追加到累计结果和统计指标展示值，CDF 坐标轴标题与刻度保持无单位。
 
 ### 交互缩放
 
@@ -60,7 +60,7 @@ Electron 将固定 3840×2160 画布按宿主可用区域等比缩小并双向�
 
 ### 输入契约
 
-`AnalysisV2 + DisplayConfig v1` 是唯一可视化输入契约，对应 `docs/schemas/analysis_v2.schema.json` 和 `docs/schemas/display_config.schema.json`。`result_item.id`、`totals.result` 和 `totals.runs` 来自 AnalysisV2；`result_item_name` 只控制展示名称。旧完整 JSON 和旧字段不做隐式兼容；需要兼容时应明确修改契约和迁移策略。
+`AnalysisV2 + DisplayConfig v2` 是唯一可视化输入契约，对应 `docs/schemas/analysis_v2.schema.json` 和 `docs/schemas/display_config.schema.json`。`result_item.id`、`totals.result` 和 `totals.runs` 来自 AnalysisV2；`result_item_name` 只控制展示名称，`subtitle` 控制主标题下的可选副标题，`result_item_unit` 控制累计结果和统计指标的展示单位。DisplayConfig v1、旧完整 JSON 和旧字段不做隐式兼容；需要兼容时应明确修改契约和迁移策略。
 
 JSON Schema 是字段、类型、必填项和局部取值约束的权威。`validate_analysis` 另行定义数组长度、递增顺序、CDF 终点和 termination 比例等跨字段不变量；`validate_display_config` 当前只执行对应 Schema，没有额外语义规则。`types/` 中的 TypeScript 类型是消费方的静态视图，不独立定义格式。
 

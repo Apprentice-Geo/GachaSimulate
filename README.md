@@ -25,7 +25,7 @@ pnpm run dev
 
 - `<stem>.visualize.json`
 
-sidecar 是独立的 `DisplayConfig v1`，只保存 `title`、`target`、`result_item_name`、`note`、`price` 和 `unit`；分析、result item ID、CDF、termination、total 和 runs 始终从 GSR 重新获取。
+sidecar 是独立的 `DisplayConfig v2`，只保存 `title`、`target`、`result_item_name`、`note`、`subtitle` 和 `result_item_unit`；分析、result item ID、CDF、termination、total 和 runs 始终从 GSR 重新获取。v1 sidecar 和旧字段会按非法配置拒绝，不做迁移或自动改写。
 
 桌面数据位于 `app.getPath("userData")` 下的 `configs/installed/` 与 `results/`。
 
@@ -33,7 +33,7 @@ sidecar 是独立的 `DisplayConfig v1`，只保存 `title`、`target`、`result
 
 ## 可视化与导出
 
-Electron 展示和 Remotion 导出共享 `AnalysisV2 + DisplayConfig v1` 输入、CDF 视图模型、画面与动画。导出命令：
+Electron 展示和 Remotion 导出共享 `AnalysisV2 + DisplayConfig v2` 输入、CDF 视图模型、画面与动画。导出命令：
 
 ```bash
 pnpm run export:cdf -- --gsr <file.gsr> --display <file.visualize.json>

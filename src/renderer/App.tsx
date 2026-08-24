@@ -616,7 +616,8 @@ function ResultEditorPage({
             <p className="panel-kicker">GSR WORKFLOW</p>
             <h2>载入模拟结果</h2>
             <p>
-              选择 GSR 文件并完成分析后，即可编辑标题、目标、说明、价格和单位。
+              选择 GSR
+              文件并完成分析后，即可编辑标题、目标、说明、副标题和统计物品展示单位。
             </p>
             <button
               type="button"
@@ -644,8 +645,13 @@ function ResultEditorPage({
               {field("target", "目标")}
               {field("result_item_name", "统计物品展示名称")}
               {field("note", "说明", false, "result-note")}
-              {field("price", "价格", false, "result-price")}
-              {field("unit", "单位", false, "result-unit")}
+              {field("subtitle", "副标题", false, "result-subtitle")}
+              {field(
+                "result_item_unit",
+                "统计物品展示单位",
+                false,
+                "result-item-unit",
+              )}
             </div>
             <section
               className="instrument-panel result-preview"
@@ -677,7 +683,7 @@ function ResultEditorPage({
                       </div>
                       <div>
                         <span>累计{preview_data.result_item.name}</span>
-                        <strong>{preview_data.total_display}</strong>
+                        <strong>{preview_data.total_result_display}</strong>
                       </div>
                     </div>
                   </div>

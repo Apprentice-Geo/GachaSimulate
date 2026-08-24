@@ -146,13 +146,13 @@ jobs:
           node --input-type=module -e '
             import { writeFileSync } from "node:fs";
             writeFileSync(process.argv[1], JSON.stringify({
-              display_version: 1,
+              display_version: 2,
               title: "CI export",
               target: "test",
               result_item_name: "draw_count",
               note: "",
-              price: "",
-              unit: ""
+              subtitle: "",
+              result_item_unit: ""
             }));
           ' "$display"
           pnpm run export:cdf -- --gsr "$gsr" --display "$display"
