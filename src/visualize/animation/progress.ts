@@ -23,10 +23,11 @@ export interface AnimationProgress {
   chart_surface: FadeProgress;
   curve: number;
   mean_line: ScaleProgress;
-  termination_panel: FadeProgress;
+  termination_surface: FadeProgress;
+  termination_title: FadeProgress;
   pk_fill: number;
   termination_detail: FadeProgress;
-  stat_panel: FadeProgress;
+  stat_surface: FadeProgress;
   note: FadeProgress;
   marker_line: (index: number) => ScaleProgress;
   marker_group: (index: number) => FadeProgress;
@@ -45,7 +46,17 @@ export function segment_progress(
   return clamp_progress((elapsed_ms - delay_ms) / duration_ms);
 }
 
-function ease_out(progress: number): number {
+export type Easing = (progress: number) => number;
+
+export function linear(progress: number): number {
+  return progress;
+}
+
+export function ease_out_quad(progress: number): number {
+  return 1 - Math.pow(1 - progress, 2);
+}
+
+export function ease_out_cubic(progress: number): number {
   return 1 - Math.pow(1 - progress, 3);
 }
 
@@ -54,10 +65,9 @@ function fade_progress(
   delay_ms: number,
   duration_ms: number,
   distance_px: number,
+  easing: Easing,
 ): FadeProgress {
-  const progress = ease_out(
-    segment_progress(elapsed_ms, delay_ms, duration_ms),
-  );
+  const progress = easing(segment_progress(elapsed_ms, delay_ms, duration_ms));
   return {
     opacity: progress,
     translate_y: distance_px * (1 - progress),
@@ -71,6 +81,7 @@ function metric_progress(elapsed_ms: number, index: number): MetricProgress {
       index * ANIMATION_TIMELINE.STAT_CONTENT_STAGGER_MS,
     ANIMATION_TIMELINE.STAT_CONTENT_DURATION_MS,
     32,
+    ease_out_cubic,
   );
 }
 
@@ -79,10 +90,9 @@ function timed_metric_progress(
   delay_ms: number,
   duration_ms: number,
   distance_px: number,
+  easing: Easing,
 ): MetricProgress {
-  const progress = ease_out(
-    segment_progress(elapsed_ms, delay_ms, duration_ms),
-  );
+  const progress = easing(segment_progress(elapsed_ms, delay_ms, duration_ms));
   return {
     opacity: progress,
     translate_x: distance_px * (1 - progress),
@@ -95,10 +105,9 @@ function scale_progress(
   duration_ms: number,
   start_scale: number,
   target_opacity: number,
+  easing: Easing,
 ): ScaleProgress {
-  const progress = ease_out(
-    segment_progress(elapsed_ms, delay_ms, duration_ms),
-  );
+  const progress = easing(segment_progress(elapsed_ms, delay_ms, duration_ms));
   return {
     opacity: target_opacity * progress,
     scale: start_scale + (1 - start_scale) * progress,
@@ -116,6 +125,7 @@ export function build_animation_progress(
           index * ANIMATION_TIMELINE.TITLE_AREA_STAGGER_MS,
         ANIMATION_TIMELINE.TITLE_AREA_DURATION_MS,
         32,
+        ease_out_cubic,
       ),
     metadata: (index) =>
       timed_metric_progress(
@@ -124,20 +134,23 @@ export function build_animation_progress(
           index * ANIMATION_TIMELINE.METADATA_STAGGER_MS,
         ANIMATION_TIMELINE.METADATA_DURATION_MS,
         32,
+        ease_out_cubic,
       ),
     chart_shell: fade_progress(
       elapsed_ms,
       ANIMATION_TIMELINE.CHART_SHELL_DELAY_MS,
       ANIMATION_TIMELINE.CHART_SHELL_DURATION_MS,
       12,
+      ease_out_cubic,
     ),
     chart_surface: fade_progress(
       elapsed_ms,
       ANIMATION_TIMELINE.CHART_SURFACE_DELAY_MS,
       ANIMATION_TIMELINE.CHART_SURFACE_DURATION_MS,
       12,
+      ease_out_cubic,
     ),
-    curve: ease_out(
+    curve: ease_out_cubic(
       segment_progress(
         elapsed_ms,
         ANIMATION_TIMELINE.CURVE_DELAY_MS,
@@ -150,14 +163,23 @@ export function build_animation_progress(
       ANIMATION_TIMELINE.MEAN_LINE_DURATION_MS,
       0.35,
       0.85,
+      ease_out_cubic,
     ),
-    termination_panel: fade_progress(
+    termination_surface: fade_progress(
       elapsed_ms,
       ANIMATION_TIMELINE.TERMINATION_PANEL_DELAY_MS,
       ANIMATION_TIMELINE.TERMINATION_PANEL_DURATION_MS,
       16,
+      ease_out_cubic,
     ),
-    pk_fill: ease_out(
+    termination_title: fade_progress(
+      elapsed_ms,
+      ANIMATION_TIMELINE.TERMINATION_PANEL_DELAY_MS,
+      ANIMATION_TIMELINE.TERMINATION_PANEL_DURATION_MS,
+      16,
+      ease_out_cubic,
+    ),
+    pk_fill: ease_out_cubic(
       segment_progress(
         elapsed_ms,
         ANIMATION_TIMELINE.PK_FILL_DELAY_MS,
@@ -169,18 +191,21 @@ export function build_animation_progress(
       ANIMATION_TIMELINE.TERMINATION_DETAIL_DELAY_MS,
       ANIMATION_TIMELINE.TERMINATION_DETAIL_DURATION_MS,
       12,
+      ease_out_cubic,
     ),
-    stat_panel: fade_progress(
+    stat_surface: fade_progress(
       elapsed_ms,
       ANIMATION_TIMELINE.STAT_PANEL_DELAY_MS,
       ANIMATION_TIMELINE.STAT_PANEL_DURATION_MS,
       12,
+      ease_out_cubic,
     ),
     note: fade_progress(
       elapsed_ms,
       ANIMATION_TIMELINE.NOTE_DELAY_MS,
       ANIMATION_TIMELINE.NOTE_DURATION_MS,
       12,
+      ease_out_cubic,
     ),
     marker_line: (index) =>
       scale_progress(
@@ -190,6 +215,7 @@ export function build_animation_progress(
         ANIMATION_TIMELINE.MARKER_LINE_DURATION_MS,
         0.35,
         1,
+        ease_out_cubic,
       ),
     marker_group: (index) =>
       fade_progress(
@@ -198,6 +224,7 @@ export function build_animation_progress(
           index * ANIMATION_TIMELINE.MARKER_STAGGER_MS,
         ANIMATION_TIMELINE.MARKER_GROUP_DURATION_MS,
         6,
+        ease_out_cubic,
       ),
     stat_content: (index) => metric_progress(elapsed_ms, index),
   };

@@ -115,12 +115,16 @@ export function StatisticPanel({
       className="statistic-panel"
       data-testid="statistic-panel"
       data-ready={is_ready}
-      style={
-        animation_progress
-          ? fade_style(animation_progress.stat_panel)
-          : undefined
-      }
     >
+      <div
+        aria-hidden="true"
+        className="statistic-panel-surface panel-surface"
+        style={
+          animation_progress
+            ? fade_style(animation_progress.stat_surface)
+            : undefined
+        }
+      />
       {data ? (
         <div className="metric-list">
           {visible_metric_groups.map((group) => (

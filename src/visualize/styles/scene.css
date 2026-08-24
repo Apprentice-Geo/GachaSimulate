@@ -196,9 +196,8 @@
 }
 
 .cdf-chart-shell,
-.statistic-panel,
 .state-panel,
-.termination-region {
+.panel-surface {
   background: var(--color-panel);
   border: 2px solid var(--color-hairline);
   border-radius: var(--radius-card);
@@ -370,11 +369,19 @@
   height: 100%;
   min-width: 0;
   overflow: hidden;
-  padding: 44px 40px;
+  border-radius: var(--radius-card);
+  padding: 46px 42px;
   position: relative;
 }
 
-.statistic-panel::before {
+.panel-surface {
+  inset: 0;
+  position: absolute;
+  z-index: 0;
+}
+
+.statistic-panel-surface::before,
+.termination-region-surface::before {
   background: var(--color-nvidia-green);
   content: "";
   position: absolute;
@@ -382,6 +389,12 @@
   top: 0;
   height: var(--square-length);
   width: var(--square-length);
+}
+
+.metric-list,
+.metric-placeholder {
+  position: relative;
+  z-index: 1;
 }
 
 .panel-heading {
@@ -590,18 +603,10 @@
   gap: 68px;
   grid-template-columns: 36fr 64fr;
   height: var(--footer-height);
-  padding: 48px 56px;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  padding: 50px 58px;
   position: relative;
-}
-
-.termination-region::before {
-  background: var(--color-nvidia-green);
-  content: "";
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: var(--square-length);
-  width: var(--square-length);
 }
 
 .termination-copy h2 {
@@ -626,6 +631,8 @@
   grid-column: 1 / -1;
   min-width: 0;
   width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .termination-heading {

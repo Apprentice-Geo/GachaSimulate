@@ -346,6 +346,9 @@ test("build_animation_progress exposes final state at animation end", () => {
   assert.equal(progress.curve, 1);
   assert.equal(progress.marker_line(0).scale, 1);
   assert.equal(progress.marker_group(0).opacity, 1);
+  assert.equal(progress.stat_surface.opacity, 1);
+  assert.equal(progress.termination_surface.opacity, 1);
+  assert.equal(progress.termination_title.opacity, 1);
   assert.equal(progress.pk_fill, 1);
   assert.equal(progress.stat_content(3).translate_x, 0);
   assert.equal(progress.note.opacity, 1);
