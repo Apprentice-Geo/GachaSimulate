@@ -8,7 +8,10 @@ import {
   build_curve_path,
   build_marker_views,
 } from "../view/cdf_overlay_layout";
-import type { AnimationProgress } from "../animation/progress";
+import {
+  build_marker_line_order,
+  type AnimationProgress,
+} from "../animation/progress";
 
 interface CDFOverlayProps {
   data: CDFViewModel;
@@ -37,6 +40,15 @@ export function CDFOverlay({
   const mean_marker_visual = mean_marker
     ? get_marker_visual(mean_marker.marker.weight, compact)
     : null;
+  const marker_line_order = build_marker_line_order(
+    marker_views.map((view) => ({
+      key: view.marker.key,
+      position: view.x,
+    })),
+  );
+  const marker_line_index_by_key = new Map(
+    marker_line_order.map((key, index) => [key, index]),
+  );
 
   if (!plot_area) {
     return null;
@@ -78,8 +90,12 @@ export function CDFOverlay({
 
       {marker_views.map((view, index) => {
         const marker_visual = get_marker_visual(view.marker.weight, compact);
-        const marker_line_progress = animation_progress.marker_line(index);
-        const marker_group_progress = animation_progress.marker_group(index);
+        const marker_line_progress = animation_progress.marker_line(
+          marker_line_index_by_key.get(view.marker.key) ?? index,
+        );
+        const marker_group_progress = animation_progress.marker_group(
+          view.marker.key,
+        );
 
         return (
           <g

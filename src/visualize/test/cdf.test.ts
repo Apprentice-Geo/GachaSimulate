@@ -13,11 +13,22 @@ import {
 import { STATISTIC_VIEW_ORDER } from "../view/statistic_view_config";
 import {
   build_animation_progress,
+  build_marker_line_order,
+  ease_out_cubic,
+  ease_out_quad,
+  linear,
   segment_progress,
 } from "../animation/progress";
-import { ANIMATION_TIMELINE, ANIMATION_TOTAL_MS } from "../animation/timeline";
+import {
+  ANIMATION_COMPLETION_FRAME,
+  ANIMATION_TIMELINE,
+  ANIMATION_TOTAL_MS,
+  MARKER_GROUP_START_FRAME,
+} from "../animation/timeline";
+import { CDF_DURATION_IN_FRAMES } from "../remotion/constants";
+import { resolve_cdf_frame_state } from "../remotion/CdfComposition";
 import type { MarkerView } from "../view/cdf_overlay_layout";
-import type { CDFMarker } from "../types/cdf";
+import type { CDFMarker, MarkerKey } from "../types/cdf";
 import type { AnalysisV2 } from "../types/analysis";
 import type { DisplayConfig } from "../types/display_config";
 import {
@@ -328,58 +339,263 @@ test("build_cdf_view_model rejects negative and unsafe AnalysisV2 numbers", () =
   );
 });
 
-test("segment_progress clamps before and after its time window", () => {
-  assert.equal(segment_progress(99, 100, 200), 0);
-  assert.equal(segment_progress(200, 100, 200), 0.5);
-  assert.equal(segment_progress(301, 100, 200), 1);
+function frame_to_ms(frame: number): number {
+  return (frame / 60) * 1000;
+}
+
+const MARKER_KEYS: readonly MarkerKey[] = [
+  "MIN",
+  "P5",
+  "P25",
+  "P50",
+  "MEAN",
+  "P75",
+  "P95",
+  "MAX",
+];
+
+test("animation easing functions and segments expose exact endpoints", () => {
+  assert.deepEqual([linear(0), linear(0.5), linear(1)], [0, 0.5, 1]);
+  assert.deepEqual(
+    [ease_out_quad(0), ease_out_quad(0.5), ease_out_quad(1)],
+    [0, 0.75, 1],
+  );
+  assert.deepEqual(
+    [ease_out_cubic(0), ease_out_cubic(0.5), ease_out_cubic(1)],
+    [0, 0.875, 1],
+  );
+  assert.equal(segment_progress(9, 10, 20, linear), 0);
+  assert.equal(segment_progress(15, 10, 20, linear), 0.5);
+  assert.equal(segment_progress(21, 10, 20, linear), 1);
 });
 
-test("build_animation_progress exposes final state at animation end", () => {
-  const progress = build_animation_progress(ANIMATION_TOTAL_MS);
+test("every animation segment spans at least five frames", () => {
+  const fixed_segments = [
+    ANIMATION_TIMELINE.CHART_SHELL,
+    ANIMATION_TIMELINE.CHART_SURFACE,
+    ANIMATION_TIMELINE.CURVE,
+    ANIMATION_TIMELINE.STAT_SURFACE,
+    ANIMATION_TIMELINE.TERMINATION_SURFACE,
+    ANIMATION_TIMELINE.TERMINATION_TITLE,
+    ANIMATION_TIMELINE.PK_FILL,
+    ANIMATION_TIMELINE.TERMINATION_DETAIL,
+    ANIMATION_TIMELINE.MEAN_LINE,
+    ANIMATION_TIMELINE.NOTE,
+  ];
+  const durations = [
+    ...fixed_segments.map(
+      (segment) => segment.completion_frame - segment.start_frame,
+    ),
+    ANIMATION_TIMELINE.TITLE_AREA.completion_frame -
+      ANIMATION_TIMELINE.TITLE_AREA.start_frame,
+    ANIMATION_TIMELINE.METADATA.completion_frame -
+      ANIMATION_TIMELINE.METADATA.start_frame,
+    ANIMATION_TIMELINE.STAT_CONTENT.completion_frame -
+      ANIMATION_TIMELINE.STAT_CONTENT.start_frame,
+    ANIMATION_TIMELINE.MARKER_LINE.completion_frame -
+      ANIMATION_TIMELINE.MARKER_LINE.start_frame,
+    ANIMATION_TIMELINE.MARKER_GROUP_DURATION_FRAMES,
+  ];
 
-  assert.equal(progress.title_area(2).opacity, 1);
-  assert.equal(progress.title_area(2).translate_x, 0);
-  assert.equal(progress.metadata(2).opacity, 1);
-  assert.equal(progress.metadata(2).translate_x, 0);
-  assert.equal(progress.chart_shell.translate_y, 0);
-  assert.equal(progress.chart_surface.opacity, 1);
-  assert.equal(progress.curve, 1);
-  assert.equal(progress.marker_line(0).scale, 1);
-  assert.equal(progress.marker_group(0).opacity, 1);
-  assert.equal(progress.stat_surface.opacity, 1);
-  assert.equal(progress.termination_surface.opacity, 1);
-  assert.equal(progress.termination_title.opacity, 1);
-  assert.equal(progress.pk_fill, 1);
-  assert.equal(progress.stat_content(3).translate_x, 0);
-  assert.equal(progress.note.opacity, 1);
-});
-
-test("title completes before curve and metadata follows statistic panel", () => {
   assert.equal(
-    ANIMATION_TIMELINE.TITLE_AREA_DELAY_MS +
-      2 * ANIMATION_TIMELINE.TITLE_AREA_STAGGER_MS +
-      ANIMATION_TIMELINE.TITLE_AREA_DURATION_MS <=
-      ANIMATION_TIMELINE.CURVE_DELAY_MS,
+    durations.every((duration) => duration >= 5),
+    true,
+  );
+});
+
+test("timeline elements use their assigned easing at segment midpoints", () => {
+  const at_frame = (frame: number) =>
+    build_animation_progress(frame_to_ms(frame));
+
+  assert.equal(at_frame(5).chart_shell.opacity, 0.75);
+  assert.equal(at_frame(6).title_area(0).opacity, 0.875);
+  assert.equal(at_frame(13).chart_surface.opacity, 0.75);
+  assert.equal(at_frame(32).curve, 0.5);
+  assert.equal(at_frame(32).metadata(0).opacity, 0.875);
+  assert.equal(at_frame(36).stat_surface.opacity, 0.75);
+  assert.equal(at_frame(35).stat_content(0).opacity, 0.75);
+  assert.equal(at_frame(40).termination_surface.opacity, 0.75);
+  assert.equal(at_frame(39).termination_title.opacity, 0.75);
+  assert.equal(at_frame(43.5).pk_fill, 0.75);
+  assert.equal(at_frame(46.5).termination_detail.opacity, 0.75);
+  assert.equal(at_frame(42).marker_line(0).opacity, 0.75);
+  assert.equal(at_frame(48).marker_group("P50").opacity, 0.75);
+  assert.equal(at_frame(47).mean_line.opacity, 0.85 * 0.75);
+  assert.equal(at_frame(50.5).note.opacity, 0.75);
+});
+
+test("title and chart surface finish when the curve starts", () => {
+  const latest_title_completion =
+    ANIMATION_TIMELINE.TITLE_AREA.completion_frame +
+    2 * ANIMATION_TIMELINE.TITLE_AREA.stagger_frames;
+  assert.equal(
+    latest_title_completion <= ANIMATION_TIMELINE.CURVE.start_frame,
     true,
   );
   assert.equal(
-    ANIMATION_TIMELINE.METADATA_DELAY_MS,
-    ANIMATION_TIMELINE.STAT_PANEL_DELAY_MS,
+    ANIMATION_TIMELINE.CHART_SURFACE.completion_frame,
+    ANIMATION_TIMELINE.CURVE.start_frame,
   );
 });
 
-test("build_animation_progress staggers marker and stat content timing", () => {
-  const marker_progress = build_animation_progress(
-    ANIMATION_TIMELINE.MARKER_GROUP_DELAY_MS +
-      Math.floor(ANIMATION_TIMELINE.MARKER_STAGGER_MS / 2),
+test("marker lines use spatial order with stable semantic ties", () => {
+  assert.deepEqual(
+    build_marker_line_order([
+      { key: "P50", position: 50 },
+      { key: "MEAN", position: 40 },
+      { key: "MIN", position: 10 },
+    ]),
+    ["MIN", "MEAN", "P50"],
   );
-  assert.equal(marker_progress.marker_group(0).opacity > 0, true);
-  assert.equal(marker_progress.marker_group(1).opacity, 0);
+  assert.deepEqual(
+    build_marker_line_order([
+      { key: "P50", position: 40 },
+      { key: "MEAN", position: 50 },
+      { key: "MAX", position: 80 },
+    ]),
+    ["P50", "MEAN", "MAX"],
+  );
+  assert.deepEqual(
+    build_marker_line_order(
+      [...MARKER_KEYS].reverse().map((key) => ({ key, position: 40 })),
+    ),
+    MARKER_KEYS,
+  );
 
-  const stat_progress = build_animation_progress(
-    ANIMATION_TIMELINE.STAT_CONTENT_DELAY_MS +
-      Math.floor(ANIMATION_TIMELINE.STAT_CONTENT_STAGGER_MS / 2),
+  const between_first_two_starts = build_animation_progress(frame_to_ms(34.5));
+  assert.equal(between_first_two_starts.marker_line(0).opacity > 0, true);
+  assert.equal(between_first_two_starts.marker_line(1).opacity, 0);
+});
+
+test("marker groups follow semantic batches keyed by MarkerKey", () => {
+  assert.deepEqual(MARKER_GROUP_START_FRAME, {
+    P50: 42,
+    MEAN: 42,
+    P25: 43,
+    P75: 43,
+    P5: 44,
+    P95: 44,
+    MIN: 45,
+    MAX: 45,
+  });
+  const progress = build_animation_progress(frame_to_ms(42.5));
+  assert.equal(progress.marker_group("P50").opacity > 0, true);
+  assert.equal(progress.marker_group("MEAN").opacity > 0, true);
+  assert.equal(progress.marker_group("P25").opacity, 0);
+});
+
+test("frame 56 is unfinished and frame 57 is the complete state", () => {
+  const before_completion = build_animation_progress(frame_to_ms(56));
+  assert.equal(before_completion.marker_line(7).scale < 1, true);
+  assert.equal(before_completion.marker_group("MAX").opacity < 1, true);
+  assert.equal(before_completion.note.opacity < 1, true);
+
+  const progress = build_animation_progress(frame_to_ms(57));
+  for (let index = 0; index < 3; index += 1) {
+    assert.deepEqual(progress.title_area(index), {
+      opacity: 1,
+      translate_x: 0,
+    });
+    assert.deepEqual(progress.metadata(index), {
+      opacity: 1,
+      translate_x: 0,
+    });
+  }
+  assert.deepEqual(progress.chart_shell, { opacity: 1, translate_y: 0 });
+  assert.deepEqual(progress.chart_surface, { opacity: 1, translate_y: 0 });
+  assert.equal(progress.curve, 1);
+  assert.deepEqual(progress.mean_line, { opacity: 0.85, scale: 1 });
+  assert.deepEqual(progress.stat_surface, { opacity: 1, translate_y: 0 });
+  assert.deepEqual(progress.termination_surface, {
+    opacity: 1,
+    translate_y: 0,
+  });
+  assert.deepEqual(progress.termination_title, {
+    opacity: 1,
+    translate_y: 0,
+  });
+  assert.equal(progress.pk_fill, 1);
+  assert.deepEqual(progress.termination_detail, {
+    opacity: 1,
+    translate_y: 0,
+  });
+  assert.deepEqual(progress.note, { opacity: 1, translate_y: 0 });
+  for (let index = 0; index < 8; index += 1) {
+    assert.deepEqual(progress.marker_line(index), { opacity: 1, scale: 1 });
+  }
+  for (const key of MARKER_KEYS) {
+    assert.deepEqual(progress.marker_group(key), {
+      opacity: 1,
+      translate_y: 0,
+    });
+  }
+  for (let index = 0; index < 11; index += 1) {
+    assert.deepEqual(progress.stat_content(index), {
+      opacity: 1,
+      translate_x: 0,
+    });
+  }
+});
+
+function observable_animation_progress(frame: number) {
+  const progress = build_animation_progress(frame_to_ms(frame));
+  return {
+    title: [0, 1, 2].map(progress.title_area),
+    metadata: [0, 1, 2].map(progress.metadata),
+    chart_shell: progress.chart_shell,
+    chart_surface: progress.chart_surface,
+    curve: progress.curve,
+    mean_line: progress.mean_line,
+    termination_surface: progress.termination_surface,
+    termination_title: progress.termination_title,
+    pk_fill: progress.pk_fill,
+    termination_detail: progress.termination_detail,
+    stat_surface: progress.stat_surface,
+    note: progress.note,
+    marker_lines: Array.from({ length: 8 }, (_, index) =>
+      progress.marker_line(index),
+    ),
+    marker_groups: MARKER_KEYS.map(progress.marker_group),
+    stat_content: Array.from({ length: 11 }, (_, index) =>
+      progress.stat_content(index),
+    ),
+  };
+}
+
+test("frames 57 through 59 expose identical observable progress", () => {
+  assert.equal(ANIMATION_COMPLETION_FRAME, 57);
+  assert.equal(ANIMATION_TOTAL_MS, 950);
+  assert.deepEqual(
+    observable_animation_progress(58),
+    observable_animation_progress(57),
   );
-  assert.equal(stat_progress.stat_content(0).opacity > 0, true);
-  assert.equal(stat_progress.stat_content(1).opacity, 0);
+  assert.deepEqual(
+    observable_animation_progress(59),
+    observable_animation_progress(57),
+  );
+});
+
+test("Remotion exports exactly 60 frames without a hold interval", () => {
+  assert.equal(CDF_DURATION_IN_FRAMES, 60);
+  const constants_source = readFileSync(
+    path.join(process.cwd(), "src/visualize/remotion/constants.ts"),
+    "utf-8",
+  );
+  assert.equal(constants_source.includes("CDF_VIDEO_HOLD_MS"), false);
+});
+
+test("Remotion switches to the clamped idle state at frame 57", () => {
+  assert.deepEqual(resolve_cdf_frame_state(56, 60), {
+    animation_state: "playing",
+    elapsed_ms: frame_to_ms(56),
+    is_animating: true,
+  });
+  const completion_state = {
+    animation_state: "idle",
+    elapsed_ms: ANIMATION_TOTAL_MS,
+    is_animating: false,
+  };
+  assert.deepEqual(resolve_cdf_frame_state(57, 60), completion_state);
+  assert.deepEqual(resolve_cdf_frame_state(58, 60), completion_state);
+  assert.deepEqual(resolve_cdf_frame_state(59, 60), completion_state);
 });

@@ -1,36 +1,51 @@
-export const ANIMATION_TOTAL_MS = 3500;
+import { VIDEO_FPS } from "../constants";
+import type { MarkerKey } from "../types/cdf";
+
+export const ANIMATION_COMPLETION_FRAME = 57;
+export const ANIMATION_TOTAL_MS =
+  (ANIMATION_COMPLETION_FRAME / VIDEO_FPS) * 1000;
 
 export const ANIMATION_TIMELINE = {
-  TITLE_AREA_DELAY_MS: 50, // 标题区域开始从右向左移入的时间
-  TITLE_AREA_STAGGER_MS: 75, // 标题区内容之间的错峰间隔
-  TITLE_AREA_DURATION_MS: 400, // 标题区域移入持续时间，需早于 CDF 曲线绘制
-  CHART_SHELL_DELAY_MS: 200, // CDF 图背景卡片开始浮现的时间
-  CHART_SHELL_DURATION_MS: 200, // CDF 图背景卡片浮现持续时间
-  CHART_SURFACE_DELAY_MS: 400, // Recharts 坐标轴、网格和刻度开始浮现的时间
-  CHART_SURFACE_DURATION_MS: 200, // Recharts 坐标轴、网格和刻度浮现持续时间
-  CURVE_DELAY_MS: 600, // CDF 阶梯曲线开始绘制的时间
-  CURVE_DURATION_MS: 1400, // CDF 阶梯曲线绘制持续时间
-  MARKER_LINE_DELAY_MS: 1200, // 分位数竖向标注线开始出现的时间
-  MARKER_LINE_DURATION_MS: 800, // 分位数竖向标注线伸展持续时间
-  MARKER_GROUP_DELAY_MS: 1500, // 分位数标注点和文字开始浮现的时间
-  MARKER_GROUP_DURATION_MS: 200, // 分位数标注点和文字浮现持续时间
-  MARKER_STAGGER_MS: 50, // 各分位数标注之间的错峰间隔
-  MEAN_LINE_DELAY_MS: 1800, // MEAN 横向虚线开始出现的时间
-  MEAN_LINE_DURATION_MS: 200, // MEAN 横向虚线伸展持续时间
-  TERMINATION_PANEL_DELAY_MS: 2000, // 终止条件卡片开始浮现的时间
-  TERMINATION_PANEL_DURATION_MS: 200, // 终止条件卡片浮现持续时间
-  PK_FILL_DELAY_MS: 2000, // 终止条件 PK 条开始填充的时间
-  PK_FILL_DURATION_MS: 500, // 终止条件 PK 条填充持续时间
-  TERMINATION_DETAIL_DELAY_MS: 2200, // 终止原因图例开始浮现的时间
-  TERMINATION_DETAIL_DURATION_MS: 300, // 终止原因图例浮现持续时间
-  STAT_PANEL_DELAY_MS: 2000, // 核心统计量背景卡片开始浮现的时间
-  STAT_PANEL_DURATION_MS: 300, // 核心统计量背景卡片浮现持续时间
-  METADATA_DELAY_MS: 2000, // 右侧元信息与核心统计量背景卡片同步开始移入
-  METADATA_STAGGER_MS: 50, // 元信息内容之间的错峰间隔
-  METADATA_DURATION_MS: 300, // 右侧元信息移入持续时间
-  STAT_CONTENT_DELAY_MS: 2200, // 核心统计量列表内容开始自上而下浮现的时间
-  STAT_CONTENT_DURATION_MS: 200, // 单个统计量卡片浮现持续时间
-  STAT_CONTENT_STAGGER_MS: 50, // 核心统计量列表内容之间的错峰间隔
-  NOTE_DELAY_MS: 2800, // 底部注释在其它组件浮现完成后开始浮现的时间
-  NOTE_DURATION_MS: 200, // 底部注释浮现持续时间
+  CHART_SHELL: { start_frame: 0, completion_frame: 10 },
+  TITLE_AREA: {
+    start_frame: 0,
+    completion_frame: 12,
+    stagger_frames: 2,
+  },
+  CHART_SURFACE: { start_frame: 10, completion_frame: 16 },
+  CURVE: { start_frame: 16, completion_frame: 48 },
+  METADATA: {
+    start_frame: 24,
+    completion_frame: 40,
+    stagger_frames: 2,
+  },
+  STAT_SURFACE: { start_frame: 28, completion_frame: 44 },
+  STAT_CONTENT: {
+    start_frame: 28,
+    completion_frame: 42,
+    stagger_frames: 1,
+  },
+  TERMINATION_SURFACE: { start_frame: 32, completion_frame: 48 },
+  TERMINATION_TITLE: { start_frame: 32, completion_frame: 46 },
+  PK_FILL: { start_frame: 32, completion_frame: 55 },
+  TERMINATION_DETAIL: { start_frame: 38, completion_frame: 55 },
+  MARKER_LINE: {
+    start_frame: 34,
+    completion_frame: 50,
+    stagger_frames: 1,
+  },
+  MEAN_LINE: { start_frame: 39, completion_frame: 55 },
+  MARKER_GROUP_DURATION_FRAMES: 12,
+  NOTE: { start_frame: 44, completion_frame: 57 },
 } as const;
+
+export const MARKER_GROUP_START_FRAME: Readonly<Record<MarkerKey, number>> = {
+  P50: 42,
+  MEAN: 42,
+  P25: 43,
+  P75: 43,
+  P5: 44,
+  P95: 44,
+  MIN: 45,
+  MAX: 45,
+};

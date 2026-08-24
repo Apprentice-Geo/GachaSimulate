@@ -62,7 +62,15 @@ export function CDFChart({
       style={style}
     >
       {/* Keep the Y-axis title outside Recharts so its rotated position stays stable in the responsive shell. */}
-      <div className="y-axis-title">累计占比</div>
+      <div
+        className="y-axis-title"
+        style={{
+          opacity: animation_progress.chart_surface.opacity,
+          transform: `translateY(calc(-50% + ${animation_progress.chart_surface.translate_y}px)) rotate(-90deg)`,
+        }}
+      >
+        累计占比
+      </div>
       {render_size.width > 0 && render_size.height > 0 && (
         <LineChart
           data={data.chart_points}
