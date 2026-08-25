@@ -31,21 +31,21 @@ export const ANIMATION_TIMELINE = {
   TERMINATION_DETAIL: { start_frame: 38, completion_frame: 55 },
   MARKER_LINE: {
     start_frame: 34,
-    completion_frame: 50,
-    stagger_frames: 1,
+    completion_frame: 43,
+    stagger_frames: 2,
   },
   MEAN_LINE: { start_frame: 39, completion_frame: 55 },
-  MARKER_GROUP_DURATION_FRAMES: 12,
+  MARKER_GROUP_DURATION_FRAMES: 9,
   NOTE: { start_frame: 44, completion_frame: 57 },
 } as const;
 
 export const MARKER_GROUP_START_FRAME: Readonly<Record<MarkerKey, number>> = {
   P50: 42,
   MEAN: 42,
-  P25: 43,
-  P75: 43,
-  P5: 44,
-  P95: 44,
-  MIN: 45,
-  MAX: 45,
+  P25: 44,
+  P75: 44,
+  P5: 46,
+  P95: 46,
+  MIN: 48,
+  MAX: 48,
 };

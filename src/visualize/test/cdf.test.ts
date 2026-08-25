@@ -418,8 +418,8 @@ test("timeline elements use their assigned easing at segment midpoints", () => {
   assert.equal(at_frame(39).termination_title.opacity, 0.75);
   assert.equal(at_frame(43.5).pk_fill, 0.75);
   assert.equal(at_frame(46.5).termination_detail.opacity, 0.75);
-  assert.equal(at_frame(42).marker_line(0).opacity, 0.75);
-  assert.equal(at_frame(48).marker_group("P50").opacity, 0.75);
+  assert.equal(at_frame(38.5).marker_line(0).opacity, 0.75);
+  assert.equal(at_frame(46.5).marker_group("P50").opacity, 0.75);
   assert.equal(at_frame(47).mean_line.opacity, 0.85 * 0.75);
   assert.equal(at_frame(50.5).note.opacity, 0.75);
 });
@@ -462,23 +462,25 @@ test("marker lines use spatial order with stable semantic ties", () => {
     MARKER_KEYS,
   );
 
-  const between_first_two_starts = build_animation_progress(frame_to_ms(34.5));
+  const between_first_two_starts = build_animation_progress(frame_to_ms(35.5));
   assert.equal(between_first_two_starts.marker_line(0).opacity > 0, true);
   assert.equal(between_first_two_starts.marker_line(1).opacity, 0);
+  const after_second_start = build_animation_progress(frame_to_ms(36.5));
+  assert.equal(after_second_start.marker_line(1).opacity > 0, true);
 });
 
 test("marker groups follow semantic batches keyed by MarkerKey", () => {
   assert.deepEqual(MARKER_GROUP_START_FRAME, {
     P50: 42,
     MEAN: 42,
-    P25: 43,
-    P75: 43,
-    P5: 44,
-    P95: 44,
-    MIN: 45,
-    MAX: 45,
+    P25: 44,
+    P75: 44,
+    P5: 46,
+    P95: 46,
+    MIN: 48,
+    MAX: 48,
   });
-  const progress = build_animation_progress(frame_to_ms(42.5));
+  const progress = build_animation_progress(frame_to_ms(43.5));
   assert.equal(progress.marker_group("P50").opacity > 0, true);
   assert.equal(progress.marker_group("MEAN").opacity > 0, true);
   assert.equal(progress.marker_group("P25").opacity, 0);
