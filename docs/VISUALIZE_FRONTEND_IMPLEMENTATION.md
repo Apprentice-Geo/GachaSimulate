@@ -50,7 +50,7 @@ Electron 展示和素材导出复用同一套输入处理、视图模型、画�
 
 共享动画只使用 linear、ease-out quadratic 和 ease-out cubic 三类缓动，并由每个时间段显式选择。带独立内容动画的容器不得再动画祖先 opacity；面板背景、边框和阴影应由与内容并列的 surface 层承载，避免父子透明度叠乘。
 
-动画在第 57 帧到达终态，Electron 同时结束 playing 状态。Remotion composition 固定导出 60 帧，第 57–59 帧保持相同终态，静态 PNG 使用第 59 帧，从视频切换到 PNG 时不得出现布局或动画跳变。
+动画在 `ANIMATION_COMPLETION_FRAME` 到达终态，当前值为第 57 帧，Electron 同时结束 playing 状态。Remotion composition 固定导出 60 帧，第 57–59 帧保持相同终态，静态 PNG 使用 `ANIMATION_COMPLETION_FRAME`，从视频切换到 PNG 时不得出现布局或动画跳变。
 
 ### 视觉语义
 
