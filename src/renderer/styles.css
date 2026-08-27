@@ -1229,3 +1229,23 @@ button:focus-visible,
     padding: 0;
   }
 }
+.export-spike-probe {
+  background: #000;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(10, 16px);
+  height: 16px;
+  left: 0;
+  position: fixed;
+  width: 160px;
+  z-index: 10000;
+}
+
+.export-spike-probe i {
+  background: #000;
+}
+
+.export-spike-probe i[data-probe],
+.export-spike-probe i[data-value="1"] {
+  background: #fff;
+}
