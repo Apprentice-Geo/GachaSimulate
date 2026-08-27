@@ -111,6 +111,7 @@ export default function App({
           is_animating={is_animating}
           on_select_file={() => void handle_desktop_file_select()}
           on_replay={start_animation}
+          render_mode="interactive"
         />
       ) : (
         <VisualizeShell

@@ -1,9 +1,8 @@
 import { useLayoutEffect, useMemo, useState } from "react";
 import analysis_fixture from "../visualize/fixtures/example_analysis.json";
 import display_fixture from "../visualize/fixtures/example_display.json";
+import { resolve_export_frame_state } from "../visualize/animation/export_frame";
 import { build_animation_progress } from "../visualize/animation/progress";
-import { ANIMATION_COMPLETION_FRAME } from "../visualize/animation/timeline";
-import { VIDEO_FPS } from "../visualize/constants";
 import { validate_analysis } from "../visualize/data/analysis";
 import { validate_display_config } from "../visualize/data/validate_display_config";
 import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
@@ -109,19 +108,16 @@ export default function ExportSpikeApp() {
     };
   }, [frame, request]);
 
-  const elapsed_ms =
-    (Math.min(frame, ANIMATION_COMPLETION_FRAME) / VIDEO_FPS) * 1000;
-  const is_animating = frame < ANIMATION_COMPLETION_FRAME;
+  const frame_state = resolve_export_frame_state(frame);
 
   return (
     <>
       <VisualizeScene
-        animation_progress={build_animation_progress(elapsed_ms)}
-        animation_state={is_animating ? "playing" : "idle"}
+        animation_progress={build_animation_progress(frame_state.elapsed_ms)}
+        animation_state={frame_state.animation_state}
         data={data}
-        is_animating={is_animating}
-        show_controls={false}
-        use_fixed_chart_size
+        is_animating={frame_state.is_animating}
+        render_mode="export"
       />
       <div className="export-spike-probe" data-testid="export-spike-probe">
         <i data-probe="start" />

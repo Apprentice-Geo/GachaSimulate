@@ -2,6 +2,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import {
+  EXPORT_FRAME_COUNT,
+  resolve_export_frame_state,
+} from "../animation/export_frame";
+import {
+  build_animation_progress,
+  build_marker_line_order,
+  ease_out_cubic,
+  ease_out_quad,
+  linear,
+  segment_progress,
+} from "../animation/progress";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../constants";
 import { get_cdf_level_at_draw } from "../data/cdf";
 import { build_cdf_view_model } from "../view/cdf_view_model";
@@ -12,29 +24,23 @@ import {
 } from "../view/cdf_overlay_layout";
 import { STATISTIC_VIEW_ORDER } from "../view/statistic_view_config";
 import {
-  build_animation_progress,
-  build_marker_line_order,
-  ease_out_cubic,
-  ease_out_quad,
-  linear,
-  segment_progress,
-} from "../animation/progress";
-import {
   ANIMATION_COMPLETION_FRAME,
   ANIMATION_TIMELINE,
   ANIMATION_TOTAL_MS,
   MARKER_GROUP_START_FRAME,
 } from "../animation/timeline";
 import { CDF_DURATION_IN_FRAMES } from "../remotion/constants";
-import { resolve_cdf_frame_state } from "../remotion/CdfComposition";
 import type { MarkerView } from "../view/cdf_overlay_layout";
-import type { CDFMarker, MarkerKey } from "../types/cdf";
+import type { CDFMarker, CDFViewModel, MarkerKey } from "../types/cdf";
 import type { AnalysisV2 } from "../types/analysis";
 import type { DisplayConfig } from "../types/display_config";
 import {
   get_marker_visual,
   MARKER_VISUALS,
 } from "../components/cdf_marker_visuals";
+import { CDFChart } from "../components/CDFChart";
+import { VisualizeShell } from "../components/VisualizeShell";
+import { VisualizeScene } from "../VisualizeScene";
 
 function read_css_px_token(css: string, token_name: string): number {
   const match = new RegExp(`--${token_name}:\\s*(\\d+)px`).exec(css);
@@ -540,7 +546,9 @@ test("frame 56 is unfinished and frame 57 is the complete state", () => {
 });
 
 function observable_animation_progress(frame: number) {
-  const progress = build_animation_progress(frame_to_ms(frame));
+  const progress = build_animation_progress(
+    resolve_export_frame_state(frame).elapsed_ms,
+  );
   return {
     title: [0, 1, 2].map(progress.title_area),
     metadata: [0, 1, 2].map(progress.metadata),
@@ -564,9 +572,35 @@ function observable_animation_progress(frame: number) {
   };
 }
 
-test("frames 57 through 59 expose identical observable progress", () => {
+test("export frame contract validates its exact integer range", () => {
+  assert.equal(EXPORT_FRAME_COUNT, 60);
+  for (const frame of [-1, 60, 0.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.throws(() => resolve_export_frame_state(frame), RangeError);
+  }
+});
+
+test("export frame contract resolves playing and terminal states", () => {
   assert.equal(ANIMATION_COMPLETION_FRAME, 57);
   assert.equal(ANIMATION_TOTAL_MS, 950);
+  assert.deepEqual(resolve_export_frame_state(0), {
+    animation_state: "playing",
+    elapsed_ms: 0,
+    is_animating: true,
+  });
+  assert.deepEqual(resolve_export_frame_state(56), {
+    animation_state: "playing",
+    elapsed_ms: frame_to_ms(56),
+    is_animating: true,
+  });
+  const terminal_state = {
+    animation_state: "idle",
+    elapsed_ms: ANIMATION_TOTAL_MS,
+    is_animating: false,
+  } as const;
+  assert.deepEqual(resolve_export_frame_state(57), terminal_state);
+  assert.deepEqual(resolve_export_frame_state(58), terminal_state);
+  assert.deepEqual(resolve_export_frame_state(59), terminal_state);
+
   assert.deepEqual(
     observable_animation_progress(58),
     observable_animation_progress(57),
@@ -577,27 +611,44 @@ test("frames 57 through 59 expose identical observable progress", () => {
   );
 });
 
+test("VisualizeScene export mode fixes chart size and hides controls", () => {
+  const animation_progress = build_animation_progress(ANIMATION_TOTAL_MS);
+  const common_props = {
+    animation_progress,
+    animation_state: "idle" as const,
+    data: {} as CDFViewModel,
+    is_animating: false,
+    on_replay: () => undefined,
+    on_select_file: () => undefined,
+  };
+
+  const interactive_scene = VisualizeScene({
+    ...common_props,
+    render_mode: "interactive",
+  });
+  assert.equal(interactive_scene.type, VisualizeShell);
+  assert.equal(interactive_scene.props.show_controls, true);
+  assert.equal(interactive_scene.props.chart_slot.type, CDFChart);
+  assert.equal(interactive_scene.props.chart_slot.props.fixed_size, undefined);
+
+  const export_scene = VisualizeScene({
+    ...common_props,
+    render_mode: "export",
+  });
+  assert.equal(export_scene.type, VisualizeShell);
+  assert.equal(export_scene.props.show_controls, false);
+  assert.equal(export_scene.props.chart_slot.type, CDFChart);
+  assert.deepEqual(export_scene.props.chart_slot.props.fixed_size, {
+    width: 2816,
+    height: 1400,
+  });
+});
+
 test("Remotion exports exactly 60 frames without a hold interval", () => {
-  assert.equal(CDF_DURATION_IN_FRAMES, 60);
+  assert.equal(CDF_DURATION_IN_FRAMES, EXPORT_FRAME_COUNT);
   const constants_source = readFileSync(
     path.join(process.cwd(), "src/visualize/remotion/constants.ts"),
     "utf-8",
   );
   assert.equal(constants_source.includes("CDF_VIDEO_HOLD_MS"), false);
-});
-
-test("Remotion switches to the clamped idle state at frame 57", () => {
-  assert.deepEqual(resolve_cdf_frame_state(56, 60), {
-    animation_state: "playing",
-    elapsed_ms: frame_to_ms(56),
-    is_animating: true,
-  });
-  const completion_state = {
-    animation_state: "idle",
-    elapsed_ms: ANIMATION_TOTAL_MS,
-    is_animating: false,
-  };
-  assert.deepEqual(resolve_cdf_frame_state(57, 60), completion_state);
-  assert.deepEqual(resolve_cdf_frame_state(58, 60), completion_state);
-  assert.deepEqual(resolve_cdf_frame_state(59, 60), completion_state);
 });

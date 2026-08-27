@@ -15,10 +15,9 @@ interface VisualizeSceneProps {
   animation_progress: AnimationProgress;
   animation_state: "playing" | "primed" | "idle";
   is_animating: boolean;
+  render_mode: "interactive" | "export";
   on_select_file?: () => void;
   on_replay?: () => void;
-  show_controls?: boolean;
-  use_fixed_chart_size?: boolean;
   style?: CSSProperties;
 }
 
@@ -27,12 +26,13 @@ export function VisualizeScene({
   animation_progress,
   animation_state,
   is_animating,
+  render_mode,
   on_select_file,
   on_replay,
-  show_controls = true,
-  use_fixed_chart_size = false,
   style,
 }: VisualizeSceneProps) {
+  const is_export = render_mode === "export";
+
   return (
     <VisualizeShell
       animation_progress={animation_progress}
@@ -41,7 +41,7 @@ export function VisualizeScene({
         <CDFChart
           animation_progress={animation_progress}
           data={data}
-          fixed_size={use_fixed_chart_size ? EXPORT_CHART_SIZE : undefined}
+          fixed_size={is_export ? EXPORT_CHART_SIZE : undefined}
           style={fade_style(animation_progress.chart_shell)}
         />
       }
@@ -50,7 +50,7 @@ export function VisualizeScene({
       load_state="ready"
       on_select_file={on_select_file}
       on_replay={on_replay}
-      show_controls={show_controls}
+      show_controls={!is_export}
       style={style}
     />
   );
