@@ -194,3 +194,54 @@ jobs:
 
       - name: Run Electron renderer layout tests
         run: xvfb-run --auto-servernum --server-args="-screen 0 2560x1440x24" pnpm run test:electron-layout
+
+  electron-export-windows:
+    name: Electron export host (Windows x64, development FFmpeg)
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare pinned development-only FFmpeg
+        run: pnpm run prepare:ffmpeg:win
+
+      - name: Run shared and export host tests
+        run: |
+          pnpm run test:visualize:cdf
+          pnpm run test:electron-export
+
+      - name: Build production Electron renderer
+        run: pnpm run build
+
+      - name: Verify production export renderer excludes the probe
+        shell: pwsh
+        run: |
+          $probeMatches = @(Get-ChildItem out/renderer -Recurse -File | Select-String -SimpleMatch 'data-export-frame-probe')
+          if ($probeMatches.Count -gt 0) {
+            throw 'Production renderer contains the test-only export frame probe.'
+          }
+
+      - name: Build probe-enabled export renderer
+        shell: pwsh
+        run: |
+          $env:GACHASIMULATE_EXPORT_FRAME_PROBE = '1'
+          pnpm run build
+
+      - name: Run ExportHost integration check
+        shell: pwsh
+        run: |
+          $env:GACHASIMULATE_REQUIRE_EXPORT_HOST_INTEGRATION = '1'
+          pnpm run test:electron-export:integration
