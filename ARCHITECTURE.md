@@ -16,11 +16,12 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 - `packages/config-compiler/`：YAML 校验与 IR 编译；单次编译入口是 `compile_yaml`，配置仓库批量校验入口是 `validate_config_files`。
 - `packages/config-repository-contract/`：配置仓库 index、manifest 和包文件清单的纯协议校验；不执行网络、ZIP 或文件系统操作。
 - `cpp/`：Runtime 执行 IR；同层还包含 GSR 编解码、统计、core、analyzer 和 benchmark。
-- `src/main/`：受信任的 Electron 宿主；`SimulationTask` 管理 core 与模拟产物，`ResultEditor` 管理 analyzer 与结果会话。
-- `src/preload/`：main 与 renderer 之间的固定 IPC 桥。
+- `src/main/`：受信任的 Electron 宿主；`SimulationTask` 管理 core 与模拟产物，`ResultEditor` 管理 analyzer 与结果会话，内部 `ExportHost` 管理隐藏导出窗口、CDP 截图与 FFmpeg 生命周期。
+- `src/preload/`：main 与桌面 renderer、隐藏导出 renderer 之间相互隔离的固定 IPC 桥。
 - `src/renderer/`：桌面界面与任务状态，不直接访问 Node.js。
+- `src/export-renderer/`：只消费 CDF view model 与逐帧消息的隐藏 Electron renderer；不访问桌面 preload API、文件系统或子进程。
 - `src/visualize/`：平台无关的 AnalysisV2/DisplayConfig 校验、CDF 视图模型和共享场景。
-- `src/export/`：文件系统和 Remotion 导出宿主，依赖 `src/visualize/`。
+- `src/export/`：仍保留到迁移后期的文件系统和 Remotion 导出宿主，依赖 `src/visualize/`。
 - `test-fixtures/configs/`：主仓库测试与语义 fixture；`benchmark/cases/`：独立 benchmark 配置。
 - 正式配置由 `GachaSimulate-Configs` 维护，不纳入主仓库运行时目录。
 
@@ -31,6 +32,7 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 - C++ Runtime 是模拟语义的唯一权威；GSR 是持久化模拟结果，analyzer 不重新模拟。
 - 固定 `global_seed` 时，每个 run 的随机流只由 `global_seed + run_index` 派生，不依赖 threads、chunk 数、执行顺序或 `total_runs`。该算法不兼容旧版基于 chunk 的随机序列，因此切换后相同 seed 的历史结果会改变一次；跨标准库的浮点分布也不承诺逐位一致。
 - Electron renderer 不决定可执行文件和受信任文件路径；这些能力只存在于 main，并通过 preload 暴露固定操作。
+- 桌面 renderer 与隐藏导出 renderer 不直接通信；`ExportHost` 验证导出消息的发送方、job id 和帧范围后才允许截图或写入编码器。
 - `src/visualize/` 不依赖 Electron、Node.js 或导出宿主；Electron 展示与素材导出复用同一套输入处理和场景。
 - 启动原生进程的一层负责终止、等待和清理；失败任务不得留下临时 IR 或半成品结果。
 - 修改跨层契约时，必须同时检查生产方、消费方、机器定义、兼容策略和行为测试。
@@ -50,4 +52,4 @@ JSON 契约按约束范围划分权威：JSON Schema 定义字段、类型、必
 
 ## 专项文档
 
-配置语法见 `docs/YAML_CONFIG_SYNTAX.md`，IR 见 `docs/IR_V2.md`，配置仓库协议见 `docs/CONFIG_REPOSITORY_V1.md`，结果格式见 `docs/GSR_V2.md`，分析格式见 `docs/ANALYSIS_V2.md`，可视化边界见 `docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md`，检查矩阵见 `docs/DEVELOPMENT_CHECKS.md`。
+配置语法见 `docs/YAML_CONFIG_SYNTAX.md`，IR 见 `docs/IR_V2.md`，配置仓库协议见 `docs/CONFIG_REPOSITORY_V1.md`，结果格式见 `docs/GSR_V2.md`，分析格式见 `docs/ANALYSIS_V2.md`，可视化边界见 `docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md`，FFmpeg 开发与发布边界见 `docs/FFMPEG_DISTRIBUTION.md`，检查矩阵见 `docs/DEVELOPMENT_CHECKS.md`。

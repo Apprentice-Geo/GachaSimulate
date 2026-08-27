@@ -6,6 +6,15 @@
 
 Windows Phase 0 已于 2026-08-27 完成。`capturePage()` 没有通过同步正确性门槛；CDP 在 Phase 0 fixture、固定 Electron 和本次 Windows 环境中通过逐帧正确性与吞吐门槛，但 main 与普通 renderer 响应延迟超过实验前预设门槛，因此原始实验结论为 **no-go**。产品评审随后确认导出采用阻塞式进度界面，导出期间不承诺其它交互的低延迟，并选择 CDP 作为唯一正式截图路线；正式 `ExportTask`、安装包和升级后的正确性仍按后续阶段复验。这是对用户交互目标和生产验收口径的调整，不追溯修改原始实验判定。原始数据和结论见 [Phase 0 Windows 结果](docs/experiments/electron-export-phase0/README.md)。
 
+## Phase 1–3 实施状态（2026-08-28）
+
+- Phase 1–3 的开发态实现已经完成：共享 60 帧契约、`VisualizeScene.render_mode`、独立 `export.html` 与 preload、逐帧协议、内部 `ExportHost`、CDP PNG 路线、固定 FFmpeg 参数、背压、取消与故障清理以及 partial/backup 提交均已落地；Remotion 在迁移期间继续消费相同契约。
+- Windows 本机已通过共享与宿主单元测试、Electron production/probe build 和真实宿主集成检查；具体命令、故障场景和产物规格集中记录在“验证矩阵”，本状态区不再重复展开。
+- `src/dev/export_host_integration.ts` 在系统临时目录生成最小 Electron harness，直接驱动 `ExportHost` 并注入故障；harness 不是产品入口，结束后连同测试产物删除。普通 production build 已确认不包含可见像素探针。
+- Windows x64 开发基线暂时选择 Gyan `ffmpeg-9.0.1-essentials_build.zip`，SHA-256 为 `fec81ae03971d9dd4be3ebe02e263bd2ec1d789483f931bdba5f5715e65da2e9`，FFmpeg 源提交为 `bf1b838f2a`。准备脚本从 Gyan 固定 Release 下载或接收同哈希的本地归档，验证后安装到 `build/ffmpeg/win32-x64`，不接受 PATH 回退。
+- 该第三方二进制只用于阶段 1–3 开发和 CI，不进入项目 Release 或安装包。自行编译并完成材料复核，或者维护者明确记录并接受第三方分发风险之前，MP4 路径不得视为可发布；具体边界见 [FFmpeg 开发使用与分发状态](docs/FFMPEG_DISTRIBUTION.md)。
+- Windows x64 CI job 已加入工作流，但本文只记录本机已执行结果，不把尚未观察到的远端 job 结果写成已通过。桌面 IPC、保存对话框、进度/心跳 UI、用户取消入口和安装包接入仍属于 Phase 4–6，尚未实现。
+
 ## 目标
 
 - Electron 从当前 GSR 结果会话导出 MP4 动画或 PNG 静态图。
@@ -40,7 +49,7 @@ Windows Phase 0 已于 2026-08-27 完成。`capturePage()` 没有通过同步正
 - 操作栏继续在图表区域 hover 或 focus-within 时显示。
 - 新增一个“导出”按钮，与“重放动画”和“选择结果”并列。
 - 点击“导出”后选择“MP4 视频”或“PNG 图片”，再由 main 打开对应的保存对话框。
-- 导出画面使用 `show_controls={false}`，隐藏操作栏本身不得出现在导出文件中。
+- 导出画面使用 `render_mode="export"`，隐藏操作栏本身不得出现在导出文件中。
 - `src/visualize/` 只接收宿主提供的导出回调，不直接调用 Electron IPC，保持平台无关。
 
 ### 导出期间交互
@@ -77,9 +86,9 @@ Phase 0 中 CDP 在 commit、fonts、单 RAF 和双 RAF 的 12 组完整序列�
 
 CDP 产生 PNG 帧。MP4 将连续 PNG 写入 FFmpeg `image2pipe`，避免在磁盘保存完整图片序列。本次 Windows 实验环境和代表性 FFmpeg build 测得 60 帧截图中位 13.08 秒、包含 FFmpeg 中位 16.80 秒；产品接受约 17 秒作为阻塞式导出的实验基线，但它不是其它机器或正式安装包的性能承诺。实验响应探针只说明共享资源竞争会造成调度延迟，不能代替正式主窗口进度与取消活性检查。
 
-正式实现将 FFmpeg 可执行文件随 Windows 安装包分发，通过 `extraResources` 放在 ASAR 外。main 只解析应用内受信任的 FFmpeg 路径，不接受 renderer 提供可执行文件路径或命令行参数。
+正式安装包计划通过 `extraResources` 将 FFmpeg 放在 ASAR 外，但只有 [FFmpeg 发布门槛](docs/FFMPEG_DISTRIBUTION.md)关闭后才能接入；当前打包配置不包含 FFmpeg。main 只解析内部固定路径，不接受 renderer 提供可执行文件路径或命令行参数。
 
-项目可以接受分发包含 `libx264` 等 GPL 组件的 FFmpeg build，第一版固定使用 `libx264`。FFmpeg 作为独立可执行文件由子进程调用是架构决策，不据此预设项目许可结论；正式发布前仍须核对最终 build 的组件组合以及对项目许可、声明、对应源码、构建配置与修改记录的具体义务。
+技术路线固定使用包含 `libx264` 的 GPL FFmpeg build，但这不等于项目已经决定或获准分发当前二进制。FFmpeg 作为独立可执行文件由子进程调用是架构决策，不据此预设项目许可结论；正式发布前仍须核对最终 build 的组件组合以及对项目许可、声明、对应源码、构建配置与修改记录的具体义务。
 
 ## Phase 0 实验代码与产物生命周期
 
@@ -177,7 +186,7 @@ Phase 0 已完成并保留以下 Spike 与原始数据，不包含正式 IPC 或
 - 实现 `capturePage({ stayHidden: true }) -> toPNG()` 与 `Page.captureScreenshot(PNG) -> base64 decode` 两个候选后端；使用项目固定 Electron 版本及其内置 CDP，不依赖外部 Chrome。
 - 使用专用同步探针让每帧携带可机器读取的 frame id，连续验证 60 帧无旧帧、错帧或意外重复；生产场景第 57～59 帧按契约允许相同。
 - 对比 React commit、字体就绪、单 RAF 和双 RAF 等候选边界，确认在 Phase 0 fixture 中 `setFrame -> commit ready -> CDP screenshot` 的可靠时序，不使用固定 sleep。
-- 对两个截图后端分别运行“截图到内存”和“截图后写入真实 FFmpeg”两类实验，避免编码吞吐掩盖截图后端差异。Spike 可以使用来源、版本、编码器和构建信息均有记录的代表性 FFmpeg build；Phase 1 选定最终分发 build 后，必须用该 build 复测受影响的吞吐、背压和生命周期指标。
+- 对两个截图后端分别运行“截图到内存”和“截图后写入真实 FFmpeg”两类实验，避免编码吞吐掩盖截图后端差异。Spike 可以使用来源、版本、编码器和构建信息均有记录的代表性 FFmpeg build；当前开发基线用于 Phase 1–3 正确性检查，最终分发 build 确定后仍必须复测受影响的吞吐、背压和生命周期指标。
 - 分阶段记录 `setFrame -> ready`、截图返回、`toPNG()` 或 base64 decode、stdin 写入与 drain、FFmpeg finalizing；同时记录 60 帧总时间、单帧平均与 P95、main event-loop 最大延迟、主窗口响应探针以及 Electron 与 FFmpeg 进程树峰值内存。
 - 在正式测量前完成预热，按固定次数重复实验。实验开始前记录正确性硬门槛、可接受的绝对耗时与 UI 延迟，以及切换后端所需的最小重复性收益，避免看到结果后再定义成功标准。
 - 验证 FFmpeg stdin `write() === false -> drain`、取消、编码器崩溃、隐藏 renderer 崩溃和应用退出；确认任务停止生产帧、关闭管道、终止并等待子进程且不遗留半成品。
@@ -185,12 +194,18 @@ Phase 0 已完成并保留以下 Spike 与原始数据，不包含正式 IPC 或
 
 ### 1. 固化共享逐帧契约与 FFmpeg 基线
 
+状态：共享契约和开发基线已经完成；最终分发基线及其材料复核仍受发布门槛阻塞。
+
 - 将当前位于 Remotion 目录中的 frame state 计算迁移到平台无关的动画模块。
 - 保持第 0～59 帧、第 57 帧完成及 57～59 帧最终状态一致的测试。
 - 保证 `VisualizeScene` 的导出模式不包含控件，也不依赖真实时钟、CSS 动画或宿主缩放。
-- 在实现正式 MP4 路径前，确定 Windows FFmpeg build 的来源、版本、校验值和构建配置，确认启用 `libx264`，并确定许可证文本、对应源码、修改记录和构建信息的分发方式。新增其它安装包目标时另行完成对应平台的同类工作。
+- 为开发态 MP4 路径固定 Windows FFmpeg build 的来源、版本、校验值和构建配置，并确认启用 `libx264`。在进入安装包阶段前，再确定最终分发 build 及许可证文本、对应源码、修改记录和构建信息的交付方式；新增其它安装包目标时另行完成对应平台的同类工作。
+
+阶段 1–3 可以使用固定哈希的第三方预编译包完成技术验证。发布所需材料不再绑定八个特定文件名；自行编译或决定重新分发第三方 build 时，必须按 [FFmpeg 开发使用与分发状态](docs/FFMPEG_DISTRIBUTION.md)重新建立二进制、对应源码、构建方式和许可证材料之间的可追溯关系。准备脚本的技术校验不能替代维护者复核。
 
 ### 2. 建立导出 Renderer
+
+状态：开发态实现和本机检查已经完成。
 
 - 为 Electron 构建增加专用本地导出页面入口。
 - 渲染固定尺寸的 `VisualizeScene`，复用共享 CSS、字体和 CDF view model。
@@ -199,12 +214,14 @@ Phase 0 已完成并保留以下 Spike 与原始数据，不包含正式 IPC 或
 
 ### 3. 建立截图与 FFmpeg 宿主
 
+状态：开发态实现和本机真实宿主检查已经完成；正式性能/内存报告和安装包验证留在 Phase 6。
+
 - 实现专用 `offscreen: true` BrowserWindow 的创建、加载、销毁和崩溃处理。
 - 只实现 Phase 0 已选定的截图后端和 frame-ready 协议，不同时维护两套正式路径。
 - 实现 PNG 最终帧导出。
 - 实现 60 个 PNG 帧通过带背压的 stdin 写入 FFmpeg `image2pipe`。
 - 固定 MP4 编码参数，并通过临时文件实现成功提交和失败回滚。
-- 将 Phase 0 的连续帧、性能、背压与清理场景迁移为直接驱动正式宿主的开发检查，防止 Electron 或实现升级导致技术路线回退；连续帧检查必须通过仅在开发检查启用的像素 frame-id 或等价图像哈希独立识别截图内容，不能只信任 renderer 返回的 ready frame id；不把实验 renderer 作为长期检查入口。
+- 将 Phase 0 的连续帧、背压与清理场景迁移为直接驱动正式宿主的开发检查，防止 Electron 或实现升级导致技术路线回退；连续帧检查必须通过仅在开发检查启用的像素 frame-id 或等价图像哈希独立识别截图内容，不能只信任 renderer 返回的 ready frame id；不把实验 renderer 作为长期检查入口。正式性能与内存测量留在 Phase 6。
 
 ### 4. 固化剩余交互规则并接入任务生命周期与 IPC
 
@@ -224,7 +241,7 @@ Phase 0 已完成并保留以下 Spike 与原始数据，不包含正式 IPC 或
 ### 6. 安装包与实际导出验证
 
 - 正式路径开发完成后，在记录的 Windows 环境中测量并汇报总耗时、各阶段耗时、Electron 与 FFmpeg 峰值内存以及系统稳定性。本计划不设置耗时或内存数值硬门槛，由项目维护者根据报告决定继续发布、要求优化或更换路线，并记录决定。
-- 将 Windows FFmpeg 放入 `extraResources`，验证开发态与安装包使用不同但稳定的资源解析路径。
+- 关闭 FFmpeg 发布门槛后，将获准分发的 Windows FFmpeg 放入 `extraResources`，验证开发态与安装包使用不同但稳定的资源解析路径。
 - 在断网环境运行 unpacked 或已安装应用，确认不会下载或查找额外 Chrome。
 - 实际导出代表性 MP4 和 PNG，并检查尺寸、帧率、帧数、编码格式、像素格式、最终画面和中文字体。
 - 验证取消、覆盖、路径含空格与中文、应用退出和 FFmpeg 失败场景。
@@ -248,21 +265,27 @@ Phase 0 已完成并保留以下 Spike 与原始数据，不包含正式 IPC 或
 
 ### 自动化检查
 
-- 动画逐帧测试：帧端点、完成帧、最终状态和总帧数。
-- CDF view model 与共享场景现有测试。
-- 导出请求与事件的输入校验测试。
-- FFmpeg 命令构造测试：固定 `libx264`、CRF 18、60 FPS、`yuv420p`、无音轨和 `image2pipe` 输入，不允许 renderer 覆盖参数。
-- ExportTask 的单任务互斥、进度、取消、FFmpeg 失败和临时文件清理测试。
-- 结果字段保存完成后才创建导出快照的竞态测试。
-- Electron 行为测试：隐藏操作栏中的导出入口、格式选择、模态进度、背景 inert、焦点限制、进度心跳和取消。
+Phase 1–3 已于 2026-08-28 在 Windows 本机通过：
+
+- `test:visualize:cdf`：22 项，覆盖动画端点、非法帧、完成帧、最终状态、总帧数、export 场景和 Remotion 同契约。
+- `test:electron-export`：21 项，覆盖窄 preload 协议、初始化顺序、StrictMode 重放、字体/布局失败、固定 FFmpeg 参数、背压、stderr 上限、partial/backup 回滚、取消、renderer 销毁和应用退出协调。
+- `test:electron-export:integration`：使用真实 Electron、CDP、固定开发 FFmpeg 和 `ffprobe`，覆盖连续帧、PNG、MP4、编码器/renderer 崩溃、取消和应用退出清理。
+- `test:simulation` 45 项、`test:electron-layout`、typecheck、lint、format check 和 production build 通过；production renderer 不包含测试探针。
+
+Phase 4–7 仍需新增：
+
+- `ExportTask` 的单任务互斥、进度/心跳、用户取消和快照竞态测试。
+- 桌面导出入口、格式选择、模态进度、背景 inert、焦点限制和取消的 Electron 行为测试。
+- 获准分发的最终 FFmpeg、安装包、断网导出及 Remotion 删除后复验。
 
 ### 实际产物检查
 
-- PNG 为 3840×2160，内容对应 `ANIMATION_COMPLETION_FRAME`（当前为第 57 帧）且不包含操作栏。
-- MP4 为 3840×2160、60 FPS、60 帧、H.264、`yuv420p`、无音轨。
-- MP4 第 0、56、57、59 帧分别符合动画契约。
-- Electron 预览、PNG 和 MP4 在字体、布局、颜色、CDF、marker 和统计内容上保持一致。
-- Phase 6 中 Windows 安装包断网导出成功，不下载或查找额外 Chromium；Phase 7 删除后重新验证安装包不再包含 Remotion 及其浏览器或 FFmpeg 产物。
+开发态真实宿主已经确认：
+
+- PNG 为 3840×2160，对应第 57 帧且不包含操作栏。
+- MP4 为 H.264、3840×2160、60 FPS、60 帧、`yuv420p`、无音轨；像素探针连续识别第 0～59 帧，第 57～59 帧去除探针后的图像哈希一致。
+
+Phase 6–7 仍需确认 Electron 预览与产物的完整视觉一致性、正式耗时与内存、含空格/中文路径、获准分发 FFmpeg 的安装包断网导出，以及 Remotion 删除后的安装包内容和复验结果。
 
 ## 主要风险与应对
 
@@ -276,7 +299,7 @@ CDP 截图包含 4K 合成、PNG 编码、协议传输和 base64 解码，并与
 
 ### 导出内存峰值
 
-Phase 0 分别观测到 Electron 进程树约 3 GiB、FFmpeg 约 4 GiB 的采样峰值，二者不代表同一时刻的精确总和，但不能由阻塞式 UI 规避。正式宿主不得保留已送出的 PNG/base64 帧，Phase 3 和 Phase 6 必须重新测量真实任务峰值并记录测试环境、采样方法和系统稳定性。本计划不为耗时或内存设置数值硬门槛；项目维护者根据正式报告决定是否允许继续、要求优化或更换路线。
+Phase 0 分别观测到 Electron 进程树约 3 GiB、FFmpeg 约 4 GiB 的采样峰值，二者不代表同一时刻的精确总和，但不能由阻塞式 UI 规避。Phase 3 的真实宿主检查验证了正确性和生命周期，但没有形成可用于发布评审的正式性能/内存报告；Phase 6 必须重新测量真实任务峰值并记录测试环境、采样方法和系统稳定性。本计划不为耗时或内存设置数值硬门槛；项目维护者根据正式报告决定是否允许继续、要求优化或更换路线。
 
 ### DPI 与跨平台像素差异
 
@@ -284,7 +307,7 @@ Phase 0 分别观测到 Electron 进程树约 3 GiB、FFmpeg 约 4 GiB 的采样
 
 ### FFmpeg 分发与许可
 
-第一版已决定使用 Windows FFmpeg 可执行文件和 `libx264`，剩余风险是最终 build 的来源、组件组合及其具体分发义务尚未关闭。Phase 1 必须完成来源、校验、构建信息和合规材料记录；不得依赖用户机器预装 FFmpeg，也不得把 Electron 自带的 `ffmpeg` 动态库当作命令行编码器使用。
+第一版技术路线已决定使用 Windows FFmpeg 可执行文件和 `libx264`。当前第三方 build 的来源、版本和哈希已经固定，但分发义务尚未关闭，因此只能用于开发与 CI，不能进入安装包。发布前按 [FFmpeg 开发使用与分发状态](docs/FFMPEG_DISTRIBUTION.md)完成自行编译与材料复核，或者记录明确的风险接受决定；不得依赖用户机器预装 FFmpeg，也不得把 Electron 自带的 `ffmpeg` 动态库当作命令行编码器使用。
 
 ## 完成标准
 

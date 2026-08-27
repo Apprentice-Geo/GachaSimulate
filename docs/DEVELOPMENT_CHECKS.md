@@ -55,6 +55,7 @@ pnpm run typecheck
 pnpm run test:packages
 pnpm run test:simulation
 pnpm run test:visualize:cdf
+pnpm run test:electron-export
 pnpm run test:electron-layout
 pnpm run build
 ```
@@ -70,7 +71,34 @@ Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构
 - Electron IPC、配置扫描、模拟/分析进程生命周期或 sidecar：`test:simulation`、typecheck、lint、build。
 - AnalysisV2 或 DisplayConfig 输入契约：同步核对 JSON Schema、semantic validator、TypeScript 类型和共享 fixture，并执行 `test:visualize:cdf`、`test:simulation`、typecheck 和 build。
 - CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑代表性实际 export。
+- Electron 导出 renderer、逐帧协议、CDP、FFmpeg 或输出提交：`test:visualize:cdf`、`test:electron-export`、typecheck、lint 和 build；Windows x64 继续执行下述正式宿主集成检查。
 - 仅文档：检查命令、链接和完成状态；跨层状态文档仍按对应范围验证。
+
+## Windows x64 Electron 导出检查
+
+阶段 1–3 暂时使用固定 SHA-256 的 Gyan FFmpeg 9.0.1 essentials build。准备脚本默认从 Gyan 固定 GitHub Release 下载，也可以读取同一归档的本地副本；两种方式都会验证归档哈希、版本、构建配置和 `libx264`，然后安装到忽略的 `build/ffmpeg/win32-x64`，且不会查找 PATH：
+
+```powershell
+pnpm run prepare:ffmpeg:win
+# 或使用已经下载的同一归档
+pnpm run prepare:ffmpeg:win -- -ArchivePath D:\downloads\ffmpeg-9.0.1-essentials_build.zip
+```
+
+资产准备完成后，先验证共享契约、宿主单元测试和普通 production build，再生成只供集成检查使用的像素探针 build 并直接驱动 `ExportHost`：
+
+```powershell
+pnpm run test:visualize:cdf
+pnpm run test:electron-export
+pnpm run build
+$env:GACHASIMULATE_EXPORT_FRAME_PROBE = "1"
+pnpm run build
+$env:GACHASIMULATE_REQUIRE_EXPORT_HOST_INTEGRATION = "1"
+pnpm run test:electron-export:integration
+```
+
+正式 production build 不得设置 `GACHASIMULATE_EXPORT_FRAME_PROBE`。集成检查只在临时目录生成 PNG、MP4、harness 和故障注入产物，并使用同包 `ffprobe.exe` 检查视频规格。
+
+该准备流程和 Windows CI 只用于技术验证，不表示第三方二进制已经获准分发。当前 `electron-builder` 配置不携带 FFmpeg；不得把 `build/ffmpeg` 加入安装包。发布阻塞、已知风险和解除条件见 [FFmpeg 开发使用与分发状态](FFMPEG_DISTRIBUTION.md)。
 
 ## Electron 人工验收
 
