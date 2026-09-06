@@ -1,323 +1,128 @@
 # Electron 素材导出计划
 
-## 状态
+## 当前状态
 
-本文档记录 Electron 自研素材导出的实施计划。计划完成并通过开发态与安装包验证后，项目将移除 Remotion 导出实现及全部 Remotion 依赖，不在正式运行时或开发依赖中继续保留 Remotion。
+截至 2026-09-06，路线验证与旧 Phase 1–3 内部宿主实现已完成；后续按本文 A–E 执行，不沿用历史阶段编号。
 
-Windows Phase 0 已于 2026-08-27 完成。`capturePage()` 没有通过同步正确性门槛；CDP 在 Phase 0 fixture、固定 Electron 和本次 Windows 环境中通过逐帧正确性与吞吐门槛，但 main 与普通 renderer 响应延迟超过实验前预设门槛，因此原始实验结论为 **no-go**。产品评审随后确认导出采用阻塞式进度界面，导出期间不承诺其它交互的低延迟，并选择 CDP 作为唯一正式截图路线；正式 `ExportTask`、安装包和升级后的正确性仍按后续阶段复验。这是对用户交互目标和生产验收口径的调整，不追溯修改原始实验判定。原始数据和结论见 [Phase 0 Windows 结果](docs/experiments/electron-export-phase0/README.md)。
+- Phase 0 选择 CDP 与阻塞式交互。原始响应门槛判定仍为 no-go，产品调整交互目标后决定继续；证据按需查阅 [Windows 实验结果](docs/experiments/electron-export-phase0/README.md)。
+- 共享逐帧契约、独立导出页面/preload、内部 ExportHost、PNG/MP4、背压、取消、故障清理及 partial/backup 提交已落地。2026-08-28 Windows 本机单元、构建与真实宿主集成检查通过，不据此宣称远端 CI 或安装包已通过。
+- 维护者已在 Windows 手动编译 FFmpeg 并验证脱离 MSYS2 后运行与编码；x264 源码构建、自动化和最终产物验收待完成，见 [FFmpeg 文档](docs/FFMPEG_DISTRIBUTION.md)。
+- 桌面任务、IPC、用户入口和安装包接入尚未完成；Remotion 保留到新路径验收通过后移除。
 
-## Phase 1–3 实施状态（2026-08-28）
+## 固定范围与技术契约
 
-- Phase 1–3 的开发态实现已经完成：共享 60 帧契约、`VisualizeScene.render_mode`、独立 `export.html` 与 preload、逐帧协议、内部 `ExportHost`、CDP PNG 路线、固定 FFmpeg 参数、背压、取消与故障清理以及 partial/backup 提交均已落地；Remotion 在迁移期间继续消费相同契约。
-- Windows 本机已通过共享与宿主单元测试、Electron production/probe build 和真实宿主集成检查；具体命令、故障场景和产物规格集中记录在“验证矩阵”，本状态区不再重复展开。
-- `src/dev/export_host_integration.ts` 在系统临时目录生成最小 Electron harness，直接驱动 `ExportHost` 并注入故障；harness 不是产品入口，结束后连同测试产物删除。普通 production build 已确认不包含可见像素探针。
-- Windows x64 开发基线暂时选择 Gyan `ffmpeg-9.0.1-essentials_build.zip`，SHA-256 为 `fec81ae03971d9dd4be3ebe02e263bd2ec1d789483f931bdba5f5715e65da2e9`，FFmpeg 源提交为 `bf1b838f2a`。准备脚本从 Gyan 固定 Release 下载或接收同哈希的本地归档，验证后安装到 `build/ffmpeg/win32-x64`，不接受 PATH 回退。
-- 该第三方二进制只用于阶段 1–3 开发和 CI，不进入项目 Release 或安装包。自行编译并完成材料复核，或者维护者明确记录并接受第三方分发风险之前，MP4 路径不得视为可发布；具体边界见 [FFmpeg 开发使用与分发状态](docs/FFMPEG_DISTRIBUTION.md)。
-- Windows x64 CI job 已加入工作流，但本文只记录本机已执行结果，不把尚未观察到的远端 job 结果写成已通过。桌面 IPC、保存对话框、进度/心跳 UI、用户取消入口和安装包接入仍属于 Phase 4–6，尚未实现。
+第一版从当前 GSR 会话导出 MP4/PNG，只消费经过校验的 AnalysisV2 + DisplayConfig v2，复用 CDF view model、VisualizeScene 与共享动画。完成后移除全部 Remotion 实现与依赖，不额外下载或分发浏览器。
 
-## 目标
+| 项目 | 固定契约 |
+| --- | --- |
+| 画布与时间线 | 3840×2160，60 FPS，确定性逐帧计算 |
+| MP4 | 第 0–59 帧，共 60 帧；第 57–59 帧保持最终画面 |
+| PNG | ANIMATION_COMPLETION_FRAME，当前第 57 帧 |
+| 编码 | FFmpeg libx264，H.264、CRF 18、yuv420p，无音轨 |
+| 画面 | render_mode="export"，不含操作栏或任务状态 |
 
-- Electron 从当前 GSR 结果会话导出 MP4 动画或 PNG 静态图。
-- 复用 Electron 已携带的 Chromium，不额外下载或分发 Chrome、Chromium 或 Chrome Headless Shell。
-- Electron 展示与导出继续共用 `AnalysisV2 + DisplayConfig v2`、CDF view model、`VisualizeScene` 和逐帧动画语义。
-- 导出任务具备进度、取消、失败清理和应用退出清理。
-- 新导出能力验证完成后，删除 Remotion 实现、脚本、依赖和相关维护边界。
+不提供编码参数、尺寸、帧率或时长设置；不支持音频、透明视频、WebM、GIF、图片序列或硬件编码。
 
-## 非目标
+正式任务创建一个专用 offscreen BrowserWindow，加载独立 export.html 与 export preload，固定内容尺寸、device scale factor 1，关闭后台节流。它不复用桌面窗口或 capture:ui 的窗口；复用截图工具宿主方式的是 Phase 0 实验。
 
-- 不提供分辨率、帧率、码率、CRF、编码器或动画时长配置。
-- 不支持音频、透明视频、WebM、GIF 或图片序列。
-- 不从当前可见窗口直接截图，不让 renderer 选择可执行文件或传入任意输出路径。
-- 不在第一版引入 GPU 共享纹理、平台相关原始位图快速路径或硬件编码。
+流程为：校验输入 → view model → 隐藏 renderer 提交指定帧 → CDP Page.captureScreenshot(PNG) → main 解码 → PNG 文件或 FFmpeg image2pipe。MP4 顺序写入并等待背压，不保存完整磁盘图片序列。
 
-## 已确认决策
+隐藏 renderer 初始化时等待字体和初始布局；每帧 React commit 后携带 job/frame id 返回 ready，main 验证发送方与标识后截图。commit 不是 Chromium paint 保证，不得用固定 sleep 替代协议；正式路径与 Electron 升级后保留独立像素检查。
 
-### 输出规格
+## 任务与交互规则
 
-- 固定画布为 3840×2160。
-- 固定帧率为 60 FPS。
-- MP4 导出第 0～59 帧，总计 60 帧；第 57 帧进入完成状态，第 57～59 帧保持相同最终画面。
-- PNG 导出 `ANIMATION_COMPLETION_FRAME` 的完整状态，当前值为第 57 帧。
-- MP4 使用 `libx264` 编码 H.264、CRF 18、`yuv420p`，不包含音轨；第一版不比较或切换其它 H.264 encoder。
+### 请求准入与快照
 
-动画帧必须由共享时间线确定性计算。导出宿主不得运行基于真实时钟的动画，也不得依赖导出机器能否实时达到 60 FPS。
+- 导出位于 VisualizeShell 的 chart-actions，与重放、选择结果并列，保持 hover/focus-within；仅完整结果且可视化 ready 时可用。选择 MP4/PNG 后请求 main 保存对话框。
+- main 接受请求时立即占用唯一导出名额，检查与占用之间不能异步等待。占用覆盖此前字段保存的完成、快照建立、保存对话框、正式执行及清理；准备失败或对话框取消时释放。
+- 从占用起禁止新的用户任务请求，包括模拟、分析/GSR 选择、配置刷新/安装/更新/卸载和第二次导出。UI 禁用与 main 入口检查共同执行；状态读取、取消导出、系统关闭和退出继续允许。
+- 已提交任务继续运行，其必要后续步骤、保存、提交和清理属于原任务，不受新请求限制；不能在每个内部步骤重新执行用户请求准入检查。
+- 导出准备提交并等待当前展示字段保存完成，再从 ResultEditor 建立绑定结果会话与配置版本的不可变快照，之后打开保存对话框。此前提交的保存允许完成，占用后不接受新的用户编辑。
+- 等待保存期间若会话已被后台分析替换，检测并中止本次准备，提示重新导出；不能把旧字段写到新会话或静默导出另一份结果。快照建立后，后台结果更新不得改变导出文件。
+- 对话框取消不创建正式任务或进度遮罩，保留当前页面；已有后台任务状态照常更新。
 
-### 用户入口
+### 并发与隔离
 
-导出按钮放入可视化页面现有的隐藏操作栏，即 `VisualizeShell` 中包含“重放动画”和“选择结果”按钮的 `chart-actions` 区域。
+沿用现有进程边界：core 模拟、analyzer 分析、隐藏 renderer 渲染、FFmpeg 编码，main 异步协调。任务同时推进，导出内部保持逐帧顺序，不引入全局串行执行队列。
 
-- 操作栏继续在图表区域 hover 或 focus-within 时显示。
-- 新增一个“导出”按钮，与“重放动画”和“选择结果”并列。
-- 点击“导出”后选择“MP4 视频”或“PNG 图片”，再由 main 打开对应的保存对话框。
-- 导出画面使用 `render_mode="export"`，隐藏操作栏本身不得出现在导出文件中。
-- `src/visualize/` 只接收宿主提供的导出回调，不直接调用 Electron IPC，保持平台无关。
+await 不能使同步计算并行。main 的 JSON 解析、校验、图像数据处理和同步文件操作仍可能延迟其它回调；隐藏 renderer 不隔离 Chromium browser/main 协调及 CPU/GPU/内存竞争。现有实验未定位各项延迟的具体占比。
 
-### 导出期间交互
+后台状态正常记录；自动跳页、抢焦点、弹窗和完成提示延后至导出遮罩关闭。取消导出只停止导出，用户要取消后台任务须先结束导出。关闭窗口或退出则统一终止并等待所有相关任务与清理。
 
-- main 完成保存对话框并正式启动任务后，renderer 显示覆盖整个应用窗口的模态进度界面；导出结束、失败或取消前不自动关闭。
-- 模态界面使导航、结果编辑、GSR 选择、模拟与配置仓库操作、重放和第二次导出请求全部 inert；焦点限制在导出状态区域和“取消导出”按钮内。
-- MP4 显示阶段、已送入编码器的帧数和 0～100% 进度条；finalizing 阶段保持已完成帧数并明确显示正在封装。PNG 只显示 preparing、rendering、finalizing 阶段，不伪造逐帧百分比。
-- “取消导出”是任务期间唯一的应用内操作。点击后 renderer 立即显示 cancelling 并保持遮罩，main 必须在 1 秒内确认已收到取消请求；遮罩持续到 main 确认 FFmpeg、隐藏 renderer 和临时文件已经清理。
-- 导出期间允许普通页面动画与其它交互出现延迟，不再以普通窗口 P95 100 ms 作为路线硬门槛；从 preparing 开始到 completed、failed 或 cancelled 结束，至少每 1 秒产生一次进度、阶段或状态心跳，包括没有新帧的 finalizing 和 cancelling。
-- 系统关闭窗口和应用退出继续进入统一 shutdown 流程，不能被 inert 状态屏蔽。
+### 进度与结束行为
 
-## Phase 0 证据与实验后选定路线
+路径确认并创建正式任务后，显示全应用模态进度界面，背景导航、编辑、模拟、配置操作和图表控件全部 inert；焦点限制在状态区域和取消按钮。
 
-Phase 0 复用了截图检查已有的 offscreen BrowserWindow 作为实验宿主，并在同一宿主上比较两个后端。`capturePage()` 在所有候选边界中都出现旧帧或终态不一致；产品评审据此决定正式实现只保留 CDP `Page.captureScreenshot(PNG)`：
+共享契约包含 ExportFormat（mp4/png）、ExportStage（preparing/rendering/finalizing），以及 started、progress、heartbeat、cancelling、completed、failed、cancelled 事件。正常阶段按 preparing → rendering → finalizing → completed 推进；活动阶段可失败或进入 cancelling，取消以 cancelled 或清理失败的 failed 结束。事件携带任务标识，过期事件不能改变新任务 UI。对话框前的占用与正式任务状态分开表达。
 
-```text
-AnalysisV2 + DisplayConfig
-        -> validate
-        -> build_cdf_view_model
-        -> offscreen BrowserWindow / VisualizeScene(frame)
-        -> CDP Page.captureScreenshot(PNG)
-        -> base64 decode
-        -> PNG file or FFmpeg image2pipe
-        -> PNG / MP4
-```
+- MP4 每帧确认并送入编码器后更新内部进度，UI 显示帧数与 0–100%；finalizing 保持帧数并显示正在封装，送完帧不代表文件已提交。PNG 只显示阶段。
+- 从 preparing 到终态，相邻进度、阶段或状态心跳不超过 1 秒，包括 finalizing/cancelling。点击取消后 renderer 立即显示 cancelling，main 在 1 秒内确认接收；定时器本身不构成活性验证。
+- 取消后保持遮罩直至子进程、隐藏窗口和临时文件清理完成。取消与输出提交竞争时，按实际提交结果返回唯一终态，不把已成功提交报告为取消。
+- 成功后关闭遮罩并提示完成，提供“打开所在文件夹”；取消后提示已取消；失败后解除遮罩并保留错误。不自动重试，重新导出重新取得快照并确认路径。
+- 清理失败应显示具体错误及残留信息；仍有活动资源时不能释放占用并允许下一次导出。
 
-正式导出任务创建一个专用 `offscreen: true` BrowserWindow，不复用开发截图脚本中的窗口，也不再创建第二个导出窗口。该窗口固定使用 3840×2160 内容尺寸、device scale factor 1，并禁用后台节流。导出页面不挂载交互用 `VisualizeApp`，而是接收明确的 CDF view model 和 frame，按下式构造共享动画进度：
+### 信任边界与文件生命周期
 
-```text
-elapsed_ms = min(frame, ANIMATION_COMPLETION_FRAME) / VIDEO_FPS * 1000
-```
+桌面 renderer 只提交受限格式枚举；preload 提供固定启动、取消与事件订阅。src/visualize/ 只接收宿主回调，不访问 Electron/Node。main 验证输入、取得权威快照、选择路径和编码器并负责资源；隐藏 renderer 开启 context isolation、关闭 Node integration，只接收 view model 与逐帧消息。
 
-Phase 0 中 CDP 在 commit、fonts、单 RAF 和双 RAF 的 12 组完整序列中均为零错帧，commit 是该 fixture 中额外等待最少的可靠边界。产品据此选择“React commit 后携带 job id 与 frame id 返回 ready，再由 CDP 截图”的正式时序；它不是 React commit 自身提供的 Chromium paint 保证，因此正式路径和 Electron 升级后仍保留连续帧像素检查。导出 renderer 初始化时另行等待 `document.fonts.ready` 和初始布局。
+路径只来自 main 保存对话框，默认名称由快照对应 GSR stem 派生，覆盖须确认。先写目标目录唯一临时文件，再提交替换；失败或取消不得破坏原文件。宿主负责关闭 stdin、终止并等待 FFmpeg、销毁窗口、处理 partial/backup。打开所在文件夹由 main 依据已完成任务路径执行，不接受任意路径。
 
-CDP 产生 PNG 帧。MP4 将连续 PNG 写入 FFmpeg `image2pipe`，避免在磁盘保存完整图片序列。本次 Windows 实验环境和代表性 FFmpeg build 测得 60 帧截图中位 13.08 秒、包含 FFmpeg 中位 16.80 秒；产品接受约 17 秒作为阻塞式导出的实验基线，但它不是其它机器或正式安装包的性能承诺。实验响应探针只说明共享资源竞争会造成调度延迟，不能代替正式主窗口进度与取消活性检查。
+## 剩余执行步骤
 
-正式安装包计划通过 `extraResources` 将 FFmpeg 放在 ASAR 外，但只有 [FFmpeg 发布门槛](docs/FFMPEG_DISTRIBUTION.md)关闭后才能接入；当前打包配置不包含 FFmpeg。main 只解析内部固定路径，不接受 renderer 提供可执行文件路径或命令行参数。
+### A. 固化 Windows 自编译
 
-技术路线固定使用包含 `libx264` 的 GPL FFmpeg build，但这不等于项目已经决定或获准分发当前二进制。FFmpeg 作为独立可执行文件由子进程调用是架构决策，不据此预设项目许可结论；正式发布前仍须核对最终 build 的组件组合以及对项目许可、声明、对应源码、构建配置与修改记录的具体义务。
+将 MSYS2 UCRT64 路线脚本化，固定源码，先构建 x264，再构建 FFmpeg/ffprobe；记录工具链、参数、补丁、依赖、哈希与材料。要求集中在 [FFmpeg 文档](docs/FFMPEG_DISTRIBUTION.md)，实现时确定精确版本。
 
-## Phase 0 实验代码与产物生命周期
+完成条件：干净 Windows 环境可完整构建，产物脱离 MSYS2 开发环境可运行，具备项目编码与探测能力。
 
-Phase 0 代码只用于验证路线，不构成正式导出 API。正式实现不得从 Spike 文件导入任务协议或运行时逻辑，也不得长期并存两套导出 renderer。它们在正式路径完成前承担实现参考和回归基线作用，后续按下表处理：
+### B. 统一 Windows 开发基线与 CI
 
-| 文件或入口                                                                                            | 当前作用                                                                       | 后续处理                                                                                                  |
-| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| `src/dev/electron_export_spike.ts`                                                                    | 编排 `capturePage()`/CDP 对比、FFmpeg 管道与背压、性能采样、故障注入和清理验证 | 保留到 Phase 6 删除前门槛通过；将仍适用的场景迁移为针对正式 `ExportTask` 的集成检查，不作为生产代码依赖   |
-| `src/dev/electron_export_spike_metrics.ts`、`src/dev/electron_export_spike_metrics.test.ts`           | 按实验前门槛汇总并自动选择候选后端                                             | 保留原始实验判定的可解释性；正式验收不复用已经改变的响应门槛，通过 Phase 6 删除前门槛后删除               |
-| `src/renderer/ExportSpikeApp.tsx`                                                                     | 使用固定 fixture 渲染共享场景，暴露逐帧 barrier 和像素 frame-id 探针           | Phase 2 建立正式导出 renderer 时仅作为协议参考；保留到 Phase 6 删除前门槛通过，避免迁移期间失去像素级对照 |
-| `src/renderer/main.tsx` 中的 `electron-export-spike` 查询分支、`src/renderer/styles.css` 中的探针样式 | 将实验页面接入现有 renderer 构建并提供机器可读像素探针                         | 与 `ExportSpikeApp.tsx` 按同一门槛删除；清理后的正式应用和安装包不得保留实验查询入口                      |
-| `package.json` 中的 `spike:electron-export`、`test:electron-export-spike`                             | 运行完整实验和实验指标单元测试                                                 | 通过 Phase 6 删除前门槛后删除；长期检查应直接覆盖正式导出路径                                             |
-| `docs/experiments/electron-export-phase0/windows-2026-08-27.json`、同目录 `README.md`                 | 保存逐次原始测量、环境信息、汇总结论和实验后产品决策                           | 保留到 Phase 6 Spike 删后复验通过；随后由单一归档文档（人工编写）替代并删除原目录                         |
+- 自编译产物替换 Gyan 准备流程，保持固定内部路径、无 PATH 回退；Windows 构建 job 产物直接供 Windows 导出集成检查消费。
+- Windows 为唯一维护的开发、构建和运行测试基准。core/analyzer 与 x264/FFmpeg 统一采用 MSYS2 UCRT64 GCC；新增 Windows Debug/Release preset，移除 Linux preset 和 Linux CI job，不再维护 Linux 检查矩阵。
+- 将 C++ Debug/Release CTest、原生流水线、Node 静态质量和测试、Electron 布局/行为/导出及安装包检查迁移到 Windows。Node/pnpm 使用 Windows 原生环境；验证所需运行依赖随产物正确提供，不因开发工具 PATH 掩盖缺失 DLL。
+- 格式化继续使用 Windows UCRT64 中的 clang-format，沿用 `.clang-format`，本地与 CI 固定一致工具版本；使用 Clang 检查工具不改变 GCC 发布编译器。
+- 静态分析优先保留 clang-tidy 与 `.clang-tidy`。Windows Ninja preset 生成本机 `compile_commands.json`，先验证 UCRT64 clang-tidy 能否正确消费 GCC 编译参数、宏和头文件路径，不复用 Linux 编译数据库。
+- 若遇到 GCC 专属参数或头文件解析问题，先评估同一 UCRT64 环境中的 Clang 分析专用 preset，发布构建仍使用 GCC；只有实际兼容问题导致维护成本过高时才评估 Cppcheck，并记录规则覆盖与误报差异，不将 GCC 警告或 `-fanalyzer` 当作现有 C++ 静态检查的等价替代。
+- 提供 Windows 本地与 CI 共用的格式化、静态分析入口，验证现有规则有效执行；工具初始化与日常命令集中记录在 Development Checks，不要求安装 WSL/Linux。
+- 先验证完整构建，再优化缓存；缓存覆盖源码、工具链、配置和补丁变化，构建、测试及发布以产物哈希关联。
+- 重跑共享契约、宿主单元与真实集成检查：PNG/MP4、连续帧、背压、故障、取消和退出清理；production build 不含像素探针。
+- 同步准备命令、AGENTS.md、README、Development Checks、Git hook 和平台相关脚本；Remotion 移除前将其检查迁移到 Windows 并保留。
 
-归档文档至少保留实验环境和命令、Electron 与 FFmpeg 版本及校验信息、正确性结论、聚合耗时与响应指标、内存峰值、故障清理结论、代表性产物规格与校验值，以及“原门槛 no-go、产品改用阻塞式交互后选择 CDP”的决策过程。归档时同步更新本文档中的实验结果链接。
+完成条件：Windows 本地和 CI 的完整检查矩阵通过，格式化与静态分析工具版本、配置及入口一致，Linux preset/job 已移除，开发流程可复现、产物可追溯。
 
-删除原始 JSON 意味着不能再从仓库内逐条复算各序列和百分位；归档文档只承担决策追溯与基线记录。
+### C. 接入正式任务、IPC 与 UI
 
-Phase 0 运行时代码的删除前门槛是：正式路径能够独立运行连续帧像素正确性、进度/取消活性、FFmpeg 背压、隐藏 renderer 与编码器崩溃、应用退出和临时文件清理检查，正式 MP4/PNG 已通过产物检查，并且正式耗时与内存报告已经由项目维护者人工评审并获准继续。满足这些条件后删除上述 Spike 代码、入口和 scripts，再重新构建安装包完成删后复验。删后复验失败时清理尚未完成，必须修正并重新验证；通过后才能归档 Phase 0 产物。
+按上述规则实现 ExportTask、共享类型、preload、main handler、新请求准入及 shutdown；接入操作栏、格式选择、保存对话框、模态进度和结果提示。可用自编译基线进行开发态产品接入，对外发布仍受 D 约束。
 
-## 进程与信任边界
+验证覆盖：
 
-### Renderer
+- 请求占用、重复点击、对话框取消、准备失败和释放；保存完成/失败、会话切换与快照隔离。
+- 已有模拟/分析/配置任务及后续步骤继续完成，新用户请求被 main 拒绝，后台完成不抢焦点或跳页。
+- 各阶段心跳、取消确认、唯一终态、提交竞争、清理失败与全任务退出协调。
+- hover/键盘入口、禁用、inert、焦点限制与恢复、取消及结束提示。
 
-- 展示导出入口、格式选择、进度、取消和结果消息。
-- 导出前提交并等待当前展示字段保存完成，避免导出未保存或旧版本的 DisplayConfig。
-- 只提交受限的格式枚举，不提交任意文件路径、FFmpeg 参数或分析数据。
+完成条件：正式入口能导出，任务行为与真实 Electron UI 检查通过；响应问题依据测量定位，再决定是否调整 I/O、同步计算或进程隔离。
 
-### Preload
+### D. 分发准备与安装包验收
 
-- 暴露固定的 `startExport(format)`、`cancelExport()` 和导出事件订阅接口。
-- 不暴露通用 IPC、文件系统、BrowserWindow 或子进程能力。
+- 完成 FFmpeg 材料复核后，以 extraResources 将运行所需产物放在 ASAR 外；开发态和安装包分别使用固定资源路径。
+- 使用最终产物检查 Windows unpacked 与实际安装应用的 MP4/PNG、覆盖、空格/中文路径、字体和视觉一致性；断网且无开发工具/PATH 依赖时仍可导出，不下载浏览器。
+- 正式任务独立覆盖连续帧像素识别、背压、进度/取消活性、renderer/编码器崩溃、退出及清理，不能仅用 ready frame id 证明截图正确。
+- 测量空闲、已有模拟运行中、已有分析运行/完成时的导出；记录环境、后台负载、采样方法、总/阶段耗时、响应、Electron/FFmpeg/后台任务内存及系统稳定性。分别观测的峰值不直接相加为同时总峰值。
+- 维护者依据正式报告记录允许继续、要求优化或更换路线。耗时和内存不设固定数值门槛，进度/取消活性要求仍适用；超时或系统无响应必须重新评估，不能以模态 UI 豁免。
 
-### Main
+完成条件：材料、真实安装包、断网检查和性能/内存评审通过；此前保留 Spike 与 Remotion。
 
-- 从 `ResultEditor` 取得已校验的 AnalysisV2 和 DisplayConfig 不可变快照。
-- 构建 CDF view model，弹出保存对话框并决定最终路径。
-- 管理专用 offscreen BrowserWindow、逐帧握手、截图、FFmpeg、进度和取消。
-- 验证 IPC 输入、限制单一活动导出任务，并负责所有临时文件清理。
+### E. 清理迁移内容并复验
 
-### 隐藏导出 Renderer
+1. 确认 D 回归已独立于 Spike，删除 electron_export_spike* 脚本/测试、ExportSpikeApp、实验查询入口、探针样式及对应 scripts，重新构建安装包复验。保留正式测试专用逐帧探针，禁止进入 production build。
+2. Spike 删后复验通过后，以单一人工归档替代 Phase 0 原报告目录；保留环境/命令、版本/哈希、正确性、聚合性能/响应/内存、故障清理、产物及原 no-go 到产品决定的依据，注明不再支持逐条复算并更新链接。本轮压缩不提前删除原始证据。
+3. 删除 src/visualize/remotion/、旧导出宿主及无用辅助代码、全部 Remotion 直接依赖与传递打包产物；更新 lockfile、构建、导出命令和 CI，不降级为 devDependencies。
+4. 删除后重新构建开发态与 Windows 安装包，复跑 MP4/PNG、连续帧、生命周期和断网检查；包内无 Remotion compositor、Remotion FFmpeg、额外浏览器或实验入口。
+5. 更新 README、Architecture、Visualize Frontend Implementation 和 Development Checks，稳定契约留在专项维护文档。
 
-- 开启 context isolation，关闭 Node integration，只加载本地可信资源。
-- 接收已构建的 CDF view model 和目标 frame。
-- 初始化时等待 `document.fonts.ready` 和初始布局；每次 React 提交目标帧后，携带 job id 与 frame id 返回 ready 确认。
-- 不访问文件系统，不启动 FFmpeg，不决定输出路径。
+完成条件：删后复验全部通过，Electron 自研导出成为唯一素材导出宿主；失败须修正并复验。
 
-## 导出任务模型
+## 文档维护
 
-共享类型定义至少包含：
-
-```text
-ExportFormat = "mp4" | "png"
-ExportStage = "preparing" | "rendering" | "finalizing"
-ExportEvent = started | progress | heartbeat | cancelling | completed | failed | cancelled
-```
-
-任务状态转换为：
-
-```text
-idle
-  -> preparing
-  -> rendering
-  -> finalizing
-  -> completed
-preparing | rendering | finalizing
-  -> failed
-preparing | rendering | finalizing
-  -> cancelling
-  -> cancelled | failed
-```
-
-同一时间最多允许一个导出任务。开始后使用不可变结果快照；用户随后编辑字段或切换页面不得改变正在生成的文件。
-
-MP4 进度以已确认并送入编码器的帧数为主，至少每完成一帧发布一次内部进度；renderer 可合并显示更新。整个活动任务期间相邻进度、阶段或状态心跳不得超过 1 秒，finalizing 和 cancelling 没有新帧时也须发送状态心跳。finalizing 阶段等待 FFmpeg 完成编码和封装。PNG 在准备完成后导出一帧，使用阶段状态而不伪造细粒度百分比。
-
-保存对话框取消时保持原页面且不创建任务；保存路径确认并创建任务后立即进入阻塞式进度界面。任务期间拒绝第二次导出请求，取消后保持 cancelling 直到清理完成。失败重试、完成提示和是否提供“打开文件夹”仍须在固定正式 IPC 事件语义前完成设计。
-
-## 文件安全与生命周期
-
-- 保存路径只能来自 main 的原生保存对话框。
-- 默认文件名由当前 GSR 文件 stem 派生，并按格式添加 `.mp4` 或 `.png`。
-- 导出先写入目标目录中的唯一临时文件，成功后再替换最终文件。
-- 失败、取消或应用退出时关闭 stdin、终止并等待 FFmpeg、销毁隐藏窗口并删除临时文件。
-- 应用关闭时将导出任务纳入现有 shutdown 流程；不得留下孤儿进程或半成品输出。
-- 覆盖已有文件必须经过保存对话框确认，失败时不得破坏原文件。
-
-## 实施阶段
-
-### 0. 验证技术路线
-
-Phase 0 已完成并保留以下 Spike 与原始数据，不包含正式 IPC 或产品 UI。
-
-- 建立最小本地导出页面和 offscreen BrowserWindow，使用固定 3840×2160、device scale factor 1、禁用后台节流的同一实验宿主。
-- 实现 `capturePage({ stayHidden: true }) -> toPNG()` 与 `Page.captureScreenshot(PNG) -> base64 decode` 两个候选后端；使用项目固定 Electron 版本及其内置 CDP，不依赖外部 Chrome。
-- 使用专用同步探针让每帧携带可机器读取的 frame id，连续验证 60 帧无旧帧、错帧或意外重复；生产场景第 57～59 帧按契约允许相同。
-- 对比 React commit、字体就绪、单 RAF 和双 RAF 等候选边界，确认在 Phase 0 fixture 中 `setFrame -> commit ready -> CDP screenshot` 的可靠时序，不使用固定 sleep。
-- 对两个截图后端分别运行“截图到内存”和“截图后写入真实 FFmpeg”两类实验，避免编码吞吐掩盖截图后端差异。Spike 可以使用来源、版本、编码器和构建信息均有记录的代表性 FFmpeg build；当前开发基线用于 Phase 1–3 正确性检查，最终分发 build 确定后仍必须复测受影响的吞吐、背压和生命周期指标。
-- 分阶段记录 `setFrame -> ready`、截图返回、`toPNG()` 或 base64 decode、stdin 写入与 drain、FFmpeg finalizing；同时记录 60 帧总时间、单帧平均与 P95、main event-loop 最大延迟、主窗口响应探针以及 Electron 与 FFmpeg 进程树峰值内存。
-- 在正式测量前完成预热，按固定次数重复实验。实验开始前记录正确性硬门槛、可接受的绝对耗时与 UI 延迟，以及切换后端所需的最小重复性收益，避免看到结果后再定义成功标准。
-- 验证 FFmpeg stdin `write() === false -> drain`、取消、编码器崩溃、隐藏 renderer 崩溃和应用退出；确认任务停止生产帧、关闭管道、终止并等待子进程且不遗留半成品。
-- 已形成 Spike 结果记录；产品评审基于阻塞式导出交互选择 CDP 与 commit 边界继续实施，同时保留响应延迟和内存峰值为生产风险。
-
-### 1. 固化共享逐帧契约与 FFmpeg 基线
-
-状态：共享契约和开发基线已经完成；最终分发基线及其材料复核仍受发布门槛阻塞。
-
-- 将当前位于 Remotion 目录中的 frame state 计算迁移到平台无关的动画模块。
-- 保持第 0～59 帧、第 57 帧完成及 57～59 帧最终状态一致的测试。
-- 保证 `VisualizeScene` 的导出模式不包含控件，也不依赖真实时钟、CSS 动画或宿主缩放。
-- 为开发态 MP4 路径固定 Windows FFmpeg build 的来源、版本、校验值和构建配置，并确认启用 `libx264`。在进入安装包阶段前，再确定最终分发 build 及许可证文本、对应源码、修改记录和构建信息的交付方式；新增其它安装包目标时另行完成对应平台的同类工作。
-
-阶段 1–3 可以使用固定哈希的第三方预编译包完成技术验证。发布所需材料不再绑定八个特定文件名；自行编译或决定重新分发第三方 build 时，必须按 [FFmpeg 开发使用与分发状态](docs/FFMPEG_DISTRIBUTION.md)重新建立二进制、对应源码、构建方式和许可证材料之间的可追溯关系。准备脚本的技术校验不能替代维护者复核。
-
-### 2. 建立导出 Renderer
-
-状态：开发态实现和本机检查已经完成。
-
-- 为 Electron 构建增加专用本地导出页面入口。
-- 渲染固定尺寸的 `VisualizeScene`，复用共享 CSS、字体和 CDF view model。
-- 定义初始化、设置 frame、frame ready 和错误消息协议。
-- 在首次截图前等待字体和初始布局完成；每帧截图前验证返回的 job id 与 frame id。
-
-### 3. 建立截图与 FFmpeg 宿主
-
-状态：开发态实现和本机真实宿主检查已经完成；正式性能/内存报告和安装包验证留在 Phase 6。
-
-- 实现专用 `offscreen: true` BrowserWindow 的创建、加载、销毁和崩溃处理。
-- 只实现 Phase 0 已选定的截图后端和 frame-ready 协议，不同时维护两套正式路径。
-- 实现 PNG 最终帧导出。
-- 实现 60 个 PNG 帧通过带背压的 stdin 写入 FFmpeg `image2pipe`。
-- 固定 MP4 编码参数，并通过临时文件实现成功提交和失败回滚。
-- 将 Phase 0 的连续帧、背压与清理场景迁移为直接驱动正式宿主的开发检查，防止 Electron 或实现升级导致技术路线回退；连续帧检查必须通过仅在开发检查启用的像素 frame-id 或等价图像哈希独立识别截图内容，不能只信任 renderer 返回的 ready frame id；不把实验 renderer 作为长期检查入口。正式性能与内存测量留在 Phase 6。
-
-### 4. 固化剩余交互规则并接入任务生命周期与 IPC
-
-- 以已确认的阻塞式进度界面确定保存取消、任务互斥、进度心跳、取消和清理所需的 IPC 语义；补齐失败重试、完成提示和“打开文件夹”决策后再固定完整契约。
-- 新增共享导出类型、preload 固定桥和 main IPC handler。
-- 实现单任务互斥、覆盖整个活动任务的最长 1 秒状态心跳、1 秒内取消接收确认、错误归一化和 shutdown 协调。
-- 导出前等待结果编辑字段保存队列完成，再创建权威快照。
-
-### 5. 接入可视化隐藏操作栏
-
-- 按 Phase 4 已评审的用户交互规则实现 UI，不在本阶段隐式改变 IPC 语义或产品流程。
-- 在现有 `chart-actions` 中加入“导出”按钮和 MP4/PNG 格式选择。
-- 保持 hover、键盘 focus、disabled 和正在导出状态可访问。
-- 保存路径确认后显示全应用模态进度界面，使背景内容 inert，并将焦点限制在状态区域和取消按钮；导出状态不得出现在共享导出画面中。
-- 增加 Electron UI 行为检查，确认按钮只在已有结果且可视化 ready 时可用，并验证导出期间背景不可操作、焦点不会逃逸、取消仍可触发。
-
-### 6. 安装包与实际导出验证
-
-- 正式路径开发完成后，在记录的 Windows 环境中测量并汇报总耗时、各阶段耗时、Electron 与 FFmpeg 峰值内存以及系统稳定性。本计划不设置耗时或内存数值硬门槛，由项目维护者根据报告决定继续发布、要求优化或更换路线，并记录决定。
-- 关闭 FFmpeg 发布门槛后，将获准分发的 Windows FFmpeg 放入 `extraResources`，验证开发态与安装包使用不同但稳定的资源解析路径。
-- 在断网环境运行 unpacked 或已安装应用，确认不会下载或查找额外 Chrome。
-- 实际导出代表性 MP4 和 PNG，并检查尺寸、帧率、帧数、编码格式、像素格式、最终画面和中文字体。
-- 验证取消、覆盖、路径含空格与中文、应用退出和 FFmpeg 失败场景。
-- 使用正式导出路径复测连续帧像素正确性、进度/取消活性、背压、隐藏 renderer 与编码器崩溃、应用退出和临时文件清理；测量耗时和内存并提交项目维护者评审，确认所需回归场景已脱离 Spike 独立运行。
-- 通过删除前门槛后，删除 Phase 0 实验脚本、实验 renderer、查询入口、探针样式和对应 package scripts；重新构建并复验安装包，确认正式导出仍然通过且实验查询入口和代码未进入最终产物。
-- 删后复验通过后，以人工编写的单一归档文档替代 Phase 0 原始 JSON 和报告目录，并同步更新本文档中的实验结果链接。
-
-### 7. 移除 Remotion
-
-仅在保留 Remotion 的情况下，新 Electron 导出路径已经通过 Phase 6 开发态与安装包检查，并经项目维护者性能/内存评审获准继续后执行：
-
-- 删除 `src/visualize/remotion/` 及旧 Remotion composition。
-- 删除基于 `@remotion/bundler`、`@remotion/renderer` 的旧导出入口和不再使用的路径辅助代码。
-- 删除 `remotion`、`@remotion/bundler`、`@remotion/renderer` 及其传递产物，不将它们降级为 devDependencies。
-- 更新 `package.json`、lockfile、构建配置和导出命令。
-- 检查安装包中不再包含 Remotion compositor、Remotion FFmpeg 或额外浏览器资源。
-- 删除后重新构建开发态与 Windows 安装包，复跑连续帧像素正确性、正式 MP4/PNG、生命周期和断网导出检查；只有该轮复验通过，移除工作才算完成。
-- 更新 README、Architecture、Visualize Frontend Implementation 和 Development Checks，使 Electron 自研导出成为唯一素材导出宿主。
-
-## 验证矩阵
-
-### 自动化检查
-
-Phase 1–3 已于 2026-08-28 在 Windows 本机通过：
-
-- `test:visualize:cdf`：22 项，覆盖动画端点、非法帧、完成帧、最终状态、总帧数、export 场景和 Remotion 同契约。
-- `test:electron-export`：21 项，覆盖窄 preload 协议、初始化顺序、StrictMode 重放、字体/布局失败、固定 FFmpeg 参数、背压、stderr 上限、partial/backup 回滚、取消、renderer 销毁和应用退出协调。
-- `test:electron-export:integration`：使用真实 Electron、CDP、固定开发 FFmpeg 和 `ffprobe`，覆盖连续帧、PNG、MP4、编码器/renderer 崩溃、取消和应用退出清理。
-- `test:simulation` 45 项、`test:electron-layout`、typecheck、lint、format check 和 production build 通过；production renderer 不包含测试探针。
-
-Phase 4–7 仍需新增：
-
-- `ExportTask` 的单任务互斥、进度/心跳、用户取消和快照竞态测试。
-- 桌面导出入口、格式选择、模态进度、背景 inert、焦点限制和取消的 Electron 行为测试。
-- 获准分发的最终 FFmpeg、安装包、断网导出及 Remotion 删除后复验。
-
-### 实际产物检查
-
-开发态真实宿主已经确认：
-
-- PNG 为 3840×2160，对应第 57 帧且不包含操作栏。
-- MP4 为 H.264、3840×2160、60 FPS、60 帧、`yuv420p`、无音轨；像素探针连续识别第 0～59 帧，第 57～59 帧去除探针后的图像哈希一致。
-
-Phase 6–7 仍需确认 Electron 预览与产物的完整视觉一致性、正式耗时与内存、含空格/中文路径、获准分发 FFmpeg 的安装包断网导出，以及 Remotion 删除后的安装包内容和复验结果。
-
-## 主要风险与应对
-
-### 截到旧帧
-
-React 状态提交不等于 Chromium 已完成画面呈现。Phase 0 只证明固定 Electron 和 fixture 中“commit ready 后执行 CDP capture”的时序可靠；正式路径每帧使用带 job/frame 标识的 ready 握手，并通过实际连续帧像素测试检查错帧，不得用固定 sleep 作为同步协议。
-
-### 4K PNG 截图造成调度延迟
-
-CDP 截图包含 4K 合成、PNG 编码、协议传输和 base64 解码，并与普通窗口共享 Electron browser/main、GPU 和系统资源。产品选择用阻塞式进度界面接受导出期间的普通交互延迟，但进度和取消仍是活性契约；若相邻心跳超过 1 秒、main 不能在 1 秒内确认收到取消请求，或系统将应用判定为无响应，必须重新评估进程隔离或非逐帧 PNG 路线。
-
-### 导出内存峰值
-
-Phase 0 分别观测到 Electron 进程树约 3 GiB、FFmpeg 约 4 GiB 的采样峰值，二者不代表同一时刻的精确总和，但不能由阻塞式 UI 规避。Phase 3 的真实宿主检查验证了正确性和生命周期，但没有形成可用于发布评审的正式性能/内存报告；Phase 6 必须重新测量真实任务峰值并记录测试环境、采样方法和系统稳定性。本计划不为耗时或内存设置数值硬门槛；项目维护者根据正式报告决定是否允许继续、要求优化或更换路线。
-
-### DPI 与跨平台像素差异
-
-专用导出窗口使用 `offscreen: true`，强制 device scale factor 1，并对截图尺寸做运行时断言。第一版实际导出覆盖 CI 基准环境和 Windows 开发/安装环境；新增其它安装包目标时补充对应平台验证。
-
-### FFmpeg 分发与许可
-
-第一版技术路线已决定使用 Windows FFmpeg 可执行文件和 `libx264`。当前第三方 build 的来源、版本和哈希已经固定，但分发义务尚未关闭，因此只能用于开发与 CI，不能进入安装包。发布前按 [FFmpeg 开发使用与分发状态](docs/FFMPEG_DISTRIBUTION.md)完成自行编译与材料复核，或者记录明确的风险接受决定；不得依赖用户机器预装 FFmpeg，也不得把 Electron 自带的 `ffmpeg` 动态库当作命令行编码器使用。
-
-## 完成标准
-
-满足以下条件后，Electron 导出能力视为完成：
-
-- 用户能从可视化隐藏操作栏分别导出 MP4 和 PNG。
-- 导出文件满足固定画面、帧和编码契约。
-- 进度、取消、失败、覆盖和退出清理行为可观察且通过验证。
-- 导出期间其它应用操作被可靠屏蔽，整个活动任务的进度、阶段或状态心跳间隔不超过 1 秒；点击取消后 renderer 立即显示 cancelling，main 在 1 秒内确认收到请求。
-- 正式耗时、内存和系统稳定性报告已经提交项目维护者评审，且评审决定允许发布；如果决定要求优化或更换路线，导出能力尚未完成。本计划不以固定数值自动判定通过或失败。
-- 开发态和正式安装包均可在无额外浏览器、无网络下载的条件下导出。
-- Remotion 源码、直接依赖、传递打包产物和维护文档已经全部移除。
-- Electron 与素材导出继续只消费经过校验的 `AnalysisV2 + DisplayConfig v2`，共享场景与动画语义没有分叉。
+本文只维护当前契约和剩余步骤；完成步骤压缩为状态及证据入口，不追加逐次日志、测试数量或源码清单。命令集中在 Development Checks，FFmpeg 要求只在专项文档维护，历史实验按需读取。

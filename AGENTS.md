@@ -10,6 +10,7 @@
 - 持久化结果与分析输出格式：[GSR v2](<docs/GSR_V2.md>)、[Analysis JSON v2](<docs/ANALYSIS_V2.md>)。
 - 可视化设计决策和维护边界：[Visualize Frontend Implementation](<docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md>)。
 - 按影响范围选择检查及 push 前完整矩阵：[Development Checks](<docs/DEVELOPMENT_CHECKS.md>)。
+- 此处未列出的文档视作开发临时文档，不承诺长期存在和有效。
 
 ## 开发环境与启动入口
 
