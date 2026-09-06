@@ -16,6 +16,8 @@
     "package:win": "pnpm run build && electron-builder --win nsis --publish never",
     "capture:ui": "pnpm run build:packages && electron-vite build && tsx src/dev/capture_ui.ts",
     "prepare:ffmpeg:win": "pwsh -NoProfile -File scripts/prepare_ffmpeg.ps1",
+    "build:ffmpeg:win": "pwsh -NoProfile -File scripts/build_ffmpeg_win.ps1",
+    "test:build:ffmpeg:win": "node scripts/build_ffmpeg_win.test.mjs",
     "spike:electron-export": "pnpm run build:packages && electron-vite build && tsx src/dev/electron_export_spike.ts",
     "test:electron-export-spike": "tsx --test src/dev/electron_export_spike_metrics.test.ts",
     "test:electron-export": "tsx --test src/export-renderer/export_renderer.test.ts src/main/export_host.test.ts",

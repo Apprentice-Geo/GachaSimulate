@@ -2,11 +2,11 @@
 
 ## 当前状态
 
-截至 2026-09-06，路线验证与旧 Phase 1–3 内部宿主实现已完成；后续按本文 A–E 执行，不沿用历史阶段编号。
+截至 2026-09-07，路线验证、旧 Phase 1–3 内部宿主实现与阶段 A 已完成；后续按本文 A–E 执行，不沿用历史阶段编号。
 
 - Phase 0 选择 CDP 与阻塞式交互。原始响应门槛判定仍为 no-go，产品调整交互目标后决定继续；证据按需查阅 [Windows 实验结果](docs/experiments/electron-export-phase0/README.md)。
 - 共享逐帧契约、独立导出页面/preload、内部 ExportHost、PNG/MP4、背压、取消、故障清理及 partial/backup 提交已落地。2026-08-28 Windows 本机单元、构建与真实宿主集成检查通过，不据此宣称远端 CI 或安装包已通过。
-- 维护者已在 Windows 手动编译 FFmpeg 并验证脱离 MSYS2 后运行与编码；x264 源码构建、自动化和最终产物验收待完成，见 [FFmpeg 文档](docs/FFMPEG_DISTRIBUTION.md)。
+- 阶段 A 连续两次固定源码构建、失败保护、PE/隔离 PATH 运行及完整 ExportHost 集成已在 Windows x64 本机通过；两次哈希、实际环境和材料位置见 [FFmpeg 文档](docs/FFMPEG_DISTRIBUTION.md#构建材料与阶段-a-验收)。干净 Windows x64 断网验收后置到阶段 B 的 CI/CD 工作流改造，不再作为阶段 A 的完成条件。
 - 桌面任务、IPC、用户入口和安装包接入尚未完成；Remotion 保留到新路径验收通过后移除。
 
 ## 固定范围与技术契约
@@ -67,15 +67,15 @@ await 不能使同步计算并行。main 的 JSON 解析、校验、图像数据
 
 路径只来自 main 保存对话框，默认名称由快照对应 GSR stem 派生，覆盖须确认。先写目标目录唯一临时文件，再提交替换；失败或取消不得破坏原文件。宿主负责关闭 stdin、终止并等待 FFmpeg、销毁窗口、处理 partial/backup。打开所在文件夹由 main 依据已完成任务路径执行，不接受任意路径。
 
-## 剩余执行步骤
+## 执行步骤与完成状态
 
-### A. 固化 Windows 自编译
+### A. 固化 Windows 自编译（已完成）
 
-将 MSYS2 UCRT64 路线脚本化，固定源码，先构建 x264，再构建 FFmpeg/ffprobe；记录工具链、参数、补丁、依赖、哈希与材料。要求集中在 [FFmpeg 文档](docs/FFMPEG_DISTRIBUTION.md)，实现时确定精确版本。
+将 MSYS2 UCRT64 路线脚本化，固定源码，先构建 x264，再构建 FFmpeg/ffprobe；记录工具链、参数、补丁、依赖、哈希与材料。要求集中在 [FFmpeg 文档](docs/FFMPEG_DISTRIBUTION.md)，实现时确定精确源码版本。
 
-完成条件：干净 Windows 环境可完整构建，产物脱离 MSYS2 开发环境可运行，具备项目编码与探测能力。
+已实现 `pnpm run build:ffmpeg:win`、UCRT64 内部构建、x264/FFmpeg 源码锁、实际工具链记录、材料输出、PE/隔离运行检查和静态禁网测试。2026-09-06 至 2026-09-07 完成 Windows x64 本机两次源码构建、四项失败保护及仅导出相关检查矩阵，完整集成使用第二次自编译产物，最终恢复无探针 production build。两次二进制哈希和 `tmp/ffmpeg-verification/run-{1,2}/materials/` 记录见 [阶段 A 验收](docs/FFMPEG_DISTRIBUTION.md#构建材料与阶段-a-验收)。阶段 A 按上述本机验证结果标记为完成。干净 Windows x64 断网验收尚未执行，后置到阶段 B 随 CI/CD 工作流改造完成。
 
-### B. 统一 Windows 开发基线与 CI
+### B. 统一 Windows 开发基线与 CI/CD
 
 - 自编译产物替换 Gyan 准备流程，保持固定内部路径、无 PATH 回退；Windows 构建 job 产物直接供 Windows 导出集成检查消费。
 - Windows 为唯一维护的开发、构建和运行测试基准。core/analyzer 与 x264/FFmpeg 统一采用 MSYS2 UCRT64 GCC；新增 Windows Debug/Release preset，移除 Linux preset 和 Linux CI job，不再维护 Linux 检查矩阵。
@@ -84,11 +84,12 @@ await 不能使同步计算并行。main 的 JSON 解析、校验、图像数据
 - 静态分析优先保留 clang-tidy 与 `.clang-tidy`。Windows Ninja preset 生成本机 `compile_commands.json`，先验证 UCRT64 clang-tidy 能否正确消费 GCC 编译参数、宏和头文件路径，不复用 Linux 编译数据库。
 - 若遇到 GCC 专属参数或头文件解析问题，先评估同一 UCRT64 环境中的 Clang 分析专用 preset，发布构建仍使用 GCC；只有实际兼容问题导致维护成本过高时才评估 Cppcheck，并记录规则覆盖与误报差异，不将 GCC 警告或 `-fanalyzer` 当作现有 C++ 静态检查的等价替代。
 - 提供 Windows 本地与 CI 共用的格式化、静态分析入口，验证现有规则有效执行；工具初始化与日常命令集中记录在 Development Checks，不要求安装 WSL/Linux。
+- 承接阶段 A 后置的干净 Windows x64 断网验收：在全新或重置的 CI 环境中明确准备工具链、项目依赖和固定源码，准备完成后禁止构建及验证进程访问网络，执行源码构建、能力与 PE 检查、隔离 PATH 运行和完整 ExportHost 集成；归档环境记录、构建材料、测试日志及二进制哈希。验收运行不复用已有编译产物。
 - 先验证完整构建，再优化缓存；缓存覆盖源码、工具链、配置和补丁变化，构建、测试及发布以产物哈希关联。
 - 重跑共享契约、宿主单元与真实集成检查：PNG/MP4、连续帧、背压、故障、取消和退出清理；production build 不含像素探针。
 - 同步准备命令、AGENTS.md、README、Development Checks、Git hook 和平台相关脚本；Remotion 移除前将其检查迁移到 Windows 并保留。
 
-完成条件：Windows 本地和 CI 的完整检查矩阵通过，格式化与静态分析工具版本、配置及入口一致，Linux preset/job 已移除，开发流程可复现、产物可追溯。
+完成条件：Windows 本地和 CI 的完整检查矩阵通过，后置的干净 Windows x64 断网验收通过并归档证据，格式化与静态分析工具版本、配置及入口一致，Linux preset/job 已移除，开发流程可复现、产物可追溯。
 
 ### C. 接入正式任务、IPC 与 UI
 
