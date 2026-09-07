@@ -51,7 +51,7 @@ ffmpeg 与 ffprobe 来自同一套 FFmpeg 源码。ffprobe 不参与用户导出
 
 实际工具记录包括 GCC 16.2.0、ld 2.47.20260726、make 4.4.1、pkgconf 3.0.5、NASM 3.02、Git 2.55.0 和 Bash 5.3.15；完整包版本见各次 JSON 快照。这些是本次构建记录，不是工具版本约束。干净 Windows x64 断网验收作为阶段 B 后置事项，尚未执行。
 
-本轮只提前接入 Release 的 FFmpeg 源码构建和材料附件；阶段 B 继续负责普通 CI、Gyan 准备入口替换和平台基线迁移，阶段 D 负责把 FFmpeg 接入应用安装包。
+普通 CI 已改为从固定源码构建 FFmpeg，并把该 job 的二进制直接交给 ExportHost 集成检查；Gyan 准备入口不再用于 CI。远端 workflow、干净 Windows x64 断网重建与证据归档尚未验证，阶段 D 仍负责把 FFmpeg 接入应用安装包。
 
 ## FFmpeg 专项发布材料
 
@@ -65,7 +65,7 @@ ffmpeg 与 ffprobe 来自同一套 FFmpeg 源码。ffprobe 不参与用户导出
 
 现有第三方准备入口的行为与源码构建目录的关系见 [Release 与旧入口](../scripts/README.md#release-与旧入口)，固定归档信息以脚本为准。
 
-第三方基线仅供内部开发与临时 Windows CI，不进入项目 Release、安装包、便携包或长期保存的 FFmpeg 测试产物，也不用于启用面向用户的导出入口。自编译基线可用于开发态产品接入，对外分发须完成下节要求。替换后更新本节状态，同步 scripts README、CI 和 Development Checks。
+第三方准备入口只保留给迁移期间的本地兼容检查，不用于普通 CI、项目 Release、安装包、便携包或长期保存的 FFmpeg 测试产物，也不用于启用面向用户的导出入口。开发与 CI 使用自编译基线；对外分发仍须完成下节要求。
 
 ## 分发前完成条件
 

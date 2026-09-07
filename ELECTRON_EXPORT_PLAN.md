@@ -77,19 +77,21 @@ Windows 自编译入口已落地；当前脚本职责、源码锁与材料收集
 
 ### B. 统一 Windows 开发基线与 CI/CD
 
-- 自编译产物替换 Gyan 准备流程，保持固定内部路径、无 PATH 回退；Windows 构建 job 产物直接供 Windows 导出集成检查消费。
-- Windows 为唯一维护的开发、构建和运行测试基准。core/analyzer 与 x264/FFmpeg 统一采用 MSYS2 UCRT64 GCC；新增 Windows Debug/Release preset，移除 Linux preset 和 Linux CI job，不再维护 Linux 检查矩阵。
-- 将 C++ Debug/Release CTest、原生流水线、Node 静态质量和测试、Electron 布局/行为/导出及安装包检查迁移到 Windows。Node/pnpm 使用 Windows 原生环境；验证所需运行依赖随产物正确提供，不因开发工具 PATH 掩盖缺失 DLL。
-- 格式化继续使用 Windows UCRT64 中的 clang-format，沿用 `.clang-format`，本地与 CI 固定一致工具版本；使用 Clang 检查工具不改变 GCC 发布编译器。
-- 静态分析优先保留 clang-tidy 与 `.clang-tidy`。Windows Ninja preset 生成本机 `compile_commands.json`，先验证 UCRT64 clang-tidy 能否正确消费 GCC 编译参数、宏和头文件路径，不复用 Linux 编译数据库。
+状态（2026-09-08）：进行中。Windows UCRT64 GCC Debug/Release preset、共用格式化/静态分析/CTest/隔离运行入口，以及 CI/Release 的 Windows 迁移已落地；本机 GCC 构建、两种配置 CTest、clang-tidy 和隔离 PATH 冒烟通过。工具链决定采用 MSYS2 滚动版本：CI 记录每次 GCC、CMake、Ninja、clang-format 和 clang-tidy 实际版本，不精确锁定 GCC/CMake/Ninja；后续在远端基线稳定后，只为 clang-format/clang-tidy 增加主版本兼容边界。远端 workflow 尚未实跑，干净 Windows x64 断网验收、缓存设计及对应证据归档仍待完成，因此阶段 B 尚未完成。
+
+- （已完成）自编译产物替换 Gyan 准备流程，保持固定内部路径、无 PATH 回退；Windows 构建 job 产物直接供 Windows 导出集成检查消费。
+- （已完成）Windows 为唯一维护的开发、构建和运行测试基准。core/analyzer 与 x264/FFmpeg 统一采用 MSYS2 UCRT64 GCC；新增 Windows Debug/Release preset，移除 Linux preset 和 Linux CI job，不再维护 Linux 检查矩阵。
+- （已完成）将 C++ Debug/Release CTest、原生流水线、Node 静态质量和测试、Electron 布局/行为/导出及安装包检查迁移到 Windows。Node/pnpm 使用 Windows 原生环境；验证所需运行依赖随产物正确提供，不因开发工具 PATH 掩盖缺失 DLL。
+- 格式化继续使用 Windows UCRT64 中的 clang-format，沿用 `.clang-format`；本地与 CI 使用同一 UCRT64 工具来源，CI 记录实际版本。采用 MSYS2 滚动版本，不精确锁定 GCC/CMake/Ninja；远端基线稳定后为 clang-format/clang-tidy 增加主版本兼容边界。使用 Clang 检查工具不改变 GCC 发布编译器。
+- （已完成）静态分析优先保留 clang-tidy 与 `.clang-tidy`。Windows Ninja preset 生成本机 `compile_commands.json`，先验证 UCRT64 clang-tidy 能否正确消费 GCC 编译参数、宏和头文件路径，不复用 Linux 编译数据库。
 - 若遇到 GCC 专属参数或头文件解析问题，先评估同一 UCRT64 环境中的 Clang 分析专用 preset，发布构建仍使用 GCC；只有实际兼容问题导致维护成本过高时才评估 Cppcheck，并记录规则覆盖与误报差异，不将 GCC 警告或 `-fanalyzer` 当作现有 C++ 静态检查的等价替代。
-- 提供 Windows 本地与 CI 共用的格式化、静态分析入口，验证现有规则有效执行；工具初始化与日常命令集中记录在 Development Checks，不要求安装 WSL/Linux。
+- （已完成）提供 Windows 本地与 CI 共用的格式化、静态分析入口，验证现有规则有效执行；工具初始化与日常命令集中记录在 Development Checks，不要求安装 WSL/Linux。
 - 承接阶段 A 后置的干净 Windows x64 断网验收：在全新或重置的 CI 环境中明确准备工具链、项目依赖和固定源码，准备完成后禁止构建及验证进程访问网络，执行源码构建、能力与 PE 检查、隔离 PATH 运行和完整 ExportHost 集成；归档环境记录、构建材料、测试日志及二进制哈希。验收运行不复用已有编译产物。
 - 先验证完整构建，再优化缓存；缓存覆盖源码、工具链、配置和补丁变化，构建、测试及发布以产物哈希关联。
-- 重跑共享契约、宿主单元与真实集成检查：PNG/MP4、连续帧、背压、故障、取消和退出清理；production build 不含像素探针。
-- 同步准备命令、AGENTS.md、README、Development Checks、Git hook 和平台相关脚本；Remotion 移除前将其检查迁移到 Windows 并保留。
+- （已完成）重跑共享契约、宿主单元与真实集成检查：PNG/MP4、连续帧、背压、故障、取消和退出清理；production build 不含像素探针。
+- （已完成）同步准备命令、AGENTS.md、README、Development Checks、Git hook 和平台相关脚本；Remotion 移除前将其检查迁移到 Windows 并保留。
 
-完成条件：Windows 本地和 CI 的完整检查矩阵通过，后置的干净 Windows x64 断网验收通过并归档证据，格式化与静态分析工具版本、配置及入口一致，Linux preset/job 已移除，开发流程可复现、产物可追溯。
+完成条件：Windows 本地和 CI 的完整检查矩阵通过，后置的干净 Windows x64 断网验收通过并归档证据，格式化与静态分析的工具来源、主版本兼容边界、配置及入口一致，Linux preset/job 已移除，开发流程可复现、产物可追溯。
 
 ### C. 接入正式任务、IPC 与 UI
 

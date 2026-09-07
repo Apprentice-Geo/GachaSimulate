@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GACHASIMULATE_RESULT_HPP
+#define GACHASIMULATE_RESULT_HPP
 
 #include "gachasimulate/runtime.hpp"
 
@@ -19,3 +20,5 @@ void write_gsr_v2(const std::string &utf8_path, const RuntimeProgram &program,
 GsrData read_gsr_v2(const std::string &utf8_path);
 nlohmann::json analyze_gsr_v2(const std::string &utf8_path);
 } // namespace gachasimulate
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GACHASIMULATE_RUNTIME_HPP
+#define GACHASIMULATE_RUNTIME_HPP
 
 #include <cstdint>
 #include <filesystem>
@@ -81,3 +82,5 @@ BatchResult simulate_fixed_runs(const RuntimeProgram &program, uint64_t total_ru
                                 const std::function<void(uint64_t)> &progress = {},
                                 uint32_t chunks = 0);
 } // namespace gachasimulate
+
+#endif

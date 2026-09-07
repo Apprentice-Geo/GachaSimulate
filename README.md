@@ -4,20 +4,20 @@ Monte Carlo 抽卡模拟器。TypeScript Compiler 将 YAML 和本次选择的结
 
 ## 快速开始
 
-Linux 和 CI 环境使用 Node.js 24、pnpm 11.3.0、Clang、CMake 和 Ninja，首次启动需要安装依赖与 hook：
+开发与 CI 基准为 Windows x64：Node.js 24 和 pnpm 11.3.0 使用 Windows 原生环境，C++ 工具链使用 MSYS2 UCRT64。首次启动需要安装依赖与 hook：
 
-```bash
+```powershell
 pnpm install --frozen-lockfile
 pnpm run hooks:install
 ```
 
 按 [Development Checks](docs/DEVELOPMENT_CHECKS.md) 完成 C++ Release install 后启动 Electron：
 
-```bash
+```powershell
 pnpm run dev
 ```
 
-若在 Windows 原生环境开发，应重新安装对应平台的依赖并构建原生程序，不应复用 WSL/Linux 的 node_modules、CMake 构建目录和已安装的原生程序。
+工具链安装、C++ Debug/Release 构建、静态分析和完整检查命令见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)。不要复用 WSL/Linux 的 `node_modules` 或构建产物。
 
 ## Electron
 

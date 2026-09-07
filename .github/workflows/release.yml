@@ -26,11 +26,6 @@ jobs:
           node-version: "24"
           cache: pnpm
 
-      - name: Set up MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-
       - name: Verify tag version
         shell: pwsh
         run: |
@@ -51,9 +46,17 @@ jobs:
           install: >-
             bash tar xz make git
             mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-binutils
             mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-nasm
+
+      - name: Expose UCRT64 tools to Windows
+        shell: pwsh
+        run: |
+          $ucrtBin = Join-Path '${{ steps.ffmpeg-toolchain.outputs.msys2-location }}' 'ucrt64\bin'
+          $ucrtBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Acquire fixed FFmpeg sources
         shell: pwsh
@@ -70,11 +73,7 @@ jobs:
 
       - name: Build and test native runtime
         shell: pwsh
-        run: |
-          cmake -S cpp -B build/cpp/windows-release -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build/cpp/windows-release
-          ctest --test-dir build/cpp/windows-release --output-on-failure
-          cmake --install build/cpp/windows-release --prefix build/native
+        run: ./scripts/check_cpp_win.ps1 -Task Release
 
       - name: Package Windows installer
         run: pnpm run package:win

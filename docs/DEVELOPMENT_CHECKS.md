@@ -1,54 +1,54 @@
 # Development Checks
 
-本文列出的标准检查命令和 CI 基准默认从仓库根目录的 WSL2/Linux bash 执行，并使用 Linux 环境内的 Node/pnpm、Clang、CMake、Ninja 和 `node_modules`。
-在其它平台开发时，应独立安装对应平台的依赖、使用独立的 CMake 构建目录和原生程序，并尽可能执行对应的等价检查。
+本文列出的标准检查命令和 CI 基准从 Windows x64 原生 PowerShell 7 执行。Node/pnpm 使用 Windows 原生安装；C++ 使用 MSYS2 UCRT64 GCC、CMake 和 Ninja，格式化与静态分析使用 UCRT64 clang-format 与 clang-tidy。MSYS2 工具链采用滚动版本，CI 记录每次实际版本；工具升级后须完整重跑 C++ 检查。
 
 ## 前置准备
 
+先在 MSYS2 UCRT64 shell 安装工具：
+
 ```bash
+pacman -S --needed \
+  mingw-w64-ucrt-x86_64-gcc \
+  mingw-w64-ucrt-x86_64-cmake \
+  mingw-w64-ucrt-x86_64-ninja \
+  mingw-w64-ucrt-x86_64-clang \
+  mingw-w64-ucrt-x86_64-clang-tools-extra
+```
+
+将 `C:\msys64\ucrt64\bin` 放在 Windows `PATH` 前部。在仓库根目录使用 Windows 原生 Node/pnpm 安装依赖：
+
+```powershell
 pnpm install --frozen-lockfile
 ```
 
 Electron 开发前必须完成 C++ Release install：
 
-```bash
-cd cpp
-cmake --preset linux-release
-cmake --build --preset linux-release
-ctest --preset linux-release
-cmake --install ../build/cpp/linux-release --prefix ../build/native
-cd ..
+```powershell
+pnpm run check:cpp:release
 ```
+
+Release 检查会安装 core/analyzer 到 `build/native/bin`，并清空开发工具 PATH 后执行模拟与分析冒烟，防止漏带运行时依赖。
 
 ## C++ 完整检查
 
-```bash
-find cpp/include cpp/src cpp/tests -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 | xargs -0 clang-format --dry-run --Werror
-
-cd cpp
-cmake --preset linux-debug
-cmake --build --preset linux-debug
-ctest --preset linux-debug
-find src tests -name '*.cpp' -print0 | xargs -0 clang-tidy -p ../build/cpp/linux-debug
-cmake --preset linux-release
-cmake --build --preset linux-release
-ctest --preset linux-release
-cmake --install ../build/cpp/linux-release --prefix ../build/native
-cd ..
+```powershell
+pnpm run check:cpp
 ```
 
-冒烟：
+需要单独定位失败时可分步执行：
 
-```bash
-smoke_dir="$(mktemp -d)"
-ir="$(realpath cpp/tests/batch_fixture_ir.json)"
-build/native/bin/gachasimulate-core --ir "$ir" --total-runs 10 --seed 0 --threads 1 --output "$smoke_dir/fixed.gsr"
-build/native/bin/gachasimulate-analyze --input "$smoke_dir/fixed.gsr"
+```powershell
+pnpm run check:cpp:format
+pnpm run check:cpp:debug
+pnpm run check:cpp:tidy
+pnpm run check:cpp:release
 ```
+
+`check:cpp:tidy` 消费 Windows Debug preset 生成的 GCC `compile_commands.json`，因此须先完成 Debug 检查。发布编译器始终是 GCC；clang-tidy 只做静态分析。
 
 ## Node/Electron 完整检查
 
-```bash
+```powershell
 pnpm run format:check
 pnpm run lint
 pnpm run typecheck
@@ -58,6 +58,8 @@ pnpm run test:visualize:cdf
 pnpm run test:electron-export
 pnpm run test:electron-layout
 pnpm run build
+pnpm run package:win
+pnpm run test:package:win
 ```
 
 Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构建所需 package。
@@ -76,7 +78,7 @@ Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构
 
 ## Windows x64 Electron 导出检查
 
-先按 [scripts README](../scripts/README.md#环境与运行顺序) 准备 FFmpeg 并执行对应的构建、材料检查。源码构建与旧第三方入口的行为见该文档；当前迁移状态及分发限制见 [FFmpeg 开发使用与分发状态](FFMPEG_DISTRIBUTION.md)。
+先按 [scripts README](../scripts/README.md#环境与运行顺序) 从固定源码构建 FFmpeg，并执行对应的材料检查。旧第三方准备入口仅保留作迁移历史兼容，不用于 CI。当前迁移状态及分发限制见 [FFmpeg 开发使用与分发状态](FFMPEG_DISTRIBUTION.md)。
 
 资产准备完成后，先验证共享契约、宿主单元测试和普通 production build，再生成只供集成检查使用的像素探针 build 并直接驱动 `ExportHost`：
 
@@ -92,11 +94,11 @@ pnpm run test:electron-export:integration
 
 正式 production build 不得设置 `GACHASIMULATE_EXPORT_FRAME_PROBE`。集成检查只在临时目录生成 PNG、MP4、harness 和故障注入产物，并使用同包 `ffprobe.exe` 检查视频规格。
 
-该准备流程和 Windows CI 只用于技术验证，不表示第三方二进制已经获准分发。当前 `electron-builder` 配置不携带 FFmpeg；不得把 `build/ffmpeg` 加入安装包。发布阻塞、已知风险和解除条件见 [FFmpeg 开发使用与分发状态](FFMPEG_DISTRIBUTION.md)。
+该准备流程和 Windows CI 只用于技术验证，不表示 FFmpeg 已获准随应用分发。当前 `electron-builder` 配置不携带 FFmpeg；不得把 `build/ffmpeg` 加入安装包。发布阻塞、已知风险和解除条件见 [FFmpeg 开发使用与分发状态](FFMPEG_DISTRIBUTION.md)。
 
 ## Electron 人工验收
 
-UI 回归分工：`capture:ui` 只准备场景并输出截图；布局、滚动、renderer 缩放和真实 DOM/SVG 几何由 `pnpm run test:electron-layout` 独立检查。内部滚动区域必须有明确滚动所有者，panel 标题不能放入内容滚动容器；缩放按实际 CSS viewport 验证。CDF compact/default 同时检查纯几何参数与最终 DOM。结果字段只在失焦时保存，WSL2/WSLg 输入法能力不作为 renderer 输入框自动化断言。
+UI 回归分工：`capture:ui` 只准备场景并输出截图；布局、滚动、renderer 缩放和真实 DOM/SVG 几何由 `pnpm run test:electron-layout` 独立检查。内部滚动区域必须有明确滚动所有者，panel 标题不能放入内容滚动容器；缩放按实际 CSS viewport 验证。CDF compact/default 同时检查纯几何参数与最终 DOM。结果字段只在失焦时保存。
 
 - 固定次数能运行，threads 边界正确，任务互斥。
 - 取消、窗口关闭和应用退出后无残留 core/analyzer；失败任务不留下临时 IR 或半成品 GSR。

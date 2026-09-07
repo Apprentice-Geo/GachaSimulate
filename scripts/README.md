@@ -15,6 +15,8 @@
 | [build_ffmpeg_win.test.mjs](build_ffmpeg_win.test.mjs)                   | 静态检查构建入口不含下载或安装命令，并检查源码锁；不代替实际断网构建验收。                                                                          |
 | [package_ffmpeg_compliance.test.ps1](package_ffmpeg_compliance.test.ps1) | 使用已有构建的独立副本验证材料打包、错误输入拒绝、旧包保护、安装包哈希关联和许可证缺口披露。                                                        |
 | [prepare_ffmpeg.ps1](prepare_ffmpeg.ps1)                                 | 迁移期间的第三方二进制准备入口，下载或读取固定 Gyan 归档。与自编译共用安装目录，执行后会替换当前产物；使用限制见分发文档。                          |
+| [check_cpp_win.ps1](check_cpp_win.ps1)                                   | Windows 本地与 CI 共用的 C++ 格式化、Debug/Release CTest、clang-tidy、安装和隔离 PATH 冒烟入口。                                                   |
+| [check_windows_package.ps1](check_windows_package.ps1)                   | 检查当前版本 NSIS 与 unpacked 原生程序存在，并在隔离开发工具 PATH 后运行包内 core/analyzer。                                                       |
 | [ffmpeg_windows_source_lock.json](ffmpeg_windows_source_lock.json)       | 自编译源码版本、归档名、哈希和 x264 提交的唯一配置来源。更新源码时同步相关检查，不在其他文档维护一份版本锁。                                        |
 | [ffmpeg_compliance_README.md](ffmpeg_compliance_README.md)               | 随合规包分发的英文说明模板，包含解包后的离线源码恢复和重建步骤。它面向材料接收者，保持自包含，不依赖仓库文档链接。                                  |
 
@@ -31,6 +33,8 @@ pacman -S --needed bash tar xz make git \
 ```
 
 所需 CRT、头文件和运行库由包依赖提供。完整包存在性检查以 PowerShell 构建入口为准；构建脚本不安装或升级环境，也不依赖 MSYS2 的 zlib/x264 包。
+
+C++ Runtime 使用同一 UCRT64 环境中的 GCC、CMake、Ninja、clang-format 和 clang-tidy；安装包名与日常命令集中在 [Development Checks](../docs/DEVELOPMENT_CHECKS.md)。FFmpeg 与 Runtime 共用 GCC 基线，但各自保持独立构建目录和脚本职责。
 
 ```powershell
 # 在线准备；默认保存到 tmp/ffmpeg-build-inputs
@@ -77,6 +81,6 @@ FFmpeg 从 `--disable-everything --disable-autodetect` 开始裁剪，启用 PNG
 
 ## Release 与旧入口
 
-[Release 工作流](../.github/workflows/release.yml) 负责安装工具链、获取源码、调用构建和材料打包、运行打包检查。附件准备完成后创建 draft Release，上传应用安装包、FFmpeg 材料包和校验文件，全部成功后公开。工作流负责发布，目录内脚本不直接创建 Release。
+[CI 工作流](../.github/workflows/ci.yml) 从固定源码构建 FFmpeg，将二进制直接交给 ExportHost 集成 job，并归档本次材料证据。[Release 工作流](../.github/workflows/release.yml) 负责安装工具链、获取源码、调用构建和材料打包、运行打包检查。附件准备完成后创建 draft Release，上传应用安装包、FFmpeg 材料包和校验文件，全部成功后公开。工作流负责发布，目录内脚本不直接创建 Release。
 
 旧 `prepare:ffmpeg:win` 支持在线下载或 `-- -ArchivePath <zip>` 本地输入，也会检查固定归档哈希、版本和能力，且不回退到 PATH。第三方归档的固定值由 [prepare_ffmpeg.ps1](prepare_ffmpeg.ps1) 维护。迁移进度、第三方产物的使用限制以及 FFmpeg 加入安装包的条件统一见分发文档。
