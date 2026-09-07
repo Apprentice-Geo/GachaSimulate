@@ -2,9 +2,9 @@
 
 ## 当前决定与已验证范围
 
-截至 2026-09-07，Windows x64 离线自编译入口已经完成本机连续两次源码构建及完整 ExportHost 集成验证。项目从固定源码构建 x264 与 FFmpeg，不把第三方二进制作为正式分发备选。执行顺序见 [Electron 导出计划](../ELECTRON_EXPORT_PLAN.md)。
+截至 2026-09-07，Windows x64 离线自编译入口已经完成本机连续两次源码构建及完整 ExportHost 集成验证。项目从固定源码构建 zlib、x264 与 FFmpeg，不把第三方二进制作为正式分发备选。执行顺序见 [Electron 导出计划](../ELECTRON_EXPORT_PLAN.md)。
 
-本次验证环境为 Windows x64、Windows 原生 Node/pnpm、MSYS2 UCRT64/Bash、MinGW-w64 GCC、NASM、make 和 pkgconf；x264 与 FFmpeg 均来自下述固定源码，zlib 使用 UCRT64 静态库。环境准备先完成 MSYS2 全量滚动升级和缺失工具安装，构建脚本本身保持离线。
+阶段 A 原验证环境为 Windows x64、Windows 原生 Node/pnpm、MSYS2 UCRT64/Bash、MinGW-w64 GCC、NASM、make 和 pkgconf；当时 zlib 使用 UCRT64 静态库。当前构建已扩展为固定上游源码依次编译 zlib、x264、FFmpeg，并收集 FFmpeg 专项发布材料。工具链仍采用 MSYS2 滚动版本，构建脚本本身保持离线。
 
 阶段 A 已完成，本机编译、失败保护、PE 依赖、隔离 PATH 运行和导出检查已通过。干净 Windows x64 断网验收尚未执行，后置到阶段 B 的 CI/CD 工作流改造，不再作为阶段 A 的完成条件；本机验证不表示安装包或分发验收通过。
 
@@ -22,54 +22,15 @@ ffmpeg 与 ffprobe 来自同一套 FFmpeg 源码。ffprobe 不参与用户导出
 
 ## 离线构建入口
 
-唯一构建入口为：
-
-```powershell
-pnpm run build:ffmpeg:win -- `
-  -X264Source D:\sources\x264 `
-  -FfmpegArchive D:\sources\ffmpeg-9.0.1.tar.xz
-```
-
-可选参数 `-MsysRoot` 默认为 `C:\msys64`，`-Jobs` 默认为逻辑处理器数。脚本不准备环境或源码，不执行包安装/更新、源码网络操作或下载；缺少输入时会报告路径和预期值。源码固定值的单一来源是 `scripts/ffmpeg_windows_source_lock.json`：
-
-- x264：VideoLAN 提交 `b35605ace3ddf7c1a5d67a2eb553f034aef41d55`，必须是无已跟踪或未跟踪改动的 Git 工作树。
-- FFmpeg：官方 `ffmpeg-9.0.1.tar.xz`，SHA-256 `cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635`。
-- zlib：使用构建环境已有的 UCRT64 静态库 `/ucrt64/lib/libz.a`，不会安装到 MSYS2，也不会从源码重建。
-
-x264 构建为静态 8-bit 库，关闭 CLI、OpenCL 和共享库，安装到本次临时私有前缀。FFmpeg 静态链接并从 `--disable-everything --disable-autodetect` 开始，显式启用 ffmpeg/ffprobe、PNG/H.264/libx264、image2pipe/MOV/MP4、MP4、file/pipe、PNG/H.264 parser，以及 buffer/buffersink/format/scale/swscale；精确参数保存在构建脚本和每次材料中。
-
-FFmpeg 9.0.1 的 configure 还会自动选择依赖：MP4 muxer 选择 MOV muxer，后者选择 AC3 parser；ffmpeg 选择 aformat/anull/atrim/crop/hflip/null/rotate/transpose/trim/vflip 等基础过滤器，buffer/sink 也包含音频端点。因此最终 parser 包含 ac3/h264/png，muxer 包含 mov/mp4；这些依赖不意味着启用了音频编解码器或网络协议。完整能力以材料清单为准。
-
-成功产物安装到 `build/ffmpeg/win32-x64`。脚本先在同卷 staging 目录完成能力、PE 导入和清空开发工具 PATH 的运行检查，再事务式替换目标；任何失败都会保留替换前产物。`bin/` 只允许 `ffmpeg.exe` 和 `ffprobe.exe`，PE 导入只允许 Windows 系统 DLL。
+源码准备、脚本职责、参数和执行顺序统一见 [scripts README](../scripts/README.md)。精确源码身份由 [源码锁](../scripts/ffmpeg_windows_source_lock.json) 维护，编译参数与产物检查行为见 [编译与产物检查](../scripts/README.md#编译与产物检查)。
 
 ## MSYS2 UCRT64 环境
 
-MSYS2 和工具链采用滚动仓库中的当前版本，不在项目内锁定。默认布局为 MSYS2 `C:\msys64`、MSYS 工具 `/usr/bin`、UCRT64 工具和静态库 `/ucrt64/bin`、`/ucrt64/lib`。维护者或 CI/CD 可在构建前从 UCRT64 shell 准备环境；该操作不属于离线构建脚本：
-
-```bash
-pacman -S --needed bash tar xz make git \
-  mingw-w64-ucrt-x86_64-gcc \
-  mingw-w64-ucrt-x86_64-binutils \
-  mingw-w64-ucrt-x86_64-pkgconf \
-  mingw-w64-ucrt-x86_64-nasm \
-  mingw-w64-ucrt-x86_64-zlib
-```
-
-构建入口只校验所需包、命令和静态 zlib 是否存在，不安装、更新或限制其版本。每次成功构建都会把所需包的实际版本、完整 MSYS2 包快照和工具版本写入 `materials/`，因此二进制可以追溯到本次环境。工具链滚动后可能生成不同二进制，必须重新执行能力、PE 依赖、隔离运行和项目集成检查；记录版本提供可追溯性，不等于保证以后可以重建相同二进制。
-
-CI/CD 在调用入口前负责：准备可用的 MSYS2 UCRT64 环境；准备固定提交且干净的 x264 工作树；把官方 FFmpeg 归档放到本地并预校验 SHA-256。维护者可把 MSYS2、工作树和归档放到任意本地路径，再分别使用 `-MsysRoot`、`-X264Source` 和 `-FfmpegArchive` 指定。构建阶段可以断网，输入会被复用且不会被修改。
+工具链准备命令、滚动版本记录和离线边界见 [环境与运行顺序](../scripts/README.md#环境与运行顺序)。工具链变化后仍需重新执行本文要求的产物与集成验收。
 
 ## 构建材料与阶段 A 验收
 
-每次成功构建的 `materials/` 包含源码锁、源码身份/哈希、源码许可证、空补丁清单、所需包的实际版本、完整 MSYS2 包快照、实际工具版本、安装路径、两套 configure 参数、完整构建日志、版本/buildconf、能力清单、PE 导入和二进制 SHA-256。材料用于后续复核，不代表可重复构建、安装包或许可证审核已经通过。
-
-FFmpeg 9.0.1 没有 `-parsers` 命令行选项；`parsers.txt` 从本次编入 libavcodec 的生成注册表提取，原始 `parser_list.c` 一并保留。其它能力清单来自本次生成的 ffmpeg.exe。
-
-静态禁网检查：
-
-```powershell
-pnpm run test:build:ffmpeg:win
-```
+材料内容、收集规则和打包检查见 [材料收集与打包](../scripts/README.md#材料收集与打包)。收集完成不代表可重复构建、安装包或分发验收已经通过。
 
 在准备完整环境后，应连续运行构建入口两次，并分别保存材料和哈希；不要求二进制逐位一致。两次均须检查 `-version`、`-buildconf`、能力清单、失败时旧产物保护，并按 [Development Checks](DEVELOPMENT_CHECKS.md#windows-x64-electron-导出检查) 运行 ExportHost 单元、production build、探针 build 和真实集成检查。干净 Windows x64 环境中的断网重做与证据归档后置到阶段 B，具体执行要求见 [Electron 导出计划](../ELECTRON_EXPORT_PLAN.md)。
 
@@ -90,17 +51,21 @@ pnpm run test:build:ffmpeg:win
 
 实际工具记录包括 GCC 16.2.0、ld 2.47.20260726、make 4.4.1、pkgconf 3.0.5、NASM 3.02、Git 2.55.0 和 Bash 5.3.15；完整包版本见各次 JSON 快照。这些是本次构建记录，不是工具版本约束。干净 Windows x64 断网验收作为阶段 B 后置事项，尚未执行。
 
-阶段 B 才会修改 CI、替换现有 Gyan 准备入口、迁移平台基线或接线应用打包。
+本轮只提前接入 Release 的 FFmpeg 源码构建和材料附件；阶段 B 继续负责普通 CI、Gyan 准备入口替换和平台基线迁移，阶段 D 负责把 FFmpeg 接入应用安装包。
+
+## FFmpeg 专项发布材料
+
+材料生成行为与测试入口统一见 [scripts README](../scripts/README.md#材料收集与打包)，发布流程见 [Release 与旧入口](../scripts/README.md#release-与旧入口)。历史材料应与对应 Release 一同保留。
+
+当前安装包尚不携带 FFmpeg；阶段 D 接入时仍须把精简许可证和对应版本材料下载入口放入安装包，并核对包内 FFmpeg 哈希。范围仅为 FFmpeg 及其依赖，不扩展为整个应用的许可证清单。
+
+2026-09-07 本机扩展验证：三份固定源码构建、zlib 上游检查、私有库链接校验、PE/隔离 PATH 运行、材料包及错误路径检查、x264 bundle 离线恢复与版本一致性、导出相关单元检查和完整 ExportHost 集成通过，最后恢复无探针 production build。运行库声明缺口为空。实际源码在线准备验证成功获取 zlib 和 x264；FFmpeg 官网下载本次未完成，使用原有且通过锁定哈希校验的归档。远端 Release 工作流及干净 Windows 断网验收尚未执行。日志位于 `tmp/ffmpeg-verification/compliance-*.log`，本次二进制哈希以当前 `materials/binary-sha256.txt` 为准，不沿用阶段 A 历史哈希。
 
 ## 迁移期间的现有开发基线
 
-替换前，`pnpm run prepare:ffmpeg:win` 仍准备固定 Gyan 归档，也支持 `-- -ArchivePath <zip>` 本地副本；校验后安装到忽略的 `build/ffmpeg/win32-x64`，无 PATH 回退：
+现有第三方准备入口的行为与源码构建目录的关系见 [Release 与旧入口](../scripts/README.md#release-与旧入口)，固定归档信息以脚本为准。
 
-- 归档：ffmpeg-9.0.1-essentials_build.zip，来源 Gyan GitHub Release。
-- SHA-256：fec81ae03971d9dd4be3ebe02e263bd2ec1d789483f931bdba5f5715e65da2e9。
-- FFmpeg 提交：bf1b838f2a；同包包含 ffmpeg、ffprobe 与 libx264 能力。
-
-第三方基线仅供内部开发与临时 Windows CI，不进入项目 Release、安装包、便携包或长期保存的 FFmpeg 测试产物，也不用于启用面向用户的导出入口。自编译基线可用于开发态产品接入，对外分发须完成下节要求。替换后删除本节具体第三方信息，同步准备脚本、CI 和 Development Checks。
+第三方基线仅供内部开发与临时 Windows CI，不进入项目 Release、安装包、便携包或长期保存的 FFmpeg 测试产物，也不用于启用面向用户的导出入口。自编译基线可用于开发态产品接入，对外分发须完成下节要求。替换后更新本节状态，同步 scripts README、CI 和 Development Checks。
 
 ## 分发前完成条件
 

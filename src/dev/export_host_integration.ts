@@ -54,11 +54,16 @@ function harness_source(): string {
 const { createHash } = require("node:crypto");
 const { spawn: nodeSpawn } = require("node:child_process");
 const { writeFileSync } = require("node:fs");
-const { readdir, readFile, writeFile } = require("node:fs/promises");
+const { readdir, readFile, rename, writeFile } = require("node:fs/promises");
 const { createRequire } = require("node:module");
 const { app, BrowserWindow, nativeImage } = require("electron");
 
 const input = JSON.parse(process.env.GACHASIMULATE_EXPORT_INTEGRATION_INPUT);
+const writeExitReady = async (state) => {
+  const temporary = input.exit_ready + ".tmp";
+  await writeFile(temporary, JSON.stringify(state));
+  await rename(temporary, input.exit_ready);
+};
 const progress = (stage) => writeFileSync(input.progress_file, stage);
 progress("harness-loaded");
 const projectRequire = createRequire(input.project_package);
@@ -129,7 +134,7 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
         },
         async verify_frame_probe(buffer, frame) {
           inspect_probe(buffer, frame);
-          await writeFile(input.exit_ready, JSON.stringify({ ffmpeg_pid, frame }));
+          await writeExitReady({ ffmpeg_pid, frame });
           await never;
         },
       },
@@ -137,10 +142,7 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
     globalThis.exitExportHost = host;
     progress("exit-host-starting");
     void host.start().catch((error) =>
-      writeFile(
-        input.exit_ready,
-        JSON.stringify({ error: String(error && error.message) }),
-      ),
+      writeExitReady({ error: String(error && error.message) }),
     );
     return { exit_mode: true };
   }

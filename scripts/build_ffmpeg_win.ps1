@@ -3,6 +3,7 @@ param(
   [string]$MsysRoot = "C:\msys64",
   [Parameter(Mandatory = $true)][string]$X264Source,
   [Parameter(Mandatory = $true)][string]$FfmpegArchive,
+  [Parameter(Mandatory = $true)][string]$ZlibArchive,
   [ValidateRange(1, 1024)][int]$Jobs = [Environment]::ProcessorCount
 )
 
@@ -16,7 +17,7 @@ $RequiredMsys2Packages = @(
   "mingw-w64-ucrt-x86_64-headers", "mingw-w64-ucrt-x86_64-libwinpthread",
   "mingw-w64-ucrt-x86_64-pkgconf", "mingw-w64-ucrt-x86_64-nasm",
   "mingw-w64-ucrt-x86_64-windows-default-manifest",
-  "mingw-w64-ucrt-x86_64-winpthreads", "mingw-w64-ucrt-x86_64-zlib"
+  "mingw-w64-ucrt-x86_64-winpthreads"
 )
 
 function Resolve-RequiredPath {
@@ -132,13 +133,18 @@ $ProjectRoot = [System.IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $LockPath = Resolve-RequiredPath -Path (Join-Path $PSScriptRoot "ffmpeg_windows_source_lock.json") -Kind Leaf -Description "FFmpeg source lock"
 $BashScript = Resolve-RequiredPath -Path (Join-Path $PSScriptRoot "build_ffmpeg_win_ucrt64.sh") -Kind Leaf -Description "UCRT64 FFmpeg build script"
 $Lock = Get-Content -Raw -LiteralPath $LockPath | ConvertFrom-Json
-if ($Lock.schema_version -ne 1 -or $Lock.target -ne "win32-x64-ucrt64") {
+if ($Lock.schema_version -ne 2 -or $Lock.target -ne "win32-x64-ucrt64") {
   throw "Unsupported FFmpeg build lock schema or target in '$LockPath'."
 }
 
 $ResolvedMsysRoot = Resolve-RequiredPath -Path $MsysRoot -Kind Container -Description "MSYS2 root"
 $ResolvedX264Source = Resolve-RequiredPath -Path $X264Source -Kind Container -Description "x264 Git worktree"
 $ResolvedFfmpegArchive = Resolve-RequiredPath -Path $FfmpegArchive -Kind Leaf -Description "FFmpeg source archive"
+$ResolvedZlibArchive = Resolve-RequiredPath -Path $ZlibArchive -Kind Leaf -Description "zlib source archive"
+if ([System.IO.Path]::GetFileName($ResolvedZlibArchive) -ne $Lock.zlib.archive_name -or
+    (Get-FileHash -LiteralPath $ResolvedZlibArchive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Lock.zlib.archive_sha256) {
+  throw "zlib source archive name or SHA-256 mismatch. See the source lock."
+}
 
 if ([System.IO.Path]::GetFileName($ResolvedFfmpegArchive) -ne $Lock.ffmpeg.archive_name) {
   throw "Expected FFmpeg archive name '$($Lock.ffmpeg.archive_name)', got '$([System.IO.Path]::GetFileName($ResolvedFfmpegArchive))'."
@@ -185,7 +191,7 @@ $BackupRoot = Join-Path $BuildParent ".win32-x64-backup-$BuildId"
 $EnvironmentNames = @(
   "MSYSTEM", "CHERE_INVOKING", "GS_PROJECT_ROOT", "GS_X264_SOURCE", "GS_FFMPEG_ARCHIVE",
   "GS_WORK_ROOT", "GS_STAGE_ROOT", "GS_JOBS", "GS_X264_COMMIT", "GS_FFMPEG_VERSION",
-  "GS_FFMPEG_ARCHIVE_NAME", "GS_FFMPEG_SHA256"
+  "GS_FFMPEG_ARCHIVE_NAME", "GS_FFMPEG_SHA256", "GS_ZLIB_ARCHIVE", "GS_ZLIB_VERSION"
 )
 $PreviousEnvironment = @{}
 foreach ($Name in $EnvironmentNames) {
@@ -208,6 +214,8 @@ try {
   $env:GS_FFMPEG_VERSION = $Lock.ffmpeg.version
   $env:GS_FFMPEG_ARCHIVE_NAME = $Lock.ffmpeg.archive_name
   $env:GS_FFMPEG_SHA256 = $Lock.ffmpeg.archive_sha256
+  $env:GS_ZLIB_ARCHIVE = $ResolvedZlibArchive
+  $env:GS_ZLIB_VERSION = $Lock.zlib.version
 
   & $Bash --noprofile --norc $BashScript
   if ($LASTEXITCODE -ne 0) {

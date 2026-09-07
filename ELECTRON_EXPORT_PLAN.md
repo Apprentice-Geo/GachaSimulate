@@ -71,9 +71,9 @@ await 不能使同步计算并行。main 的 JSON 解析、校验、图像数据
 
 ### A. 固化 Windows 自编译（已完成）
 
-将 MSYS2 UCRT64 路线脚本化，固定源码，先构建 x264，再构建 FFmpeg/ffprobe；记录工具链、参数、补丁、依赖、哈希与材料。要求集中在 [FFmpeg 文档](docs/FFMPEG_DISTRIBUTION.md)，实现时确定精确源码版本。
+Windows 自编译入口已落地；当前脚本职责、源码锁与材料收集行为见 [scripts README](scripts/README.md)，分发要求见 [FFmpeg 文档](docs/FFMPEG_DISTRIBUTION.md)。
 
-已实现 `pnpm run build:ffmpeg:win`、UCRT64 内部构建、x264/FFmpeg 源码锁、实际工具链记录、材料输出、PE/隔离运行检查和静态禁网测试。2026-09-06 至 2026-09-07 完成 Windows x64 本机两次源码构建、四项失败保护及仅导出相关检查矩阵，完整集成使用第二次自编译产物，最终恢复无探针 production build。两次二进制哈希和 `tmp/ffmpeg-verification/run-{1,2}/materials/` 记录见 [阶段 A 验收](docs/FFMPEG_DISTRIBUTION.md#构建材料与阶段-a-验收)。阶段 A 按上述本机验证结果标记为完成。干净 Windows x64 断网验收尚未执行，后置到阶段 B 随 CI/CD 工作流改造完成。
+2026-09-06 至 2026-09-07 完成 Windows x64 本机两次源码构建、四项失败保护及仅导出相关检查矩阵，完整集成使用第二次自编译产物，最终恢复无探针 production build。两次二进制哈希和 `tmp/ffmpeg-verification/run-{1,2}/materials/` 记录见 [阶段 A 验收](docs/FFMPEG_DISTRIBUTION.md#构建材料与阶段-a-验收)。阶段 A 按上述本机验证结果标记为完成。干净 Windows x64 断网验收尚未执行，后置到阶段 B 随 CI/CD 工作流改造完成。
 
 ### B. 统一 Windows 开发基线与 CI/CD
 
@@ -106,6 +106,8 @@ await 不能使同步计算并行。main 的 JSON 解析、校验、图像数据
 
 ### D. 分发准备与安装包验收
 
+FFmpeg 专项材料已接入自动生成与 Release 附件，脚本和发布流程见 [scripts README](scripts/README.md)。实际本机验证状态见 FFmpeg 文档；工作流接线不表示远端 CD 已通过，也不提前允许把 FFmpeg 放入安装包。
+
 - 完成 FFmpeg 材料复核后，以 extraResources 将运行所需产物放在 ASAR 外；开发态和安装包分别使用固定资源路径。
 - 使用最终产物检查 Windows unpacked 与实际安装应用的 MP4/PNG、覆盖、空格/中文路径、字体和视觉一致性；断网且无开发工具/PATH 依赖时仍可导出，不下载浏览器。
 - 正式任务独立覆盖连续帧像素识别、背压、进度/取消活性、renderer/编码器崩溃、退出及清理，不能仅用 ready frame id 证明截图正确。
@@ -126,4 +128,4 @@ await 不能使同步计算并行。main 的 JSON 解析、校验、图像数据
 
 ## 文档维护
 
-本文只维护当前契约和剩余步骤；完成步骤压缩为状态及证据入口，不追加逐次日志、测试数量或源码清单。命令集中在 Development Checks，FFmpeg 要求只在专项文档维护，历史实验按需读取。
+本文只维护当前契约和剩余步骤；完成步骤压缩为状态及证据入口，不追加逐次日志、测试数量或源码清单。检查矩阵集中在 Development Checks，FFmpeg 构建命令与脚本行为集中在 scripts README，分发要求只在 FFmpeg 专项文档维护，历史实验按需读取。

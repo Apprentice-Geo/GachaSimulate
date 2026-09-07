@@ -42,6 +42,32 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Set up FFmpeg toolchain
+        id: ffmpeg-toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            bash tar xz make git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-binutils
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-nasm
+
+      - name: Acquire fixed FFmpeg sources
+        shell: pwsh
+        run: ./scripts/acquire_ffmpeg_sources.ps1 -MsysRoot "${{ steps.ffmpeg-toolchain.outputs.msys2-location }}"
+
+      - name: Build FFmpeg and collect source materials
+        shell: pwsh
+        run: |
+          $lock = Get-Content scripts/ffmpeg_windows_source_lock.json -Raw | ConvertFrom-Json
+          ./scripts/build_ffmpeg_win.ps1 -MsysRoot "${{ steps.ffmpeg-toolchain.outputs.msys2-location }}" `
+            -X264Source tmp/ffmpeg-build-inputs/x264 `
+            -FfmpegArchive "tmp/ffmpeg-build-inputs/$($lock.ffmpeg.archive_name)" `
+            -ZlibArchive "tmp/ffmpeg-build-inputs/$($lock.zlib.archive_name)"
+
       - name: Build and test native runtime
         shell: pwsh
         run: |
@@ -53,11 +79,23 @@ jobs:
       - name: Package Windows installer
         run: pnpm run package:win
 
+      - name: Package FFmpeg compliance materials
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem 'dist/GachaSimulate Setup *.exe' | Select-Object -First 1
+          ./scripts/package_ffmpeg_compliance.ps1 -Installer $installer.FullName
+
+      - name: Verify FFmpeg compliance packaging
+        run: pnpm run test:ffmpeg:compliance
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: GachaSimulate-${{ github.ref_name }}-windows-x64
-          path: dist/GachaSimulate Setup *.exe
+          path: |
+            dist/GachaSimulate Setup *.exe
+            dist/*-ffmpeg-compliance.zip
+            dist/*-ffmpeg-compliance.zip.sha256
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -66,4 +104,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $installer = Get-ChildItem 'dist/GachaSimulate Setup *.exe' | Select-Object -First 1
-          gh release create $env:GITHUB_REF_NAME $installer.FullName --generate-notes
+          $materials = Get-ChildItem "dist/*-ffmpeg-compliance.zip" | Select-Object -First 1
+          gh release create $env:GITHUB_REF_NAME --draft --verify-tag --generate-notes
+          if ($LASTEXITCODE -ne 0) { throw "Cannot create draft release." }
+          gh release upload $env:GITHUB_REF_NAME $installer.FullName $materials.FullName "$($materials.FullName).sha256"
+          if ($LASTEXITCODE -ne 0) { throw "Release upload failed; leaving draft unpublished." }
+          gh release edit $env:GITHUB_REF_NAME --draft=false
+          if ($LASTEXITCODE -ne 0) { throw "Cannot publish release." }

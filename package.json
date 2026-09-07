@@ -17,6 +17,8 @@
     "capture:ui": "pnpm run build:packages && electron-vite build && tsx src/dev/capture_ui.ts",
     "prepare:ffmpeg:win": "pwsh -NoProfile -File scripts/prepare_ffmpeg.ps1",
     "build:ffmpeg:win": "pwsh -NoProfile -File scripts/build_ffmpeg_win.ps1",
+    "package:ffmpeg:compliance": "pwsh -NoProfile -File scripts/package_ffmpeg_compliance.ps1",
+    "test:ffmpeg:compliance": "pwsh -NoProfile -File scripts/package_ffmpeg_compliance.test.ps1",
     "test:build:ffmpeg:win": "node scripts/build_ffmpeg_win.test.mjs",
     "spike:electron-export": "pnpm run build:packages && electron-vite build && tsx src/dev/electron_export_spike.ts",
     "test:electron-export-spike": "tsx --test src/dev/electron_export_spike_metrics.test.ts",
@@ -38,7 +40,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/Apprentice-Geo/GachaSimulate/issues"

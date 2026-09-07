@@ -12,7 +12,7 @@ if [[ "${MSYSTEM:-}" != "UCRT64" ]]; then
   exit 2
 fi
 
-for variable in GS_PROJECT_ROOT GS_X264_SOURCE GS_FFMPEG_ARCHIVE GS_WORK_ROOT GS_STAGE_ROOT GS_JOBS; do
+for variable in GS_PROJECT_ROOT GS_X264_SOURCE GS_FFMPEG_ARCHIVE GS_ZLIB_ARCHIVE GS_ZLIB_VERSION GS_WORK_ROOT GS_STAGE_ROOT GS_JOBS; do
   if [[ -z "${!variable:-}" ]]; then
     printf 'Required environment variable %s is missing.\n' "$variable" >&2
     exit 2
@@ -22,13 +22,14 @@ done
 project_root="$(cygpath -u "$GS_PROJECT_ROOT")"
 x264_source="$(cygpath -u "$GS_X264_SOURCE")"
 ffmpeg_archive="$(cygpath -u "$GS_FFMPEG_ARCHIVE")"
+zlib_archive="$(cygpath -u "$GS_ZLIB_ARCHIVE")"
 work_root="$(cygpath -u "$GS_WORK_ROOT")"
 stage_root="$(cygpath -u "$GS_STAGE_ROOT")"
 jobs="$GS_JOBS"
 private_prefix="$work_root/prefix"
 materials="$stage_root/materials"
 
-mkdir -p "$work_root" "$stage_root/bin" "$materials/licenses"
+mkdir -p "$work_root" "$stage_root/bin" "$materials/licenses" "$materials/sources" "$materials/build-scripts/scripts"
 exec > >(tee "$materials/build.log") 2>&1
 
 printf 'Building pinned FFmpeg for Windows x64 in MSYS2 UCRT64.\n'
@@ -41,10 +42,6 @@ for tool in "${required_tools[@]}"; do
     exit 2
   fi
 done
-if [[ ! -f /ucrt64/lib/libz.a ]]; then
-  printf 'Required static zlib archive is missing: /ucrt64/lib/libz.a\n' >&2
-  exit 2
-fi
 
 if [[ "$(git -C "$x264_source" rev-parse HEAD)" != "${GS_X264_COMMIT}" ]]; then
   printf 'x264 HEAD changed after PowerShell preflight. Expected %s.\n' "$GS_X264_COMMIT" >&2
@@ -64,6 +61,34 @@ fi
   printf 'git\t'; git --version
   printf 'bash\t%s\n' "$BASH_VERSION"
 } > "$materials/tool-versions.tsv"
+
+# Archive actual inputs before building. A bundle preserves x264's Git version
+# metadata and allows the existing clean-worktree build entry to work offline.
+cp "$ffmpeg_archive" "$zlib_archive" "$materials/sources/"
+git -C "$x264_source" bundle create "$materials/sources/x264.bundle" HEAD refs/remotes/origin/master
+git -C "$x264_source" rev-parse refs/remotes/origin/master > "$materials/x264-origin-master.txt"
+(
+  cd "$materials/sources"
+  sha256sum * > "$materials/source-sha256.txt"
+)
+cp "$project_root/scripts/build_ffmpeg_win.ps1" "$project_root/scripts/build_ffmpeg_win_ucrt64.sh" \
+  "$project_root/scripts/ffmpeg_windows_source_lock.json" "$project_root/scripts/ffmpeg_compliance_README.md" "$materials/build-scripts/scripts/"
+cp "$project_root/LICENSE.txt" "$materials/build-scripts/LICENSE.txt"
+cp "$project_root/scripts/ffmpeg_compliance_README.md" "$materials/README.md"
+
+mkdir -p "$work_root/zlib-source"
+tar -xJf "$zlib_archive" -C "$work_root/zlib-source"
+zlib_source="$work_root/zlib-source/zlib-${GS_ZLIB_VERSION}"
+printf '%s\n' 'CHOST=x86_64-w64-mingw32' 'CFLAGS=-O2' '--static' "--prefix=$private_prefix" > "$materials/zlib-configure-args.txt"
+(
+  cd "$zlib_source"
+  CHOST=x86_64-w64-mingw32 CFLAGS=-O2 ./configure --static "--prefix=$private_prefix"
+  make -j"$jobs"
+  make check
+  make install
+)
+test -f "$private_prefix/lib/libz.a"
+cp "$zlib_source/LICENSE" "$materials/licenses/zlib-LICENSE"
 
 ffmpeg_source_parent="$work_root/ffmpeg-source"
 mkdir -p "$ffmpeg_source_parent"
@@ -101,7 +126,9 @@ fi
 
 ffmpeg_build="$work_root/ffmpeg-build"
 mkdir -p "$ffmpeg_build"
-export PKG_CONFIG_PATH="$private_prefix/lib/pkgconfig:/ucrt64/lib/pkgconfig"
+export PKG_CONFIG_PATH="$private_prefix/lib/pkgconfig"
+export PKG_CONFIG_LIBDIR="$private_prefix/lib/pkgconfig"
+test "$(cygpath -u "$(pkgconf --variable=libdir zlib)")" = "$private_prefix/lib"
 ffmpeg_configure=(
   "$ffmpeg_source/configure"
   "--prefix=$private_prefix"
@@ -111,7 +138,7 @@ ffmpeg_configure=(
   "--pkg-config=pkgconf"
   "--pkg-config-flags=--static"
   "--extra-cflags=-I$private_prefix/include -O2"
-  "--extra-ldflags=-L$private_prefix/lib -static"
+  "--extra-ldflags=-L$private_prefix/lib -static -Wl,-Map=%.map"
   "--enable-gpl"
   "--enable-static"
   "--disable-shared"
@@ -145,8 +172,25 @@ printf '%s\n' "${ffmpeg_configure[@]:1}" > "$materials/ffmpeg-configure-args.txt
 (
   cd "$ffmpeg_build"
   "${ffmpeg_configure[@]}"
-  make -j"$jobs" ffmpeg.exe ffprobe.exe
+  # GNU ld uses the output filename for separate maps, including parallel links.
+  make -j"$jobs" V=1 ffmpeg.exe ffprobe.exe
 )
+
+for program in ffmpeg ffprobe; do
+  # FFmpeg links *_g.exe first, then strips it into the final executable.
+  cp "$ffmpeg_build/${program}_g.exe.map" "$materials/$program-link.map"
+  # Windows ld mixes '/' directory paths with '\' before archive filenames.
+  tr '\\' '/' < "$materials/$program-link.map" > "$work_root/link-normalized.txt"
+  if ! grep -Fq -e "$private_prefix/lib/libz.a(" -e "$(cygpath -m "$private_prefix")/lib/libz.a(" "$work_root/link-normalized.txt"; then
+    printf '%s did not link the private zlib archive.\n' "$program" >&2
+    exit 2
+  fi
+  if grep -Eq '/ucrt64/lib/lib(z|x264)\.a\(' "$work_root/link-normalized.txt"; then
+    printf '%s linked a system codec archive.\n' "$program" >&2
+    exit 2
+  fi
+done
+cp "$ffmpeg_build/ffbuild/config.log" "$materials/ffmpeg-config.log"
 
 for program in ffmpeg ffprobe; do
   executable="$ffmpeg_build/$program.exe"
@@ -210,19 +254,32 @@ done
 
 cp "$project_root/scripts/ffmpeg_windows_source_lock.json" "$materials/source-lock.json"
 cp "$x264_source/COPYING" "$materials/licenses/x264-COPYING"
-cp /ucrt64/share/licenses/zlib/LICENSE "$materials/licenses/zlib-LICENSE"
-for license in COPYING.LIB COPYING.RUNTIME COPYING3 README; do
-  cp "/ucrt64/share/licenses/gcc-libs/$license" "$materials/licenses/gcc-libs-$license"
+# Runtime notices are copied as package-level collections, not inferred legal
+# verdicts per symbol. Missing collections are reported without blocking builds.
+: > "$materials/license-gaps.txt"
+for package in gcc-libs crt winpthreads libwinpthread; do
+  if [[ -d "/ucrt64/share/licenses/$package" ]]; then
+    cp -R "/ucrt64/share/licenses/$package" "$materials/licenses/$package"
+  else
+    printf 'Missing local runtime notice directory: %s\n' "$package" >> "$materials/license-gaps.txt"
+  fi
 done
-cp /ucrt64/share/licenses/winpthreads/COPYING "$materials/licenses/winpthreads-COPYING"
 for license in COPYING.GPLv2 COPYING.LGPLv2.1 LICENSE.md; do
   if [[ -f "$ffmpeg_source/$license" ]]; then
     cp "$ffmpeg_source/$license" "$materials/licenses/ffmpeg-$license"
+  else
+    printf 'Required FFmpeg license is missing: %s\n' "$license" >&2
+    exit 2
   fi
 done
 
 cat > "$materials/sources.json" <<EOF
 {
+  "zlib": {
+    "archive": "$(basename "$zlib_archive")",
+    "version": "${GS_ZLIB_VERSION}",
+    "upstream": "official zlib release archive"
+  },
   "x264": {
     "upstream": "VideoLAN x264 Git repository",
     "commit": "${GS_X264_COMMIT}",
@@ -238,6 +295,7 @@ cat > "$materials/sources.json" <<EOF
 EOF
 cat > "$materials/patches.json" <<'EOF'
 {
+  "zlib": [],
   "x264": [],
   "ffmpeg": []
 }

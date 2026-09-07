@@ -76,22 +76,7 @@ Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构
 
 ## Windows x64 Electron 导出检查
 
-阶段 A 的离线源码构建入口与前置环境、固定源码、材料和复验要求见 [FFmpeg 开发使用与分发状态](FFMPEG_DISTRIBUTION.md#离线构建入口)。环境齐全时使用：
-
-```powershell
-pnpm run test:build:ffmpeg:win
-pnpm run build:ffmpeg:win -- -X264Source D:\sources\x264 -FfmpegArchive D:\sources\ffmpeg-9.0.1.tar.xz
-```
-
-阶段 B 之前，现有 CI 和下述临时准备入口仍不切换到源码构建。
-
-阶段 1–3 暂时使用固定 SHA-256 的 Gyan FFmpeg 9.0.1 essentials build。准备脚本默认从 Gyan 固定 GitHub Release 下载，也可以读取同一归档的本地副本；两种方式都会验证归档哈希、版本、构建配置和 `libx264`，然后安装到忽略的 `build/ffmpeg/win32-x64`，且不会查找 PATH：
-
-```powershell
-pnpm run prepare:ffmpeg:win
-# 或使用已经下载的同一归档
-pnpm run prepare:ffmpeg:win -- -ArchivePath D:\downloads\ffmpeg-9.0.1-essentials_build.zip
-```
+先按 [scripts README](../scripts/README.md#环境与运行顺序) 准备 FFmpeg 并执行对应的构建、材料检查。源码构建与旧第三方入口的行为见该文档；当前迁移状态及分发限制见 [FFmpeg 开发使用与分发状态](FFMPEG_DISTRIBUTION.md)。
 
 资产准备完成后，先验证共享契约、宿主单元测试和普通 production build，再生成只供集成检查使用的像素探针 build 并直接驱动 `ExportHost`：
 
