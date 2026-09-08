@@ -1,10 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "GachaSimulate analysis v2",
+  "title": "GachaSimulate analysis",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "analysis_version",
     "result_item",
     "totals",
     "values",
@@ -13,7 +12,6 @@
     "termination_reason"
   ],
   "properties": {
-    "analysis_version": { "const": 2 },
     "result_item": {
       "type": "object",
       "additionalProperties": false,

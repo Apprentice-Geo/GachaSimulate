@@ -1,5 +1,4 @@
 {
-  "analysis_version": 2,
   "result_item": { "id": "draw_count", "name": "抽数" },
   "totals": { "runs": "1000000", "result": "100000001" },
   "values": ["1", "27", "35", "39", "43", "50", "72"],

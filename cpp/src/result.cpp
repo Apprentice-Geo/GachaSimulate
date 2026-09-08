@@ -307,7 +307,6 @@ void write_gsr_v2(const std::string &path, const RuntimeProgram &p, const BatchR
 nlohmann::json analyze_gsr_v2(const std::string &path) {
   auto data = read_gsr_v2(path);
   nlohmann::json output{
-      {"analysis_version", 2},
       {"result_item", {{"id", data.result_id}, {"name", data.result_name}}},
       {"totals", {{"runs", decimal(data.runs)}, {"result", decimal(data.total_result)}}},
       {"termination_reason", termination(data)}};

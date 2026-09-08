@@ -9,7 +9,6 @@ import type { ChildProcess } from "node:child_process";
 import { ResultEditor } from "./result_editor";
 
 const analysis = {
-  analysis_version: 2,
   result_item: { id: "draw_count", name: "抽数" },
   totals: { runs: "2", result: "3" },
   values: ["1", "2"],

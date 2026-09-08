@@ -71,7 +71,7 @@ Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构
 - 配置仓库 index、manifest 或包文件清单协议：`test:config-repository-contract`、`test:packages`、`test:simulation` 中的下载/安装行为测试和 typecheck。
 - C++ Runtime、GSR 或 Analysis：format/tidy、Debug/Release CTest、Release install 和冒烟。
 - Electron IPC、配置扫描、模拟/分析进程生命周期或 sidecar：`test:simulation`、typecheck、lint、build。
-- AnalysisV2 或 DisplayConfig 输入契约：同步核对 JSON Schema、semantic validator、TypeScript 类型和共享 fixture，并执行 `test:visualize:cdf`、`test:simulation`、typecheck 和 build。
+- Analysis 或 DisplayConfig 输入契约：同步核对 JSON Schema、semantic validator、TypeScript 类型和共享 fixture，并执行 `test:visualize:cdf`、`test:simulation`、typecheck 和 build。
 - CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑代表性实际 export。
 - Electron 导出 renderer、逐帧协议、CDP、FFmpeg 或输出提交：`test:visualize:cdf`、`test:electron-export`、typecheck、lint 和 build；Windows x64 继续执行下述正式宿主集成检查。
 - 仅文档：检查命令、链接和完成状态；跨层状态文档仍按对应范围验证。

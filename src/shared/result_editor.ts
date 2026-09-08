@@ -1,4 +1,4 @@
-import type { AnalysisV2 } from "../visualize/types/analysis";
+import type { Analysis } from "../visualize/types/analysis";
 import type { DisplayConfig } from "../visualize/types/display_config";
 
 export const DISPLAY_FIELD_KEYS = [
@@ -19,7 +19,7 @@ export type ResultEditorState = {
   path: string;
   filename: string;
   fields: DisplayFields;
-  analysis: AnalysisV2;
+  analysis: Analysis;
   display: DisplayConfig;
   sidecar_path: string;
 };

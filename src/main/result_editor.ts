@@ -14,7 +14,7 @@ import {
   type DisplayFields,
   type ResultEditorState,
 } from "../shared/result_editor";
-import type { AnalysisV2 } from "../visualize/types/analysis";
+import type { Analysis } from "../visualize/types/analysis";
 import type { DisplayConfig } from "../visualize/types/display_config";
 import { validate_analysis } from "../visualize/data/analysis";
 import { validate_display_config } from "../visualize/data/validate_display_config";
@@ -64,7 +64,7 @@ function sidecar_path(path: string): string {
 
 export class ResultEditor {
   private path: string | null = null;
-  private analysis: AnalysisV2 | null = null;
+  private analysis: Analysis | null = null;
   private display: DisplayConfig | null = null;
   private child: ChildProcess | null = null;
   private child_close: Promise<void> | null = null;
@@ -132,7 +132,7 @@ export class ResultEditor {
 
   private restore_sidecar(
     path: string,
-    authoritative: AnalysisV2,
+    authoritative: Analysis,
   ): DisplayConfig {
     const sidecar = sidecar_path(path);
     if (!existsSync(sidecar))
@@ -170,7 +170,7 @@ export class ResultEditor {
     }
   }
 
-  private analyze(path: string): Promise<AnalysisV2> {
+  private analyze(path: string): Promise<Analysis> {
     if (this.child) throw new Error("analyzer is already running");
     const command = resolve_native_executable(
       "gachasimulate-analyze",

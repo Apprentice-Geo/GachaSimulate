@@ -3,8 +3,7 @@ export interface TerminationReason {
   proportion: number;
 }
 
-export interface AnalysisV2 {
-  analysis_version: 2;
+export interface Analysis {
   result_item: { id: string; name: string };
   totals: { runs: string; result: string };
   values: string[];

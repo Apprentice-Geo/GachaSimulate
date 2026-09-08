@@ -4,7 +4,7 @@
 
 ## 定位
 
-`src/visualize/` 是平台无关的结果可视化层。它把 `AnalysisV2 + DisplayConfig v2` 转换为经过校验的展示模型，供 Electron 和素材导出使用。Remotion bundler/renderer 和旧导出进程入口位于 `src/export/`；Electron 自研导出宿主位于 `src/main/` 与 `src/export-renderer/`。这些宿主只依赖本层，不被本层反向依赖。
+`src/visualize/` 是平台无关的结果可视化层。它把 `Analysis + DisplayConfig v2` 转换为经过校验的展示模型，供 Electron 和素材导出使用。Remotion bundler/renderer 和旧导出进程入口位于 `src/export/`；Electron 自研导出宿主位于 `src/main/` 与 `src/export-renderer/`。这些宿主只依赖本层，不被本层反向依赖。
 
 素材导出是长期保留能力。迁移期间并存 Electron 展示、内部 Electron 逐帧导出与 Remotion 导出；Remotion 只在后续安装包验收和性能评审通过后移除。
 
@@ -15,7 +15,7 @@ Electron 的导航、模拟表单、GSR 对话框、analyzer 进程、结果编�
 稳定的数据流是：
 
 ```text
-AnalysisV2 -----> validate_analysis -----------+
+Analysis -------> validate_analysis -----------+
                                                +-> build_cdf_view_model
 DisplayConfig -> validate_display_config ------+   (safe-integer conversion + merge)
                                                    -> CDF view model
@@ -23,13 +23,13 @@ DisplayConfig -> validate_display_config ------+   (safe-integer conversion + me
                                                    -> Electron display, Electron export, or Remotion export
 ```
 
-AnalysisV2 和 DisplayConfig 不能绕过各自校验直接进入视图模型。组件只消费 CDF view model，不承担 schema 校验、数值转换、CDF 计算或展示规则编排。
+Analysis 和 DisplayConfig 不能绕过各自校验直接进入视图模型。组件只消费 CDF view model，不承担 schema 校验、数值转换、CDF 计算或展示规则编排。
 
-Electron 的结果编辑页和结果可视化页共享当前 GSR 会话。main 调用 C++ analyzer 并校验 Analysis v2；编辑页只保存 DisplayConfig v2，可视化页用 `AnalysisV2 + DisplayConfig` 生成共享视图模型。DisplayConfig v1、旧字段和旧完整 JSON 不做隐式兼容。
+Electron 的结果编辑页和结果可视化页共享当前 GSR 会话。main 调用 C++ analyzer 并校验 Analysis；编辑页只保存 DisplayConfig v2，可视化页用 `Analysis + DisplayConfig` 生成共享视图模型。DisplayConfig v1、旧字段和旧完整 JSON 不做隐式兼容。
 
 ## 模块地图
 
-- `data/`：AnalysisV2、DisplayConfig 校验和 CDF 基础计算。
+- `data/`：Analysis、DisplayConfig 校验和 CDF 基础计算。
 - `view/`：展示模型、统计配置和与画面有关的布局计算。
 - `components/`：共享画面与交互组件，保持偏渲染。
 - `animation/`：交互展示和逐帧导出共用的时间轴与进度计算。
@@ -38,9 +38,9 @@ Electron 的结果编辑页和结果可视化页共享当前 GSR 会话。main �
 - `src/export/`：位于可视化层之外的 Node.js 素材导出宿主。
 - `src/export-renderer/`：位于可视化层之外的固定尺寸 Electron 导出页面与逐帧提交边界。
 - `src/main/export_host.ts`：位于可视化层之外的 CDP、FFmpeg 和输出提交宿主。
-- `types/`：AnalysisV2、DisplayConfig 和 CDF view model 类型。
+- `types/`：Analysis、DisplayConfig 和 CDF view model 类型。
 
-重要符号包括 `AnalysisV2`、`DisplayConfig`、`build_cdf_view_model` 和 `VisualizeScene`。需要定位具体实现时，优先搜索这些符号及上述模块，而不是依赖本文档中的文件清单。
+重要符号包括 `Analysis`、`DisplayConfig`、`build_cdf_view_model` 和 `VisualizeScene`。需要定位具体实现时，优先搜索这些符号及上述模块，而不是依赖本文档中的文件清单。
 
 ## 设计决策
 
@@ -68,7 +68,7 @@ Electron 将固定 3840×2160 画布按宿主可用区域等比缩小并双向�
 
 ### 输入契约
 
-`AnalysisV2 + DisplayConfig v2` 是唯一可视化输入契约，对应 `docs/schemas/analysis_v2.schema.json` 和 `docs/schemas/display_config.schema.json`。`result_item.id`、`totals.result` 和 `totals.runs` 来自 AnalysisV2；`result_item_name` 只控制展示名称，`subtitle` 控制主标题下的可选副标题，`result_item_unit` 控制累计结果和统计指标的展示单位。DisplayConfig v1、旧完整 JSON 和旧字段不做隐式兼容；需要兼容时应明确修改契约和迁移策略。
+`Analysis + DisplayConfig v2` 是唯一可视化输入契约，对应 `docs/schemas/analysis.schema.json` 和 `docs/schemas/display_config.schema.json`。`result_item.id`、`totals.result` 和 `totals.runs` 来自 Analysis；`result_item_name` 只控制展示名称，`subtitle` 控制主标题下的可选副标题，`result_item_unit` 控制累计结果和统计指标的展示单位。DisplayConfig v1、旧完整 JSON 和旧字段不做隐式兼容；需要兼容时应明确修改契约和迁移策略。
 
 JSON Schema 是字段、类型、必填项和局部取值约束的权威。`validate_analysis` 另行定义数组长度、递增顺序、CDF 终点和 termination 比例等跨字段不变量；`validate_display_config` 当前只执行对应 Schema，没有额外语义规则。`types/` 中的 TypeScript 类型是消费方的静态视图，不独立定义格式。
 

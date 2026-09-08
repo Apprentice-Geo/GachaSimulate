@@ -40,9 +40,9 @@ test("source lock pins only the requested source identities", async () => {
     ),
   );
 
+  assert.equal(lock.target, "win32-x64-ucrt64");
   assert.equal(lock.x264.commit, "b35605ace3ddf7c1a5d67a2eb553f034aef41d55");
   assert.equal(lock.ffmpeg.version, "9.0.1");
-  assert.equal(lock.schema_version, 2);
   assert.deepEqual(lock.zlib, {
     version: "1.3.2",
     archive_name: "zlib-1.3.2.tar.xz",
@@ -55,7 +55,6 @@ test("source lock pins only the requested source identities", async () => {
     "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
   );
   assert.deepEqual(Object.keys(lock), [
-    "schema_version",
     "target",
     "zlib",
     "x264",

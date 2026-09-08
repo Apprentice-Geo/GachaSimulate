@@ -32,7 +32,7 @@ import {
 import { CDF_DURATION_IN_FRAMES } from "../remotion/constants";
 import type { MarkerView } from "../view/cdf_overlay_layout";
 import type { CDFMarker, CDFViewModel, MarkerKey } from "../types/cdf";
-import type { AnalysisV2 } from "../types/analysis";
+import type { Analysis } from "../types/analysis";
 import type { DisplayConfig } from "../types/display_config";
 import {
   get_marker_visual,
@@ -221,9 +221,8 @@ test("build_curve_path clamps cumulative values", () => {
   );
 });
 
-test("build_cdf_view_model normalizes AnalysisV2 and display fields together", () => {
-  const analysis: AnalysisV2 = {
-    analysis_version: 2,
+test("build_cdf_view_model normalizes Analysis and display fields together", () => {
+  const analysis: Analysis = {
     result_item: { id: "tokens", name: "内部名称" },
     totals: { runs: "4", result: "100" },
     values: ["1", "2", "3"],
@@ -301,9 +300,8 @@ test("build_cdf_view_model normalizes AnalysisV2 and display fields together", (
   assert.equal(without_unit.x_domain_max, view_model.x_domain_max);
 });
 
-test("build_cdf_view_model rejects negative and unsafe AnalysisV2 numbers", () => {
-  const analysis: AnalysisV2 = {
-    analysis_version: 2,
+test("build_cdf_view_model rejects negative and unsafe Analysis numbers", () => {
+  const analysis: Analysis = {
     result_item: { id: "draw_count", name: "抽数" },
     totals: { runs: "1", result: "1" },
     values: ["1"],

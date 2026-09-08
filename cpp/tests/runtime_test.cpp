@@ -162,14 +162,14 @@ TEST(Runtime, LimitsRepeatAndCrossDrawSteps) {
             "runtime step limit exceeded");
 }
 
-TEST(Runtime, RejectsV1AndInvalidPoolReference) {
+TEST(Runtime, RejectsUnknownFieldsAndInvalidPoolReference) {
   const auto path = std::filesystem::temp_directory_path() / "gachasimulate_invalid_ir.json";
   std::ifstream input(random_fixture_path());
   auto ir = nlohmann::json::parse(input);
-  ir["ir_version"] = 1;
+  ir["unexpected"] = true;
   std::ofstream(path) << ir;
   EXPECT_THROW(gachasimulate::load_ir_file(path.string()), std::runtime_error);
-  ir["ir_version"] = 2;
+  ir.erase("unexpected");
   ir["actions"][2]["pool"] = 1;
   std::ofstream(path) << ir;
   EXPECT_THROW(gachasimulate::load_ir_file(path.string()), std::runtime_error);
@@ -292,7 +292,7 @@ TEST(Gsr, RejectsInconsistentBatchDataAndOverflow) {
       std::runtime_error);
 }
 
-TEST(Gsr, ReadsAndAnalyzesV2Statistics) {
+TEST(Gsr, ReadsV2AndAnalyzesStatistics) {
   const auto path = output_path("analysis_test");
   std::filesystem::remove(path);
   auto program = gachasimulate::load_ir_file(fixture_path().string());
@@ -303,7 +303,6 @@ TEST(Gsr, ReadsAndAnalyzesV2Statistics) {
   gachasimulate::BatchResult result{{1, 2, 4, 4}, {exchange, skin, skin, skin}, 11};
   gachasimulate::write_gsr_v2(path.string(), program, result, 0);
   const auto analysis = gachasimulate::analyze_gsr_v2(path.string());
-  EXPECT_EQ(analysis.at("analysis_version"), 2);
   EXPECT_EQ(analysis.at("result_item"),
             nlohmann::json({{"id", "draw_count"}, {"name", "Draw count"}}));
   EXPECT_EQ(analysis.at("totals"), nlohmann::json({{"runs", "4"}, {"result", "11"}}));

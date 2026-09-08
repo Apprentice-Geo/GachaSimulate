@@ -1,5 +1,5 @@
 import { get_cdf_level_at_draw } from "../data/cdf";
-import type { AnalysisV2 } from "../types/analysis";
+import type { Analysis } from "../types/analysis";
 import type {
   CDFMarker,
   CDFViewModel,
@@ -33,7 +33,7 @@ function get_metric_color(key: StatisticKey): string {
 }
 
 export function build_cdf_view_model(
-  analysis: AnalysisV2,
+  analysis: Analysis,
   display: DisplayConfig,
 ): CDFViewModel {
   const number = (value: string, name: string) => non_negative(value, name);

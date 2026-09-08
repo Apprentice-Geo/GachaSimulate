@@ -33,7 +33,7 @@ sidecar 是独立的 `DisplayConfig v2`，只保存 `title`、`target`、`result
 
 ## 可视化与导出
 
-Electron 展示和 Remotion 导出共享 `AnalysisV2 + DisplayConfig v2` 输入、CDF 视图模型、画面与动画。导出命令：
+Electron 展示和 Remotion 导出共享 `Analysis + DisplayConfig v2` 输入、CDF 视图模型、画面与动画。导出命令：
 
 ```bash
 pnpm run export:cdf -- --gsr <file.gsr> --display <file.visualize.json>

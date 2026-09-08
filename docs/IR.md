@@ -1,8 +1,8 @@
-# IR v2
+# IR
 
-IR 是 `@gachasimulate/config-compiler` 生成、C++ Runtime 消费的 JSON 进程契约。Electron 为单次模拟把 IR 写入临时 `program.json`，core 加载后执行，任务结束时删除临时目录。
+IR（ Intermediate Representation ） 是 `@gachasimulate/config-compiler` 生成、C++ Runtime 消费的 JSON 进程契约。Electron 为单次模拟把 IR 写入临时 `program.json`，core 加载后执行，任务结束时删除临时目录。
 
-IR 不是用户配置、持久化结果或公共交换格式。Compiler 和 Runtime 必须版本配套；C++ loader 只接受 `ir_version: 2`，但项目不承诺保存旧 IR 或由新版 Runtime 重放。用户语法和模拟执行顺序分别见 [YAML 配置语法](YAML_CONFIG_SYNTAX.md)。
+IR 不是用户配置、持久化结果或公共交换格式。Compiler 和 Runtime 必须配套使用；项目不承诺保存 IR 或由后续实现重放。用户语法和模拟执行顺序见 [YAML 配置语法](YAML_CONFIG_SYNTAX.md)。
 
 ## 权威与信任边界
 
@@ -12,11 +12,10 @@ Config Compiler 定义 IR 的结构以及 YAML 到 IR 的表示规则，并负�
 
 ## 顶层结构
 
-IR v2 根对象只允许以下字段：
+IR 根对象只允许以下字段：
 
 | 字段 | 含义 |
 | --- | --- |
-| `ir_version` | 固定为 `2` |
 | `result_item` | 本次保存结果的 item index |
 | `items` | item 表，元素保存 ID 与展示名称的 string index |
 | `strings` | 去重字符串表 |
@@ -137,4 +136,4 @@ rule 元素为 `{ "id": StringIndex, "mode": Mode, "condition": ConditionIndex }
 - C++ `load_ir_file` 的防御性校验及 C++ tests；
 - `native_pipeline` 和固定 IR fixture；
 - 受影响的 YAML 语义与执行顺序；
-- 是否需要递增 `ir_version`。IR 不提供跨版本迁移路径。
+- Compiler 与 Runtime 的契约改动是否配套提交。

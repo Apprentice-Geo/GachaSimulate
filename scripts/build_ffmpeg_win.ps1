@@ -133,8 +133,8 @@ $ProjectRoot = [System.IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $LockPath = Resolve-RequiredPath -Path (Join-Path $PSScriptRoot "ffmpeg_windows_source_lock.json") -Kind Leaf -Description "FFmpeg source lock"
 $BashScript = Resolve-RequiredPath -Path (Join-Path $PSScriptRoot "build_ffmpeg_win_ucrt64.sh") -Kind Leaf -Description "UCRT64 FFmpeg build script"
 $Lock = Get-Content -Raw -LiteralPath $LockPath | ConvertFrom-Json
-if ($Lock.schema_version -ne 2 -or $Lock.target -ne "win32-x64-ucrt64") {
-  throw "Unsupported FFmpeg build lock schema or target in '$LockPath'."
+if ($Lock.target -ne "win32-x64-ucrt64") {
+  throw "Unsupported FFmpeg build target in '$LockPath'."
 }
 
 $ResolvedMsysRoot = Resolve-RequiredPath -Path $MsysRoot -Kind Container -Description "MSYS2 root"

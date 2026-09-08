@@ -241,11 +241,9 @@ RuntimeProgram load_ir_file(const std::string &path) {
     throw std::runtime_error("IR exceeds 64 MiB");
   input.seekg(0);
   const auto root = Json::parse(input);
-  object(root, {"ir_version", "result_item", "items", "strings", "actions", "pools", "pool_entries",
-                "rules", "condition_nodes", "condition_children", "item_resolve", "initial",
-                "every_draw", "termination_condition"});
-  if (u32(field(root, "ir_version"), "ir_version") != 2)
-    fail("unsupported ir_version");
+  object(root, {"result_item", "items", "strings", "actions", "pools", "pool_entries", "rules",
+                "condition_nodes", "condition_children", "item_resolve", "initial", "every_draw",
+                "termination_condition"});
   RuntimeProgram p;
   p.result_item = u32(field(root, "result_item"), "result_item");
   const auto &strings = array(field(root, "strings"), "strings");

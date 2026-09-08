@@ -2,11 +2,11 @@ import analysis from "../visualize/fixtures/example_analysis.json";
 import display from "../visualize/fixtures/example_display.json";
 import type { ResultEditorState } from "../shared/result_editor";
 import type { InstalledConfig } from "../shared/installed_config";
-import type { AnalysisV2 } from "../visualize/types/analysis";
+import type { Analysis } from "../visualize/types/analysis";
 import type { DisplayConfig } from "../visualize/types/display_config";
 
 export function result_fixture(): ResultEditorState {
-  const analysis_fixture = analysis as AnalysisV2;
+  const analysis_fixture = analysis as Analysis;
   const display_fixture = display as DisplayConfig;
   return {
     path: "/tmp/example.gsr",
