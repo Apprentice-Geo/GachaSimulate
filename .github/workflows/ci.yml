@@ -154,11 +154,14 @@ jobs:
       - name: Run CDF export smoke
         shell: pwsh
         run: |
-          $smoke = Join-Path $env:RUNNER_TEMP ("ci-export-" + [guid]::NewGuid().ToString("N"))
-          New-Item -ItemType Directory -Path $smoke | Out-Null
+          $smokeRelative = Join-Path 'tmp' ("ci-export-" + [guid]::NewGuid().ToString("N"))
+          $smoke = Join-Path $PWD $smokeRelative
+          New-Item -ItemType Directory -Path $smoke -Force | Out-Null
           try {
             $gsr = Join-Path $smoke 'smoke.gsr'
             $display = Join-Path $smoke 'smoke.visualize.json'
+            $gsrInput = Join-Path $smokeRelative 'smoke.gsr'
+            $displayInput = Join-Path $smokeRelative 'smoke.visualize.json'
             & ./build/native/bin/gachasimulate-core.exe `
               --ir (Resolve-Path cpp/tests/batch_fixture_ir.json) `
               --total-runs 10 --seed 0 --threads 1 --output $gsr
@@ -172,7 +175,7 @@ jobs:
               subtitle = ''
               result_item_unit = ''
             } | ConvertTo-Json | Set-Content $display
-            pnpm run export:cdf -- --gsr $gsr --display $display
+            pnpm run export:cdf -- --gsr $gsrInput --display $displayInput
             if ($LASTEXITCODE -ne 0) { throw 'CDF export smoke failed.' }
             if (-not (Test-Path outputs/cdf-result.png) -or -not (Test-Path outputs/cdf-animation.mp4)) {
               throw 'CDF export smoke did not create both outputs.'
