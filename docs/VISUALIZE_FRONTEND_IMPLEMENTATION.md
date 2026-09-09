@@ -6,7 +6,7 @@
 
 `src/visualize/` 是平台无关的结果可视化层。它把 `Analysis + DisplayConfig v2` 转换为经过校验的展示模型，供 Electron 和素材导出使用。Remotion bundler/renderer 和旧导出进程入口位于 `src/export/`；Electron 自研导出宿主位于 `src/main/` 与 `src/export-renderer/`。这些宿主只依赖本层，不被本层反向依赖。
 
-素材导出是长期保留能力。迁移期间并存 Electron 展示、内部 Electron 逐帧导出与 Remotion 导出；Remotion 只在后续安装包验收和性能评审通过后移除。
+素材导出是长期保留能力。迁移期间并存 Electron 展示、内部 Electron 逐帧导出与 Remotion 导出；Remotion 在正式 Electron 导出路线的 production build 性能评审通过后移除，最终安装包在后续阶段单独验收。
 
 Electron 的导航、模拟表单、GSR 对话框、analyzer 进程、结果编辑页和结果可视化页属于 `src/renderer/`、`src/preload/` 与 `src/main/`，不得进入 `src/visualize/`。反过来，`src/visualize/` 不依赖 Electron 或 Node.js API。
 

@@ -51,15 +51,15 @@ ffmpeg 与 ffprobe 来自同一套 FFmpeg 源码。ffprobe 不参与用户导出
 
 实际工具记录包括 GCC 16.2.0、ld 2.47.20260726、make 4.4.1、pkgconf 3.0.5、NASM 3.02、Git 2.55.0 和 Bash 5.3.15；完整包版本见各次 JSON 快照。这些是本次构建记录，不是工具版本约束。阶段 B 的 Windows CI 继续记录每次实际工具版本。
 
-普通 CI 已改为从固定源码构建 FFmpeg，并把该 job 的二进制直接交给 ExportHost 集成检查；Gyan 准备入口不再用于 CI。Windows CI workflow 及项目约定的干净 Windows x64 验收已经通过，阶段 D 仍负责把 FFmpeg 接入应用安装包。
+普通 CI 已改为从固定源码构建 FFmpeg，并把该 job 的二进制直接交给 ExportHost 集成检查；Gyan 准备入口不再用于 CI。Windows CI workflow 及项目约定的干净 Windows x64 验收已经通过，阶段 F 仍负责把 FFmpeg 接入应用安装包。
 
 ## FFmpeg 专项发布材料
 
 材料生成行为与测试入口统一见 [scripts README](../scripts/README.md#材料收集与打包)，发布流程见 [Release 与旧入口](../scripts/README.md#release-与旧入口)。历史材料应与对应 Release 一同保留。
 
-当前安装包尚不携带 FFmpeg；阶段 D 接入时仍须把精简许可证和对应版本材料下载入口放入安装包，并核对包内 FFmpeg 哈希。范围仅为 FFmpeg 及其依赖，不扩展为整个应用的许可证清单。
+当前安装包尚不携带 FFmpeg；阶段 F 接入时仍须把精简许可证和对应版本材料下载入口放入安装包，并核对包内 FFmpeg 哈希。范围仅为 FFmpeg 及其依赖，不扩展为整个应用的许可证清单。
 
-2026-09-07 本机扩展验证：三份固定源码构建、zlib 上游检查、私有库链接校验、PE/隔离 PATH 运行、材料包及错误路径检查、x264 bundle 离线恢复与版本一致性、导出相关单元检查和完整 ExportHost 集成通过，最后恢复无探针 production build。运行库声明缺口为空。实际源码在线准备验证成功获取 zlib 和 x264；FFmpeg 官网下载本次未完成，使用原有且通过锁定哈希校验的归档。远端 Release 工作流仍待阶段 D 的实际发布验收；阶段 B 的 Windows CI 验收已经完成。日志位于 `tmp/ffmpeg-verification/compliance-*.log`，本次二进制哈希以当前 `materials/binary-sha256.txt` 为准，不沿用阶段 A 历史哈希。
+2026-09-07 本机扩展验证：三份固定源码构建、zlib 上游检查、私有库链接校验、PE/隔离 PATH 运行、材料包及错误路径检查、x264 bundle 离线恢复与版本一致性、导出相关单元检查和完整 ExportHost 集成通过，最后恢复无探针 production build。运行库声明缺口为空。实际源码在线准备验证成功获取 zlib 和 x264；FFmpeg 官网下载本次未完成，使用原有且通过锁定哈希校验的归档。远端 Release 工作流尚未实际验收，不属于当前本地安装包迁移范围；阶段 B 的 Windows CI 验收已经完成。日志位于 `tmp/ffmpeg-verification/compliance-*.log`，本次二进制哈希以当前 `materials/binary-sha256.txt` 为准，不沿用阶段 A 历史哈希。
 
 ## 迁移期间的现有开发基线
 
@@ -72,6 +72,6 @@ ffmpeg 与 ffprobe 来自同一套 FFmpeg 源码。ffprobe 不参与用户导出
 - 最终产物通过工程检查，可追溯到准确源码、依赖、工具链、参数及补丁。
 - 为每个发布二进制准备精确对应的源码、许可证与声明材料及清晰下载入口；维护者复核项目许可证、最终 FFmpeg/x264 组件组合和分发方式所需材料。
 - 材料复核后才将运行所需程序/依赖加入 electron-builder.extraResources，置于 ASAR 外；不依赖 PATH、用户预装 FFmpeg 或 Electron 内置 ffmpeg 动态库。
-- 实际安装包完成断网导出与主计划性能/内存评审，记录最终发布决定。
+- 本地安装包完成断网导出与安装态资源稳定性复核；实际发布仍须另行记录发布决定。
 
 手动编码和集成通过不代表分发材料已完成，独立子进程调用也不自动决定项目许可结论。版本、组件、链接方式、依赖、项目许可证、目标平台或打包内容变化时，复核受影响材料与检查，同步主计划及开发检查文档。
