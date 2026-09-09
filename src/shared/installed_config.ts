@@ -61,6 +61,15 @@ export type DesktopApi = {
   cancelExport: (
     request: import("./export_task").ExportCancelRequest,
   ) => Promise<void>;
+  retryExportCleanup: (
+    request: import("./export_task").ExportTaskRequest,
+  ) => Promise<void>;
+  openExportDirectory: (
+    request: import("./export_task").ExportTaskRequest,
+  ) => Promise<void>;
+  exitAfterExportCleanup: (
+    request: import("./export_task").ExportTaskRequest,
+  ) => Promise<void>;
   openResultsDirectory: () => Promise<void>;
   onSimulationEvent: (
     listener: (event: import("./simulation").DesktopSimulationEvent) => void,

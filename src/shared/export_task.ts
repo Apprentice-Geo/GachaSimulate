@@ -37,6 +37,18 @@ export type ExportArtifact = {
   file_name: string;
 };
 
+export type ExportCleanupStatus = "clean" | "blocked";
+export type ExportTaskRequest = { task_id: string };
+
+type ExportTerminalDetails = {
+  task_id: string;
+  saved: ExportArtifact[];
+  failed: ExportFormat[];
+  cleanup_status: ExportCleanupStatus;
+  residual_files: string[];
+  cleanup_message?: string;
+};
+
 export type ExportPreparationEvent =
   | {
       type: "preparation-status" | "preparation-heartbeat";
@@ -70,18 +82,31 @@ export type ExportTaskEvent =
       completed?: number;
       total?: number;
       png_written?: boolean;
+      format?: ExportFormat;
+      committed?: number;
+      artifact_total?: number;
     }
   | { type: "heartbeat"; task_id: string; stage: ExportStage }
   | { type: "cancelling"; task_id: string }
-  | { type: "completed"; task_id: string; saved: ExportArtifact[] }
-  | { type: "cancelled"; task_id: string; saved: ExportArtifact[] }
-  | {
+  | ({ type: "completed" } & ExportTerminalDetails)
+  | ({ type: "cancelled" } & ExportTerminalDetails)
+  | ({
       type: "failed";
+      message: string;
+    } & ExportTerminalDetails)
+  | {
+      type: "cleanup-retrying";
+      task_id: string;
+    }
+  | {
+      type: "cleanup-failed";
       task_id: string;
       message: string;
-      saved: ExportArtifact[];
-      failed: ExportFormat[];
       residual_files: string[];
+    }
+  | {
+      type: "cleanup-completed";
+      task_id: string;
     };
 
 export type DesktopExportEvent = ExportPreparationEvent | ExportTaskEvent;
@@ -173,4 +198,17 @@ export function validate_export_destination_request(
   )
     throw new Error("invalid export destination request");
   return { reservation_id: request.reservation_id };
+}
+
+export function validate_export_task_request(
+  value: unknown,
+): ExportTaskRequest {
+  const request = object_value(value, "export task request");
+  if (
+    Object.keys(request).length !== 1 ||
+    typeof request.task_id !== "string" ||
+    !request.task_id
+  )
+    throw new Error("invalid export task request");
+  return { task_id: request.task_id };
 }

@@ -35,6 +35,15 @@ contextBridge.exposeInMainWorld("desktopApi", {
   cancelExport: (
     request: import("../shared/export_task").ExportCancelRequest,
   ) => ipcRenderer.invoke("cancel-export", request),
+  retryExportCleanup: (
+    request: import("../shared/export_task").ExportTaskRequest,
+  ) => ipcRenderer.invoke("retry-export-cleanup", request),
+  openExportDirectory: (
+    request: import("../shared/export_task").ExportTaskRequest,
+  ) => ipcRenderer.invoke("open-export-directory", request),
+  exitAfterExportCleanup: (
+    request: import("../shared/export_task").ExportTaskRequest,
+  ) => ipcRenderer.invoke("exit-after-export-cleanup", request),
   openResultsDirectory: () => ipcRenderer.invoke("open-results-directory"),
   onSimulationEvent: (listener: (event: DesktopSimulationEvent) => void) => {
     const handler = (

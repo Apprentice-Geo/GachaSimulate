@@ -41,7 +41,7 @@ pnpm run export:cdf -- --gsr <file.gsr> --display <file.visualize.json>
 
 Remotion 导出固定 3840x2160、60fps 的 `cdf-animation.mp4` 和 `cdf-result.png`。使用或分发前请确认许可证条款。
 
-仓库同时包含阶段 1–3 的内部 Electron `ExportHost`，用于验证独立隐藏 renderer、CDP 逐帧截图和固定 Windows FFmpeg 管道；它尚未接入桌面按钮、保存对话框或进度 UI。Windows 开发准备和宿主检查见 [Development Checks](docs/DEVELOPMENT_CHECKS.md#windows-x64-electron-导出检查)。当前预编译 FFmpeg 仅供开发与 CI，不进入安装包；发布边界见 [FFmpeg 开发使用与分发状态](docs/FFMPEG_DISTRIBUTION.md)。
+仓库包含已完成入口与生命周期验收的 Electron `ExportHost`，使用独立隐藏 renderer、CDP 逐帧截图和固定 Windows FFmpeg 管道，并提供进度、正式取消、部分成功详情与可恢复清理。Windows 开发准备和宿主检查见 [Development Checks](docs/DEVELOPMENT_CHECKS.md#windows-x64-electron-导出检查)，后续分发阶段见 [Electron 素材导出计划](ELECTRON_EXPORT_PLAN.md)。当前 FFmpeg 仅供开发与 CI，不进入安装包；发布边界见 [FFmpeg 开发使用与分发状态](docs/FFMPEG_DISTRIBUTION.md)。
 
 ## 开发检查
 

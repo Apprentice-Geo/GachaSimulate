@@ -20,6 +20,7 @@ import { validate_simulation_request } from "../shared/simulation";
 import type { SaveResultFieldsRequest } from "../shared/result_editor";
 import { UserRequestAdmission } from "./request_admission";
 import { ExportTaskCoordinator } from "./export_task";
+import { validate_export_task_request } from "../shared/export_task";
 
 let simulation: SimulationTask;
 let result_editor: ResultEditor;
@@ -273,6 +274,33 @@ app.whenReady().then(() => {
     assert_export_sender(event.sender);
     return export_tasks.cancel(request);
   });
+  ipcMain.handle("retry-export-cleanup", (event, request: unknown) => {
+    assert_export_sender(event.sender);
+    return export_tasks.retry_cleanup(request);
+  });
+  ipcMain.handle("open-export-directory", (event, request: unknown) => {
+    assert_export_sender(event.sender);
+    return export_tasks.open_directory(request, open_directory);
+  });
+  ipcMain.handle(
+    "exit-after-export-cleanup",
+    async (event, request: unknown) => {
+      assert_export_sender(event.sender);
+      validate_export_task_request(request);
+      if (quitting) return;
+      quitting = true;
+      try {
+        await export_tasks.retry_cleanup(request);
+        const window = main_window;
+        if (window && !window.isDestroyed()) window.destroy();
+        await shutdown_all();
+        app.quit();
+      } catch (error) {
+        quitting = false;
+        throw error;
+      }
+    },
+  );
   ipcMain.handle("open-results-directory", () => open_directory(results_dir));
   create_window();
 

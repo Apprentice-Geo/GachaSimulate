@@ -27,6 +27,9 @@ const SCENARIOS = [
   "electron/result-export-format",
   "electron/result-export-overwrite",
   "electron/result-export-started",
+  "electron/result-export-progress",
+  "electron/result-export-partial-failure",
+  "electron/result-export-cleanup-blocked",
 ] as const;
 
 type Scenario = (typeof SCENARIOS)[number];
@@ -271,6 +274,9 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
       "electron/result-export-format",
       "electron/result-export-overwrite",
       "electron/result-export-started",
+      "electron/result-export-progress",
+      "electron/result-export-partial-failure",
+      "electron/result-export-cleanup-blocked",
     ] as const) {
       if (!scenarios.includes(scenario)) continue;
       await application.evaluate(
@@ -279,6 +285,9 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
             "prepare-export",
             "select-export-destination",
             "cancel-export",
+            "retry-export-cleanup",
+            "open-export-directory",
+            "exit-after-export-cleanup",
           ])
             ipcMain.removeHandler(channel);
           ipcMain.handle("prepare-export", () => {
@@ -304,6 +313,9 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
               : { status: "started", task_id: "capture-task" },
           );
           ipcMain.handle("cancel-export", () => undefined);
+          ipcMain.handle("retry-export-cleanup", () => undefined);
+          ipcMain.handle("open-export-directory", () => undefined);
+          ipcMain.handle("exit-after-export-cleanup", () => undefined);
         },
         scenario === "electron/result-export-overwrite"
           ? "overwrite"
@@ -322,6 +334,48 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
                 : "正在导出素材",
           })
           .waitFor();
+      }
+      if (scenario === "electron/result-export-progress") {
+        await application.evaluate(({ BrowserWindow }) => {
+          BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+            type: "progress",
+            task_id: "capture-task",
+            stage: "rendering",
+            completed: 42,
+            total: 60,
+            png_written: true,
+          });
+        });
+        await page.getByRole("progressbar", { name: "导出帧进度" }).waitFor();
+      } else if (scenario === "electron/result-export-partial-failure") {
+        await application.evaluate(({ BrowserWindow }) => {
+          BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+            type: "failed",
+            task_id: "capture-task",
+            message: "PNG 提交失败",
+            saved: [{ format: "mp4", file_name: "example.mp4" }],
+            failed: ["png"],
+            cleanup_status: "clean",
+            residual_files: [],
+          });
+        });
+        await page.getByText("已保存：MP4", { exact: true }).waitFor();
+      } else if (scenario === "electron/result-export-cleanup-blocked") {
+        await application.evaluate(({ BrowserWindow }) => {
+          BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+            type: "completed",
+            task_id: "capture-task",
+            saved: [
+              { format: "mp4", file_name: "example.mp4" },
+              { format: "png", file_name: "example.png" },
+            ],
+            failed: [],
+            cleanup_status: "blocked",
+            cleanup_message: "备份文件正被其他程序占用",
+            residual_files: [".example.backup.png"],
+          });
+        });
+        await page.getByRole("dialog", { name: "导出资源清理失败" }).waitFor();
       }
       await screenshot(page, scenario);
       await page.reload({ waitUntil: "domcontentloaded" });

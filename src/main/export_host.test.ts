@@ -29,6 +29,7 @@ import {
   EXPORT_PNG_FRAME,
   EXPORT_STDERR_LIMIT,
   EXPORT_WIDTH,
+  inspect_target_identity,
   png_dimensions,
   resolve_ffmpeg_executable,
   write_with_backpressure,
@@ -295,12 +296,14 @@ class FakeWebContents extends EventEmitter {
 
 class FakeWindow extends EventEmitter {
   destroyed = false;
+  destroy_error = false;
   readonly webContents: FakeWebContents;
   constructor(png: Buffer, ipc: FakeIpcMain, answer: boolean) {
     super();
     this.webContents = new FakeWebContents(png, ipc, answer);
   }
   destroy(): void {
+    if (this.destroy_error) throw new Error("window is busy");
     this.destroyed = true;
     this.webContents.destroyed = true;
     this.emit("closed");
@@ -542,6 +545,163 @@ test("dual export preserves the first commit when the second target changes", as
     host.saved_artifacts.map(({ format }) => format),
     ["mp4"],
   );
+});
+
+test("committed output survives backup cleanup failure and retries only the residual backup", async () => {
+  const directory = await mkdtemp(join(test_root, "backup-cleanup-"));
+  const output = join(directory, "result.png");
+  await writeFile(output, "old");
+  const identity = await inspect_target_identity({ lstat }, output);
+  const fixture = fake_host_dependencies();
+  let block_backup = true;
+  const removed: string[] = [];
+  const files: ExportFiles = {
+    access,
+    lstat,
+    rename,
+    writeFile,
+    async rm(path, options) {
+      if (path.includes(".backup.png") && block_backup)
+        throw new Error("backup is locked");
+      removed.push(path);
+      await rm(path, options);
+    },
+  };
+  const host = new ExportHost(
+    {
+      job_id: "job",
+      formats: ["png"],
+      view_model: {} as CDFViewModel,
+      destinations: { png: output },
+      target_identities: { png: identity },
+    },
+    { ...fixture.dependencies, files },
+  );
+
+  await assert.rejects(host.start(), /backup is locked/);
+  assert.equal(host.saved_artifacts.length, 1);
+  assert.deepEqual(png_dimensions(await readFile(output)), {
+    width: EXPORT_WIDTH,
+    height: EXPORT_HEIGHT,
+  });
+  assert.equal(host.cleanup_failed, true);
+  assert.equal(host.residual_paths.length, 1);
+
+  const removal_count = removed.length;
+  block_backup = false;
+  await host.retry_cleanup();
+  assert.equal(host.cleanup_failed, false);
+  assert.deepEqual(host.residual_paths, []);
+  assert.equal(removed.length, removal_count + 1);
+});
+
+test("partial cleanup failure remains retryable without touching an external destination", async () => {
+  const directory = await mkdtemp(join(test_root, "partial-cleanup-"));
+  const output = join(directory, "result.png");
+  const fixture = fake_host_dependencies();
+  let block_partial = true;
+  const files: ExportFiles = {
+    access,
+    lstat,
+    rename,
+    writeFile,
+    async rm(path, options) {
+      if (path.includes(".partial.png") && block_partial)
+        throw new Error("partial is locked");
+      await rm(path, options);
+    },
+  };
+  const host = new ExportHost(
+    {
+      job_id: "job",
+      formats: ["png"],
+      view_model: {} as CDFViewModel,
+      destinations: { png: output },
+      target_identities: { png: { exists: false } },
+    },
+    {
+      ...fixture.dependencies,
+      files,
+      verify_frame_probe: async () => writeFile(output, "external"),
+    },
+  );
+
+  await assert.rejects(host.start(), /target changed before commit/);
+  assert.equal(await readFile(output, "utf8"), "external");
+  assert.equal(host.cleanup_failed, true);
+  assert.equal(host.residual_paths.length, 1);
+  block_partial = false;
+  await host.retry_cleanup();
+  assert.deepEqual(host.residual_paths, []);
+});
+
+test("failed FFmpeg termination is retained and retried", async () => {
+  const directory = await mkdtemp(join(test_root, "ffmpeg-cleanup-"));
+  const fixture = fake_host_dependencies();
+  let child: FakeFfmpegChild | null = null;
+  let termination_attempts = 0;
+  let probe_started!: () => void;
+  const entered_probe = new Promise<void>((resolve) => {
+    probe_started = resolve;
+  });
+  const host = new ExportHost(
+    {
+      job_id: "job",
+      formats: ["mp4"],
+      view_model: {} as CDFViewModel,
+      destinations: { mp4: join(directory, "result.mp4") },
+      target_identities: { mp4: { exists: false } },
+    },
+    {
+      ...fixture.dependencies,
+      spawn: ((_command: string, args: string[]) => {
+        child = new FakeFfmpegChild(args.at(-1)!);
+        return child;
+      }) as never,
+      verify_frame_probe: async () => {
+        probe_started();
+        await new Promise(() => undefined);
+      },
+      terminate_process: async () => {
+        termination_attempts += 1;
+        if (termination_attempts === 1) throw new Error("terminate failed");
+        child!.kill();
+      },
+    },
+  );
+  const running = host.start();
+  await entered_probe;
+  await host.cancel();
+  await assert.rejects(running, /export cancelled/);
+  assert.equal(host.cleanup_failed, true);
+  assert.equal(termination_attempts, 1);
+  await host.retry_cleanup();
+  assert.equal(termination_attempts, 2);
+  assert.equal(host.cleanup_failed, false);
+});
+
+test("failed hidden-window destruction remains retryable", async () => {
+  const fixture = fake_host_dependencies(false);
+  const host = new ExportHost(
+    {
+      job_id: "job",
+      formats: ["png"],
+      view_model: {} as CDFViewModel,
+      destinations: { png: join(test_root, "window-cleanup.png") },
+      target_identities: { png: { exists: false } },
+    },
+    fixture.dependencies,
+  );
+  const running = host.start();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  fixture.windows[0].destroy_error = true;
+  await host.cancel();
+  await assert.rejects(running, /export cancelled/);
+  assert.equal(host.cleanup_failed, true);
+  fixture.windows[0].destroy_error = false;
+  await host.retry_cleanup();
+  assert.equal(fixture.windows[0].destroyed, true);
+  assert.equal(host.cleanup_failed, false);
 });
 
 test("ExportHost cancellation destroys a renderer awaiting initialization", async () => {

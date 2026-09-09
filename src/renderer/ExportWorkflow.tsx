@@ -21,7 +21,10 @@ export type ExportFlowPhase =
   | "confirming_overwrite"
   | "handing_off"
   | "started"
-  | "cancelling";
+  | "cancel_confirm"
+  | "cancelling"
+  | "cleanup_blocked"
+  | "cleanup_retrying";
 
 type ExportContext = Readonly<{
   session_id: string;
@@ -33,7 +36,18 @@ type ExportWorkflowProps = {
   children: (controls: { active: boolean; open: () => void }) => ReactNode;
 };
 
-type Notice = { kind: "success" | "cancelled" | "error"; message: string };
+type Notice = {
+  kind: "success" | "cancelled" | "error";
+  message: string;
+  task_id?: string;
+  saved?: ExportFormat[];
+  failed?: ExportFormat[];
+};
+
+type TerminalEvent = Extract<
+  DesktopExportEvent,
+  { type: "completed" | "cancelled" | "failed" }
+>;
 
 function message_of(reason: unknown): string {
   return reason instanceof Error ? reason.message : String(reason);
@@ -95,12 +109,26 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
   const [reservation_id, set_reservation_id] = useState<string | null>(null);
   const [task_id, set_task_id] = useState<string | null>(null);
   const [notice, set_notice] = useState<Notice | null>(null);
+  const [progress, set_progress] = useState<{
+    stage: "preparing" | "rendering" | "finalizing";
+    completed?: number;
+    total?: number;
+    format?: ExportFormat;
+    committed?: number;
+    artifact_total?: number;
+  }>({ stage: "preparing" });
+  const [png_written, set_png_written] = useState(false);
+  const [live_message, set_live_message] = useState("");
+  const [terminal, set_terminal] = useState<TerminalEvent | null>(null);
+  const [cleanup_error, set_cleanup_error] = useState("");
+  const [residual_files, set_residual_files] = useState<string[]>([]);
   const [editing_focus, set_editing_focus] = useState<"name" | "directory">(
     "name",
   );
   const phase_ref = useRef(phase);
   const reservation_ref = useRef(reservation_id);
   const task_ref = useRef(task_id);
+  const last_activity = useRef(0);
   const generation = useRef(0);
   const early_events = useRef(new Map<string, DesktopExportEvent>());
   const pending_cancel_reason = useRef<
@@ -116,6 +144,29 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
     [reservation_id],
   );
   useEffect(() => void (task_ref.current = task_id), [task_id]);
+  useEffect(() => {
+    if (notice?.kind !== "cancelled") return;
+    const timer = window.setTimeout(() => set_notice(null), 4_000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  const notice_for_terminal = (event: TerminalEvent): Notice => ({
+    kind:
+      event.type === "completed"
+        ? "success"
+        : event.type === "cancelled"
+          ? "cancelled"
+          : "error",
+    message:
+      event.type === "completed"
+        ? "导出完成"
+        : event.type === "cancelled"
+          ? "已取消导出"
+          : event.message,
+    task_id: event.task_id,
+    saved: event.saved.map(({ format }) => format),
+    failed: event.failed,
+  });
 
   const finish = (next_notice: Notice | null) => {
     generation.current += 1;
@@ -166,6 +217,19 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
         }
         if (event.type === "preparation-ready") {
           void choose_destination(event.reservation_id, generation.current);
+        } else if (event.type === "preparation-status") {
+          last_activity.current = Date.now();
+          set_live_message(
+            event.stage === "saving_fields"
+              ? "正在保存展示字段"
+              : event.stage === "building_snapshot"
+                ? "正在生成导出快照"
+                : event.stage === "awaiting_destination"
+                  ? "导出快照已准备完成"
+                  : "正在取消导出准备",
+          );
+        } else if (event.type === "preparation-heartbeat") {
+          last_activity.current = Date.now();
         } else if (event.type === "preparation-cancelled") {
           if (event.reason === "destination-returned") {
             set_reservation_id(null);
@@ -181,18 +245,60 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
           task_ref.current = event.task_id;
           set_task_id(event.task_id);
           set_phase("started");
+          set_live_message("正在准备导出");
         }
         return;
       }
       if (!("task_id" in event) || event.task_id !== task_ref.current) return;
-      if (event.type === "completed")
-        finish({ kind: "success", message: "导出完成" });
-      else if (event.type === "cancelled")
-        finish({ kind: "cancelled", message: "已取消导出" });
-      else if (event.type === "failed")
-        finish({ kind: "error", message: event.message });
+      last_activity.current = Date.now();
+      if (event.type === "progress") {
+        set_progress(event);
+        if (event.png_written) set_png_written(true);
+        set_live_message(
+          event.stage === "preparing"
+            ? "正在准备导出"
+            : event.stage === "rendering"
+              ? event.completed !== undefined && event.total
+                ? `正在渲染第 ${event.completed} / ${event.total} 帧`
+                : "正在渲染素材"
+              : event.format
+                ? `正在提交 ${event.format.toUpperCase()} 产物`
+                : "正在提交导出产物",
+        );
+      } else if (event.type === "cancelling") {
+        set_phase("cancelling");
+        set_live_message("正在取消导出");
+      } else if (
+        event.type === "completed" ||
+        event.type === "cancelled" ||
+        event.type === "failed"
+      ) {
+        set_terminal(event);
+        if (event.cleanup_status === "blocked") {
+          set_cleanup_error(event.cleanup_message ?? "导出资源清理失败");
+          set_residual_files(event.residual_files);
+          set_phase("cleanup_blocked");
+          set_live_message("导出已结束，但资源清理失败");
+        } else finish(notice_for_terminal(event));
+      } else if (event.type === "cleanup-retrying") {
+        set_phase("cleanup_retrying");
+        set_live_message("正在重试清理导出资源");
+      } else if (event.type === "cleanup-failed") {
+        set_cleanup_error(event.message);
+        set_residual_files(event.residual_files);
+        set_phase("cleanup_blocked");
+        set_live_message("导出资源清理仍然失败");
+      } else if (event.type === "cleanup-completed" && terminal) {
+        finish({
+          ...notice_for_terminal(terminal),
+          message:
+            terminal.saved.length > 0
+              ? "文件已保存，导出资源现已清理"
+              : "导出失败，导出资源现已清理",
+        });
+      }
     });
-  }, []);
+  }, [terminal]);
 
   const open = () => {
     if (!context || active) return;
@@ -203,6 +309,12 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
     set_validation_error(null);
     set_editing_focus("name");
     set_notice(null);
+    set_progress({ stage: "preparing" });
+    set_png_written(false);
+    set_terminal(null);
+    set_cleanup_error("");
+    set_residual_files([]);
+    set_live_message("");
     pending_cancel_reason.current = null;
     set_phase("editing");
   };
@@ -259,10 +371,14 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
       return;
     }
     if (phase === "started" && task_id) {
-      set_phase("cancelling");
-      void window.desktopApi.cancelExport({ task_id });
+      set_phase("cancel_confirm");
       return;
     }
+    if (phase === "cancel_confirm") {
+      set_phase("started");
+      return;
+    }
+    if (phase === "cleanup_blocked" || phase === "cleanup_retrying") return;
     if (!reservation_id) {
       if (phase === "preparing") {
         pending_cancel_reason.current = "cancelled";
@@ -275,6 +391,22 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
       phase === "confirming_overwrite" ? "destination-returned" : "cancelled";
     set_phase("cancelling");
     void window.desktopApi.cancelExport({ reservation_id, reason });
+  };
+
+  const confirm_cancel = () => {
+    if (!task_id || phase !== "cancel_confirm") return;
+    set_phase("cancelling");
+    void window.desktopApi.cancelExport({ task_id });
+  };
+
+  const retry_cleanup = () => {
+    if (!task_id || phase !== "cleanup_blocked") return;
+    set_phase("cleanup_retrying");
+    void window.desktopApi.retryExportCleanup({ task_id }).catch((reason) => {
+      if (task_ref.current !== task_id) return;
+      set_cleanup_error(message_of(reason));
+      set_phase("cleanup_blocked");
+    });
   };
 
   const confirm_overwrite = async () => {
@@ -323,7 +455,39 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
       </div>
       {notice && (
         <div className="export-notice" data-kind={notice.kind} role="status">
-          <span>{notice.message}</span>
+          <div>
+            <strong>{notice.message}</strong>
+            {Boolean(notice.saved?.length) && (
+              <span>
+                已保存：
+                {notice.saved!.map((value) => value.toUpperCase()).join("、")}
+              </span>
+            )}
+            {Boolean(notice.failed?.length) && (
+              <span>
+                失败：
+                {notice.failed!.map((value) => value.toUpperCase()).join("、")}
+              </span>
+            )}
+          </div>
+          {notice.task_id && Boolean(notice.saved?.length) && (
+            <button
+              type="button"
+              onClick={() => {
+                void window.desktopApi
+                  .openExportDirectory({ task_id: notice.task_id! })
+                  .catch((reason) =>
+                    set_notice({
+                      ...notice,
+                      kind: "error",
+                      message: message_of(reason),
+                    }),
+                  );
+              }}
+            >
+              打开所在文件夹
+            </button>
+          )}
           <button
             type="button"
             aria-label="关闭通知"
@@ -469,6 +633,88 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                   </button>
                 </footer>
               </>
+            ) : phase === "cancel_confirm" ? (
+              <>
+                <header>
+                  <div>
+                    <p>CANCEL EXPORT</p>
+                    <h2 id="export-dialog-title">确定取消导出？</h2>
+                  </div>
+                </header>
+                <p className="export-copy">
+                  已经提交完成的文件会保留；尚未提交的产物将停止处理。
+                </p>
+                <footer>
+                  <button
+                    data-autofocus
+                    type="button"
+                    className="secondary"
+                    onClick={cancel_or_return}
+                  >
+                    继续导出
+                  </button>
+                  <button type="button" onClick={confirm_cancel}>
+                    确定取消
+                  </button>
+                </footer>
+              </>
+            ) : phase === "cleanup_blocked" || phase === "cleanup_retrying" ? (
+              <>
+                <header>
+                  <div>
+                    <p>EXPORT CLEANUP</p>
+                    <h2 id="export-dialog-title">导出资源清理失败</h2>
+                  </div>
+                </header>
+                {terminal && (
+                  <div className="export-task-summary">
+                    <strong>
+                      {terminal.type === "completed"
+                        ? "文件已保存"
+                        : terminal.type === "cancelled"
+                          ? "导出已取消"
+                          : "导出失败"}
+                    </strong>
+                    {terminal.saved.length > 0 && (
+                      <span>
+                        已保存：
+                        {terminal.saved
+                          .map(({ format }) => format.toUpperCase())
+                          .join("、")}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <p className="export-validation">{cleanup_error}</p>
+                {residual_files.length > 0 && (
+                  <ul aria-label="残留文件">
+                    {residual_files.map((file) => (
+                      <li key={file}>{file}</li>
+                    ))}
+                  </ul>
+                )}
+                <footer>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={phase === "cleanup_retrying"}
+                    onClick={() =>
+                      task_id &&
+                      void window.desktopApi.exitAfterExportCleanup({ task_id })
+                    }
+                  >
+                    退出应用
+                  </button>
+                  <button
+                    data-autofocus
+                    type="button"
+                    disabled={phase === "cleanup_retrying"}
+                    onClick={retry_cleanup}
+                  >
+                    {phase === "cleanup_retrying" ? "正在清理…" : "重试清理"}
+                  </button>
+                </footer>
+              </>
             ) : (
               <>
                 <header>
@@ -499,6 +745,44 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                       ? "请在系统窗口中选择目录。"
                       : "导出期间应用暂时不可操作。"}
                   </p>
+                  {phase === "started" && (
+                    <>
+                      <p className="export-stage-copy">
+                        {progress.stage === "preparing"
+                          ? "正在启动导出 renderer"
+                          : progress.stage === "rendering"
+                            ? progress.completed !== undefined && progress.total
+                              ? `正在渲染第 ${progress.completed} / ${progress.total} 帧`
+                              : "正在渲染素材"
+                            : progress.format
+                              ? `正在提交 ${progress.format.toUpperCase()}（${progress.committed ?? 0} / ${progress.artifact_total ?? formats.length}）`
+                              : "正在准备提交导出产物"}
+                      </p>
+                      {progress.stage === "rendering" &&
+                      progress.completed !== undefined &&
+                      progress.total ? (
+                        <progress
+                          max={progress.total}
+                          value={progress.completed}
+                          aria-label="导出帧进度"
+                        />
+                      ) : progress.stage === "finalizing" &&
+                        progress.artifact_total !== undefined ? (
+                        <progress
+                          max={progress.artifact_total}
+                          value={progress.committed ?? 0}
+                          aria-label="导出产物提交进度"
+                        />
+                      ) : (
+                        <progress aria-label="导出进度不确定" />
+                      )}
+                      {formats.includes("png") && (
+                        <span className="export-png-status">
+                          PNG：{png_written ? "静帧已写入" : "等待动画完成帧"}
+                        </span>
+                      )}
+                    </>
+                  )}
                 </div>
                 <footer>
                   <button
@@ -512,6 +796,9 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                 </footer>
               </>
             )}
+            <div className="export-live" aria-live="polite" aria-atomic="true">
+              {live_message}
+            </div>
           </div>
         </div>
       )}

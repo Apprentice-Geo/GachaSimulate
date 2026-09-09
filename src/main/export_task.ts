@@ -22,6 +22,7 @@ import {
   validate_export_cancel_request,
   validate_export_destination_request,
   validate_export_preparation_request,
+  validate_export_task_request,
 } from "../shared/export_task";
 import {
   ExportCancelledError,
@@ -68,7 +69,7 @@ type Task = {
   readonly target_paths: readonly string[];
   stage: ExportStage;
   cancelling: boolean;
-  terminal_error: Error | null;
+  terminal_kind: "completed" | "cancelled" | "failed" | null;
   running: Promise<void>;
   heartbeat: NodeJS.Timeout | null;
 };
@@ -96,6 +97,10 @@ function redact_quoted_absolute_paths(message: string): string {
 export class ExportTaskCoordinator {
   private reservation: Reservation | null = null;
   private task: Task | null = null;
+  private directory_authorization: {
+    task_id: string;
+    directory: string;
+  } | null = null;
 
   constructor(
     private readonly result_editor: ResultEditor,
@@ -112,6 +117,7 @@ export class ExportTaskCoordinator {
     const request = validate_export_preparation_request(value);
     const id = (this.dependencies.random_uuid ?? randomUUID)();
     this.admission.reserve_export(id);
+    this.directory_authorization = null;
     const reservation: Reservation = {
       id,
       request,
@@ -172,7 +178,7 @@ export class ExportTaskCoordinator {
       ),
       stage: "preparing",
       cancelling: false,
-      terminal_error: null,
+      terminal_kind: null,
       running: Promise.resolve(),
       heartbeat: null,
     };
@@ -317,6 +323,7 @@ export class ExportTaskCoordinator {
     }
     const task = this.task;
     if (!task || task.id !== request.task_id) return;
+    if (task.terminal_kind) return;
     if (!task.cancelling) {
       task.cancelling = true;
       this.emit({ type: "cancelling", task_id: task.id });
@@ -334,7 +341,52 @@ export class ExportTaskCoordinator {
         : Promise.resolve(),
       task ? this.cancel({ task_id: task.id }) : Promise.resolve(),
     ]);
-    if (task?.terminal_error) throw task.terminal_error;
+    const retained = this.task;
+    if (retained?.host.cleanup_failed) {
+      try {
+        await retained.host.retry_cleanup();
+      } catch {
+        // Application exit gets one final best-effort retry and then proceeds.
+      }
+      if (this.task === retained) this.task = null;
+      this.admission.release_export(retained.id);
+    }
+    this.directory_authorization = null;
+  }
+
+  async retry_cleanup(value: unknown): Promise<void> {
+    const { task_id } = validate_export_task_request(value);
+    const task = this.task;
+    if (!task || task.id !== task_id || !task.terminal_kind)
+      throw new Error("export cleanup task is unavailable");
+    this.emit({ type: "cleanup-retrying", task_id });
+    try {
+      await task.host.retry_cleanup();
+    } catch (reason) {
+      const error = readable_error(reason);
+      const residual = await this.residual_files(task);
+      this.emit({
+        type: "cleanup-failed",
+        task_id,
+        message: this.redact_paths(error.message, task.target_paths),
+        residual_files: residual,
+      });
+      return;
+    }
+    this.emit({ type: "cleanup-completed", task_id });
+    if (this.task === task) this.task = null;
+    this.admission.release_export(task.id);
+  }
+
+  async open_directory(
+    value: unknown,
+    open: (directory: string) => Promise<void>,
+  ): Promise<void> {
+    const { task_id } = validate_export_task_request(value);
+    const authorization = this.directory_authorization;
+    if (!authorization || authorization.task_id !== task_id)
+      throw new Error("export directory authorization is unavailable");
+    await open(authorization.directory);
   }
 
   private async build_snapshot(reservation: Reservation): Promise<void> {
@@ -394,47 +446,70 @@ export class ExportTaskCoordinator {
   }
 
   private async run_task(task: Task): Promise<void> {
+    let reason: unknown = null;
     try {
       await task.host.start();
-      this.emit({
-        type: "completed",
-        task_id: task.id,
-        saved: this.desktop_artifacts(task.host.saved_artifacts),
-      });
-    } catch (reason) {
-      const saved = this.desktop_artifacts(task.host.saved_artifacts);
-      if (reason instanceof ExportCancelledError && saved.length === 0) {
-        this.emit({ type: "cancelled", task_id: task.id, saved });
-      } else {
-        const saved_formats = new Set(saved.map(({ format }) => format));
-        let failure = readable_error(reason);
-        let residual_paths: string[];
-        try {
-          residual_paths = await task.host.inspect_residual_paths();
-        } catch (inspection_error) {
-          const inspection = readable_error(inspection_error);
-          failure = new Error(
-            `${failure.message}; failed to inspect export cleanup: ${inspection.message}`,
-          );
-          residual_paths = task.host.residual_paths;
-        }
-        if (task.host.cleanup_failed || residual_paths.length > 0)
-          task.terminal_error = failure;
-        this.emit({
-          type: "failed",
-          task_id: task.id,
-          message: this.redact_paths(failure.message, task.target_paths),
-          saved,
-          failed: task.request.formats.filter(
-            (format) => !saved_formats.has(format),
-          ),
-          residual_files: residual_paths.map((path) => basename(path)),
-        });
-      }
+    } catch (failure) {
+      reason = failure;
     } finally {
       this.stop_heartbeat(task);
+    }
+    const saved = this.desktop_artifacts(task.host.saved_artifacts);
+    const saved_formats = new Set(saved.map(({ format }) => format));
+    const failed = task.request.formats.filter(
+      (format) => !saved_formats.has(format),
+    );
+    const residual_files = await this.residual_files(task);
+    const cleanup_status = task.host.cleanup_failed ? "blocked" : "clean";
+    const cleanup_message = task.host.cleanup_error
+      ? this.redact_paths(task.host.cleanup_error.message, task.target_paths)
+      : undefined;
+    const details = {
+      task_id: task.id,
+      saved,
+      failed,
+      cleanup_status,
+      residual_files,
+      ...(cleanup_message ? { cleanup_message } : {}),
+    } as const;
+    if (saved.length === task.request.formats.length) {
+      task.terminal_kind = "completed";
+      this.emit({ type: "completed", ...details });
+    } else if (reason instanceof ExportCancelledError && saved.length === 0) {
+      task.terminal_kind = "cancelled";
+      this.emit({ type: "cancelled", ...details });
+    } else {
+      const failure =
+        reason instanceof ExportCancelledError
+          ? new Error("export cancelled after some files were saved")
+          : readable_error(
+              reason ?? task.host.cleanup_error ?? "export failed",
+            );
+      task.terminal_kind = "failed";
+      this.emit({
+        type: "failed",
+        ...details,
+        message: this.redact_paths(failure.message, task.target_paths),
+      });
+    }
+    if (saved.length > 0)
+      this.directory_authorization = {
+        task_id: task.id,
+        directory: dirname(task.host.saved_artifacts[0].path),
+      };
+    if (cleanup_status === "clean") {
       if (this.task === task) this.task = null;
       this.admission.release_export(task.id);
+    }
+  }
+
+  private async residual_files(task: Task): Promise<string[]> {
+    try {
+      return (await task.host.inspect_residual_paths()).map((path) =>
+        basename(path),
+      );
+    } catch {
+      return task.host.residual_paths.map((path) => basename(path));
     }
   }
 

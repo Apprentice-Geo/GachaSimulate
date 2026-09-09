@@ -74,7 +74,7 @@ Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构
 - Analysis 或 DisplayConfig 输入契约：同步核对 JSON Schema、semantic validator、TypeScript 类型和共享 fixture，并执行 `test:visualize:cdf`、`test:simulation`、typecheck 和 build。
 - CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑代表性实际 export。
 - Electron 导出 renderer、逐帧协议、CDP、FFmpeg 或输出提交：`test:visualize:cdf`、`test:electron-export`、typecheck、lint 和 build；Windows x64 继续执行下述正式宿主集成检查。
-- 桌面导出入口、格式/文件名、目标选择、覆盖或阻塞交互：在上一项基础上执行 `test:electron-layout`，并用 `capture:ui` 检查 format、overwrite 和 started 场景。系统原生目录选择器本身仍按人工验收项检查。
+- 桌面导出入口、格式/文件名、目标选择、覆盖、进度、终态或阻塞清理交互：在上一项基础上执行 `test:electron-layout`，并用 `capture:ui` 检查 format、overwrite、started、progress、partial-failure 和 cleanup-blocked 场景。系统原生目录选择器本身仍按人工验收项检查。
 - 仅文档：检查命令、链接和完成状态；跨层状态文档仍按对应范围验证。
 
 ## Windows x64 Electron 导出检查
@@ -108,5 +108,6 @@ UI 回归分工：`capture:ui` 只准备场景并输出截图；布局、滚动�
 - 六个展示字段失焦后原子保存对应 DisplayConfig sidecar；重新打开只恢复展示配置，分析字段来自 GSR。
 - 非法 sidecar 不被自动覆盖；结果编辑和结果可视化页面可用键盘操作并共享 GSR 选择。
 - 素材导出系统目录选择器以主窗口为 parent；取消/返回、中文与空格目录、统一覆盖以及 MP4/PNG/双格式实际产物正确。使用屏幕阅读器复核导出入口禁用原因、模态标题与焦点播报。
+- 取消确认后保持阻塞直到唯一终态；部分成功列出已保存与失败格式。注入文件占用时清理壳不能通过 Esc、遮罩或导航绕过，重复重试与退出后的单次后台清理不留下可避免的 FFmpeg、窗口、partial 或 backup。
 
 格式失败时执行 `pnpm run format`；其它失败按首个具体错误修复，不用批量改动掩盖问题。

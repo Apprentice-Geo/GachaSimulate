@@ -220,6 +220,31 @@ body {
   letter-spacing: 0.1em;
 }
 
+.export-task-summary progress {
+  accent-color: var(--color-cyan);
+  height: 6px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.export-stage-copy {
+  margin-top: 8px !important;
+}
+
+.export-png-status {
+  color: var(--color-text-muted) !important;
+  letter-spacing: normal !important;
+}
+
+.export-live {
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+  clip-path: inset(50%);
+}
+
 .export-notice {
   align-items: center;
   background: var(--color-panel);
@@ -235,6 +260,16 @@ body {
   position: fixed;
   right: 24px;
   z-index: 1100;
+}
+
+.export-notice > div {
+  display: grid;
+  gap: 3px;
+}
+
+.export-notice > div span {
+  color: var(--color-text-muted);
+  font-size: 12px;
 }
 
 .export-notice[data-kind="error"] {

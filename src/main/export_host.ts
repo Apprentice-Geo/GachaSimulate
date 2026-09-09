@@ -41,6 +41,9 @@ export interface ExportHostProgress {
   readonly completed?: number;
   readonly total?: number;
   readonly png_written?: boolean;
+  readonly format?: ExportFormat;
+  readonly committed?: number;
+  readonly artifact_total?: number;
 }
 
 interface OutputState {
@@ -311,7 +314,7 @@ export async function commit_partial_output(
   backup: string,
   checkpoint: () => void = () => undefined,
   verify_destination: () => Promise<void> = async () => undefined,
-): Promise<void> {
+): Promise<boolean> {
   checkpoint();
   await verify_destination();
   const had_destination = await file_exists(files, destination);
@@ -325,11 +328,7 @@ export async function commit_partial_output(
     }
     await files.rename(partial, destination);
     partial_committed = true;
-    checkpoint();
-    if (backup_created) {
-      await files.rm(backup, { force: true });
-      backup_created = false;
-    }
+    return backup_created;
   } catch (error) {
     let rollback_error: Error | null = null;
     try {
@@ -519,6 +518,10 @@ export class ExportHost {
     return this.cleanup_failure !== null;
   }
 
+  get cleanup_error(): Error | null {
+    return this.cleanup_failure;
+  }
+
   async inspect_residual_paths(): Promise<string[]> {
     const candidates = this.residual_paths;
     const present = await Promise.all(
@@ -571,7 +574,13 @@ export class ExportHost {
     await this.cleanup_resources();
   }
 
+  async retry_cleanup(): Promise<void> {
+    if (this.task) throw new Error("export task is still active");
+    await this.cleanup_resources();
+  }
+
   private async run(): Promise<void> {
+    let operation_error: Error | null = null;
     try {
       this.create_output_paths();
       this.report({ stage: "preparing" });
@@ -579,12 +588,31 @@ export class ExportHost {
       if (this.request.formats.includes("mp4"))
         await this.render_video_outputs();
       else await this.render_png_output();
-      this.report({ stage: "finalizing" });
-      for (const format of this.request.formats)
+      this.report({
+        stage: "finalizing",
+        committed: 0,
+        artifact_total: this.request.formats.length,
+      });
+      for (const format of this.request.formats) {
+        this.report({
+          stage: "finalizing",
+          format,
+          committed: this.saved_artifacts.length,
+          artifact_total: this.request.formats.length,
+        });
         await this.commit_output(format);
+      }
+    } catch (reason) {
+      operation_error = readable_error(reason);
     } finally {
-      await this.cleanup_resources();
+      try {
+        await this.cleanup_resources();
+      } catch {
+        // Cleanup state is exposed separately so the operation outcome wins.
+      }
     }
+    if (operation_error) throw operation_error;
+    if (this.cleanup_failure) throw this.cleanup_failure;
   }
 
   private guard<T>(operation: Promise<T>): Promise<T> {
@@ -936,7 +964,7 @@ export class ExportHost {
   private async commit_output(format: ExportFormat): Promise<void> {
     const output = this.outputs.get(format)!;
     this.checkpoint();
-    await commit_partial_output(
+    const backup_created = await commit_partial_output(
       this.files,
       output.partial,
       output.destination,
@@ -955,8 +983,14 @@ export class ExportHost {
       },
     );
     output.partial = "";
-    output.backup = "";
+    if (!backup_created) output.backup = "";
     output.committed = true;
+    this.report({
+      stage: "finalizing",
+      format,
+      committed: this.saved_artifacts.length,
+      artifact_total: this.request.formats.length,
+    });
   }
 
   private async stop_ffmpeg(): Promise<void> {
@@ -995,17 +1029,16 @@ export class ExportHost {
 
   private async cleanup_resources(): Promise<void> {
     this.closing = true;
-    let cleanup_error: Error | null = null;
+    const cleanup_errors: string[] = [];
     try {
       await this.stop_ffmpeg();
     } catch (error) {
-      cleanup_error = readable_error(error);
+      cleanup_errors.push(`FFmpeg: ${readable_error(error).message}`);
     }
-    this.renderer_listener_cleanup?.();
-    this.renderer_listener_cleanup = null;
     const window = this.window;
-    this.window = null;
     if (window) {
+      let window_clean = false;
+      const window_errors: string[] = [];
       try {
         if (!window.isDestroyed()) {
           const web_contents = window.webContents;
@@ -1013,26 +1046,41 @@ export class ExportHost {
             web_contents.debugger.detach();
         }
       } catch (error) {
-        cleanup_error ??= readable_error(error);
+        window_errors.push(`CDP: ${readable_error(error).message}`);
       }
       try {
         if (!window.isDestroyed()) window.destroy();
+        window_clean = true;
       } catch (error) {
-        cleanup_error ??= readable_error(error);
+        window_errors.push(`导出窗口: ${readable_error(error).message}`);
+      }
+      if (window_clean) {
+        this.renderer_listener_cleanup?.();
+        this.renderer_listener_cleanup = null;
+        this.window = null;
+        this.ipc_main = null;
+      } else {
+        cleanup_errors.push(...window_errors);
       }
     }
     for (const output of this.outputs.values()) {
-      if (!output.partial) continue;
-      try {
-        await this.files.rm(output.partial, { force: true });
-        output.partial = "";
-      } catch (error) {
-        cleanup_error ??= readable_error(error);
+      for (const kind of ["partial", "backup"] as const) {
+        const path = output[kind];
+        if (!path) continue;
+        try {
+          await this.files.rm(path, { force: true });
+          output[kind] = "";
+        } catch (error) {
+          cleanup_errors.push(
+            `${basename(path)}: ${readable_error(error).message}`,
+          );
+        }
       }
     }
-    if (cleanup_error) {
-      this.cleanup_failure = cleanup_error;
-      throw cleanup_error;
+    if (cleanup_errors.length > 0) {
+      this.cleanup_failure = new Error(cleanup_errors.join("; "));
+      throw this.cleanup_failure;
     }
+    this.cleanup_failure = null;
   }
 }

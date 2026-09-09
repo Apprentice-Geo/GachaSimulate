@@ -13,6 +13,7 @@ import {
   validate_export_cancel_request,
   validate_export_destination_request,
   validate_export_preparation_request,
+  validate_export_task_request,
 } from "../shared/export_task";
 
 const snapshot = {
@@ -38,8 +39,18 @@ class FakeHost {
   readonly completion = deferred<void>();
   readonly saved_artifacts: Array<{ format: "mp4" | "png"; path: string }> = [];
   readonly residual_paths: string[] = [];
-  readonly cleanup_failed = false;
+  cleanup_blocked = false;
+  retry_fails = false;
+  retry_calls = 0;
   cancelled = false;
+
+  get cleanup_failed(): boolean {
+    return this.cleanup_blocked;
+  }
+
+  get cleanup_error(): Error | null {
+    return this.cleanup_blocked ? new Error("cleanup locked") : null;
+  }
 
   start(): Promise<void> {
     return this.completion.promise;
@@ -52,6 +63,13 @@ class FakeHost {
 
   async inspect_residual_paths(): Promise<string[]> {
     return this.residual_paths;
+  }
+
+  async retry_cleanup(): Promise<void> {
+    this.retry_calls += 1;
+    if (this.retry_fails) throw new Error("cleanup still locked");
+    this.cleanup_blocked = false;
+    this.residual_paths.length = 0;
   }
 }
 
@@ -221,6 +239,99 @@ test("shared export validation rejects unsafe Windows base names and unsupported
     () => validate_export_cancel_request({ reservation_id: "reservation" }),
     /invalid export cancel request/,
   );
+  assert.throws(
+    () => validate_export_task_request({ task_id: "task", path: "C:\\secret" }),
+    /invalid export task request/,
+  );
+});
+
+test("cleanup failure retains admission, supports retry, and keeps one terminal event", async () => {
+  const admission = new UserRequestAdmission();
+  const events: DesktopExportEvent[] = [];
+  const ids = ["reservation", "task", "next-reservation"];
+  const host = new FakeHost();
+  host.cleanup_blocked = true;
+  host.residual_paths.push("C:\\exports\\.result.backup.mp4");
+  const coordinator = new ExportTaskCoordinator(
+    {
+      wait_for_pending_saves: async () => undefined,
+      snapshot_now: () => snapshot,
+    } as never,
+    admission,
+    (event) => events.push(event),
+    {
+      random_uuid: () => ids.shift()!,
+      host_factory: () => host as never,
+    },
+  );
+  coordinator.prepare({
+    session_id: "session",
+    formats: ["mp4", "png"],
+    base_name: "result",
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  coordinator.commit_reservation(
+    "reservation",
+    {
+      mp4: "C:\\exports\\result.mp4",
+      png: "C:\\exports\\result.png",
+    },
+    { mp4: { exists: false }, png: { exists: false } },
+  );
+  host.saved_artifacts.push({
+    format: "mp4",
+    path: "C:\\exports\\result.mp4",
+  });
+  host.completion.reject(new Error("PNG commit failed"));
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.throws(() => admission.admit("analysis"), /during export/);
+  const terminal = events.find(({ type }) => type === "failed");
+  assert.deepEqual(terminal, {
+    type: "failed",
+    task_id: "task",
+    message: "PNG commit failed",
+    saved: [{ format: "mp4", file_name: "result.mp4" }],
+    failed: ["png"],
+    cleanup_status: "blocked",
+    cleanup_message: "cleanup locked",
+    residual_files: [".result.backup.mp4"],
+  });
+
+  let opened = "";
+  await coordinator.open_directory({ task_id: "task" }, async (directory) => {
+    opened = directory;
+  });
+  assert.equal(opened, "C:\\exports");
+
+  host.retry_fails = true;
+  await coordinator.retry_cleanup({ task_id: "task" });
+  assert.equal(events.at(-1)?.type, "cleanup-failed");
+  assert.throws(() => admission.admit("analysis"), /during export/);
+
+  host.retry_fails = false;
+  await coordinator.retry_cleanup({ task_id: "task" });
+  assert.equal(events.at(-1)?.type, "cleanup-completed");
+  assert.equal(
+    events.filter(({ type }) =>
+      ["completed", "cancelled", "failed"].includes(type),
+    ).length,
+    1,
+  );
+  admission.admit("analysis");
+  coordinator.prepare({
+    session_id: "session",
+    formats: ["png"],
+    base_name: "next",
+  });
+  await assert.rejects(
+    coordinator.open_directory({ task_id: "task" }, async () => undefined),
+    /authorization is unavailable/,
+  );
+  await coordinator.cancel({
+    reservation_id: "next-reservation",
+    reason: "cancelled",
+  });
 });
 
 test("destination cancellation releases the reservation with a returned reason", async () => {

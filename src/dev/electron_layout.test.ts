@@ -374,6 +374,9 @@ async function assert_layout(
       "select-export-destination",
       "confirm-export-overwrite",
       "cancel-export",
+      "retry-export-cleanup",
+      "open-export-directory",
+      "exit-after-export-cleanup",
     ])
       ipcMain.removeHandler(channel);
     ipcMain.handle("prepare-export", () => {
@@ -389,7 +392,7 @@ async function assert_layout(
     });
     ipcMain.handle("select-export-destination", () => {
       destination_calls += 1;
-      return destination_calls === 1
+      return destination_calls % 2 === 1
         ? { status: "overwrite-required", files: ["example.mp4"] }
         : { status: "started", task_id: "ui-task" };
     });
@@ -411,9 +414,15 @@ async function assert_layout(
             type: "cancelled",
             task_id: request.task_id,
             saved: [],
+            failed: [],
+            cleanup_status: "clean",
+            residual_files: [],
           });
       },
     );
+    ipcMain.handle("retry-export-cleanup", () => undefined);
+    ipcMain.handle("open-export-directory", () => undefined);
+    ipcMain.handle("exit-after-export-cleanup", () => undefined);
   });
 
   const chart_actions = page.locator(".chart-actions");
@@ -440,6 +449,118 @@ async function assert_layout(
   const dialog = page.getByRole("dialog", { name: "导出素材" });
   await dialog.waitFor();
   await assert_full_window_host_rects(page);
+  await page.keyboard.press("Escape");
+  await dialog.waitFor({ state: "hidden" });
+  await export_button.click();
+  await page.getByRole("button", { name: "选择导出目录" }).click();
+  await page.getByRole("button", { name: "覆盖并导出" }).click();
+  await page.getByRole("dialog", { name: "正在导出素材" }).waitFor();
+  await application.evaluate(({ BrowserWindow }) => {
+    const target = BrowserWindow.getAllWindows()[0]?.webContents;
+    target?.send("export-event", {
+      type: "progress",
+      task_id: "ui-task",
+      stage: "rendering",
+      completed: 57,
+      total: 60,
+      png_written: true,
+    });
+  });
+  await page
+    .locator(".export-stage-copy")
+    .getByText("正在渲染第 57 / 60 帧", { exact: true })
+    .waitFor();
+  assert.equal(
+    await page
+      .getByRole("progressbar", { name: "导出帧进度" })
+      .getAttribute("value"),
+    "57",
+  );
+  await page.getByText("PNG：静帧已写入", { exact: true }).waitFor();
+  assert.equal(
+    await page.locator(".export-live").textContent(),
+    "正在渲染第 57 / 60 帧",
+  );
+  const cancel_button = page.getByRole("button", { name: "取消导出" });
+  await cancel_button.focus();
+  await application.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+      type: "heartbeat",
+      task_id: "ui-task",
+      stage: "rendering",
+    });
+  });
+  assert.equal(
+    await cancel_button.evaluate((node) => node === document.activeElement),
+    true,
+  );
+  assert.equal(
+    await page.locator(".export-live").textContent(),
+    "正在渲染第 57 / 60 帧",
+  );
+  await application.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+      type: "failed",
+      task_id: "ui-task",
+      message: "PNG 提交失败",
+      saved: [{ format: "mp4", file_name: "example.mp4" }],
+      failed: ["png"],
+      cleanup_status: "clean",
+      residual_files: [],
+    });
+  });
+  const partial_notice = page.locator(".export-notice");
+  await partial_notice.getByText("已保存：MP4", { exact: true }).waitFor();
+  await partial_notice.getByText("失败：PNG", { exact: true }).waitFor();
+  await partial_notice
+    .getByRole("button", { name: "打开所在文件夹" })
+    .waitFor();
+
+  await export_button.click();
+  await page.getByRole("button", { name: "选择导出目录" }).click();
+  await page.getByRole("dialog", { name: "正在导出素材" }).waitFor();
+  await application.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+      type: "completed",
+      task_id: "ui-task",
+      saved: [
+        { format: "mp4", file_name: "example.mp4" },
+        { format: "png", file_name: "example.png" },
+      ],
+      failed: [],
+      cleanup_status: "blocked",
+      cleanup_message: "example.backup.png 正被占用",
+      residual_files: ["example.backup.png"],
+    });
+  });
+  const cleanup_dialog = page.getByRole("dialog", {
+    name: "导出资源清理失败",
+  });
+  await cleanup_dialog.waitFor();
+  await cleanup_dialog
+    .getByRole("list", { name: "残留文件" })
+    .getByText("example.backup.png", { exact: true })
+    .waitFor();
+  await page.keyboard.press("Escape");
+  await cleanup_dialog.waitFor();
+  assert.equal(
+    await page.locator(".export-background").getAttribute("inert"),
+    "",
+  );
+  await cleanup_dialog.getByRole("button", { name: "重试清理" }).click();
+  await cleanup_dialog.getByRole("button", { name: "正在清理…" }).waitFor();
+  await application.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+      type: "cleanup-completed",
+      task_id: "ui-task",
+    });
+  });
+  await cleanup_dialog.waitFor({ state: "hidden" });
+  await page
+    .getByText("文件已保存，导出资源现已清理", { exact: true })
+    .waitFor();
+  await export_button.click();
+  await dialog.waitFor();
   const name_input = page.getByLabel("文件名", { exact: true });
   assert.equal(await name_input.inputValue(), "example");
   assert.equal(
@@ -505,6 +626,8 @@ async function assert_layout(
     "",
   );
   await page.getByRole("button", { name: "取消导出" }).click();
+  await page.getByRole("dialog", { name: "确定取消导出？" }).waitFor();
+  await page.getByRole("button", { name: "确定取消" }).click();
   await page.getByText("已取消导出", { exact: true }).waitFor();
   assert.equal(
     await page.locator(".export-background").getAttribute("inert"),
