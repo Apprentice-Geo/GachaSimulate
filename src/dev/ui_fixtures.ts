@@ -9,6 +9,7 @@ export function result_fixture(): ResultEditorState {
   const analysis_fixture = analysis as Analysis;
   const display_fixture = display as DisplayConfig;
   return {
+    session_id: "fixture-session",
     path: "/tmp/example.gsr",
     filename: "example.gsr",
     fields: {

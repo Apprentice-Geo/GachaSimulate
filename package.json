@@ -28,7 +28,7 @@
     "test:build:ffmpeg:win": "node scripts/build_ffmpeg_win.test.mjs",
     "spike:electron-export": "pnpm run build:packages && electron-vite build && tsx src/dev/electron_export_spike.ts",
     "test:electron-export-spike": "tsx --test src/dev/electron_export_spike_metrics.test.ts",
-    "test:electron-export": "tsx --test src/export-renderer/export_renderer.test.ts src/main/export_host.test.ts",
+    "test:electron-export": "tsx --test src/export-renderer/export_renderer.test.ts src/main/export_host.test.ts src/main/export_task.test.ts",
     "test:electron-export:integration": "tsx src/dev/export_host_integration.ts",
     "test:visualize:cdf": "tsx --test src/visualize/test/cdf.test.ts src/visualize/test/analysis.test.ts",
     "test:electron-layout": "pnpm run build:packages && electron-vite build && tsx --test src/dev/electron_layout.test.ts",

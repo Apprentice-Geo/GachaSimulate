@@ -47,11 +47,20 @@ export type DesktopApi = {
     import("./result_editor").ResultEditorState | null
   >;
   saveResultFields: (
-    fields: import("./result_editor").DisplayFields,
+    request: import("./result_editor").SaveResultFieldsRequest,
   ) => Promise<import("./result_editor").ResultEditorState>;
+  prepareExport: (
+    request: import("./export_task").ExportPreparationRequest,
+  ) => Promise<import("./export_task").ExportPreparationAccepted>;
+  cancelExport: (
+    request: import("./export_task").ExportCancelRequest,
+  ) => Promise<void>;
   openResultsDirectory: () => Promise<void>;
   onSimulationEvent: (
     listener: (event: import("./simulation").DesktopSimulationEvent) => void,
+  ) => () => void;
+  onExportEvent: (
+    listener: (event: import("./export_task").DesktopExportEvent) => void,
   ) => () => void;
 };
 

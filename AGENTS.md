@@ -37,6 +37,7 @@
 ## 容易忽略的行为
 
 - `simulate_fixed_runs()` 用于固定 run 数场景，benchmark 默认使用它做小规模稳定测量。
+- 对于不承诺长期存在或不承诺迁移的数据结构，不使用 `schema_version` 或者 `version` 等版本字段，例如 [IR](<docs/IR.md>) 和 [Analysis JSON](<docs/ANALYSIS.md>)。
 
 ## 提交信息
 

@@ -15,6 +15,11 @@ import { EXPORT_FRAME_COUNT } from "../visualize/animation/export_frame";
 import { ANIMATION_COMPLETION_FRAME } from "../visualize/animation/timeline";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, VIDEO_FPS } from "../visualize/constants";
 import type { CDFViewModel } from "../visualize/types/cdf";
+import type {
+  ExportArtifact,
+  ExportFormat,
+  ExportStage,
+} from "../shared/export_task";
 
 export { EXPORT_FRAME_COUNT };
 
@@ -24,13 +29,27 @@ export const EXPORT_FPS = VIDEO_FPS;
 export const EXPORT_PNG_FRAME = ANIMATION_COMPLETION_FRAME;
 export const EXPORT_STDERR_LIMIT = 64 * 1024;
 
-export type ExportFormat = "png" | "mp4";
-
 export interface ExportHostRequest {
   readonly job_id: string;
-  readonly format: ExportFormat;
+  readonly formats: readonly ExportFormat[];
   readonly view_model: CDFViewModel;
+  readonly destinations: Readonly<Partial<Record<ExportFormat, string>>>;
+  readonly on_progress?: (progress: ExportHostProgress) => void;
+}
+
+export interface ExportHostProgress {
+  readonly stage: ExportStage;
+  readonly completed?: number;
+  readonly total?: number;
+  readonly png_written?: boolean;
+}
+
+interface OutputState {
+  readonly format: ExportFormat;
   readonly destination: string;
+  partial: string;
+  backup: string;
+  committed: boolean;
 }
 
 interface ExportDebugger {
@@ -86,17 +105,6 @@ interface ElectronRuntime {
   BrowserWindow: new (options: BrowserWindowConstructorOptions) => ExportWindow;
   ipcMain: ExportIpcMain;
   packaged?: boolean;
-  app?: {
-    on(
-      event: "before-quit",
-      listener: (event: { preventDefault(): void }) => void,
-    ): void;
-    off(
-      event: "before-quit",
-      listener: (event: { preventDefault(): void }) => void,
-    ): void;
-    quit(): void;
-  };
 }
 
 export interface ExportHostDependencies {
@@ -129,7 +137,7 @@ interface ChildOutcome {
   readonly signal: NodeJS.Signals | null;
 }
 
-class ExportCancelledError extends Error {
+export class ExportCancelledError extends Error {
   constructor() {
     super("export cancelled");
     this.name = "ExportCancelledError";
@@ -329,7 +337,6 @@ async function default_electron_runtime(): Promise<ElectronRuntime> {
       electron.BrowserWindow as unknown as ElectronRuntime["BrowserWindow"],
     ipcMain: electron.ipcMain as unknown as ExportIpcMain,
     packaged: electron.app.isPackaged,
-    app: electron.app,
   };
 }
 
@@ -362,8 +369,7 @@ export class ExportHost {
   private child: ExportChild | null = null;
   private child_close: Promise<ChildOutcome> | null = null;
   private stderr: Buffer = Buffer.alloc(0);
-  private partial = "";
-  private backup = "";
+  private readonly outputs = new Map<ExportFormat, OutputState>();
   private waiter: ProtocolWaiter | null = null;
   private terminal_error: Error | null = null;
   private reject_failure: ((error: Error) => void) | null = null;
@@ -373,8 +379,7 @@ export class ExportHost {
   private disposed = false;
   private ffmpeg_input_complete = false;
   private electron_packaged = false;
-  private app_listener_cleanup: (() => void) | null = null;
-  private exit_cleanup_started = false;
+  private cleanup_failure: Error | null = null;
 
   constructor(
     request: ExportHostRequest,
@@ -382,14 +387,40 @@ export class ExportHost {
   ) {
     if (!request.job_id || request.job_id.length > 128)
       throw new Error("invalid export job id");
-    if (request.format !== "png" && request.format !== "mp4")
-      throw new Error("invalid export format");
-    if (!isAbsolute(request.destination) || request.destination.includes("\0"))
-      throw new Error("export destination must be an absolute path");
-    if (extname(request.destination).toLowerCase() !== `.${request.format}`)
-      throw new Error(`export destination must end in .${request.format}`);
+    if (
+      request.formats.length < 1 ||
+      request.formats.length > 2 ||
+      new Set(request.formats).size !== request.formats.length ||
+      request.formats.some((format) => format !== "png" && format !== "mp4")
+    )
+      throw new Error("invalid export formats");
+    for (const format of request.formats) {
+      const destination = request.destinations[format];
+      if (
+        !destination ||
+        !isAbsolute(destination) ||
+        destination.includes("\0")
+      )
+        throw new Error("export destination must be an absolute path");
+      if (extname(destination).toLowerCase() !== `.${format}`)
+        throw new Error(`export destination must end in .${format}`);
+    }
+    const destinations = request.formats.map(
+      (format) => request.destinations[format]!,
+    );
+    if (
+      new Set(destinations.map(dirname)).size !== 1 ||
+      new Set(
+        request.formats.map((format) =>
+          basename(request.destinations[format]!, `.${format}`),
+        ),
+      ).size !== 1
+    )
+      throw new Error("export destinations must share a directory and stem");
     this.request = Object.freeze({
       ...request,
+      formats: Object.freeze([...request.formats]),
+      destinations: Object.freeze({ ...request.destinations }),
       view_model: structuredClone(request.view_model),
     });
     this.files = dependencies.files ?? node_files;
@@ -397,6 +428,32 @@ export class ExportHost {
 
   get active(): boolean {
     return this.task !== null;
+  }
+
+  get saved_artifacts(): ExportArtifact[] {
+    return [...this.outputs.values()]
+      .filter(({ committed }) => committed)
+      .map(({ format, destination: path }) => ({ format, path }));
+  }
+
+  get residual_paths(): string[] {
+    return [...this.outputs.values()].flatMap(({ partial, backup }) =>
+      [partial, backup].filter(Boolean),
+    );
+  }
+
+  get cleanup_failed(): boolean {
+    return this.cleanup_failure !== null;
+  }
+
+  async inspect_residual_paths(): Promise<string[]> {
+    const candidates = this.residual_paths;
+    const present = await Promise.all(
+      candidates.map(async (path) =>
+        (await file_exists(this.files, path)) ? path : null,
+      ),
+    );
+    return present.filter((path): path is string => path !== null);
   }
 
   start(): Promise<void> {
@@ -443,19 +500,15 @@ export class ExportHost {
 
   private async run(): Promise<void> {
     try {
+      this.create_output_paths();
+      this.report({ stage: "preparing" });
       await this.create_renderer();
-      if (this.request.format === "png") await this.render_png();
-      else await this.render_mp4();
-      this.checkpoint();
-      await commit_partial_output(
-        this.files,
-        this.partial,
-        this.request.destination,
-        this.backup,
-        () => this.checkpoint(),
-      );
-      this.partial = "";
-      this.backup = "";
+      if (this.request.formats.includes("mp4"))
+        await this.render_video_outputs();
+      else await this.render_png_output();
+      this.report({ stage: "finalizing" });
+      for (const format of this.request.formats)
+        await this.commit_output(format);
     } finally {
       await this.cleanup_resources();
     }
@@ -477,13 +530,25 @@ export class ExportHost {
     this.reject_failure?.(error);
   }
 
-  private output_paths(): void {
+  private create_output_paths(): void {
     const uuid = (this.dependencies.now_uuid ?? randomUUID)();
-    const extension = `.${this.request.format}`;
-    const stem = basename(this.request.destination, extension);
-    const directory = dirname(this.request.destination);
-    this.partial = join(directory, `.${stem}.${uuid}.partial${extension}`);
-    this.backup = join(directory, `.${stem}.${uuid}.backup${extension}`);
+    for (const format of this.request.formats) {
+      const destination = this.request.destinations[format]!;
+      const extension = `.${format}`;
+      const stem = basename(destination, extension);
+      const directory = dirname(destination);
+      this.outputs.set(format, {
+        format,
+        destination,
+        partial: join(directory, `.${stem}.${uuid}.partial${extension}`),
+        backup: join(directory, `.${stem}.${uuid}.backup${extension}`),
+        committed: false,
+      });
+    }
+  }
+
+  private report(progress: ExportHostProgress): void {
+    this.request.on_progress?.(progress);
   }
 
   private async create_renderer(): Promise<void> {
@@ -491,17 +556,6 @@ export class ExportHost {
       this.dependencies.load_electron ?? default_electron_runtime
     )();
     this.electron_packaged = runtime.packaged ?? false;
-    if (runtime.app) {
-      const before_quit = (event: { preventDefault(): void }) => {
-        if (!this.active || this.closing || this.exit_cleanup_started) return;
-        event.preventDefault();
-        this.exit_cleanup_started = true;
-        void this.dispose().finally(() => runtime.app?.quit());
-      };
-      runtime.app.on("before-quit", before_quit);
-      this.app_listener_cleanup = () =>
-        runtime.app?.off("before-quit", before_quit);
-    }
     this.ipc_main = runtime.ipcMain;
     const preload =
       this.dependencies.preload_path ?? join(__dirname, "../preload/export.js");
@@ -729,22 +783,23 @@ export class ExportHost {
     return png;
   }
 
-  private async render_png(): Promise<void> {
-    this.output_paths();
+  private async render_png_output(): Promise<void> {
+    this.report({ stage: "rendering" });
     const png = await this.capture_frame(EXPORT_PNG_FRAME);
     this.checkpoint();
-    await this.files.writeFile(this.partial, png);
+    await this.files.writeFile(this.outputs.get("png")!.partial, png);
+    this.report({ stage: "rendering", png_written: true });
   }
 
-  private async render_mp4(): Promise<void> {
-    this.output_paths();
+  private async render_video_outputs(): Promise<void> {
+    const mp4 = this.outputs.get("mp4")!;
     const executable = resolve_ffmpeg_executable({
       packaged: this.dependencies.packaged ?? this.electron_packaged,
       resources_path: this.dependencies.resources_path ?? process.resourcesPath,
     });
     const child = (this.dependencies.spawn ?? node_spawn)(
       executable,
-      build_ffmpeg_args(this.partial),
+      build_ffmpeg_args(mp4.partial),
       { stdio: "pipe", windowsHide: true },
     ) as ExportChild;
     this.child = child;
@@ -771,9 +826,26 @@ export class ExportHost {
       if (!this.ffmpeg_input_complete && !this.closing) this.fail(error);
     });
     void this.child_close.catch(() => undefined);
+    this.report({
+      stage: "rendering",
+      completed: 0,
+      total: EXPORT_FRAME_COUNT,
+    });
     for (let frame = 0; frame < EXPORT_FRAME_COUNT; frame += 1) {
       const png = await this.capture_frame(frame);
+      let png_written = false;
+      if (frame === EXPORT_PNG_FRAME && this.outputs.has("png")) {
+        this.checkpoint();
+        await this.files.writeFile(this.outputs.get("png")!.partial, png);
+        png_written = true;
+      }
       await this.guard(write_with_backpressure(child, png));
+      this.report({
+        stage: "rendering",
+        completed: frame + 1,
+        total: EXPORT_FRAME_COUNT,
+        ...(png_written ? { png_written: true } : {}),
+      });
     }
     this.ffmpeg_input_complete = true;
     child.stdin.end();
@@ -786,6 +858,21 @@ export class ExportHost {
         `FFmpeg failed with ${outcome.code ?? outcome.signal ?? "unknown status"}${detail ? `: ${detail}` : ""}`,
       );
     }
+  }
+
+  private async commit_output(format: ExportFormat): Promise<void> {
+    const output = this.outputs.get(format)!;
+    this.checkpoint();
+    await commit_partial_output(
+      this.files,
+      output.partial,
+      output.destination,
+      output.backup,
+      () => this.checkpoint(),
+    );
+    output.partial = "";
+    output.backup = "";
+    output.committed = true;
   }
 
   private async stop_ffmpeg(): Promise<void> {
@@ -832,8 +919,6 @@ export class ExportHost {
     }
     this.renderer_listener_cleanup?.();
     this.renderer_listener_cleanup = null;
-    this.app_listener_cleanup?.();
-    this.app_listener_cleanup = null;
     const window = this.window;
     this.window = null;
     if (window) {
@@ -852,14 +937,18 @@ export class ExportHost {
         cleanup_error ??= readable_error(error);
       }
     }
-    if (this.partial) {
+    for (const output of this.outputs.values()) {
+      if (!output.partial) continue;
       try {
-        await this.files.rm(this.partial, { force: true });
-        this.partial = "";
+        await this.files.rm(output.partial, { force: true });
+        output.partial = "";
       } catch (error) {
         cleanup_error ??= readable_error(error);
       }
     }
-    if (cleanup_error && !this.cancelled) throw cleanup_error;
+    if (cleanup_error) {
+      this.cleanup_failure = cleanup_error;
+      throw cleanup_error;
+    }
   }
 }

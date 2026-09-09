@@ -537,7 +537,11 @@ function ResultEditorPage({
     set_status("正在保存…");
     save_queue.current = save_queue.current.then(async () => {
       try {
-        const next = await window.desktopApi.saveResultFields(snapshot);
+        if (!state) throw new Error("result session is unavailable");
+        const next = await window.desktopApi.saveResultFields({
+          session_id: state.session_id,
+          fields: snapshot,
+        });
         if (version === save_version.current) {
           if (fields_ref.current === snapshot) apply_state(next);
           set_status("已保存。");

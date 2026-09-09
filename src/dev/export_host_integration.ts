@@ -121,9 +121,9 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
     const host = new ExportHost(
       {
         job_id: "integration-app-exit",
-        format: "mp4",
+        formats: ["mp4"],
         view_model: input.view_model,
-        destination: input.exit_output,
+        destinations: { mp4: input.exit_output },
       },
       {
         ...base_dependencies,
@@ -140,6 +140,14 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
       },
     );
     globalThis.exitExportHost = host;
+    let exit_cleanup_started = false;
+    app.on("before-quit", (event) => {
+      if (!host.active) return;
+      event.preventDefault();
+      if (exit_cleanup_started) return;
+      exit_cleanup_started = true;
+      void host.dispose().finally(() => app.quit());
+    });
     progress("exit-host-starting");
     void host.start().catch((error) =>
       writeExitReady({ error: String(error && error.message) }),
@@ -150,9 +158,9 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
   const png = new ExportHost(
     {
       job_id: "integration-png",
-      format: "png",
+      formats: ["png"],
       view_model: input.view_model,
-      destination: input.png_output,
+      destinations: { png: input.png_output },
     },
     {
       ...base_dependencies,
@@ -185,10 +193,13 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
   const terminal_hashes = [];
   const mp4 = new ExportHost(
     {
-      job_id: "integration-mp4",
-      format: "mp4",
+      job_id: "integration-dual",
+      formats: ["mp4", "png"],
       view_model: input.view_model,
-      destination: input.mp4_output,
+      destinations: {
+        mp4: input.mp4_output,
+        png: input.dual_png_output,
+      },
     },
     {
       ...base_dependencies,
@@ -206,9 +217,9 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
   const ffmpeg_crash = new ExportHost(
     {
       job_id: "integration-ffmpeg-crash",
-      format: "mp4",
+      formats: ["mp4"],
       view_model: input.view_model,
-      destination: input.ffmpeg_crash_output,
+      destinations: { mp4: input.ffmpeg_crash_output },
     },
     {
       ...base_dependencies,
@@ -233,9 +244,9 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
   const renderer_crash = new ExportHost(
     {
       job_id: "integration-renderer-crash",
-      format: "mp4",
+      formats: ["mp4"],
       view_model: input.view_model,
-      destination: input.renderer_crash_output,
+      destinations: { mp4: input.renderer_crash_output },
     },
     {
       ...base_dependencies,
@@ -267,9 +278,9 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
   const cancel = new ExportHost(
     {
       job_id: "integration-cancel",
-      format: "mp4",
+      formats: ["mp4"],
       view_model: input.view_model,
-      destination: input.cancel_output,
+      destinations: { mp4: input.cancel_output },
     },
     {
       ...base_dependencies,
@@ -461,8 +472,9 @@ async function main(): Promise<void> {
   const output_dir = join(root, "outputs");
   await mkdir(harness);
   await mkdir(output_dir);
-  const png_output = join(output_dir, "result.png");
+  const png_output = join(output_dir, "png-only.png");
   const mp4_output = join(output_dir, "result.mp4");
+  const dual_png_output = join(output_dir, "result.png");
   const cancel_output = join(output_dir, "cancel.mp4");
   const ffmpeg_crash_output = join(output_dir, "ffmpeg-crash.mp4");
   const renderer_crash_output = join(output_dir, "renderer-crash.mp4");
@@ -492,6 +504,7 @@ async function main(): Promise<void> {
       output_dir,
       png_output,
       mp4_output,
+      dual_png_output,
       cancel_output,
       ffmpeg_crash_output,
       renderer_crash_output,
@@ -556,6 +569,10 @@ async function main(): Promise<void> {
       Array.from({ length: EXPORT_FRAME_COUNT }, (_, frame) => frame),
     );
     assert.equal(new Set(result.terminal_hashes).size, 1);
+    assert.deepEqual(png_dimensions(await readFile(dual_png_output)), {
+      width: EXPORT_WIDTH,
+      height: EXPORT_HEIGHT,
+    });
     assert.deepEqual(result.cancel_frames, [0]);
     assert.equal(result.cancelled, true);
     assert.equal(result.ffmpeg_crashed, true);

@@ -16,11 +16,15 @@ import { download_https, type ConfigRequest } from "./config_download";
 import { ResultEditor } from "./result_editor";
 import { shutdown_native_processes, SimulationTask } from "./simulation";
 import { validate_simulation_request } from "../shared/simulation";
-import type { DisplayFields } from "../shared/result_editor";
+import type { SaveResultFieldsRequest } from "../shared/result_editor";
+import { UserRequestAdmission } from "./request_admission";
+import { ExportTaskCoordinator } from "./export_task";
 
 let simulation: SimulationTask;
 let result_editor: ResultEditor;
 let config_manager: ConfigManager;
+let export_tasks: ExportTaskCoordinator;
+const admission = new UserRequestAdmission();
 let quitting = false;
 const electron_offscreen = process.env.GACHASIMULATE_ELECTRON_OFFSCREEN === "1";
 
@@ -60,8 +64,13 @@ async function open_directory(path: string): Promise<void> {
   if (error) throw new Error(error);
 }
 
-function shutdown(): Promise<void> {
+function shutdown_native(): Promise<void> {
   return shutdown_native_processes(simulation, result_editor);
+}
+
+async function shutdown_all(): Promise<void> {
+  admission.begin_shutdown();
+  await Promise.all([shutdown_native(), export_tasks?.shutdown()]);
 }
 
 function create_window(): void {
@@ -82,11 +91,14 @@ function create_window(): void {
   });
 
   window.on("close", (event) => {
-    if (result_editor?.active && !simulation?.active) {
+    if (
+      (result_editor?.active || export_tasks?.active) &&
+      !simulation?.active
+    ) {
       event.preventDefault();
       if (quitting) return;
       quitting = true;
-      void shutdown().then(
+      void shutdown_all().then(
         () => window.destroy(),
         () => {
           quitting = false;
@@ -112,7 +124,7 @@ function create_window(): void {
           return;
         }
         try {
-          await shutdown();
+          await shutdown_all();
           window.destroy();
         } catch (error) {
           quitting = false;
@@ -140,6 +152,14 @@ app.whenReady().then(() => {
   const configs_dir = join(app.getPath("userData"), "configs");
   const results_dir = join(app.getPath("userData"), "results");
   result_editor = new ResultEditor();
+  export_tasks = new ExportTaskCoordinator(
+    result_editor,
+    admission,
+    (event) => {
+      for (const target of BrowserWindow.getAllWindows())
+        target.webContents.send("export-event", event);
+    },
+  );
   config_manager = new ConfigManager(configs_dir, {
     download: (url, limit) =>
       download_https(url, limit, net.request as unknown as ConfigRequest),
@@ -154,24 +174,29 @@ app.whenReady().then(() => {
     },
     {
       local_dir: () => config_manager.local_dir,
-      shutdown_native_processes: shutdown,
+      shutdown_native_processes: shutdown_native,
     },
   );
   ipcMain.handle("list-configs", () => config_manager.list_configs());
   ipcMain.handle("get-config-repository-state", () => config_manager.state());
-  ipcMain.handle("refresh-config-repository", (_event, force: boolean) =>
-    config_manager.refresh(force === true),
-  );
-  ipcMain.handle("install-config", (_event, id: string) =>
-    config_manager.install(id),
-  );
-  ipcMain.handle("update-config", (_event, id: string) =>
-    config_manager.update(id),
-  );
-  ipcMain.handle("uninstall-config", (_event, id: string) =>
-    config_manager.uninstall(id),
-  );
+  ipcMain.handle("refresh-config-repository", (_event, force: boolean) => {
+    admission.admit("config-refresh");
+    return config_manager.refresh(force === true);
+  });
+  ipcMain.handle("install-config", (_event, id: string) => {
+    admission.admit("config-change");
+    return config_manager.install(id);
+  });
+  ipcMain.handle("update-config", (_event, id: string) => {
+    admission.admit("config-change");
+    return config_manager.update(id);
+  });
+  ipcMain.handle("uninstall-config", (_event, id: string) => {
+    admission.admit("config-change");
+    return config_manager.uninstall(id);
+  });
   ipcMain.handle("select-local-config-directory", async () => {
+    admission.admit("config-change");
     if (simulation.active)
       throw new Error("local directory cannot change during simulation");
     if (config_manager.active)
@@ -185,13 +210,15 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("get-logical-cpu-count", () => cpus().length);
   ipcMain.handle("start-simulation", (_event, request: unknown) => {
+    admission.admit("simulation");
     if (config_manager.active)
       throw new Error("simulation cannot start during a configuration change");
     validate_simulation_request(request, cpus().length);
     simulation.start(request);
   });
-  ipcMain.handle("cancel-simulation", () => shutdown());
+  ipcMain.handle("cancel-simulation", () => shutdown_native());
   ipcMain.handle("select-gsr-result", async () => {
+    admission.admit("analysis");
     const result = await dialog.showOpenDialog({
       defaultPath: results_dir,
       properties: ["openFile"],
@@ -200,8 +227,18 @@ app.whenReady().then(() => {
     if (result.canceled || result.filePaths.length === 0) return null;
     return result_editor.open(result.filePaths[0]);
   });
-  ipcMain.handle("save-result-fields", (_event, fields: DisplayFields) =>
-    result_editor.save(fields),
+  ipcMain.handle(
+    "save-result-fields",
+    (_event, request: SaveResultFieldsRequest) => {
+      admission.admit("result-save");
+      return result_editor.save(request);
+    },
+  );
+  ipcMain.handle("prepare-export", (_event, request: unknown) =>
+    export_tasks.prepare(request),
+  );
+  ipcMain.handle("cancel-export", (_event, request: unknown) =>
+    export_tasks.cancel(request),
   );
   ipcMain.handle("open-results-directory", () => open_directory(results_dir));
   create_window();
@@ -220,11 +257,12 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", (event) => {
-  if (!simulation?.active && !result_editor?.active) return;
+  if (!simulation?.active && !result_editor?.active && !export_tasks?.active)
+    return;
   event.preventDefault();
   if (quitting) return;
   quitting = true;
-  void shutdown().then(
+  void shutdown_all().then(
     () => app.quit(),
     (error) => {
       quitting = false;

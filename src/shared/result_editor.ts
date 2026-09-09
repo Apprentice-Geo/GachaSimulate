@@ -16,10 +16,16 @@ export type DisplayFields = Pick<
 >;
 
 export type ResultEditorState = {
+  session_id: string;
   path: string;
   filename: string;
   fields: DisplayFields;
   analysis: Analysis;
   display: DisplayConfig;
   sidecar_path: string;
+};
+
+export type SaveResultFieldsRequest = {
+  session_id: string;
+  fields: DisplayFields;
 };

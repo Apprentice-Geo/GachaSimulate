@@ -39,7 +39,7 @@ ffmpeg 与 ffprobe 来自同一套 FFmpeg 源码。ffprobe 不参与用户导出
 - 连续两次完整源码构建成功；两次 `bin/` 均只有 ffmpeg.exe、ffprobe.exe。源码缓存保持固定且干净，第二次正常替换目标，材料文件结构一致。
 - 错误归档哈希、脏 x264、独立 worktree 中的非固定提交、错误 `MSYSTEM` 均按预期拒绝，每项前后旧二进制哈希不变。最初构建因不支持的 `-parsers` 在验证阶段失败，旧产物也未改变；修正验证方式后重新完整构建。
 - 两次版本、buildconf、decoder/encoder/demuxer/muxer/protocol/filter/parser 清单均已核实；PE 仅导入 Windows 系统 DLL。两个程序分别复制到普通临时目录，在仅含 Windows 系统目录的 PATH 下运行成功。
-- `format:check`、`lint`、`typecheck`、`test:visualize:cdf`（22 项）、`test:electron-export`（21 项）、production build、探针 build 和强制完整 `test:electron-export:integration` 均通过。集成使用第二次自编译产物，无 PATH/Gyan 回退，也未使用 PNG-only 模式。
+- `format:check`、`lint`、`typecheck`、`test:visualize:cdf`、`test:electron-export`、production build、探针 build 和强制完整 `test:electron-export:integration` 均通过。集成使用第二次自编译产物，无 PATH/Gyan 回退，也未使用 PNG-only 模式。
 - 集成覆盖 3840×2160 PNG、60 帧 H.264 MP4、60 FPS、yuv420p、无音轨、第 0–59 帧连续性、末尾画面、编码器/renderer 故障、取消、退出与临时文件清理；背压等待及提前退出由宿主单元测试覆盖。`finally` 清除两个探针/集成环境变量后再次 production build，最终 `out/` 不含探针。
 
 本机材料分别保存在 `tmp/ffmpeg-verification/run-1/materials/`、`tmp/ffmpeg-verification/run-2/materials/`；当前安装材料位于 `build/ffmpeg/win32-x64/materials/`。失败检查与项目验证日志保存在 `tmp/ffmpeg-verification/`。这些目录被 Git 忽略，复核或长期留存时须另行归档，不能从仓库提交恢复。

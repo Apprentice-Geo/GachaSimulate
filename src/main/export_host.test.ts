@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import {
   access,
   mkdtemp,
@@ -116,6 +116,29 @@ test("caps FFmpeg stderr by bytes and retains the newest diagnostics", () => {
 
 class BackpressureChild extends EventEmitter {
   readonly stdin = new PassThrough();
+}
+
+class FakeFfmpegChild extends EventEmitter {
+  readonly stdin = new PassThrough();
+  readonly stdout = new PassThrough();
+  readonly stderr = new PassThrough();
+  exitCode: number | null = null;
+  signalCode: NodeJS.Signals | null = null;
+
+  constructor(output: string) {
+    super();
+    this.stdin.once("finish", () => {
+      writeFileSync(output, "fake-mp4");
+      this.exitCode = 0;
+      queueMicrotask(() => this.emit("close", 0, null));
+    });
+  }
+
+  kill(): boolean {
+    this.signalCode = "SIGTERM";
+    queueMicrotask(() => this.emit("close", null, "SIGTERM"));
+    return true;
+  }
 }
 
 test("waits for drain after FFmpeg backpressure", async () => {
@@ -336,9 +359,9 @@ test("ExportHost renders PNG frame 57 through the serial renderer/CDP protocol",
   const host = new ExportHost(
     {
       job_id: "job",
-      format: "png",
+      formats: ["png"],
       view_model: {} as CDFViewModel,
-      destination: output,
+      destinations: { png: output },
     },
     {
       ...fixture.dependencies,
@@ -397,14 +420,68 @@ test("ExportHost renders PNG frame 57 through the serial renderer/CDP protocol",
   );
 });
 
+test("ExportHost reuses frame 57 for a dual MP4 and PNG export", async () => {
+  const directory = await mkdtemp(join(test_root, "dual-"));
+  const fixture = fake_host_dependencies();
+  const frames: number[] = [];
+  const progress: Array<{ completed?: number; png_written?: boolean }> = [];
+  const host = new ExportHost(
+    {
+      job_id: "job",
+      formats: ["mp4", "png"],
+      view_model: {} as CDFViewModel,
+      destinations: {
+        mp4: join(directory, "result.mp4"),
+        png: join(directory, "result.png"),
+      },
+      on_progress: (event) => progress.push(event),
+    },
+    {
+      ...fixture.dependencies,
+      spawn: ((_command: string, args: string[]) =>
+        new FakeFfmpegChild(args.at(-1)!)) as never,
+      verify_frame_probe: (_png, frame) => void frames.push(frame),
+    },
+  );
+  await host.start();
+  assert.deepEqual(
+    frames,
+    Array.from({ length: EXPORT_FRAME_COUNT }, (_, i) => i),
+  );
+  assert.equal(frames.filter((frame) => frame === EXPORT_PNG_FRAME).length, 1);
+  assert.equal(
+    await readFile(join(directory, "result.mp4"), "utf8"),
+    "fake-mp4",
+  );
+  assert.deepEqual(
+    png_dimensions(await readFile(join(directory, "result.png"))),
+    {
+      width: EXPORT_WIDTH,
+      height: EXPORT_HEIGHT,
+    },
+  );
+  assert.equal(
+    progress.some((event) => event.png_written),
+    true,
+  );
+  assert.equal(
+    progress.some((event) => event.completed === EXPORT_FRAME_COUNT),
+    true,
+  );
+  assert.deepEqual(
+    host.saved_artifacts.map(({ format }) => format),
+    ["mp4", "png"],
+  );
+});
+
 test("ExportHost cancellation destroys a renderer awaiting initialization", async () => {
   const fixture = fake_host_dependencies(false);
   const host = new ExportHost(
     {
       job_id: "job",
-      format: "png",
+      formats: ["png"],
       view_model: {} as CDFViewModel,
-      destination: join(test_root, "cancelled.png"),
+      destinations: { png: join(test_root, "cancelled.png") },
     },
     fixture.dependencies,
   );
@@ -422,9 +499,9 @@ test("ExportHost preserves the renderer-destroyed failure during cleanup", async
   const host = new ExportHost(
     {
       job_id: "job",
-      format: "png",
+      formats: ["png"],
       view_model: {} as CDFViewModel,
-      destination: join(test_root, "renderer-destroyed.png"),
+      destinations: { png: join(test_root, "renderer-destroyed.png") },
     },
     fixture.dependencies,
   );
@@ -444,9 +521,9 @@ test("ExportHost cancellation interrupts a pending frame probe", async () => {
   const host = new ExportHost(
     {
       job_id: "job",
-      format: "png",
+      formats: ["png"],
       view_model: {} as CDFViewModel,
-      destination: join(test_root, "cancelled-probe.png"),
+      destinations: { png: join(test_root, "cancelled-probe.png") },
     },
     {
       ...fixture.dependencies,
@@ -464,29 +541,21 @@ test("ExportHost cancellation interrupts a pending frame probe", async () => {
   assert.equal(fixture.windows[0].destroyed, true);
 });
 
-test("ExportHost delays controlled app exit until active resources are disposed", async () => {
+test("ExportHost dispose waits until active resources are cleaned", async () => {
   const fixture = fake_host_dependencies(false, true);
   const host = new ExportHost(
     {
       job_id: "job",
-      format: "png",
+      formats: ["png"],
       view_model: {} as CDFViewModel,
-      destination: join(test_root, "app-exit.png"),
+      destinations: { png: join(test_root, "app-exit.png") },
     },
     fixture.dependencies,
   );
   const running = host.start();
   await new Promise<void>((resolve) => setImmediate(resolve));
-  let prevented = 0;
-  fixture.app.emit("before-quit", {
-    preventDefault: () => {
-      prevented += 1;
-    },
-  });
+  await host.dispose();
   await assert.rejects(running, /export cancelled/);
-  await new Promise<void>((resolve) => setImmediate(resolve));
-  assert.equal(prevented, 1);
-  assert.equal(fixture.app.quit_calls, 1);
   assert.equal(host.active, false);
   assert.equal(fixture.windows[0].destroyed, true);
 });

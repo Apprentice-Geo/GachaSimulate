@@ -41,13 +41,14 @@ test("saves and restores DisplayConfig while analysis remains authoritative", as
   const path = join(directory, "sample.gsr");
   writeFileSync(path, "fixture");
   const children: FakeChild[] = [];
+  let uuid = 0;
   const editor = new ResultEditor({
     spawn: () => {
       const child = new FakeChild();
       children.push(child);
       return child as unknown as ChildProcess;
     },
-    random_uuid: () => "atomic",
+    random_uuid: () => `id-${++uuid}`,
   });
   try {
     const opening = editor.open(path);
@@ -58,13 +59,16 @@ test("saves and restores DisplayConfig while analysis remains authoritative", as
     assert.equal(opened.display.display_version, 2);
     assert.equal(opened.display.subtitle, "");
     assert.equal(opened.display.result_item_unit, "");
-    const saved = editor.save({
-      title: "标题",
-      target: "目标",
-      result_item_name: "代币",
-      note: "",
-      subtitle: "兑换结果",
-      result_item_unit: "个",
+    const saved = await editor.save({
+      session_id: opened.session_id,
+      fields: {
+        title: "标题",
+        target: "目标",
+        result_item_name: "代币",
+        note: "",
+        subtitle: "兑换结果",
+        result_item_unit: "个",
+      },
     });
     assert.deepEqual(
       JSON.parse(readFileSync(saved.sidecar_path, "utf8")),
@@ -73,12 +77,22 @@ test("saves and restores DisplayConfig while analysis remains authoritative", as
     assert.equal(saved.display.result_item_name, "代币");
     assert.equal(saved.display.display_version, 2);
     assert.equal("timestamp" in saved.display, false);
+    const snapshot = await editor.snapshot(opened.session_id);
+    assert.deepEqual(snapshot.analysis, opened.analysis);
+    assert.notEqual(snapshot.analysis, opened.analysis);
+    assert.deepEqual(snapshot.display, saved.display);
 
     const reopening = editor.open(path);
     children[1].stdout.write(JSON.stringify(analysis));
     children[1].close();
     const reopened = await reopening;
     assert.deepEqual(reopened.display, saved.display);
+    assert.notEqual(reopened.session_id, opened.session_id);
+    await assert.rejects(
+      editor.save({ session_id: opened.session_id, fields: saved.fields }),
+      /session has changed/,
+    );
+    assert.deepEqual(snapshot.display, saved.display);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
