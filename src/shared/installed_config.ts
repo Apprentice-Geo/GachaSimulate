@@ -52,6 +52,12 @@ export type DesktopApi = {
   prepareExport: (
     request: import("./export_task").ExportPreparationRequest,
   ) => Promise<import("./export_task").ExportPreparationAccepted>;
+  selectExportDestination: (
+    request: import("./export_task").ExportDestinationRequest,
+  ) => Promise<import("./export_task").ExportDestinationSelection>;
+  confirmExportOverwrite: (
+    request: import("./export_task").ExportDestinationRequest,
+  ) => Promise<import("./export_task").ExportOverwriteConfirmation>;
   cancelExport: (
     request: import("./export_task").ExportCancelRequest,
   ) => Promise<void>;

@@ -24,6 +24,9 @@ const SCENARIOS = [
   "electron/result-editor-empty",
   "electron/result-editor-loaded",
   "electron/result-visualize-loaded",
+  "electron/result-export-format",
+  "electron/result-export-overwrite",
+  "electron/result-export-started",
 ] as const;
 
 type Scenario = (typeof SCENARIOS)[number];
@@ -228,7 +231,10 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
 
     if (
       !scenarios.includes("electron/result-editor-loaded") &&
-      !scenarios.includes("electron/result-visualize-loaded")
+      !scenarios.includes("electron/result-visualize-loaded") &&
+      !scenarios.some((scenario) =>
+        scenario.startsWith("electron/result-export"),
+      )
     )
       return;
 
@@ -249,10 +255,84 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
     if (scenarios.includes("electron/result-editor-loaded")) {
       await screenshot(page, "electron/result-editor-loaded");
     }
-    if (scenarios.includes("electron/result-visualize-loaded")) {
+    if (
+      scenarios.includes("electron/result-visualize-loaded") ||
+      scenarios.some((scenario) =>
+        scenario.startsWith("electron/result-export"),
+      )
+    ) {
       await page.getByRole("button", { name: "结果可视化" }).click();
       await wait_for_visualization(page);
-      await screenshot(page, "electron/result-visualize-loaded");
+      if (scenarios.includes("electron/result-visualize-loaded"))
+        await screenshot(page, "electron/result-visualize-loaded");
+    }
+
+    for (const scenario of [
+      "electron/result-export-format",
+      "electron/result-export-overwrite",
+      "electron/result-export-started",
+    ] as const) {
+      if (!scenarios.includes(scenario)) continue;
+      await application.evaluate(
+        ({ BrowserWindow, ipcMain }, mode) => {
+          for (const channel of [
+            "prepare-export",
+            "select-export-destination",
+            "cancel-export",
+          ])
+            ipcMain.removeHandler(channel);
+          ipcMain.handle("prepare-export", () => {
+            setTimeout(
+              () =>
+                BrowserWindow.getAllWindows()[0]?.webContents.send(
+                  "export-event",
+                  {
+                    type: "preparation-ready",
+                    reservation_id: "capture-reservation",
+                  },
+                ),
+              0,
+            );
+            return { reservation_id: "capture-reservation" };
+          });
+          ipcMain.handle("select-export-destination", () =>
+            mode === "overwrite"
+              ? {
+                  status: "overwrite-required",
+                  files: ["example.mp4", "example.png"],
+                }
+              : { status: "started", task_id: "capture-task" },
+          );
+          ipcMain.handle("cancel-export", () => undefined);
+        },
+        scenario === "electron/result-export-overwrite"
+          ? "overwrite"
+          : "started",
+      );
+      const export_button = page.getByRole("button", { name: "导出素材" });
+      await export_button.focus();
+      await page.keyboard.press("Enter");
+      if (scenario !== "electron/result-export-format") {
+        await page.getByRole("button", { name: "选择导出目录" }).click();
+        await page
+          .getByRole("dialog", {
+            name:
+              scenario === "electron/result-export-overwrite"
+                ? "覆盖现有文件？"
+                : "正在导出素材",
+          })
+          .waitFor();
+      }
+      await screenshot(page, scenario);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await application.evaluate(({ ipcMain }, fixture) => {
+        ipcMain.removeHandler("select-gsr-result");
+        ipcMain.handle("select-gsr-result", () => fixture);
+      }, result_fixture());
+      await page.getByRole("button", { name: "结果编辑" }).click();
+      await page.getByRole("button", { name: "选择 GSR" }).click();
+      await page.getByRole("button", { name: "结果可视化" }).click();
+      await wait_for_visualization(page);
     }
   } finally {
     try {

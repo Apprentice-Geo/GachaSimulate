@@ -6,6 +6,7 @@ import {
   Menu,
   net,
   shell,
+  type WebContents,
 } from "electron";
 import { execFile, spawn } from "node:child_process";
 import { cpus } from "node:os";
@@ -24,6 +25,7 @@ let simulation: SimulationTask;
 let result_editor: ResultEditor;
 let config_manager: ConfigManager;
 let export_tasks: ExportTaskCoordinator;
+let main_window: BrowserWindow | null = null;
 const admission = new UserRequestAdmission();
 let quitting = false;
 const electron_offscreen = process.env.GACHASIMULATE_ELECTRON_OFFSCREEN === "1";
@@ -88,6 +90,10 @@ function create_window(): void {
         ? { backgroundThrottling: false, offscreen: true }
         : {}),
     },
+  });
+  main_window = window;
+  window.once("closed", () => {
+    if (main_window === window) main_window = null;
   });
 
   window.on("close", (event) => {
@@ -156,8 +162,8 @@ app.whenReady().then(() => {
     result_editor,
     admission,
     (event) => {
-      for (const target of BrowserWindow.getAllWindows())
-        target.webContents.send("export-event", event);
+      if (main_window && !main_window.isDestroyed())
+        main_window.webContents.send("export-event", event);
     },
   );
   config_manager = new ConfigManager(configs_dir, {
@@ -234,12 +240,39 @@ app.whenReady().then(() => {
       return result_editor.save(request);
     },
   );
-  ipcMain.handle("prepare-export", (_event, request: unknown) =>
-    export_tasks.prepare(request),
-  );
-  ipcMain.handle("cancel-export", (_event, request: unknown) =>
-    export_tasks.cancel(request),
-  );
+  const assert_export_sender = (sender: WebContents) => {
+    if (
+      !main_window ||
+      main_window.isDestroyed() ||
+      sender !== main_window.webContents
+    )
+      throw new Error("export request came from an untrusted renderer");
+  };
+  ipcMain.handle("prepare-export", (event, request: unknown) => {
+    assert_export_sender(event.sender);
+    return export_tasks.prepare(request);
+  });
+  ipcMain.handle("select-export-destination", (event, request: unknown) => {
+    assert_export_sender(event.sender);
+    return export_tasks.select_destination(request, async () => {
+      if (!main_window || main_window.isDestroyed())
+        throw new Error("main window is unavailable");
+      const result = await dialog.showOpenDialog(main_window, {
+        properties: ["openDirectory"],
+      });
+      return result.canceled || result.filePaths.length === 0
+        ? null
+        : result.filePaths[0];
+    });
+  });
+  ipcMain.handle("confirm-export-overwrite", (event, request: unknown) => {
+    assert_export_sender(event.sender);
+    return export_tasks.confirm_overwrite(request);
+  });
+  ipcMain.handle("cancel-export", (event, request: unknown) => {
+    assert_export_sender(event.sender);
+    return export_tasks.cancel(request);
+  });
   ipcMain.handle("open-results-directory", () => open_directory(results_dir));
   create_window();
 

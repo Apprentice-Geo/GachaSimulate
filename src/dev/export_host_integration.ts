@@ -54,7 +54,7 @@ function harness_source(): string {
 const { createHash } = require("node:crypto");
 const { spawn: nodeSpawn } = require("node:child_process");
 const { writeFileSync } = require("node:fs");
-const { readdir, readFile, rename, writeFile } = require("node:fs/promises");
+const { lstat, readdir, readFile, rename, writeFile } = require("node:fs/promises");
 const { createRequire } = require("node:module");
 const { app, BrowserWindow, nativeImage } = require("electron");
 
@@ -70,6 +70,23 @@ const projectRequire = createRequire(input.project_package);
 projectRequire("tsx/cjs");
 const { ExportHost } = projectRequire(input.export_host_source);
 progress("export-host-loaded");
+
+const targetIdentity = async (path) => {
+  try {
+    const value = await lstat(path, { bigint: true });
+    return {
+      exists: true,
+      dev: value.dev,
+      ino: value.ino,
+      size: value.size,
+      mtime_ns: value.mtimeNs,
+      ctime_ns: value.ctimeNs,
+    };
+  } catch (error) {
+    if (error && error.code === "ENOENT") return { exists: false };
+    throw error;
+  }
+};
 
 app.commandLine.appendSwitch("force-device-scale-factor", "1");
 
@@ -124,6 +141,7 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
         formats: ["mp4"],
         view_model: input.view_model,
         destinations: { mp4: input.exit_output },
+        target_identities: { mp4: await targetIdentity(input.exit_output) },
       },
       {
         ...base_dependencies,
@@ -161,6 +179,7 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
       formats: ["png"],
       view_model: input.view_model,
       destinations: { png: input.png_output },
+      target_identities: { png: await targetIdentity(input.png_output) },
     },
     {
       ...base_dependencies,
@@ -200,6 +219,10 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
         mp4: input.mp4_output,
         png: input.dual_png_output,
       },
+      target_identities: {
+        mp4: await targetIdentity(input.mp4_output),
+        png: await targetIdentity(input.dual_png_output),
+      },
     },
     {
       ...base_dependencies,
@@ -220,6 +243,9 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
       formats: ["mp4"],
       view_model: input.view_model,
       destinations: { mp4: input.ffmpeg_crash_output },
+      target_identities: {
+        mp4: await targetIdentity(input.ffmpeg_crash_output),
+      },
     },
     {
       ...base_dependencies,
@@ -247,6 +273,9 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
       formats: ["mp4"],
       view_model: input.view_model,
       destinations: { mp4: input.renderer_crash_output },
+      target_identities: {
+        mp4: await targetIdentity(input.renderer_crash_output),
+      },
     },
     {
       ...base_dependencies,
@@ -281,6 +310,7 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
       formats: ["mp4"],
       view_model: input.view_model,
       destinations: { mp4: input.cancel_output },
+      target_identities: { mp4: await targetIdentity(input.cancel_output) },
     },
     {
       ...base_dependencies,

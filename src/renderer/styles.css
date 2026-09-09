@@ -13,6 +13,230 @@ body {
   overflow: hidden;
 }
 
+.export-background {
+  height: 100%;
+}
+
+.export-overlay {
+  align-items: center;
+  background: rgba(5, 4, 10, 0.78);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 28px;
+  position: fixed;
+  z-index: 1000;
+}
+
+.export-dialog {
+  background:
+    linear-gradient(100deg, rgba(34, 211, 238, 0.055), transparent 44%),
+    var(--color-panel);
+  border: 1px solid var(--color-hairline-strong);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.52);
+  box-sizing: border-box;
+  color: var(--color-text-primary);
+  display: grid;
+  gap: 20px;
+  max-width: 560px;
+  padding: 24px;
+  width: min(100%, 560px);
+}
+
+.export-dialog header,
+.export-dialog footer {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.export-dialog header {
+  border-bottom: 1px solid var(--color-hairline);
+  padding-bottom: 16px;
+}
+
+.export-dialog header p {
+  color: var(--color-cyan);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  margin: 0 0 5px;
+}
+
+.export-dialog h2 {
+  font-size: 25px;
+  margin: 0;
+}
+
+.export-dialog button {
+  background: var(--color-nvidia-green);
+  border: 1px solid transparent;
+  border-radius: var(--radius-button);
+  color: var(--color-canvas);
+  cursor: pointer;
+  font: inherit;
+  min-height: 38px;
+  padding: 8px 14px;
+}
+
+.export-dialog header button,
+.export-notice button {
+  background: transparent;
+  border-color: var(--color-hairline);
+  color: var(--color-text-muted);
+  min-width: 38px;
+  padding: 7px;
+}
+
+.export-dialog button.secondary {
+  background: transparent;
+  border-color: var(--color-hairline-strong);
+  color: var(--color-text-primary);
+}
+
+.export-dialog button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.export-dialog :is(button, input):focus-visible,
+.export-notice button:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 2px;
+}
+
+.export-format-options {
+  border: 0;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+  padding: 0;
+}
+
+.export-format-options legend,
+.export-name-field {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.export-format-options legend {
+  margin-bottom: 9px;
+}
+
+.export-format-options label {
+  align-items: center;
+  background: var(--color-panel-soft);
+  border: 1px solid var(--color-hairline);
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  padding: 13px;
+}
+
+.export-format-options label:has(input:checked) {
+  border-color: var(--color-cyan);
+}
+
+.export-format-options span {
+  display: grid;
+  gap: 2px;
+}
+
+.export-format-options small {
+  color: var(--color-text-faint);
+}
+
+.export-name-field {
+  display: grid;
+  gap: 7px;
+}
+
+.export-name-field input {
+  background: rgba(8, 7, 14, 0.72);
+  border: 1px solid var(--color-hairline-strong);
+  color: var(--color-text-primary);
+  font:
+    15px "Cascadia Mono",
+    Consolas,
+    monospace;
+  padding: 10px 12px;
+}
+
+.export-preview,
+.export-dialog li {
+  color: var(--color-cyan);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.export-preview {
+  background: rgba(34, 211, 238, 0.04);
+  border-left: 2px solid var(--color-cyan);
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
+.export-validation {
+  color: var(--color-danger);
+  font-size: 13px;
+  margin: -10px 0 0;
+}
+
+.export-copy,
+.export-task-summary p {
+  color: var(--color-text-muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.export-dialog ul {
+  margin: 0;
+  padding-left: 24px;
+}
+
+.export-task-summary {
+  border-left: 3px solid var(--color-nvidia-green);
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+}
+
+.export-task-summary strong {
+  font:
+    18px "Cascadia Mono",
+    Consolas,
+    monospace;
+}
+
+.export-task-summary span {
+  color: var(--color-cyan);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+
+.export-notice {
+  align-items: center;
+  background: var(--color-panel);
+  border: 1px solid var(--color-hairline-strong);
+  border-left: 3px solid var(--color-cyan);
+  bottom: 24px;
+  color: var(--color-text-primary);
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  max-width: 460px;
+  padding: 12px 12px 12px 16px;
+  position: fixed;
+  right: 24px;
+  z-index: 1100;
+}
+
+.export-notice[data-kind="error"] {
+  border-left-color: var(--color-danger);
+}
+
 .renderer-sidebar button,
 .renderer-placeholder :is(button, input, select, textarea) {
   font: inherit;

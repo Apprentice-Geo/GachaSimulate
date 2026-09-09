@@ -15,12 +15,26 @@ export type ExportPreparationRequest = {
 
 export type ExportPreparationAccepted = { reservation_id: string };
 export type ExportCancelRequest =
-  | { reservation_id: string; task_id?: never }
+  | {
+      reservation_id: string;
+      reason: "cancelled" | "destination-returned";
+      task_id?: never;
+    }
   | { task_id: string; reservation_id?: never };
+
+export type ExportDestinationRequest = { reservation_id: string };
+export type ExportDestinationSelection =
+  | { status: "returned" }
+  | { status: "overwrite-required"; files: string[] }
+  | { status: "started"; task_id: string };
+export type ExportOverwriteConfirmation = {
+  status: "started";
+  task_id: string;
+};
 
 export type ExportArtifact = {
   format: ExportFormat;
-  path: string;
+  file_name: string;
 };
 
 export type ExportPreparationEvent =
@@ -30,7 +44,11 @@ export type ExportPreparationEvent =
       stage: ExportPreparationStage;
     }
   | { type: "preparation-ready"; reservation_id: string }
-  | { type: "preparation-cancelled"; reservation_id: string }
+  | {
+      type: "preparation-cancelled";
+      reservation_id: string;
+      reason: "cancelled" | "destination-returned";
+    }
   | {
       type: "preparation-failed";
       reservation_id: string;
@@ -63,7 +81,7 @@ export type ExportTaskEvent =
       message: string;
       saved: ExportArtifact[];
       failed: ExportFormat[];
-      residual_paths: string[];
+      residual_files: string[];
     };
 
 export type DesktopExportEvent = ExportPreparationEvent | ExportTaskEvent;
@@ -99,22 +117,27 @@ export function validate_export_preparation_request(
     throw new Error("export preparation request contains unsupported fields");
   if (typeof request.session_id !== "string" || !request.session_id)
     throw new Error("invalid result session id");
-  if (
-    typeof request.base_name !== "string" ||
-    !request.base_name ||
-    request.base_name === "." ||
-    request.base_name === ".." ||
-    [...request.base_name].some((character) => character.charCodeAt(0) < 32) ||
-    /[<>:"/\\|?*]/.test(request.base_name) ||
-    /[ .]$/.test(request.base_name) ||
-    /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(request.base_name)
-  )
-    throw new Error("invalid export base name");
   return {
     session_id: request.session_id,
     formats: validate_export_formats(request.formats),
-    base_name: request.base_name,
+    base_name: validate_export_base_name(request.base_name),
   };
+}
+
+export function validate_export_base_name(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    !value ||
+    value.length > 251 ||
+    value === "." ||
+    value === ".." ||
+    [...value].some((character) => character.charCodeAt(0) < 32) ||
+    /[<>:"/\\|?*]/.test(value) ||
+    /[ .]$/.test(value) ||
+    /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(value)
+  )
+    throw new Error("invalid export base name");
+  return value;
 }
 
 export function validate_export_cancel_request(
@@ -122,10 +145,32 @@ export function validate_export_cancel_request(
 ): ExportCancelRequest {
   const request = object_value(value, "export cancel request");
   const keys = Object.keys(request);
-  if (keys.length !== 1) throw new Error("invalid export cancel request");
-  if (typeof request.reservation_id === "string" && request.reservation_id)
-    return { reservation_id: request.reservation_id };
-  if (typeof request.task_id === "string" && request.task_id)
+  if (
+    keys.length === 2 &&
+    typeof request.reservation_id === "string" &&
+    request.reservation_id &&
+    (request.reason === "cancelled" ||
+      request.reason === "destination-returned")
+  )
+    return { reservation_id: request.reservation_id, reason: request.reason };
+  if (
+    keys.length === 1 &&
+    typeof request.task_id === "string" &&
+    request.task_id
+  )
     return { task_id: request.task_id };
   throw new Error("invalid export cancel request");
+}
+
+export function validate_export_destination_request(
+  value: unknown,
+): ExportDestinationRequest {
+  const request = object_value(value, "export destination request");
+  if (
+    Object.keys(request).length !== 1 ||
+    typeof request.reservation_id !== "string" ||
+    !request.reservation_id
+  )
+    throw new Error("invalid export destination request");
+  return { reservation_id: request.reservation_id };
 }

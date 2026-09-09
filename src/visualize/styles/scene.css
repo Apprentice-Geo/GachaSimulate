@@ -141,6 +141,13 @@
   color: var(--color-text-faint);
 }
 
+.command-button[aria-disabled="true"] {
+  background: var(--color-panel-soft);
+  border-color: var(--color-hairline);
+  color: var(--color-text-faint);
+  cursor: not-allowed;
+}
+
 .main-region {
   display: grid;
   gap: 64px;

@@ -2,175 +2,113 @@
 
 ## 当前状态
 
-截至 2026-09-09，路线验证、内部 ExportHost 及阶段 A、B、C1 已完成；后续从阶段 C2 继续，不沿用历史阶段编号。原阶段 C 按依赖顺序拆分为 C1-C3，不要求阶段之间并行。
+截至 2026-09-09，路线验证、内部 ExportHost 及阶段 A、B、C1、C2 已完成开发与自动化验证；C2 仍待人工产品验收。后续从 C3 继续，不沿用历史阶段编号。
 
 - Phase 0 选择 CDP 与阻塞式交互；原始响应门槛为 no-go，产品调整交互目标后决定继续。历史依据见 [Windows 实验结果](docs/experiments/electron-export-phase0/README.md)。
-- 固定源码 FFmpeg 构建及 Windows x64 开发、CI/CD 基线已经验收。构建材料见 [FFmpeg 文档](docs/FFMPEG_DISTRIBUTION.md#构建材料与阶段-a-验收)，当前检查矩阵见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)。
-- FFmpeg source lock、IR 与 Analysis 的内部契约简化已在阶段 C 前完成；阶段编号与当前阶段不变。
-- 桌面正式任务、IPC、统一请求准入和结果快照已经完成；用户入口、目标选择、正式进度交互和安装包接入尚未完成。Remotion 保留到新路径验收通过后移除。
+- 固定源码 FFmpeg 构建及 Windows x64 开发、CI/CD 基线已经验收。命令与证据入口见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)、[scripts README](scripts/README.md) 和 [FFmpeg 文档](docs/FFMPEG_DISTRIBUTION.md)。
+- C1 建立正式任务、统一准入、结果快照、隐藏 renderer、CDP/FFmpeg 逐帧导出和逐产物提交。
+- C2 接通桌面入口、格式与文件名、main-owned 目录选择、安全覆盖和最小阻塞交互；单元、真实 Electron UI、production/probe build 及真实自编译 FFmpeg ExportHost 集成均通过。
+- Remotion、Spike 与安装包分发边界尚未改变；详细进度、清理恢复和跨任务提示协调留给 C3。
 
-## 固定范围与技术契约
+## 稳定边界
 
-第一版从当前 GSR 会话导出 MP4 和 PNG，可选择其中一项或在同一任务中同时生成两项；只消费经过校验的 Analysis + DisplayConfig v2，复用 CDF view model、VisualizeScene 与共享动画。完成后移除全部 Remotion 实现与依赖，不额外下载或分发浏览器。
+桌面 renderer 只提交受限格式集合、基础文件名、会话标识和 reservation/task id。目录由 main 以主窗口为 parent 打开系统选择器取得，完整路径不进入 preload 契约、桌面事件或错误文案。隐藏导出 renderer 只消费 CDF view model 与逐帧消息，不访问桌面 API、文件系统或子进程。
 
-| 项目 | 固定契约 |
-| --- | --- |
-| 画布与时间线 | 3840×2160，60 FPS，确定性逐帧计算 |
-| MP4 | 第 0–59 帧，共 60 帧；第 57–59 帧保持最终画面 |
-| PNG | ANIMATION_COMPLETION_FRAME，当前第 57 帧 |
-| 双格式 | 输出到同一目录，使用相同基础文件名和 `.mp4`、`.png` 后缀；属于同一个导出任务 |
-| 编码 | FFmpeg libx264，H.264、CRF 18、yuv420p，无音轨 |
-| 画面 | render_mode="export"，不含操作栏或任务状态 |
+main 在 reservation 内保存规范目录、目标路径和 `TargetIdentity`。已存在目标只接受非链接普通文件，身份包含 bigint `dev`、`ino`、`size`、`mtimeNs` 与 `ctimeNs`；覆盖确认前和每个产物提交前必须复核。每个格式独立以同目录 partial/backup 完成提交，一个已提交产物不因另一格式随后失败而回滚。
 
-不提供编码参数、尺寸、帧率或时长设置；不支持音频、透明视频、WebM、GIF、图片序列或硬件编码。
+`src/visualize/` 只提供共享输入处理、CDF 场景、动画与宿主操作回调，不持有 session、文件名、目录或导出状态机。桌面 renderer 的单一流程覆盖 `closed → editing → preparing → choosing_destination → confirming_overwrite → handing_off → started`，提交前可进入 `cancelling`；所有异步返回与事件按 reservation/task id 隔离。
 
-正式任务创建一个专用 offscreen BrowserWindow，加载独立 export.html 与 export preload，固定内容尺寸、device scale factor 1，关闭后台节流。它不复用桌面窗口或 capture:ui 的窗口；复用截图工具宿主方式的是 Phase 0 实验。
+阶段 C2 的 started 状态只提供任务摘要、全应用 inert/焦点限制和取消。成功、取消或失败只显示通用通知，不展示逐帧进度、部分成功详情或 post-terminal cleanup；这些行为由 C3 直接扩展现有状态机。
 
-流程为：校验输入 → view model → 隐藏 renderer 提交指定帧 → CDP Page.captureScreenshot(PNG) → main 解码 → PNG 临时文件和/或 FFmpeg image2pipe。MP4 顺序写入并等待背压，不保存完整磁盘图片序列；同时导出时复用第 57 帧的同一份截图数据写入 PNG，不额外渲染一遍。
+## 已完成阶段与证据
 
-隐藏 renderer 初始化时等待字体和初始布局；每帧 React commit 后携带 job/frame id 返回 ready，main 验证发送方与标识后截图。commit 不是 Chromium paint 保证，不得用固定 sleep 替代协议；正式路径与 Electron 升级后保留独立像素检查。
+### A–B. Windows 与 FFmpeg 基线
 
-## 任务与交互规则
+Windows x64 原生 Node/MSYS2 UCRT64、固定源码 FFmpeg、构建材料、隔离 PATH、CI/CD 和分发阻塞已经建立。检查命令只在 [Development Checks](docs/DEVELOPMENT_CHECKS.md) 维护，源码准备和材料职责只在 [scripts README](scripts/README.md) 维护，许可证与分发状态只在 [FFmpeg 文档](docs/FFMPEG_DISTRIBUTION.md) 维护。
 
-### 导出入口与格式对话框
+### C1. 正式导出底座
 
-`chart-actions` 是图表底部居中的悬浮操作条；按明确的产品交互决定继续在图表 hover 或操作条内控件获得焦点时显示，不改为常驻。导出使用其中单独的“导出素材”按钮，与“重放”“选择结果”并列，不使用拆分按钮或 MP4/PNG 子菜单。仅当前结果完整、可视化 ready 且没有导出准备或正式任务时可用；不可用状态保留按钮位置，并向辅助技术提供原因。
+共享任务契约、desktop preload/main handler、统一用户请求准入、ResultEditor 保存屏障和不可变快照已经完成。`ExportHost` 支持 PNG、MP4 和双格式共享第 57 帧、FFmpeg 背压、进度/心跳/取消、逐产物 partial/backup/提交以及统一资源清理；真实 Electron 与自编译 FFmpeg 集成覆盖连续帧、编码器/renderer 故障和退出。
 
-点击“导出素材”先打开应用内模态格式对话框，不直接打开系统目录选择对话框：
+### C2. 桌面入口与安全目标提交
 
-- 标题为“导出素材”，主体使用两个独立复选项提供“MP4 视频”和“PNG 图片”，默认两项均选中。允许暂时取消全部选项，此时显示“至少选择一种格式”并禁用主按钮。MP4 说明为“3840×2160 · 60 FPS · 1 秒动画 · H.264”，PNG 说明为“3840×2160 · 最终画面”。不显示编码器、CRF、帧范围等实现参数，也不提供预览或高级设置。
-- 对话框提供“文件名”输入框，默认值为当前 GSR stem，不含后缀；下方只读预览根据勾选项显示 `<文件名>.mp4`、`<文件名>.png`。renderer 提供即时校验，main 仍将文件名视为不可信输入并拒绝路径分隔符、控制字符、Windows 非法字符与保留名称、`.`、`..`、尾随空格/句点及空值，并校验最终路径处于所选目录且满足平台长度限制。
-- 底部操作为“取消”和主按钮“选择导出目录”。至少选择一项且文件名合法时主按钮才可用。`Esc`、关闭按钮和“取消”在尚未提交 main 请求时等价关闭；焦点返回“导出素材”。主按钮将非空、去重的格式集合和基础文件名提交给 main，随即进入唯一名额占用和快照准备；准备期间对话框保持模态，主按钮禁用并显示“正在准备…”，取消仍可用但须等待 main 确认中止准备并完成清理。提交后 `Esc` 和关闭按钮不再绕过取消协议；点击取消后按钮立即禁用并显示“正在取消…”，确认完成后关闭对话框、恢复入口焦点并显示 5 秒的“已取消导出”通知。
-- 准备和快照成功后才以主窗口为 parent 打开系统目录选择对话框。main 根据所选目录、基础文件名和格式集合生成一个或两个最终路径；renderer 不提交目录或完整路径。若任一目标已存在，返回应用内统一覆盖确认，列出全部将被替换的文件，操作为“返回”和“覆盖并导出”，不得分别确认或只覆盖一部分。main 在目录选择完成时记录全部目标的存在状态及可用于识别变化的文件身份；覆盖确认时和各产物正式替换前均须复核，若任一目标被创建、删除、替换或修改，则安全失败而不覆盖变化后的文件。
-- 覆盖确认中的“返回”、`Esc` 和关闭按钮，以及取消系统目录选择，均取消当前 reservation、释放占用并回到可编辑的格式对话框，保留格式集合和基础文件名、清除已选目录，焦点落在“选择导出目录”；不创建正式任务或进度界面。只有在格式对话框中再次取消，才退出整个导出流程。
-- 对话框使用 `role="dialog"`、`aria-modal="true"` 和明确标题；打开后初始焦点落在第一个格式复选项，焦点限制在对话框内。背景页面 inert，不能通过点击遮罩关闭，以免误触丢失选择。
-- 准备失败或系统目录选择对话框打开失败时关闭格式对话框、释放已清理的占用，将焦点还给“导出素材”，并显示保留到手动关闭的错误通知；当前不为未知错误类型引入保留输入和原地重试状态。格式对话框出现后，所有后台任务的跳页、抢焦点、弹窗和完成提示均排队到本次导出流程退出后处理。
+已完成：
 
-### 请求准入与快照
+- `chart-actions` 固定加入“导出素材”，保留 hover/focus-within 行为；缺少结果、非 ready 或已有流程时保留占位并提供辅助技术可读原因。
+- 格式对话框默认 MP4+PNG，基础文件名来自 GSR filename stem；共享校验拒绝空值、Windows 非法/保留/尾随名称和超长组件，main 继续检查规范完整路径与目录边界。
+- 新增只携带 reservation id 的目录选择和覆盖确认 IPC；main 保存主窗口引用、校验发送方并作为系统选择器 parent，renderer 不提交或接收路径。
+- 系统取消和覆盖返回以 `destination-returned` 释放 reservation，保留用户输入回到格式框；普通取消使用 `cancelled`。
+- `start_reserved_task()` 更名为 `commit_reservation()`，目标复核后同步完成 reservation 到 task 的 admission handoff。
+- 目标选择、覆盖确认和每个产物提交均执行文件身份检查；创建、删除、原位修改、替换、目录或链接目标安全失败，双格式允许前一产物已提交而后一产物因竞争失败。
+- started 后使用 C2 最小全应用阻塞壳，终态解除并显示通用通知；模态框支持初始焦点、Tab 循环、Esc/关闭、背景 inert、遮罩不可关闭与入口焦点恢复。
 
-- main 接受请求时立即占用唯一导出名额，检查与占用之间不能异步等待。占用覆盖此前字段保存的完成、快照建立、目录选择与覆盖确认、正式执行及清理；准备失败或对话框取消时释放。
-- 对话框提交后、正式任务创建前使用独立 `reservation_id` 标识准备流程，并区分 saving_fields、building_snapshot、awaiting_destination、cancelling 状态，避免与正式任务的 ExportStage 混用。main 必须先同步完成检查和占用，再返回接受结果；准备事件和取消请求均携带该标识，迟到响应不得影响后续导出。准备期间同样每秒至少产生一次状态或心跳，取消须在 1 秒内确认接收。
-- 目录及覆盖行为确认后，main 在不释放占用的前提下原子创建 `task_id`，记录它与 `reservation_id` 的关联并停止接受该 reservation 的非清理事件，再发出 started。创建或交接在 started 前失败仍按准备失败处理；started 发出后的失败属于正式任务 failed。交接不得出现允许其它用户请求插入的空窗。
-- 从占用起禁止新的用户任务请求，包括模拟、分析/GSR 选择、配置刷新/安装/更新/卸载和第二次导出。UI 禁用与 main 入口检查共同执行；状态读取、取消导出、系统关闭和退出继续允许。
-- 已提交任务继续运行，其必要后续步骤、保存、提交和清理属于原任务，不受新请求限制；不能在每个内部步骤重新执行用户请求准入检查。
-- 导出准备提交并等待当前展示字段保存完成，再从 ResultEditor 建立绑定 `session_id`、Analysis 与当前已保存 DisplayConfig 的不可变快照，之后打开目录选择对话框。此前提交的保存允许完成，占用后不接受新的用户编辑；`session_id` 是每次成功载入结果时生成的临时随机身份，不是内容哈希或持久化任务标识。
-- 等待保存期间若会话已被后台分析替换，检测并中止本次准备，提示重新导出；不能把旧字段写到新会话或静默导出另一份结果。最终会话身份校验与快照绑定之间不得异步等待，并须在同一受控 main 状态变更中完成；快照建立后，后台结果更新不得改变导出文件。
-- 对话框取消不创建正式任务或进度遮罩，保留当前页面；已有后台任务状态照常更新。
+自动化证据入口是 `test:electron-export`、`test:electron-layout`、三个 `capture:ui` 导出场景，以及 [Windows x64 Electron 导出检查](docs/DEVELOPMENT_CHECKS.md#windows-x64-electron-导出检查)。C2 状态记录为“开发及自动化验证完成，待人工验收”。
 
-### 并发与隔离
+尚未完成的人工验收：
 
-沿用现有进程边界：core 模拟、analyzer 分析、隐藏 renderer 渲染、FFmpeg 编码，main 异步协调。任务同时推进，导出内部保持逐帧顺序，不引入全局串行执行队列。
+- 在真实窗口检查 Windows 原生目录选择器 parent、取消/返回、中文与空格路径、统一覆盖，并从正式入口生成和检查 MP4、PNG、双格式产物。
+- 使用屏幕阅读器复核禁用原因、模态标题和焦点播报。
 
-await 不能使同步计算并行。main 的 JSON 解析、校验、图像数据处理和同步文件操作仍可能延迟其它回调；隐藏 renderer 不隔离 Chromium browser/main 协调及 CPU/GPU/内存竞争。现有实验未定位各项延迟的具体占比。
+## 后续阶段
 
-后台状态正常记录。从格式对话框打开到流程退出且已取得的占用释放视为完整导出交互期，其间自动跳页、抢焦点、弹窗和完成提示统一排队；导出终态通知先显示，后台弹窗和完成提示随后按原顺序恢复，自动跳页和抢焦点不补执行而降级为通知。取消导出只停止导出，用户要取消后台任务须先结束导出。关闭窗口或退出不增加二次确认，直接统一终止并等待所有相关任务与清理；后续可独立补充退出确认，不属于当前阶段。
+### C3. 完成进度、终态、清理恢复与交互协调
 
-### 进度与结束行为
+直接扩展 C2 状态机和阻塞壳，不建立第二套导出 UI。
 
-目录和覆盖行为确认并创建正式任务后，格式对话框切换为全应用模态进度界面，背景导航、编辑、模拟、配置操作和图表控件全部 inert。界面显示所选产物、基础文件名、当前阶段和取消按钮，不显示预计剩余时间；焦点限制在状态区域和取消按钮，状态变化通过礼貌级 live region 播报。
+#### 进度与取消
 
-共享契约包含 ExportFormat（mp4/png）、非空且去重的 `formats` 集合、ExportStage（preparing/rendering/finalizing），以及 started、progress、heartbeat、cancelling、completed、failed、cancelled 事件。一次选择双格式仍只有一个 `task_id` 和一个终态；正常阶段按 preparing → rendering → finalizing → completed 推进，活动阶段可失败或进入 cancelling，取消以 cancelled 或清理失败的 failed 结束。只有全部所选产物成功提交时才发送 completed；一个产物成功而另一个失败时发送 failed，并明确列出已保存产物和失败产物。事件携带任务标识，过期事件不能改变新任务 UI。正式任务创建前的 reservation 状态与正式任务状态分开表达。
+- 显示格式相关准备、逐帧渲染、PNG 写入和最终提交阶段；消费 C1 的 progress/heartbeat，提供可访问 live region，心跳不改写有意义的阶段文案。
+- 正式任务取消增加确认；确认后保持全应用阻塞，按钮禁用并显示正在取消。取消与输出提交竞争以实际提交结果产生唯一任务终态，不把已成功提交产物改报为未保存。
+- 所有事件继续先校验 reservation/task id；迟到进度、心跳、取消响应和旧终态不能关闭或改写新流程。
 
-- 只导出 MP4 时，preparing 显示“正在准备”，rendering 显示“正在渲染 N/60”及确定型进度条和整数百分比，finalizing 保持 60/60 并显示“正在封装”；送完帧不代表文件已提交。只导出 PNG 时不伪造百分比，依次显示“正在准备”“正在渲染最终画面”“正在写入文件”。同时导出时沿用 MP4 的帧进度，并以次要状态显示 PNG 在第 57 帧写入临时文件；finalizing 显示“正在封装并保存文件”，直到两个产物均提交完成。
-- 从 preparing 到终态，相邻进度、阶段或状态心跳不超过 1 秒，包括 finalizing/cancelling。点击取消后 renderer 立即显示 cancelling，main 在 1 秒内确认接收；定时器本身不构成活性验证。
-- 点击取消后按钮立即禁用并改为“正在取消…”，进度值冻结，遮罩保持到子进程、隐藏窗口和临时文件清理完成。进行中的进度界面不能用 `Esc`、关闭按钮或点击遮罩跳过清理。取消与输出提交竞争时，按实际提交结果返回唯一终态，不把已成功提交报告为取消。
-- 成功后关闭遮罩，在当前页面显示可关闭的非模态通知“导出完成”，并提供“打开所在文件夹”；通知保留到用户关闭、开始下一次导出或离开当前结果页面。取消后显示 5 秒的“已取消导出”状态通知，用户可提前关闭。失败且资源已清理时解除遮罩并显示保留到手动关闭的错误通知，包含可执行的原因说明；不自动重试，重新导出重新取得快照并确认路径。
-- 清理失败且仍有活动资源时，保持全应用阻塞界面和占用，进入独立于任务终态的 post-terminal cleanup 状态，显示具体错误、残留信息以及“重试清理”“退出应用”；不得返回普通页面或允许下一次导出。每个所选产物独立以目标替换完成作为自身提交点；提交前的取消或失败必须清除该产物的半成品并恢复其原文件，提交后的取消不得撤销或改报该产物未保存，backup 删除属于提交后清理。若已有产物提交但后续导出或清理失败，文件结果仍记录其为已提交，界面明确列出已保存产物及失败或残留信息，任务事件以 failed 结束。
-- “重试清理”期间按钮禁用并显示“正在清理…”，失败则更新残留信息并继续阻塞；成功后释放占用并关闭阻塞界面，不发送第二个任务终态。文件已提交时显示保留的警告通知“文件已保存，导出资源现已清理”及“打开所在文件夹”；文件未提交时显示保留的“导出失败，导出资源现已清理”。两种情况随后均允许重新导出。
+#### 终态与部分成功
 
-### 信任边界与文件生命周期
+- 桌面终态只返回格式与 basename 摘要，明确区分已保存、失败和残留产物，不暴露目录或完整路径。
+- 成功显示可关闭的“导出完成”通知；取消显示短时通知；失败显示持久、可执行的原因。一个产物成功而另一个失败时列出已保存与失败格式，不回滚已提交文件。
+- main 保存受限的最近任务输出目录映射；“打开所在文件夹”只提交 `task_id`，renderer 不提交路径。映射仅覆盖允许打开的最近任务，并在生命周期结束时受控清理。
 
-桌面 renderer 只提交受限格式集合和基础文件名；preload 提供固定启动、取消与事件订阅。src/visualize/ 只接收宿主回调，不访问 Electron/Node。main 重新验证格式集合与文件名、取得权威快照、选择目录和编码器并负责资源；隐藏 renderer 开启 context isolation、关闭 Node integration，只接收 view model 与逐帧消息。
+#### Post-terminal cleanup
 
-目录只来自 main 打开的系统目录选择对话框，默认基础文件名由快照对应 GSR stem 派生。每个选中产物先写目标目录中的唯一临时文件，并独立建立 backup、替换目标和清理 backup；不保证 MP4 与 PNG 全有或全无，一个成功提交的产物不因另一个产物随后失败而回滚。失败或取消不得留下任一产物自身的 partial 文件或损坏其原目标；无法完成回滚或清理时按清理失败报告具体残留。宿主负责关闭 stdin、终止并等待 FFmpeg、销毁窗口、处理所有 partial/backup。打开所在文件夹由 main 依据已完成任务目录执行，不接受任意路径。
+- 清理失败且仍有活动资源时，main 保留 task 与 admission 所有权，UI 继续全应用阻塞并展示残留 basename、具体错误、“重试清理”和“退出应用”。
+- 新增只携带 `task_id` 的清理重试 IPC。重试期间按钮禁用；失败更新 cleanup 状态，成功释放占用并关闭阻塞壳，但不发送第二个任务终态。
+- 清理成功后的通知区分“文件已保存，导出资源现已清理”和“导出失败，导出资源现已清理”；随后才允许下一次导出。
+- backup 删除属于提交后清理。清理失败不能通过 Esc、关闭按钮、遮罩或导航绕过。
 
-## 执行步骤与完成状态
+#### 全应用交互协调
 
-### A–C1. 已完成底座
+- 根级交互协调器覆盖完整导出交互期，延迟后台弹窗、完成提示、跳页和抢焦点行为；后台任务数据仍可更新。
+- 导出退出后先显示导出终态，再按 FIFO 恢复延迟提示。已经失去上下文的跳页或抢焦点请求降级为非模态通知，不破坏当前页面与焦点。
+- 应用退出先协调正式任务取消与 post-terminal cleanup；仍有无法释放资源时保持明确阻塞，不静默退出。
 
-- A、B 已固定 Windows x64 原生 Node/MSYS2 UCRT64 基线、自编译 FFmpeg、CI/CD、材料与断网检查；命令和证据分别以 [Development Checks](docs/DEVELOPMENT_CHECKS.md)、[scripts README](scripts/README.md) 和 [FFmpeg 文档](docs/FFMPEG_DISTRIBUTION.md) 为准。
-- C1 已建立共享导出契约、desktop preload/main handler、统一用户请求准入、ResultEditor `session_id` 与保存屏障、不可变快照，以及 reservation 到正式 task 的同步无空窗交接。`start_reserved_task()` 当前是仅供 main 调用的内部边界，C2 将其更名并接入正式目标选择流程。
-- ExportHost 已支持 PNG、MP4 和双格式共用第 57 帧、FFmpeg 背压、逐产物 partial/backup/提交、进度回调与统一清理；单元测试和真实 Electron/自编译 FFmpeg 集成覆盖正常、取消、renderer/编码器故障和退出。Remotion、Spike 与安装包边界尚未改变。
+#### C3 验证矩阵
 
-### C2. 接入入口、格式与目标选择
+- MP4、PNG、双格式的阶段文案、逐帧进度、心跳、live region、取消确认、唯一终态及过期事件隔离。
+- 提交前/提交中竞争、renderer/编码器故障、普通清理失败、cleanup 重试成功/失败和退出协调。
+- 部分成功时已保存/失败/残留 basename 展示与打开目录授权；任何 renderer 请求均不携带路径。
+- 背景 inert、焦点限制、不可绕过清理、通知保留期，以及后台提示 FIFO 恢复和抢焦点降级。
+- 真实 Windows 窗口中完成 MP4、PNG、双格式、覆盖、中文/空格路径、取消、失败、清理恢复和屏幕阅读器验收。
 
-目标是在不把 Electron、文件系统或路径知识引入 `src/visualize/` 的前提下，把用户选择可靠地交接给 C1 正式任务。C2 完成格式、文件名、目录和覆盖决策；C3 再补齐详细进度、完整终态、后台提示排队和 post-terminal cleanup。
-
-#### 代码边界与接口
-
-- renderer 根组件继续持有 `ResultEditorState`，向可视化页面另传 `{ session_id, default_base_name }` 的 desktop-only export context；不得把会话身份或 GSR 文件名塞入 CDF view model。`src/visualize/` 只给 `VisualizeScene`/`VisualizeShell` 增加宿主回调、可用状态和禁用原因，按钮点击后由 `src/renderer/` 的导出流程控制器接管。
-- 在 `chart-actions` 中增加固定占位的“导出素材”按钮，保留现有 hover/focus-within 行为。按钮仅在结果上下文存在、可视化 `load_state="ready"` 且没有导出流程时可用；禁用时通过 `aria-disabled`/辅助说明给出原因，不能只依赖 `title`。
-- 复用 C1 的 `prepareExport`、`cancelExport` 和 `onExportEvent`；将 main 内部 `start_reserved_task()` 更名为 `commit_reservation()`，明确它是目标检查完成后的正式交接点，不新增允许 renderer 提交路径的 IPC。
-- 新增仅携带标识的 preload 方法：`selectExportDestination({ reservation_id })` 和 `confirmExportOverwrite({ reservation_id })`。前者返回 `returned`、`overwrite-required` 或 `started`；后者只返回 `started`。返回给 renderer 的覆盖信息只含基础文件名，不含目录或完整路径。
-- `preparation-cancelled` 增加 `reason: "cancelled" | "destination-returned"`。格式对话框中的取消使用 `cancelled` 并显示 5 秒通知；系统目录取消、覆盖确认“返回”及其 `Esc`/关闭按钮使用 `destination-returned`，静默回到保留输入的格式对话框。
-
-#### 完整执行路径
-
-1. 点击入口后，renderer 打开应用内模态框，保存入口元素引用；初始格式为 MP4+PNG，基础文件名来自当前 `ResultEditorState.filename` 去掉 `.gsr`，不从标题或 view model 推导。
-2. renderer 即时执行与 main 同源规则的格式和基础文件名校验。提交时调用 `prepareExport({ session_id, formats, base_name })`；main 在任何 `await` 前校验并占用，返回 `reservation_id`，renderer 进入 `preparing` 并只接受匹配该 ID 的准备事件。
-3. C1 协调器等待此前已提交的字段保存，复核 `session_id`，同步建立快照并发出 `preparation-ready`。renderer 随即调用 `selectExportDestination({ reservation_id })`；main 再次确认 reservation 仍处于 `awaiting_destination`，以主窗口为 parent 打开目录选择器。
-4. main 对目录取规范绝对路径，使用已保留的格式和基础文件名生成目标；校验每个文件名组件不超过 Windows 255 个 UTF-16 code unit、最终规范绝对路径少于 32767 个 UTF-16 code unit，并用 `relative()` 复核目标仍位于所选目录。renderer 始终不接收或回传这些路径。
-5. main 为全部目标记录内部 `TargetIdentity`：不存在时记录 `{ exists: false }`；存在时只接受普通文件，并用 `fs.stat({ bigint: true })` 保存 `dev`、`ino`、`size`、`mtimeNs`、`ctimeNs`。该结构不持久化、不进入共享 IPC 类型，也不增加版本字段。
-6. 若全部目标不存在，main 直接把目标和身份交给 `commit_reservation()`；若任一目标存在，则保持 reservation，占用不释放，只向 renderer 返回 `overwrite-required` 和现有文件的 basename，由应用内统一覆盖确认继续。
-7. “覆盖并导出”只提交 `reservation_id`。main 重新读取全部目标身份；任一目标被创建、删除、替换、改变大小或时间戳时，准备流程失败并释放占用，要求重新导出。身份一致才调用 `commit_reservation()`，在同一同步状态转换中把准入 owner 从 `reservation_id` 替换为 `task_id`，随后发出 `started`。
-8. `ExportHost` 请求同时携带每个目标的预期身份，并在各产物真正替换目标前再次复核；渲染期间发生的外部目标变化因此以正式任务 `failed` 结束，不覆盖变化后的文件。双格式逐产物复核和提交，允许前一产物已提交、后一产物因身份变化失败。
-9. 系统目录取消或覆盖确认返回时，main 清除内部目录、目标和身份并以 `destination-returned` 释放 reservation；renderer 保留格式和基础文件名、回到 `editing`，焦点落在“选择导出目录”。准备失败或目录对话框打开失败则清理并关闭模态框，恢复入口焦点并显示持久错误。
-
-#### Renderer 状态与阶段边界
-
-- 格式流程使用单一状态机：`closed → editing → preparing → choosing_destination → confirming_overwrite → handing_off → started`，任一提交前活动状态可进入 `cancelling`。所有 Promise 返回和事件先比对 reservation/task ID，旧响应不得关闭或改写新流程。
-- `editing` 中 `Esc`、关闭按钮和“取消”直接关闭；取得 reservation 后三者统一走 main 取消协议。遮罩点击始终无效；背景根节点 inert，焦点限制在当前对话框，返回或关闭后按规则恢复焦点。
-- C2 在收到 `started` 后保留一个最小的全应用阻塞壳和取消按钮，消费终态后以通用通知解除；不在本阶段实现逐帧百分比、阶段文案、live region、部分成功详情或 cleanup 重试。C3 直接扩展这一状态机和壳，不另建第二套导出 UI。
-
-验证覆盖：
-
-- 组件和真实 Electron UI 覆盖操作条 hover/focus-within、键盘入口、固定占位、禁用原因、初始焦点、焦点限制、背景 inert、遮罩、`Esc`、关闭按钮和入口焦点恢复。
-- 覆盖 MP4、PNG、双格式默认值、至少一项约束、预览、Windows 非法/保留/尾随名称、组件与完整路径长度，以及 renderer/main 双重拒绝。
-- main 行为测试覆盖 ready 前选择目录、伪造/过期 reservation、重复点击、系统对话框取消/失败、单项和统一覆盖、普通文件限制、目录边界及完整路径不出现在 IPC。
-- 文件身份测试覆盖原目标未变，以及确认前和渲染期间的创建、删除、原位修改、替换；双格式后一个目标变化时保留前一个已提交产物。
-- 状态机测试覆盖准备取消、目录返回、覆盖返回、交接无空窗、迟到事件隔离、最小 started 壳和正式任务取消；既有 C1 ExportHost 与 shutdown 回归继续通过。
-
-完成条件：用户可从当前可视化结果完成格式、文件名、目录和覆盖决策，并可靠创建 C1 的正式任务；正式任务开始前的取消和错误均正确释放占用。
-
-### C3. 完成进度、终态交互与产品验收
-
-扩展 C2 的最小阻塞壳，接入完整阶段、逐帧进度、心跳、取消确认、post-terminal cleanup 和结果通知；完成导出交互期内后台跳页、抢焦点、弹窗及完成提示的排队与恢复。以真实 Electron UI 和自编译 FFmpeg 对完整流程进行验收，对外发布仍受 D 约束。
-
-验证覆盖：
-
-- MP4、PNG 和双格式各自的阶段文案、进度、心跳、取消确认、唯一任务终态及过期事件隔离。
-- 一个产物成功而另一个失败时保留已提交文件，并明确展示已保存、失败和残留信息。
-- 提交竞争、renderer/编码器故障、普通清理失败、post-terminal cleanup 重试和全任务退出协调。
-- 模态界面的 inert、焦点限制、live region、不可绕过的清理及成功、取消、失败通知。
-- 后台任务继续更新但不抢焦点或跳页，导出退出后按规则恢复提示。
-
-完成条件：正式入口能单独或同时导出 MP4 与 PNG，任务行为与真实 Electron UI 检查通过；响应问题依据测量定位，再决定是否调整 I/O、同步计算或进程隔离。
+完成条件：正式入口具备可信的进度、取消、部分成功、清理恢复与全应用协调，真实 Electron UI 和自编译 FFmpeg 产品验收通过。对外发布仍受 D 约束。
 
 ### D. 分发准备与安装包验收
 
-FFmpeg 专项材料已接入自动生成与 Release 附件，脚本和发布流程见 [scripts README](scripts/README.md)。实际本机验证状态见 FFmpeg 文档；工作流接线不表示远端 CD 已通过，也不提前允许把 FFmpeg 放入安装包。
-
-- 完成 FFmpeg 材料复核后，以 extraResources 将运行所需产物放在 ASAR 外；开发态和安装包分别使用固定资源路径。
-- 使用最终产物检查 Windows unpacked 与实际安装应用的 MP4/PNG、覆盖、空格/中文路径、字体和视觉一致性；断网且无开发工具/PATH 依赖时仍可导出，不下载浏览器。
-- 正式任务独立覆盖连续帧像素识别、背压、进度/取消活性、renderer/编码器崩溃、退出及清理，不能仅用 ready frame id 证明截图正确。
-- 测量空闲、已有模拟运行中、已有分析运行/完成时的导出；记录环境、后台负载、采样方法、总/阶段耗时、响应、Electron/FFmpeg/后台任务内存及系统稳定性。分别观测的峰值不直接相加为同时总峰值。
-- 维护者依据正式报告记录允许继续、要求优化或更换路线。耗时和内存不设固定数值门槛，进度/取消活性要求仍适用；超时或系统无响应必须重新评估，不能以模态 UI 豁免。
+- 完成 FFmpeg 材料复核后，以 `extraResources` 将运行所需产物放在 ASAR 外；开发态和安装包分别使用固定资源路径。
+- 使用最终安装产物检查 MP4/PNG、覆盖、空格/中文路径、字体和视觉一致性；断网且无开发工具/PATH 依赖时仍可导出，不下载浏览器。
+- 测量空闲、模拟运行中、分析运行/完成时的耗时、响应、Electron/FFmpeg/后台任务内存与系统稳定性。维护者依据正式报告决定继续、优化或更换路线。
 
 完成条件：材料、真实安装包、断网检查和性能/内存评审通过；此前保留 Spike 与 Remotion。
 
 ### E. 清理迁移内容并复验
 
-1. 确认 D 回归已独立于 Spike，删除 electron_export_spike* 脚本/测试、ExportSpikeApp、实验查询入口、探针样式及对应 scripts，重新构建安装包复验。保留正式测试专用逐帧探针，禁止进入 production build。
-2. Spike 删后复验通过后，以单一人工归档替代 Phase 0 原报告目录；保留环境/命令、版本/哈希、正确性、聚合性能/响应/内存、故障清理、产物及原 no-go 到产品决定的依据，注明不再支持逐条复算并更新链接。本轮压缩不提前删除原始证据。
-3. 删除 src/visualize/remotion/、旧导出宿主及无用辅助代码、全部 Remotion 直接依赖与传递打包产物；更新 lockfile、构建、导出命令和 CI，不降级为 devDependencies。
-4. 删除后重新构建开发态与 Windows 安装包，复跑 MP4/PNG、连续帧、生命周期和断网检查；包内无 Remotion compositor、Remotion FFmpeg、额外浏览器或实验入口。
-
-完成条件：删后复验全部通过，Electron 自研导出成为唯一素材导出宿主；失败须修正并复验。
+1. 确认 D 回归独立于 Spike 后删除实验入口、脚本、测试和探针样式，保留正式测试专用逐帧探针且禁止进入 production build。
+2. 用单一人工归档替代 Phase 0 原报告目录，保留环境、版本/哈希、正确性、性能/响应/内存、故障清理和路线决策依据。
+3. 删除 Remotion 导出宿主、相关依赖与传递打包产物，更新 lockfile、构建、CI 和文档。
+4. 重新构建开发态与 Windows 安装包，复跑产物、连续帧、生命周期、断网检查，并确认包内无额外 compositor、FFmpeg 或浏览器。
 
 ### F. 许可证迁移
 
-1. 评估迁移到 GPL v3.0 and later 的可行性
+评估迁移到 GPL v3.0 and later 的可行性。
 
 ## 文档维护
 
-本文只维护当前契约和剩余步骤；完成步骤压缩为状态及证据入口，不追加逐次日志、测试数量或源码清单。检查矩阵集中在 Development Checks，FFmpeg 构建命令与脚本行为集中在 scripts README，分发要求只在 FFmpeg 专项文档维护，历史实验按需读取。
+本文只维护稳定边界、完成摘要、证据入口和剩余决策；不追加逐次日志、测试数量或源码清单。检查矩阵集中在 Development Checks，FFmpeg 构建命令集中在 scripts README，分发要求集中在 FFmpeg 专项文档。

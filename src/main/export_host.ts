@@ -15,11 +15,7 @@ import { EXPORT_FRAME_COUNT } from "../visualize/animation/export_frame";
 import { ANIMATION_COMPLETION_FRAME } from "../visualize/animation/timeline";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, VIDEO_FPS } from "../visualize/constants";
 import type { CDFViewModel } from "../visualize/types/cdf";
-import type {
-  ExportArtifact,
-  ExportFormat,
-  ExportStage,
-} from "../shared/export_task";
+import type { ExportFormat, ExportStage } from "../shared/export_task";
 
 export { EXPORT_FRAME_COUNT };
 
@@ -34,6 +30,9 @@ export interface ExportHostRequest {
   readonly formats: readonly ExportFormat[];
   readonly view_model: CDFViewModel;
   readonly destinations: Readonly<Partial<Record<ExportFormat, string>>>;
+  readonly target_identities: Readonly<
+    Partial<Record<ExportFormat, TargetIdentity>>
+  >;
   readonly on_progress?: (progress: ExportHostProgress) => void;
 }
 
@@ -94,10 +93,39 @@ interface ExportIpcMain {
 
 export interface ExportFiles {
   access(path: string): Promise<void>;
+  lstat(
+    path: string,
+    options: { bigint: true },
+  ): Promise<{
+    isFile(): boolean;
+    isDirectory(): boolean;
+    isSymbolicLink(): boolean;
+    dev: bigint;
+    ino: bigint;
+    size: bigint;
+    mtimeNs: bigint;
+    ctimeNs: bigint;
+  }>;
   rename(old_path: string, new_path: string): Promise<void>;
   rm(path: string, options?: { force?: boolean }): Promise<void>;
   writeFile(path: string, data: Uint8Array): Promise<void>;
 }
+
+export type TargetIdentity =
+  | Readonly<{ exists: false }>
+  | Readonly<{
+      exists: true;
+      dev: bigint;
+      ino: bigint;
+      size: bigint;
+      mtime_ns: bigint;
+      ctime_ns: bigint;
+    }>;
+
+export type SavedExportArtifact = Readonly<{
+  format: ExportFormat;
+  path: string;
+}>;
 
 type ExportChild = ChildProcessWithoutNullStreams;
 
@@ -282,8 +310,10 @@ export async function commit_partial_output(
   destination: string,
   backup: string,
   checkpoint: () => void = () => undefined,
+  verify_destination: () => Promise<void> = async () => undefined,
 ): Promise<void> {
   checkpoint();
+  await verify_destination();
   const had_destination = await file_exists(files, destination);
   let backup_created = false;
   let partial_committed = false;
@@ -326,6 +356,43 @@ export async function commit_partial_output(
     }
     throw error;
   }
+}
+
+export async function inspect_target_identity(
+  files: Pick<ExportFiles, "lstat">,
+  path: string,
+): Promise<TargetIdentity> {
+  try {
+    const stat = await files.lstat(path, { bigint: true });
+    if (stat.isSymbolicLink() || !stat.isFile())
+      throw new Error("export target must be a regular file");
+    return {
+      exists: true,
+      dev: stat.dev,
+      ino: stat.ino,
+      size: stat.size,
+      mtime_ns: stat.mtimeNs,
+      ctime_ns: stat.ctimeNs,
+    };
+  } catch (error) {
+    if (is_missing_file(error)) return { exists: false };
+    throw error;
+  }
+}
+
+export function target_identity_equal(
+  left: TargetIdentity,
+  right: TargetIdentity,
+): boolean {
+  if (left.exists !== right.exists) return false;
+  if (!left.exists || !right.exists) return true;
+  return (
+    left.dev === right.dev &&
+    left.ino === right.ino &&
+    left.size === right.size &&
+    left.mtime_ns === right.mtime_ns &&
+    left.ctime_ns === right.ctime_ns
+  );
 }
 
 async function default_electron_runtime(): Promise<ElectronRuntime> {
@@ -380,6 +447,7 @@ export class ExportHost {
   private ffmpeg_input_complete = false;
   private electron_packaged = false;
   private cleanup_failure: Error | null = null;
+  private readonly target_identities = new Map<ExportFormat, TargetIdentity>();
 
   constructor(
     request: ExportHostRequest,
@@ -396,6 +464,7 @@ export class ExportHost {
       throw new Error("invalid export formats");
     for (const format of request.formats) {
       const destination = request.destinations[format];
+      const identity = request.target_identities[format];
       if (
         !destination ||
         !isAbsolute(destination) ||
@@ -404,6 +473,9 @@ export class ExportHost {
         throw new Error("export destination must be an absolute path");
       if (extname(destination).toLowerCase() !== `.${format}`)
         throw new Error(`export destination must end in .${format}`);
+      if (!identity || typeof identity.exists !== "boolean")
+        throw new Error(`missing ${format} target identity`);
+      this.target_identities.set(format, identity);
     }
     const destinations = request.formats.map(
       (format) => request.destinations[format]!,
@@ -421,6 +493,7 @@ export class ExportHost {
       ...request,
       formats: Object.freeze([...request.formats]),
       destinations: Object.freeze({ ...request.destinations }),
+      target_identities: Object.freeze({ ...request.target_identities }),
       view_model: structuredClone(request.view_model),
     });
     this.files = dependencies.files ?? node_files;
@@ -430,7 +503,7 @@ export class ExportHost {
     return this.task !== null;
   }
 
-  get saved_artifacts(): ExportArtifact[] {
+  get saved_artifacts(): SavedExportArtifact[] {
     return [...this.outputs.values()]
       .filter(({ committed }) => committed)
       .map(({ format, destination: path }) => ({ format, path }));
@@ -869,6 +942,17 @@ export class ExportHost {
       output.destination,
       output.backup,
       () => this.checkpoint(),
+      async () => {
+        const expected = this.target_identities.get(format)!;
+        const actual = await inspect_target_identity(
+          this.files,
+          output.destination,
+        );
+        if (!target_identity_equal(expected, actual))
+          throw new Error(
+            `${format.toUpperCase()} export target changed before commit`,
+          );
+      },
     );
     output.partial = "";
     output.backup = "";

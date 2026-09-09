@@ -27,6 +27,8 @@ Analysis 和 DisplayConfig 不能绕过各自校验直接进入视图模型。�
 
 Electron 的结果编辑页和结果可视化页共享当前 GSR 会话。main 调用 C++ analyzer 并校验 Analysis；编辑页只保存 DisplayConfig v2，可视化页用 `Analysis + DisplayConfig` 生成共享视图模型。DisplayConfig v1、旧字段和旧完整 JSON 不做隐式兼容。
 
+桌面素材导出入口通过 `VisualizeShell` 的宿主回调接入；可视化层只呈现固定操作按钮、可用状态和辅助技术可读的禁用原因，不接收 session id、GSR 文件名、reservation、目录或任务路径。格式、目标选择、覆盖及任务交互由桌面 renderer 与 main 负责。
+
 ## 模块地图
 
 - `data/`：Analysis、DisplayConfig 校验和 CDF 基础计算。
@@ -79,6 +81,7 @@ JSON Schema 是字段、类型、必填项和局部取值约束的权威。`vali
 - 修改动画节奏时，集中修改 `animation/`，保证 Electron 展示和导出继续使用同一时间轴。
 - 修改画布规格或共享视觉 token 时，同时检查交互展示、Electron 导出 renderer、Remotion composition、导出结果和相关文档。
 - Electron 接入只负责提供输入和承载共享画面，不复制输入校验、view model 或导出逻辑。
+- 修改可视化操作栏中的导出入口时，保持按钮固定占位、hover/focus-within 展示和禁用原因可读；导出流程状态与模态框不得进入 `src/visualize/`。
 - Remotion 是迁移期保留的导出层依赖；Electron MP4 路径在阶段 1–3 使用固定哈希的 Windows x64 第三方 FFmpeg，不得回退到 PATH，且当前不得进入安装包。发布边界和解除条件见 `docs/FFMPEG_DISTRIBUTION.md`。
 
 开发、构建、导出和检查命令统一记录在 `README.md` 与 `docs/DEVELOPMENT_CHECKS.md`。

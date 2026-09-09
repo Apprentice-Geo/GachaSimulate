@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import {
   access,
+  lstat,
   mkdtemp,
   readFile,
   rename,
@@ -173,6 +174,7 @@ test("restores an existing destination when partial commit fails", async () => {
   await writeFile(partial, "new");
   const files: ExportFiles = {
     access,
+    lstat,
     rm: (path, options) => rm(path, options),
     writeFile,
     async rename(old_path, new_path) {
@@ -200,7 +202,7 @@ test("restores the old destination when cancellation reaches the commit checkpoi
   let checkpoints = 0;
   await assert.rejects(
     commit_partial_output(
-      { access, rename, rm, writeFile },
+      { access, lstat, rename, rm, writeFile },
       partial,
       destination,
       backup,
@@ -362,6 +364,7 @@ test("ExportHost renders PNG frame 57 through the serial renderer/CDP protocol",
       formats: ["png"],
       view_model: {} as CDFViewModel,
       destinations: { png: output },
+      target_identities: { png: { exists: false } },
     },
     {
       ...fixture.dependencies,
@@ -420,6 +423,27 @@ test("ExportHost renders PNG frame 57 through the serial renderer/CDP protocol",
   );
 });
 
+test("ExportHost refuses a destination created while rendering", async () => {
+  const output = join(test_root, "raced.png");
+  const fixture = fake_host_dependencies();
+  const host = new ExportHost(
+    {
+      job_id: "job",
+      formats: ["png"],
+      view_model: {} as CDFViewModel,
+      destinations: { png: output },
+      target_identities: { png: { exists: false } },
+    },
+    {
+      ...fixture.dependencies,
+      verify_frame_probe: async () => writeFile(output, "external-change"),
+    },
+  );
+  await assert.rejects(host.start(), /target changed before commit/);
+  assert.equal(await readFile(output, "utf8"), "external-change");
+  assert.deepEqual(host.saved_artifacts, []);
+});
+
 test("ExportHost reuses frame 57 for a dual MP4 and PNG export", async () => {
   const directory = await mkdtemp(join(test_root, "dual-"));
   const fixture = fake_host_dependencies();
@@ -433,6 +457,10 @@ test("ExportHost reuses frame 57 for a dual MP4 and PNG export", async () => {
       destinations: {
         mp4: join(directory, "result.mp4"),
         png: join(directory, "result.png"),
+      },
+      target_identities: {
+        mp4: { exists: false },
+        png: { exists: false },
       },
       on_progress: (event) => progress.push(event),
     },
@@ -474,6 +502,48 @@ test("ExportHost reuses frame 57 for a dual MP4 and PNG export", async () => {
   );
 });
 
+test("dual export preserves the first commit when the second target changes", async () => {
+  const directory = await mkdtemp(join(test_root, "dual-race-"));
+  const mp4_output = join(directory, "result.mp4");
+  const png_output = join(directory, "result.png");
+  const fixture = fake_host_dependencies();
+  const files: ExportFiles = {
+    access,
+    lstat,
+    rm: (path, options) => rm(path, options),
+    writeFile,
+    async rename(old_path, new_path) {
+      await rename(old_path, new_path);
+      if (new_path === mp4_output) await writeFile(png_output, "external-png");
+    },
+  };
+  const host = new ExportHost(
+    {
+      job_id: "job",
+      formats: ["mp4", "png"],
+      view_model: {} as CDFViewModel,
+      destinations: { mp4: mp4_output, png: png_output },
+      target_identities: {
+        mp4: { exists: false },
+        png: { exists: false },
+      },
+    },
+    {
+      ...fixture.dependencies,
+      files,
+      spawn: ((_command: string, args: string[]) =>
+        new FakeFfmpegChild(args.at(-1)!)) as never,
+    },
+  );
+  await assert.rejects(host.start(), /PNG export target changed/);
+  assert.equal(await readFile(mp4_output, "utf8"), "fake-mp4");
+  assert.equal(await readFile(png_output, "utf8"), "external-png");
+  assert.deepEqual(
+    host.saved_artifacts.map(({ format }) => format),
+    ["mp4"],
+  );
+});
+
 test("ExportHost cancellation destroys a renderer awaiting initialization", async () => {
   const fixture = fake_host_dependencies(false);
   const host = new ExportHost(
@@ -482,6 +552,7 @@ test("ExportHost cancellation destroys a renderer awaiting initialization", asyn
       formats: ["png"],
       view_model: {} as CDFViewModel,
       destinations: { png: join(test_root, "cancelled.png") },
+      target_identities: { png: { exists: false } },
     },
     fixture.dependencies,
   );
@@ -502,6 +573,7 @@ test("ExportHost preserves the renderer-destroyed failure during cleanup", async
       formats: ["png"],
       view_model: {} as CDFViewModel,
       destinations: { png: join(test_root, "renderer-destroyed.png") },
+      target_identities: { png: { exists: false } },
     },
     fixture.dependencies,
   );
@@ -524,6 +596,7 @@ test("ExportHost cancellation interrupts a pending frame probe", async () => {
       formats: ["png"],
       view_model: {} as CDFViewModel,
       destinations: { png: join(test_root, "cancelled-probe.png") },
+      target_identities: { png: { exists: false } },
     },
     {
       ...fixture.dependencies,
@@ -549,6 +622,7 @@ test("ExportHost dispose waits until active resources are cleaned", async () => 
       formats: ["png"],
       view_model: {} as CDFViewModel,
       destinations: { png: join(test_root, "app-exit.png") },
+      target_identities: { png: { exists: false } },
     },
     fixture.dependencies,
   );

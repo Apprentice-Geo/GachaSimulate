@@ -26,6 +26,12 @@ contextBridge.exposeInMainWorld("desktopApi", {
   prepareExport: (
     request: import("../shared/export_task").ExportPreparationRequest,
   ) => ipcRenderer.invoke("prepare-export", request),
+  selectExportDestination: (
+    request: import("../shared/export_task").ExportDestinationRequest,
+  ) => ipcRenderer.invoke("select-export-destination", request),
+  confirmExportOverwrite: (
+    request: import("../shared/export_task").ExportDestinationRequest,
+  ) => ipcRenderer.invoke("confirm-export-overwrite", request),
   cancelExport: (
     request: import("../shared/export_task").ExportCancelRequest,
   ) => ipcRenderer.invoke("cancel-export", request),

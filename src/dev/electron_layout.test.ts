@@ -207,6 +207,17 @@ async function assert_layout(
     true,
   );
 
+  await page.getByRole("button", { name: "结果可视化" }).click();
+  const unavailable_export = page.getByRole("button", { name: "导出素材" });
+  await unavailable_export.focus();
+  assert.equal(await unavailable_export.getAttribute("aria-disabled"), "true");
+  const reason_id = await unavailable_export.getAttribute("aria-describedby");
+  assert.ok(reason_id);
+  assert.equal(
+    await page.locator(`#${reason_id}`).textContent(),
+    "请先载入结果后再导出。",
+  );
+
   await page.getByRole("button", { name: "结果编辑" }).click();
   await page.locator("#simulation-title").waitFor({ state: "hidden" });
   await application.evaluate(({ ipcMain }, fixture) => {
@@ -319,6 +330,145 @@ async function assert_layout(
   assert.ok(visualize_contract.regions_visible);
   assert.ok(Math.abs(visualize_contract.aspect_ratio - 16 / 9) < 0.00001);
 
+  await application.evaluate(({ BrowserWindow, ipcMain }) => {
+    let destination_calls = 0;
+    for (const channel of [
+      "prepare-export",
+      "select-export-destination",
+      "confirm-export-overwrite",
+      "cancel-export",
+    ])
+      ipcMain.removeHandler(channel);
+    ipcMain.handle("prepare-export", () => {
+      setTimeout(
+        () =>
+          BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+            type: "preparation-ready",
+            reservation_id: "ui-reservation",
+          }),
+        0,
+      );
+      return { reservation_id: "ui-reservation" };
+    });
+    ipcMain.handle("select-export-destination", () => {
+      destination_calls += 1;
+      return destination_calls === 1
+        ? { status: "overwrite-required", files: ["example.mp4"] }
+        : { status: "started", task_id: "ui-task" };
+    });
+    ipcMain.handle("confirm-export-overwrite", () => ({
+      status: "started",
+      task_id: "ui-task",
+    }));
+    ipcMain.handle(
+      "cancel-export",
+      (_event, request: Record<string, string>) => {
+        if (request.reservation_id)
+          BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+            type: "preparation-cancelled",
+            reservation_id: request.reservation_id,
+            reason: request.reason,
+          });
+        else
+          BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+            type: "cancelled",
+            task_id: request.task_id,
+            saved: [],
+          });
+      },
+    );
+  });
+
+  const chart_actions = page.locator(".chart-actions");
+  await page.locator(".chart-region").hover();
+  await page.waitForFunction(
+    () =>
+      getComputedStyle(document.querySelector(".chart-actions")!).opacity ===
+      "1",
+  );
+  const action_labels = await chart_actions
+    .getByRole("button")
+    .allTextContents();
+  assert.deepEqual(
+    action_labels.map((label) => label.trim()),
+    ["", "导出素材", "选择结果"],
+  );
+  const export_button = page.getByRole("button", { name: "导出素材" });
+  await export_button.focus();
+  assert.equal(
+    await chart_actions.evaluate((node) => getComputedStyle(node).opacity),
+    "1",
+  );
+  await export_button.click();
+  const dialog = page.getByRole("dialog", { name: "导出素材" });
+  await dialog.waitFor();
+  const name_input = page.getByLabel("文件名", { exact: true });
+  assert.equal(await name_input.inputValue(), "example");
+  assert.equal(
+    await name_input.evaluate((node) => node === document.activeElement),
+    true,
+  );
+  assert.equal(await page.getByLabel("MP4 动画").isChecked(), true);
+  assert.equal(await page.getByLabel("PNG 静帧").isChecked(), true);
+  assert.equal(
+    await page.locator(".export-background").getAttribute("inert"),
+    "",
+  );
+  await page.locator(".export-overlay").click({ position: { x: 4, y: 4 } });
+  await dialog.waitFor();
+  await page.getByRole("button", { name: "关闭导出" }).focus();
+  await page.keyboard.press("Shift+Tab");
+  assert.equal(
+    await page
+      .getByRole("button", { name: "选择导出目录" })
+      .evaluate((node) => node === document.activeElement),
+    true,
+  );
+  await page.keyboard.press("Escape");
+  await dialog.waitFor({ state: "hidden" });
+  assert.equal(
+    await export_button.evaluate((node) => node === document.activeElement),
+    true,
+  );
+
+  await export_button.click();
+  await page.getByRole("button", { name: "选择导出目录" }).click();
+  const overwrite = page.getByRole("dialog", { name: "覆盖现有文件？" });
+  await overwrite.waitFor();
+  await page.getByText("example.mp4", { exact: true }).waitFor();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "返回", exact: true })
+      .evaluate((node) => node === document.activeElement),
+    true,
+  );
+  await page.keyboard.press("Escape");
+  await dialog.waitFor();
+  assert.equal(await name_input.inputValue(), "example");
+  await page.waitForFunction(
+    () =>
+      document.activeElement?.getAttribute("data-action") ===
+      "choose-directory",
+  );
+  assert.equal(
+    await page
+      .getByRole("button", { name: "选择导出目录" })
+      .evaluate((node) => node === document.activeElement),
+    true,
+  );
+  await page.getByRole("button", { name: "选择导出目录" }).click();
+  await page.getByRole("dialog", { name: "正在导出素材" }).waitFor();
+  assert.equal(
+    await page.locator(".export-background").getAttribute("inert"),
+    "",
+  );
+  await page.getByRole("button", { name: "取消导出" }).click();
+  await page.getByText("已取消导出", { exact: true }).waitFor();
+  assert.equal(
+    await page.locator(".export-background").getAttribute("inert"),
+    null,
+  );
+
   await application.evaluate(({ ipcMain }, fixture) => {
     for (const channel of [
       "get-config-repository-state",
@@ -411,7 +561,7 @@ test("Electron renderer layout contracts hold at both supported sizes", async ()
     } catch (error) {
       await fail_with_layout(
         page,
-        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? (error.stack ?? error.message) : String(error),
       );
     } finally {
       try {

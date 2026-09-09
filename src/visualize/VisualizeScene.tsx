@@ -18,6 +18,8 @@ interface VisualizeSceneProps {
   render_mode: "interactive" | "export";
   on_select_file?: () => void;
   on_replay?: () => void;
+  on_export?: () => void;
+  export_disabled_reason?: string;
   style?: CSSProperties;
 }
 
@@ -29,6 +31,8 @@ export function VisualizeScene({
   render_mode,
   on_select_file,
   on_replay,
+  on_export,
+  export_disabled_reason,
   style,
 }: VisualizeSceneProps) {
   const is_export = render_mode === "export";
@@ -50,6 +54,8 @@ export function VisualizeScene({
       load_state="ready"
       on_select_file={on_select_file}
       on_replay={on_replay}
+      on_export={on_export}
+      export_disabled_reason={export_disabled_reason}
       show_controls={!is_export}
       style={style}
     />
