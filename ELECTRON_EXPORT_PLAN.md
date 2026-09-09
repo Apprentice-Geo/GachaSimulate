@@ -44,10 +44,21 @@ Windows x64 原生 Node/MSYS2 UCRT64、固定源码 FFmpeg、构建材料、隔�
 
 自动化证据入口是 `test:electron-export`、`test:electron-layout`、三个 `capture:ui` 导出场景，以及 [Windows x64 Electron 导出检查](docs/DEVELOPMENT_CHECKS.md#windows-x64-electron-导出检查)。C2 状态记录为“开发及自动化验证完成，待人工验收”。
 
-尚未完成的人工验收：
+### 人工验收问题报告
 
-- 在真实窗口检查 Windows 原生目录选择器 parent、取消/返回、中文与空格路径、统一覆盖，并从正式入口生成和检查 MP4、PNG、双格式产物。
-- 使用屏幕阅读器复核禁用原因、模态标题和焦点播报。
+- 导出时出现：[vite] (client) Pre-transform error: Failed to load url /export-renderer/main.tsx (resolved id: /export-renderer/main.tsx). Does the file exist? 最后导出超时取消，该bug影响验收
+- 上一轮修改导致了UI契约偏移，新的UI无法填满窗口，新截图已经进入 tmp\ui-captures，同样需要排查问题
+- 导出的选择格式对话框每次状态更改都会导致背景统计图触发重绘制，预期行为是只有导入新结果或点击重绘按钮才触发重绘制
+
+### 人工验收问题修复计划
+
+以下项目依次对应上方三个问题；全部完成并重新通过相关自动化与真实 Windows 窗口验收后，C2 才可视为完成人工验收。
+
+1. （已完成）修复开发态隐藏导出 renderer 入口。保留 `src/export-renderer/` 的实现边界，在 electron-vite renderer root 内增加薄入口模块，由 `export.html` 通过 root 内相对路径加载，再由该模块导入正式导出 renderer。不得依赖 Vite 私有 `/@fs/` URL。新增开发服务器模式 smoke test，至少验证隐藏 renderer 能完成 `initialized` 握手并开始首帧请求；继续保留 production build 与真实 FFmpeg ExportHost 集成验证。
+2. （已完成）恢复桌面 UI 的全窗口布局契约。保留承载 `inert` 的 `export-background` 包装层，为其补齐横向 flex 扩展、`width: 100%` 和 `min-width: 0`，使内部 `renderer-shell` 以完整宿主宽度布局。扩展 Electron 布局测试，在 1280×720 与 2560×1440 下分别断言 `root`、`export-background` 和 `renderer-shell` 的可用矩形一致，并覆盖导出对话框打开与关闭状态；重新生成并人工检查全部 UI 截图，不再只以截图像素尺寸作为通过依据。
+3. （已完成）阻止导出流程状态触发可视化重绘。由桌面 `App` 按当前 `Analysis` 与 `DisplayConfig` 引用缓存 CDF view model，render-prop 只向可视化层传递稳定输入；导出 context 可同步稳定化，但不得把 session、reservation 或任务状态下沉到 `src/visualize/`。新增回归测试：动画进入 idle 后，打开对话框、切换格式、修改文件名以及切换导出 phase 均不得重新播放；导入新结果和点击重绘按钮仍必须启动动画。
+
+C2 阶段人工验收已完成。
 
 ## 后续阶段
 

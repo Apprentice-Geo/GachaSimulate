@@ -7,6 +7,7 @@ import {
   Store,
 } from "lucide-react";
 import {
+  useCallback,
   useState,
   useEffect,
   useRef,
@@ -1007,24 +1008,32 @@ export default function App() {
     null,
   );
 
-  const select_result = async (): Promise<boolean> => {
+  const select_result = useCallback(async (): Promise<boolean> => {
     const selected = await window.desktopApi.selectGsrResult();
     if (!selected) return false;
     set_result_state(selected);
     return true;
-  };
+  }, []);
+  const export_context = useMemo(
+    () =>
+      result_state
+        ? {
+            session_id: result_state.session_id,
+            default_base_name: result_state.filename.replace(/\.gsr$/i, ""),
+          }
+        : null,
+    [result_state],
+  );
+  const visualize_input = useMemo(
+    () =>
+      result_state
+        ? build_cdf_view_model(result_state.analysis, result_state.display)
+        : null,
+    [result_state?.analysis, result_state?.display],
+  );
 
   return (
-    <ExportWorkflow
-      context={
-        result_state
-          ? {
-              session_id: result_state.session_id,
-              default_base_name: result_state.filename.replace(/\.gsr$/i, ""),
-            }
-          : null
-      }
-    >
+    <ExportWorkflow context={export_context}>
       {({ active: export_active, open: open_export }) => (
         <div className="renderer-shell">
           <aside className="renderer-sidebar">
@@ -1060,14 +1069,7 @@ export default function App() {
                 />
               ) : active_page === "result-visualize" ? (
                 <VisualizeApp
-                  input={
-                    result_state
-                      ? build_cdf_view_model(
-                          result_state.analysis,
-                          result_state.display,
-                        )
-                      : null
-                  }
+                  input={visualize_input}
                   on_select_result={select_result}
                   export_active={export_active}
                   export_available={result_state !== null}

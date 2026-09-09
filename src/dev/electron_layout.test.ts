@@ -126,6 +126,26 @@ function rects(page: Page, selectors: string[]) {
   );
 }
 
+async function assert_full_window_host_rects(page: Page) {
+  const host_rects = await rects(page, [
+    "#root",
+    ".export-background",
+    ".renderer-shell",
+  ]);
+  assert.ok(host_rects["#root"]);
+  assert.deepEqual(host_rects[".export-background"], host_rects["#root"]);
+  assert.deepEqual(host_rects[".renderer-shell"], host_rects["#root"]);
+  assert.deepEqual(
+    await page.evaluate(() => ({
+      body: document.body.scrollWidth <= document.body.clientWidth,
+      document:
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    })),
+    { body: true, document: true },
+  );
+}
+
 async function fail_with_layout(page: Page, message: string): Promise<never> {
   const details = await page.evaluate(() => ({
     viewport: { width: innerWidth, height: innerHeight },
@@ -266,6 +286,23 @@ async function assert_layout(
   await page
     .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
     .waitFor({ timeout: 10_000 });
+  await assert_full_window_host_rects(page);
+  await page.evaluate(() => {
+    document.documentElement.dataset.animationRestartCount = "0";
+    new MutationObserver(() => {
+      if (document.documentElement.dataset.visualizeAnimation === "playing") {
+        const count = Number(
+          document.documentElement.dataset.animationRestartCount ?? "0",
+        );
+        document.documentElement.dataset.animationRestartCount = String(
+          count + 1,
+        );
+      }
+    }).observe(document.documentElement, {
+      attributeFilter: ["data-visualize-animation"],
+      attributes: true,
+    });
+  });
   assert.match(
     (await page.getByTestId("cdf-curve-path").getAttribute("d")) ?? "",
     /^M/,
@@ -402,6 +439,7 @@ async function assert_layout(
   await export_button.click();
   const dialog = page.getByRole("dialog", { name: "导出素材" });
   await dialog.waitFor();
+  await assert_full_window_host_rects(page);
   const name_input = page.getByLabel("文件名", { exact: true });
   assert.equal(await name_input.inputValue(), "example");
   assert.equal(
@@ -410,6 +448,10 @@ async function assert_layout(
   );
   assert.equal(await page.getByLabel("MP4 动画").isChecked(), true);
   assert.equal(await page.getByLabel("PNG 静帧").isChecked(), true);
+  await page.getByLabel("PNG 静帧").uncheck();
+  await page.getByLabel("PNG 静帧").check();
+  await name_input.fill("example-updated");
+  await name_input.fill("example");
   assert.equal(
     await page.locator(".export-background").getAttribute("inert"),
     "",
@@ -467,6 +509,47 @@ async function assert_layout(
   assert.equal(
     await page.locator(".export-background").getAttribute("inert"),
     null,
+  );
+  await assert_full_window_host_rects(page);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.dataset.animationRestartCount,
+    ),
+    "0",
+  );
+
+  await page.getByRole("button", { name: "重新绘制动画" }).click();
+  await page
+    .locator('[data-testid="visualize-root"][data-animation-state="playing"]')
+    .waitFor();
+  await page
+    .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
+    .waitFor({ timeout: 10_000 });
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.dataset.animationRestartCount,
+    ),
+    "1",
+  );
+
+  await page.getByRole("button", { name: "选择结果" }).click();
+  await page
+    .locator('[data-testid="visualize-root"][data-animation-state="playing"]')
+    .waitFor();
+  await page
+    .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
+    .waitFor({ timeout: 10_000 });
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.dataset.animationRestartCount,
+    ),
+    "2",
   );
 
   await application.evaluate(({ ipcMain }, fixture) => {
