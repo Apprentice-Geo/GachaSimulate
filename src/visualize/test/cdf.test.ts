@@ -29,7 +29,6 @@ import {
   ANIMATION_TOTAL_MS,
   MARKER_GROUP_START_FRAME,
 } from "../animation/timeline";
-import { CDF_DURATION_IN_FRAMES } from "../remotion/constants";
 import type { MarkerView } from "../view/cdf_overlay_layout";
 import type { CDFMarker, CDFViewModel, MarkerKey } from "../types/cdf";
 import type { Analysis } from "../types/analysis";
@@ -640,13 +639,4 @@ test("VisualizeScene export mode fixes chart size and hides controls", () => {
     width: 2816,
     height: 1400,
   });
-});
-
-test("Remotion exports exactly 60 frames without a hold interval", () => {
-  assert.equal(CDF_DURATION_IN_FRAMES, EXPORT_FRAME_COUNT);
-  const constants_source = readFileSync(
-    path.join(process.cwd(), "src/visualize/remotion/constants.ts"),
-    "utf-8",
-  );
-  assert.equal(constants_source.includes("CDF_VIDEO_HOLD_MS"), false);
 });

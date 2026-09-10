@@ -21,7 +21,6 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 - `src/renderer/`：桌面界面与任务状态，不直接访问 Node.js。
 - `src/export-renderer/`：只消费 CDF view model 与逐帧消息的隐藏 Electron renderer；不访问桌面 preload API、文件系统或子进程。
 - `src/visualize/`：平台无关的 Analysis/DisplayConfig 校验、CDF 视图模型和共享场景。
-- `src/export/`：仍保留到迁移后期的文件系统和 Remotion 导出宿主，依赖 `src/visualize/`。
 - `test-fixtures/configs/`：主仓库测试与语义 fixture；`benchmark/cases/`：独立 benchmark 配置。
 - 正式配置由 `GachaSimulate-Configs` 维护，不纳入主仓库运行时目录。
 

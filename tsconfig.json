@@ -26,7 +26,7 @@
     "types": ["node"]
   },
   "include": [
-    "src/export/**/*.ts",
+    "src/**/*.d.ts",
     "src/dev/**/*.ts",
     "src/visualize/**/*.ts",
     "src/visualize/**/*.tsx",

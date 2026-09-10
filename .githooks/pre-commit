@@ -44,12 +44,12 @@ classify_path() {
       ;;
   esac
   case "$path" in
-    src/visualize/*|src/export/*|docs/schemas/*|docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md)
+    src/visualize/*|src/export-renderer/*|docs/schemas/*|docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md)
       visualize_changed=1
       ;;
   esac
   case "$path" in
-    src/main/*|src/preload/*|src/renderer/*|src/visualize/*|src/dev/electron_layout.test.ts|electron.vite.config.ts|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|tsconfig*.json)
+    src/main/*|src/preload/*|src/renderer/*|src/export-renderer/*|src/visualize/*|src/dev/electron_layout.test.ts|electron.vite.config.ts|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|tsconfig*.json)
       electron_build=1
       ;;
   esac

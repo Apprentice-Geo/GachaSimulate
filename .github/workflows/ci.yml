@@ -100,8 +100,7 @@ jobs:
         run: pnpm run format:check
 
       - name: Check repository hook
-        shell: bash
-        run: bash .githooks/pre-commit --self-test
+        run: pnpm run test:pre-commit
 
       - name: Lint Node.js
         run: pnpm run lint
@@ -150,41 +149,6 @@ jobs:
 
       - name: Build and test packages
         run: pnpm run test:packages
-
-      - name: Run CDF export smoke
-        shell: pwsh
-        run: |
-          $smokeRelative = Join-Path 'tmp' ("ci-export-" + [guid]::NewGuid().ToString("N"))
-          $smoke = Join-Path $PWD $smokeRelative
-          New-Item -ItemType Directory -Path $smoke -Force | Out-Null
-          try {
-            $gsr = Join-Path $smoke 'smoke.gsr'
-            $display = Join-Path $smoke 'smoke.visualize.json'
-            $gsrInput = Join-Path $smokeRelative 'smoke.gsr'
-            $displayInput = Join-Path $smokeRelative 'smoke.visualize.json'
-            & ./build/native/bin/gachasimulate-core.exe `
-              --ir (Resolve-Path cpp/tests/batch_fixture_ir.json) `
-              --total-runs 10 --seed 0 --threads 1 --output $gsr
-            if ($LASTEXITCODE -ne 0) { throw 'Native export fixture generation failed.' }
-            @{
-              display_version = 2
-              title = 'CI export'
-              target = 'test'
-              result_item_name = 'draw_count'
-              note = ''
-              subtitle = ''
-              result_item_unit = ''
-            } | ConvertTo-Json | Set-Content $display
-            pnpm run export:cdf -- --gsr $gsrInput --display $displayInput
-            if ($LASTEXITCODE -ne 0) { throw 'CDF export smoke failed.' }
-            if (-not (Test-Path outputs/cdf-result.png) -or -not (Test-Path outputs/cdf-animation.mp4)) {
-              throw 'CDF export smoke did not create both outputs.'
-            }
-          } finally {
-            Remove-Item -LiteralPath $smoke -Recurse -Force -ErrorAction SilentlyContinue
-            Remove-Item outputs/cdf-result.png, outputs/cdf-animation.mp4, outputs/cdf-animation.webm `
-              -Force -ErrorAction SilentlyContinue
-          }
 
   electron-layout:
     name: Electron renderer layout (Windows)

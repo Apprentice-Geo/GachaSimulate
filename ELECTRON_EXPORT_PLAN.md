@@ -2,9 +2,9 @@
 
 ## 当前状态
 
-截至 2026-09-11，路线验证、阶段 A–D 以及阶段 E1–E2 均已完成。Phase 0 和阶段 D 的环境、正确性、性能及路线决策已集中到 [Electron 导出实验归档](docs/archived/ELECTRON_EXPORT_EXPERIMENTS.md)；未被消费的 heartbeat、Phase 0 Spike 和阶段 D 临时性能工具已经移除。
+截至 2026-09-11，路线验证、阶段 A–D 以及阶段 E1–E4 均已完成。Phase 0 和阶段 D 的环境、正确性、性能及路线决策已集中到 [Electron 导出实验归档](docs/archived/ELECTRON_EXPORT_EXPERIMENTS.md)；未被消费的 heartbeat、Phase 0 Spike 和阶段 D 临时性能工具已经移除。Remotion 旧导出宿主、依赖、命令与 CI smoke 已删除，无 Remotion 的 production build 和正式 ExportHost 集成检查均已通过。
 
-下一项是 E3：移除 Remotion 旧导出路径。当前仍保留 Remotion，不提前改变其命令、依赖或共享可视化契约。
+下一项是阶段 F：完成许可证决策与 FFmpeg 安装包接入。阶段 E 的清理没有改变 `Analysis + DisplayConfig`、共享场景、动画或 Electron 逐帧语义。
 
 ## 稳定边界
 
@@ -32,21 +32,12 @@ main 持有规范目录、目标路径和 `TargetIdentity`，在覆盖确认及�
 
 正式 CDP + 固定源码 FFmpeg 路线完成两轮完整矩阵；流式 analyzer 在 10 亿 runs、12.00 GB GSR 上将峰值工作集降至 13.6 MiB，并提升约 39% 吞吐。三轮实验的可比限制、完整环境与关键数据见 [实验归档](docs/archived/ELECTRON_EXPORT_EXPERIMENTS.md)。
 
-### E1–E2. 实验归档与迁移期清理
+### E1–E4. 实验归档、迁移清理与路线复验
 
 将 Phase 0 和阶段 D 的长期结论归档为单一文档，删除已跟踪原始实验目录、Spike route/harness/metrics、临时性能 runner 及脚本入口。删除没有 watchdog 消费方的导出 heartbeat 契约与定时器；保留 progress、cancelling、terminal、30 秒 renderer 协议超时、正式 ExportHost 集成 harness 和 CI 探针防线。
+删除 Remotion 导出宿主、相关依赖、传递 lockfile 内容、命令和旧 CI smoke，并同步构建入口与长期文档。无探针 production build 不含逐帧测试标记或 Remotion；探针 build 的正式 ExportHost 产物、连续帧和生命周期集成检查通过，最终已恢复无探针 production build。
 
 ## 后续阶段
-
-### E3. Remotion 移除
-
-- 删除 Remotion 导出宿主、相关依赖与传递打包产物，更新 lockfile、构建、CI 和文档。
-- 保持 `Analysis + DisplayConfig`、共享场景、动画与 Electron 逐帧语义不变。
-
-### E4. 无 Remotion 路线复验
-
-- 重新构建无探针 production build，确认不含逐帧测试标记。
-- 复跑正式 ExportHost 产物、连续帧和生命周期集成检查。
 
 ### F. 打包与许可证迁移
 
