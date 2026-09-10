@@ -51,7 +51,7 @@ type ExportTerminalDetails = {
 
 export type ExportPreparationEvent =
   | {
-      type: "preparation-status" | "preparation-heartbeat";
+      type: "preparation-status";
       reservation_id: string;
       stage: ExportPreparationStage;
     }
@@ -86,7 +86,6 @@ export type ExportTaskEvent =
       committed?: number;
       artifact_total?: number;
     }
-  | { type: "heartbeat"; task_id: string; stage: ExportStage }
   | { type: "cancelling"; task_id: string }
   | ({ type: "completed" } & ExportTerminalDetails)
   | ({ type: "cancelled" } & ExportTerminalDetails)

@@ -481,23 +481,6 @@ async function assert_layout(
     await page.locator(".export-live").textContent(),
     "正在渲染第 57 / 60 帧",
   );
-  const cancel_button = page.getByRole("button", { name: "取消导出" });
-  await cancel_button.focus();
-  await application.evaluate(({ BrowserWindow }) => {
-    BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
-      type: "heartbeat",
-      task_id: "ui-task",
-      stage: "rendering",
-    });
-  });
-  assert.equal(
-    await cancel_button.evaluate((node) => node === document.activeElement),
-    true,
-  );
-  assert.equal(
-    await page.locator(".export-live").textContent(),
-    "正在渲染第 57 / 60 帧",
-  );
   await application.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
       type: "failed",

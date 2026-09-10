@@ -52,7 +52,6 @@ type Reservation = {
   cancelled: boolean;
   cancel_reason: "cancelled" | "destination-returned";
   running: Promise<void>;
-  heartbeat: NodeJS.Timeout | null;
   selecting_destination: boolean;
   directory: string | null;
   targets: ResolvedExportTargets | null;
@@ -71,12 +70,10 @@ type Task = {
   cancelling: boolean;
   terminal_kind: "completed" | "cancelled" | "failed" | null;
   running: Promise<void>;
-  heartbeat: NodeJS.Timeout | null;
 };
 
 export interface ExportTaskDependencies {
   readonly random_uuid?: () => string;
-  readonly heartbeat_ms?: number;
   readonly host_factory?: (request: ExportHostRequest) => ExportHost;
   readonly files?: Pick<ExportFiles, "lstat"> & {
     realpath(path: string): Promise<string>;
@@ -126,7 +123,6 @@ export class ExportTaskCoordinator {
       cancelled: false,
       cancel_reason: "cancelled",
       running: Promise.resolve(),
-      heartbeat: null,
       selecting_destination: false,
       directory: null,
       targets: null,
@@ -134,7 +130,6 @@ export class ExportTaskCoordinator {
     };
     this.reservation = reservation;
     this.emit_preparation(reservation, "preparation-status");
-    this.start_reservation_heartbeat(reservation);
     reservation.running = this.build_snapshot(reservation);
     return { reservation_id: id };
   }
@@ -166,7 +161,6 @@ export class ExportTaskCoordinator {
       on_progress: (progress) => this.handle_progress(task_id, progress),
     });
     this.admission.handoff_export(reservation.id, task_id);
-    this.stop_heartbeat(reservation);
     this.reservation = null;
     const task: Task = {
       id: task_id,
@@ -180,7 +174,6 @@ export class ExportTaskCoordinator {
       cancelling: false,
       terminal_kind: null,
       running: Promise.resolve(),
-      heartbeat: null,
     };
     this.task = task;
     this.emit({
@@ -190,7 +183,6 @@ export class ExportTaskCoordinator {
       formats: [...reservation.request.formats],
       base_name: reservation.request.base_name,
     });
-    this.start_task_heartbeat(task);
     task.running = this.run_task(task);
     return task_id;
   }
@@ -435,7 +427,6 @@ export class ExportTaskCoordinator {
     reservation.directory = null;
     reservation.targets = null;
     reservation.target_identities = null;
-    this.stop_heartbeat(reservation);
     if (this.reservation === reservation) this.reservation = null;
     this.admission.release_export(reservation.id);
     this.emit({
@@ -451,8 +442,6 @@ export class ExportTaskCoordinator {
       await task.host.start();
     } catch (failure) {
       reason = failure;
-    } finally {
-      this.stop_heartbeat(task);
     }
     const saved = this.desktop_artifacts(task.host.saved_artifacts);
     const saved_formats = new Set(saved.map(({ format }) => format));
@@ -561,7 +550,6 @@ export class ExportTaskCoordinator {
       ),
       reservation.directory,
     );
-    this.stop_heartbeat(reservation);
     reservation.directory = null;
     reservation.targets = null;
     reservation.target_identities = null;
@@ -620,33 +608,12 @@ export class ExportTaskCoordinator {
 
   private emit_preparation(
     reservation: Reservation,
-    type: "preparation-status" | "preparation-heartbeat",
+    type: "preparation-status",
   ): void {
     this.emit({
       type,
       reservation_id: reservation.id,
       stage: reservation.stage,
     });
-  }
-
-  private start_reservation_heartbeat(reservation: Reservation): void {
-    reservation.heartbeat = setInterval(() => {
-      if (this.reservation === reservation)
-        this.emit_preparation(reservation, "preparation-heartbeat");
-    }, this.dependencies.heartbeat_ms ?? 1_000);
-    reservation.heartbeat.unref();
-  }
-
-  private start_task_heartbeat(task: Task): void {
-    task.heartbeat = setInterval(() => {
-      if (this.task === task)
-        this.emit({ type: "heartbeat", task_id: task.id, stage: task.stage });
-    }, this.dependencies.heartbeat_ms ?? 1_000);
-    task.heartbeat.unref();
-  }
-
-  private stop_heartbeat(value: Reservation | Task): void {
-    if (value.heartbeat) clearInterval(value.heartbeat);
-    value.heartbeat = null;
   }
 }

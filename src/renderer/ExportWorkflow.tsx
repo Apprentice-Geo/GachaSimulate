@@ -128,7 +128,6 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
   const phase_ref = useRef(phase);
   const reservation_ref = useRef(reservation_id);
   const task_ref = useRef(task_id);
-  const last_activity = useRef(0);
   const generation = useRef(0);
   const early_events = useRef(new Map<string, DesktopExportEvent>());
   const pending_cancel_reason = useRef<
@@ -218,7 +217,6 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
         if (event.type === "preparation-ready") {
           void choose_destination(event.reservation_id, generation.current);
         } else if (event.type === "preparation-status") {
-          last_activity.current = Date.now();
           set_live_message(
             event.stage === "saving_fields"
               ? "正在保存展示字段"
@@ -228,8 +226,6 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                   ? "导出快照已准备完成"
                   : "正在取消导出准备",
           );
-        } else if (event.type === "preparation-heartbeat") {
-          last_activity.current = Date.now();
         } else if (event.type === "preparation-cancelled") {
           if (event.reason === "destination-returned") {
             set_reservation_id(null);
@@ -250,7 +246,6 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
         return;
       }
       if (!("task_id" in event) || event.task_id !== task_ref.current) return;
-      last_activity.current = Date.now();
       if (event.type === "progress") {
         set_progress(event);
         if (event.png_written) set_png_written(true);

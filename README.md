@@ -43,8 +43,6 @@ Remotion 导出固定 3840x2160、60fps 的 `cdf-animation.mp4` 和 `cdf-result.
 
 仓库包含已完成入口与生命周期验收的 Electron `ExportHost`，使用独立隐藏 renderer、CDP 逐帧截图和固定 Windows FFmpeg 管道，并提供进度、正式取消、部分成功详情与可恢复清理。Windows 开发准备和宿主检查见 [Development Checks](docs/DEVELOPMENT_CHECKS.md#windows-x64-electron-导出检查)，后续分发阶段见 [Electron 素材导出计划](ELECTRON_EXPORT_PLAN.md)。当前 FFmpeg 仅供开发与 CI，不进入安装包；发布边界见 [FFmpeg 开发使用与分发状态](docs/FFMPEG_DISTRIBUTION.md)。
 
-阶段 D 的临时性能复验入口为 `pnpm run measure:electron-export`；完整矩阵、`--quick` 限制和产物位置见 Development Checks。
-
 ## 开发检查
 
 模块边界见 [Architecture](ARCHITECTURE.md)，push 前检查见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)。FFmpeg 源码准备、编译和材料打包脚本见 [scripts README](scripts/README.md)。
