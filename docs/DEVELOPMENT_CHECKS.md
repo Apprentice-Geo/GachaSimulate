@@ -95,6 +95,8 @@ pnpm run test:electron-export:integration
 
 正式 production build 不得设置 `GACHASIMULATE_EXPORT_FRAME_PROBE`。集成检查只在临时目录生成 PNG、MP4、harness 和故障注入产物，并使用同包 `ffprobe.exe` 检查视频规格。
 
+阶段 D 的临时完整性能矩阵使用 `pnpm run measure:electron-export`。该命令自行构建并确认无逐帧探针的 production 产物，使用正式任务协调器、正式桌面与导出 renderer，以及源码构建目录中有材料哈希记录的 FFmpeg。原始逐 run JSON 与生成的报告写入忽略的 `tmp/electron-export-performance/`，不属于常规 CI；`--quick` 仅供冒烟，不能用于路线决策。阶段 E 归档正式报告后删除该入口及 Phase 0 实验代码。
+
 该准备流程和 Windows CI 只用于技术验证，不表示 FFmpeg 已获准随应用分发。当前 `electron-builder` 配置不携带 FFmpeg；不得把 `build/ffmpeg` 加入安装包。发布阻塞、已知风险和解除条件见 [FFmpeg 开发使用与分发状态](FFMPEG_DISTRIBUTION.md)。
 
 ## Electron 人工验收

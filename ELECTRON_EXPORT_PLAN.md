@@ -2,12 +2,13 @@
 
 ## 当前状态
 
-截至 2026-09-10，路线验证及阶段 A、B、C1、C2、C3 均已完成开发、自动化验证和人工验收，后续从 D 继续。
+截至 2026-09-10，路线验证及阶段 A、B、C1、C2、C3 均已完成开发、自动化验证和人工验收；阶段 D 已完成正式路线性能测量，后续继续完成阶段 D 的 analyzer 流式聚合与 Analysis 大小限制调整。
 
 - Phase 0 选择 CDP 与阻塞式交互，历史依据见 [Windows 实验结果](docs/experiments/electron-export-phase0/README.md)。
 - A–B 建立 Windows x64、固定源码 FFmpeg、材料收集及 CI/CD 基线。
 - C1–C3 完成正式导出任务、桌面入口、安全提交、进度与取消、详细终态和可恢复清理。
 - 中文及空格路径、屏幕阅读器交互已在 C2 验收；文件占用、清理恢复和退出残留已在 C3 验收。
+- 阶段 D 的 21 个性能 run 全部有效；正式测量、环境和限制见 [阶段 D 报告](docs/experiments/electron-export-phase-d/README.md)。
 - Remotion、实验内容和 FFmpeg 安装包分发边界尚未改变，由 D–E 处理。
 
 ## 稳定边界
@@ -44,7 +45,30 @@ Windows 原生 Node/MSYS2 UCRT64、固定源码 FFmpeg、构建材料、隔离 P
 
 ### D. 性能复验
 
-1. 基于正式 Electron 导出路线的 production build（不要求生成安装包），测量空闲、模拟和分析期间的耗时、响应、内存与系统稳定性，由维护者根据测量报告决定继续、优化或更换路线。
+正式 Electron 导出路线已使用无逐帧探针的 production build 完成测量。每个场景预热一次、正式运行五次，并另行执行一次取消；21 个 run 全部有效，MP4/PNG 规格、事件时间线、内存采样和退出残留检查均通过。
+
+实测摘要如下；耗时为五次正式运行的中位数，内存为同一采样时刻计算的工作集：
+
+| 场景 | 总耗时 | preparing / rendering / finalizing | 最大事件间隔 | 定时器延迟 P95 | 最大工作集增量 | 最低系统可用内存 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 空闲 | 11,748.5 ms | 415.8 / 11,295.2 / 14.9 ms | 595.9 ms | 12.6 ms | 4,268.0 MiB | 42,144.4 MiB |
+| 模拟中 | 19,360.8 ms | 982.1 / 18,361.5 / 17.2 ms | 989.5 ms | 12.5 ms | 4,420.7 MiB | 41,057.6 MiB |
+| 分析中 | 12,269.3 ms | 442.8 / 11,794.4 / 16.5 ms | 902.3 ms | 12.2 ms | 8,193.2 MiB | 38,321.0 MiB |
+
+取消请求到 renderer 收到 `cancelling` 的时间分别为空闲 0.9 ms、模拟中 0.7 ms、分析中 0.8 ms。模拟与分析正式 run 均实现 100% 重叠；没有活性契约违约、崩溃、超时、产物失败或资源残留。Phase 0 使用不同宿主、探针和 FFmpeg，只保留为背景，禁止计算严格回归比例。
+
+下列后续关注项未执行，现明确废弃且不再作为 D、E 或发布的验收要求：
+
+- 优化或继续测量 FFmpeg 约 3 GiB 的工作集占用；
+- 在 8 GiB、16 GiB 或其它低内存环境执行稳定性、换页或 OOM 验证。
+
+阶段 D 下一步只处理 analyzer 的大 GSR 内存占用与 Analysis 输出限制：
+
+1. 将 analyzer 和 Electron `ResultEditor` 的 Analysis JSON 上限从 16 MiB 统一提高到 64 MiB；GSR v2 和 Analysis JSON 字段契约保持不变。
+2. analyzer 顺序读取 GSR，使用哈希表聚合 result value 频数、使用定长 vector 聚合 termination reason 计数，再将唯一 result value 转为排序 vector 生成 CDF 和统计值；不保留逐 run 数组，不增加落盘归并。
+3. 聚合期间根据唯一值计算最终 JSON 的最小可能大小；一旦该下界超过 64 MiB，立即拒绝。相关变量或函数附近必须注释该下界的含义、与哈希表内存无关，以及提前拒绝不会误伤仍可能装入 64 MiB 的输出。
+4. 输出前对完整 Analysis JSON 执行精确的 64 MiB 序列化大小检查，覆盖 result item、termination reason、CDF 和统计字段；不得只依赖 Electron 接收 stdout 时的事后截断。
+5. 以当前排序实现的既有语义作为等价基准，增加行为测试覆盖线性插值分位数、CDF 累计比例、termination largest-remainder、重复值、稀疏值、极端 `uint64_t` 值，以及最小大小下界和最终序列化大小在 64 MiB 限制附近的通过/拒绝边界。
 
 ### E. Remotion 移除
 
