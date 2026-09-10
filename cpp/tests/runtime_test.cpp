@@ -2,6 +2,7 @@
 #include "gachasimulate/runtime.hpp"
 
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <array>
@@ -75,6 +76,10 @@ std::string path_utf8(const std::filesystem::path &path) {
 #else
   return path.string();
 #endif
+}
+nlohmann::json analyze(const std::filesystem::path &path,
+                       uint64_t byte_limit = gachasimulate::kAnalysisJsonByteLimit) {
+  return nlohmann::json::parse(gachasimulate::analyze_gsr_v2(path_utf8(path), byte_limit));
 }
 template <class F> std::string error_message(F &&call) {
   try {
@@ -302,18 +307,107 @@ TEST(Gsr, ReadsV2AndAnalyzesStatistics) {
   program.strings.push_back("skin");
   gachasimulate::BatchResult result{{1, 2, 4, 4}, {exchange, skin, skin, skin}, 11};
   gachasimulate::write_gsr_v2(path.string(), program, result, 0);
-  const auto analysis = gachasimulate::analyze_gsr_v2(path.string());
+  const auto analysis = analyze(path);
   EXPECT_EQ(analysis.at("result_item"),
             nlohmann::json({{"id", "draw_count"}, {"name", "Draw count"}}));
   EXPECT_EQ(analysis.at("totals"), nlohmann::json({{"runs", "4"}, {"result", "11"}}));
   EXPECT_EQ(analysis.at("values"), nlohmann::json({"1", "2", "4"}));
   EXPECT_EQ(analysis.at("cumulative"), nlohmann::json({0.25, 0.5, 1.0}));
+  EXPECT_EQ(analysis.at("statistic"), nlohmann::json({{"P5", "1"},
+                                                      {"P25", "1"},
+                                                      {"P50", "3"},
+                                                      {"P75", "4"},
+                                                      {"P95", "4"},
+                                                      {"MIN", "1"},
+                                                      {"MEAN", "2"},
+                                                      {"MEAN_LEVEL", 0.5},
+                                                      {"MAX", "4"}}));
   EXPECT_EQ(analysis.at("statistic").at("P50"), "3");
   EXPECT_EQ(analysis.at("statistic").at("MEAN"), "2");
   EXPECT_EQ(analysis.at("statistic").at("MEAN_LEVEL"), 0.5);
   EXPECT_EQ(analysis.at("termination_reason"),
             nlohmann::json({{{"reason", "exchange"}, {"proportion", 25}},
                             {{"reason", "skin"}, {"proportion", 75}}}));
+  std::filesystem::remove(path);
+}
+
+TEST(Gsr, AnalyzesWeightedPercentilesSparseValuesAndUint64Maximum) {
+  auto program = gachasimulate::load_ir_file(fixture_path().string());
+  const auto path = output_path("weighted_analysis_test");
+  gachasimulate::write_gsr_v2(path.string(), program, {{0, 10, 20, 30, 40}, {4, 4, 4, 4, 4}, 100},
+                              0);
+  const auto analysis = analyze(path);
+  EXPECT_EQ(analysis.at("values"), nlohmann::json({"0", "10", "20", "30", "40"}));
+  EXPECT_EQ(analysis.at("cumulative"), nlohmann::json({0.2, 0.4, 0.6, 0.8, 1.0}));
+  EXPECT_EQ(analysis.at("statistic"), nlohmann::json({{"P5", "2"},
+                                                      {"P25", "10"},
+                                                      {"P50", "20"},
+                                                      {"P75", "30"},
+                                                      {"P95", "38"},
+                                                      {"MIN", "0"},
+                                                      {"MEAN", "20"},
+                                                      {"MEAN_LEVEL", 0.6},
+                                                      {"MAX", "40"}}));
+
+  gachasimulate::write_gsr_v2(
+      path.string(), program,
+      {{std::numeric_limits<uint64_t>::max()}, {4}, std::numeric_limits<uint64_t>::max()}, 0);
+  const auto maximum = std::to_string(std::numeric_limits<uint64_t>::max());
+  const auto extreme = analyze(path);
+  EXPECT_EQ(extreme.at("values"), nlohmann::json({maximum}));
+  EXPECT_EQ(extreme.at("statistic").at("P5"), maximum);
+  EXPECT_EQ(extreme.at("statistic").at("P95"), maximum);
+  EXPECT_EQ(extreme.at("statistic").at("MEAN"), maximum);
+  std::filesystem::remove(path);
+}
+
+TEST(Gsr, UsesReasonNameTieBreakAndExcludesZeroCountReasons) {
+  auto program = gachasimulate::load_ir_file(fixture_path().string());
+  std::vector<uint32_t> ids;
+  for (const auto *name : {"foxtrot", "alpha", "echo", "bravo", "delta", "charlie"}) {
+    ids.push_back(static_cast<uint32_t>(program.strings.size()));
+    program.strings.push_back(name);
+  }
+  const auto path = output_path("termination_tie_test");
+  gachasimulate::write_gsr_v2(path.string(), program, {{0, 0, 0, 0, 0, 0}, ids, 0}, 0);
+  auto raw = bytes(path);
+  set<uint32_t>(raw, 40, 7);
+  const std::string unused = "unused";
+  raw.insert(raw.end(), {static_cast<unsigned char>(unused.size()), 0, 0, 0});
+  raw.insert(raw.end(), unused.begin(), unused.end());
+  set<uint64_t>(raw, 80, static_cast<uint64_t>(raw.size()));
+  write_bytes(path, raw);
+  EXPECT_EQ(analyze(path).at("termination_reason"),
+            nlohmann::json({{{"reason", "alpha"}, {"proportion", 17}},
+                            {{"reason", "bravo"}, {"proportion", 17}},
+                            {{"reason", "charlie"}, {"proportion", 17}},
+                            {{"reason", "delta"}, {"proportion", 17}},
+                            {{"reason", "echo"}, {"proportion", 16}},
+                            {{"reason", "foxtrot"}, {"proportion", 16}}}));
+  std::filesystem::remove(path);
+}
+
+TEST(Gsr, EnforcesAnalysisMinimumAndExactSerializedByteLimits) {
+  EXPECT_EQ(gachasimulate::kAnalysisJsonByteLimit, 64ULL * 1024 * 1024);
+  auto program = gachasimulate::load_ir_file(fixture_path().string());
+  const auto path = output_path("analysis_size_test");
+  gachasimulate::write_gsr_v2(path.string(), program, {{42}, {4}, 42}, 0);
+
+  auto invalid_reason = bytes(path);
+  set<uint32_t>(invalid_reason, static_cast<size_t>(read<uint64_t>(invalid_reason, 64)), 1);
+  write_bytes(path, invalid_reason);
+  EXPECT_EQ(error_message([&] { static_cast<void>(analyze(path, 8)); }),
+            "analysis JSON exceeds 64 MiB");
+  EXPECT_EQ(error_message([&] { static_cast<void>(analyze(path, 9)); }),
+            "invalid GSR: invalid reason id");
+
+  gachasimulate::write_gsr_v2(path.string(), program, {{42}, {4}, 42}, 0);
+  const auto serialized = gachasimulate::analyze_gsr_v2(path.string());
+  EXPECT_EQ(gachasimulate::analyze_gsr_v2(path.string(), serialized.size()), serialized);
+  EXPECT_EQ(error_message([&] {
+              static_cast<void>(analyze(path, static_cast<uint64_t>(serialized.size() - 1)));
+            }),
+            "analysis JSON exceeds 64 MiB");
   std::filesystem::remove(path);
 }
 

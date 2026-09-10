@@ -9,6 +9,9 @@
 #include <numeric>
 #include <stdexcept>
 #include <type_traits>
+#include <unordered_map>
+
+#include <nlohmann/json.hpp>
 
 namespace gachasimulate {
 namespace {
@@ -81,48 +84,62 @@ std::string read_string(std::ifstream &input, uint32_t size, uint64_t file_size,
 
 template <class T> std::string decimal(T value) { return std::to_string(value); }
 
-template <class T> T percentile(const std::vector<T> &values, unsigned p) {
-  const long double index = static_cast<long double>(values.size() - 1) * p / 100;
-  const auto lower = static_cast<size_t>(index);
-  const auto fraction = index - lower;
-  return static_cast<T>(
-      static_cast<long double>(values[lower]) +
-      (static_cast<long double>(values[std::min(lower + 1, values.size() - 1)]) - values[lower]) *
-          fraction);
+using Frequencies = std::vector<std::pair<uint64_t, uint64_t>>;
+
+uint64_t value_at(const Frequencies &frequencies, uint64_t index) {
+  uint64_t cumulative{};
+  for (const auto &[value, count] : frequencies) {
+    cumulative += count;
+    if (index < cumulative)
+      return value;
+  }
+  throw std::runtime_error("invalid GSR: result frequency mismatch");
 }
 
-template <class T> nlohmann::json statistics(std::vector<T> values, T mean, uint64_t runs) {
-  std::sort(values.begin(), values.end());
+uint64_t percentile(const Frequencies &frequencies, uint64_t runs, unsigned p) {
+  const long double index = static_cast<long double>(runs - 1) * p / 100;
+  const auto lower = static_cast<uint64_t>(index);
+  const auto fraction = index - lower;
+  const auto lower_value = value_at(frequencies, lower);
+  const auto upper_value = value_at(frequencies, std::min(lower + 1, runs - 1));
+  return static_cast<uint64_t>(static_cast<long double>(lower_value) +
+                               (static_cast<long double>(upper_value) - lower_value) * fraction);
+}
+
+nlohmann::json statistics(const Frequencies &frequencies, uint64_t mean, uint64_t runs) {
   nlohmann::json unique = nlohmann::json::array();
   nlohmann::json cumulative = nlohmann::json::array();
-  for (size_t begin = 0; begin < values.size();) {
-    const auto end = std::upper_bound(values.begin() + static_cast<std::ptrdiff_t>(begin),
-                                      values.end(), values[begin]);
-    unique.push_back(decimal(values[begin]));
-    cumulative.push_back(static_cast<double>(end - values.begin()) / runs);
-    begin = static_cast<size_t>(end - values.begin());
+  uint64_t count{};
+  uint64_t mean_count{};
+  for (const auto &[value, frequency] : frequencies) {
+    count += frequency;
+    unique.push_back(decimal(value));
+    cumulative.push_back(static_cast<double>(count) / runs);
+    if (value <= mean)
+      mean_count = count;
   }
-  const auto level =
-      static_cast<double>(std::upper_bound(values.begin(), values.end(), mean) - values.begin()) /
-      runs;
+  if (count != runs)
+    throw std::runtime_error("invalid GSR: result frequency mismatch");
   return {{"values", std::move(unique)},
           {"cumulative", std::move(cumulative)},
           {"statistic",
-           {{"P5", decimal(percentile(values, 5))},
-            {"P25", decimal(percentile(values, 25))},
-            {"P50", decimal(percentile(values, 50))},
-            {"P75", decimal(percentile(values, 75))},
-            {"P95", decimal(percentile(values, 95))},
-            {"MIN", decimal(values.front())},
+           {{"P5", decimal(percentile(frequencies, runs, 5))},
+            {"P25", decimal(percentile(frequencies, runs, 25))},
+            {"P50", decimal(percentile(frequencies, runs, 50))},
+            {"P75", decimal(percentile(frequencies, runs, 75))},
+            {"P95", decimal(percentile(frequencies, runs, 95))},
+            {"MIN", decimal(frequencies.front().first)},
             {"MEAN", decimal(mean)},
-            {"MEAN_LEVEL", level},
-            {"MAX", decimal(values.back())}}}};
+            {"MEAN_LEVEL", static_cast<double>(mean_count) / runs},
+            {"MAX", decimal(frequencies.back().first)}}}};
 }
 
-nlohmann::json termination(const GsrData &data) {
+nlohmann::json termination(const std::vector<std::string> &reason_names,
+                           const std::vector<uint64_t> &reason_counts, uint64_t runs) {
   std::map<std::string, uint64_t> counts;
-  for (const auto id : data.reasons)
-    ++counts[data.reason_names[id]];
+  for (size_t i = 0; i < reason_names.size(); ++i)
+    if (reason_counts[i])
+      counts[reason_names[i]] += reason_counts[i];
   struct Share {
     std::string reason;
     uint64_t remainder{};
@@ -132,7 +149,7 @@ nlohmann::json termination(const GsrData &data) {
   unsigned assigned{};
   for (const auto &[reason, count] : counts) {
     const auto product = count * 100;
-    shares.push_back({reason, product % data.runs, static_cast<unsigned>(product / data.runs)});
+    shares.push_back({reason, product % runs, static_cast<unsigned>(product / runs)});
     assigned += shares.back().proportion;
   }
   std::vector<size_t> order(shares.size());
@@ -148,9 +165,17 @@ nlohmann::json termination(const GsrData &data) {
     result.push_back({{"reason", share.reason}, {"proportion", share.proportion}});
   return result;
 }
-} // namespace
 
-GsrData read_gsr_v2(const std::string &path) {
+struct GsrMetadata {
+  uint64_t runs{}, total_result{};
+  std::string result_id;
+  std::string result_name;
+  std::vector<std::string> reason_names;
+};
+
+template <class Begin, class Result, class Reason>
+GsrMetadata read_gsr_v2_sections(const std::string &path, Begin &&begin, Result &&result,
+                                 Reason &&reason) {
   std::ifstream input(utf8_path(path), std::ios::binary | std::ios::ate);
   if (!input)
     throw std::runtime_error("cannot open GSR");
@@ -166,7 +191,7 @@ GsrData read_gsr_v2(const std::string &path) {
   const auto version = get<uint32_t>(input, "version");
   const auto header_size = get<uint32_t>(input, "header size");
   const auto flags = get<uint32_t>(input, "flags");
-  GsrData data;
+  GsrMetadata data;
   data.runs = get<uint64_t>(input, "total runs");
   data.total_result = get<uint64_t>(input, "total result");
   static_cast<void>(get<int64_t>(input, "seed"));
@@ -192,25 +217,24 @@ GsrData read_gsr_v2(const std::string &path) {
       result_name_size > actual_size - string_offset - result_id_size)
     throw std::runtime_error("invalid GSR: invalid section offsets");
 
+  begin(data.runs, reason_count);
   input.seekg(static_cast<std::streamoff>(result_offset));
-  data.values.reserve(static_cast<size_t>(data.runs));
   uint64_t total{};
   for (uint64_t i = 0; i < data.runs; ++i) {
     const auto value = get<uint64_t>(input, "result value");
     if (value > std::numeric_limits<uint64_t>::max() - total)
       throw std::runtime_error("invalid GSR: result total overflow");
     total += value;
-    data.values.push_back(value);
+    result(value);
   }
   if (total != data.total_result)
     throw std::runtime_error("invalid GSR: result total mismatch");
   input.seekg(static_cast<std::streamoff>(reason_offset));
-  data.reasons.reserve(static_cast<size_t>(data.runs));
   for (uint64_t i = 0; i < data.runs; ++i) {
     const auto id = get<uint32_t>(input, "reason id");
     if (id >= reason_count)
       throw std::runtime_error("invalid GSR: invalid reason id");
-    data.reasons.push_back(id);
+    reason(id);
   }
   input.seekg(static_cast<std::streamoff>(string_offset));
   data.result_id = read_string(input, result_id_size, actual_size, "result id");
@@ -221,6 +245,33 @@ GsrData read_gsr_v2(const std::string &path) {
         read_string(input, get<uint32_t>(input, "reason length"), actual_size, "reason"));
   if (input.tellg() < 0 || static_cast<uint64_t>(input.tellg()) != actual_size)
     throw std::runtime_error("invalid GSR: trailing data");
+  return data;
+}
+
+void add_minimum_json_bytes(uint64_t &size, uint64_t addition, uint64_t limit) {
+  if (size > limit || addition > limit - size) {
+    size = limit == std::numeric_limits<uint64_t>::max() ? limit : limit + 1;
+    throw std::runtime_error("analysis JSON exceeds 64 MiB");
+  }
+  size += addition;
+}
+} // namespace
+
+GsrData read_gsr_v2(const std::string &path) {
+  GsrData data;
+  const auto metadata = read_gsr_v2_sections(
+      path,
+      [&](uint64_t runs, uint32_t) {
+        data.values.reserve(static_cast<size_t>(runs));
+        data.reasons.reserve(static_cast<size_t>(runs));
+      },
+      [&](uint64_t value) { data.values.push_back(value); },
+      [&](uint32_t reason) { data.reasons.push_back(reason); });
+  data.runs = metadata.runs;
+  data.total_result = metadata.total_result;
+  data.result_id = metadata.result_id;
+  data.result_name = metadata.result_name;
+  data.reason_names = metadata.reason_names;
   return data;
 }
 
@@ -304,13 +355,43 @@ void write_gsr_v2(const std::string &path, const RuntimeProgram &p, const BatchR
     throw std::runtime_error("failed writing GSR");
 }
 
-nlohmann::json analyze_gsr_v2(const std::string &path) {
-  auto data = read_gsr_v2(path);
+std::string analyze_gsr_v2(const std::string &path, uint64_t byte_limit) {
+  std::unordered_map<uint64_t, uint64_t> counts;
+  std::vector<uint64_t> reason_counts;
+  // This saturated lower bound counts only bytes that every compact Analysis JSON must contain
+  // for its values and cumulative arrays. It is unrelated to hash-table memory, and because no
+  // optional or representation-dependent bytes are counted, early rejection cannot discard an
+  // output that might still fit within the byte limit.
+  uint64_t minimum_json_bytes = 4; // The two pairs of array brackets.
+  const auto data = read_gsr_v2_sections(
+      path,
+      [&](uint64_t runs, uint32_t reason_count) {
+        counts.reserve(static_cast<size_t>(std::min<uint64_t>(runs, 1'000'000)));
+        reason_counts.assign(reason_count, 0);
+        if (minimum_json_bytes > byte_limit)
+          throw std::runtime_error("analysis JSON exceeds 64 MiB");
+      },
+      [&](uint64_t value) {
+        const auto [entry, inserted] = counts.try_emplace(value, 0);
+        ++entry->second;
+        if (inserted) {
+          const auto separators = counts.size() == 1 ? 0U : 2U;
+          add_minimum_json_bytes(minimum_json_bytes, decimal(value).size() + 3U + separators,
+                                 byte_limit);
+        }
+      },
+      [&](uint32_t reason) { ++reason_counts[reason]; });
+  Frequencies frequencies(counts.begin(), counts.end());
+  std::sort(frequencies.begin(), frequencies.end(),
+            [](const auto &left, const auto &right) { return left.first < right.first; });
   nlohmann::json output{
       {"result_item", {{"id", data.result_id}, {"name", data.result_name}}},
       {"totals", {{"runs", decimal(data.runs)}, {"result", decimal(data.total_result)}}},
-      {"termination_reason", termination(data)}};
-  output.update(statistics(std::move(data.values), data.total_result / data.runs, data.runs));
-  return output;
+      {"termination_reason", termination(data.reason_names, reason_counts, data.runs)}};
+  output.update(statistics(frequencies, data.total_result / data.runs, data.runs));
+  auto serialized = output.dump();
+  if (serialized.size() > byte_limit)
+    throw std::runtime_error("analysis JSON exceeds 64 MiB");
+  return serialized;
 }
 } // namespace gachasimulate

@@ -2,14 +2,14 @@
 
 ## 当前状态
 
-截至 2026-09-10，路线验证及阶段 A、B、C1、C2、C3 均已完成开发、自动化验证和人工验收；阶段 D 已完成正式路线性能测量，后续继续完成阶段 D 的 analyzer 流式聚合与 Analysis 大小限制调整。
+截至 2026-09-10，路线验证及阶段 A、B、C1、C2、C3、D 均已完成开发与对应验证；后续进入阶段 E，移除迁移期实验与 Remotion 旧导出路径。
 
 - Phase 0 选择 CDP 与阻塞式交互，历史依据见 [Windows 实验结果](docs/experiments/electron-export-phase0/README.md)。
 - A–B 建立 Windows x64、固定源码 FFmpeg、材料收集及 CI/CD 基线。
 - C1–C3 完成正式导出任务、桌面入口、安全提交、进度与取消、详细终态和可恢复清理。
 - 中文及空格路径、屏幕阅读器交互已在 C2 验收；文件占用、清理恢复和退出残留已在 C3 验收。
 - 阶段 D 的 21 个性能 run 全部有效；正式测量、环境和限制见 [阶段 D 报告](docs/experiments/electron-export-phase-d/README.md)。
-- Remotion、实验内容和 FFmpeg 安装包分发边界尚未改变，由 D–E 处理。
+- Remotion、实验内容和 FFmpeg 安装包分发边界尚未改变，由 E 处理。
 
 ## 稳定边界
 
@@ -41,9 +41,7 @@ Windows 原生 Node/MSYS2 UCRT64、固定源码 FFmpeg、构建材料、隔离 P
 
 自动化覆盖共享契约、提交和取消竞争、部分成功、FFmpeg/窗口/partial/backup 清理、重试、过期事件隔离、双尺寸 Electron UI、截图场景及真实固定 FFmpeg ExportHost 集成。人工验收已覆盖 MP4、PNG、双格式、覆盖、中文及空格路径、取消、故障、文件占用、清理恢复、退出残留和屏幕阅读器。
 
-## 后续阶段
-
-### D. 性能复验
+### D. 性能复验与 analyzer 内存边界
 
 正式 Electron 导出路线已使用无逐帧探针的 production build 完成测量。每个场景预热一次、正式运行五次，并另行执行一次取消；21 个 run 全部有效，MP4/PNG 规格、事件时间线、内存采样和退出残留检查均通过。
 
@@ -62,20 +60,18 @@ Windows 原生 Node/MSYS2 UCRT64、固定源码 FFmpeg、构建材料、隔离 P
 - 优化或继续测量 FFmpeg 约 3 GiB 的工作集占用；
 - 在 8 GiB、16 GiB 或其它低内存环境执行稳定性、换页或 OOM 验证。
 
-阶段 D 下一步只处理 analyzer 的大 GSR 内存占用与 Analysis 输出限制：
+analyzer 已改为顺序读取 GSR：result value 以哈希表聚合频数，termination reason 以定长 vector 计数，只排序不同 result value，不再保留逐 run 数组。统计、CDF 和 largest-remainder 语义保持不变，旧 `read_gsr_v2` API 继续复用同一套完整 GSR 防御校验。
 
-1. 将 analyzer 和 Electron `ResultEditor` 的 Analysis JSON 上限从 16 MiB 统一提高到 64 MiB；GSR v2 和 Analysis JSON 字段契约保持不变。
-2. analyzer 顺序读取 GSR，使用哈希表聚合 result value 频数、使用定长 vector 聚合 termination reason 计数，再将唯一 result value 转为排序 vector 生成 CDF 和统计值；不保留逐 run 数组，不增加落盘归并。
-3. 聚合期间根据唯一值计算最终 JSON 的最小可能大小；一旦该下界超过 64 MiB，立即拒绝。相关变量或函数附近必须注释该下界的含义、与哈希表内存无关，以及提前拒绝不会误伤仍可能装入 64 MiB 的输出。
-4. 输出前对完整 Analysis JSON 执行精确的 64 MiB 序列化大小检查，覆盖 result item、termination reason、CDF 和统计字段；不得只依赖 Electron 接收 stdout 时的事后截断。
-5. 以当前排序实现的既有语义作为等价基准，增加行为测试覆盖线性插值分位数、CDF 累计比例、termination largest-remainder、重复值、稀疏值、极端 `uint64_t` 值，以及最小大小下界和最终序列化大小在 64 MiB 限制附近的通过/拒绝边界。
+Analysis JSON 上限已在 analyzer 与 Electron `ResultEditor` 统一为 64 MiB；DisplayConfig sidecar 独立保持 16 MiB。聚合期间按唯一值维护不会误拒绝的饱和 JSON 大小下界，完整 Analysis 只序列化一次并执行精确 byte 检查；Electron 仅额外允许一个平台换行帧，移除后再次复核 JSON 本体大小。行为测试覆盖频数统计、线性插值与向零截断、CDF/mean level、termination 分配、零计数 reason、`uint64_t` 极值、固定基准等价以及下界和精确序列化边界。
+
+## 后续阶段
 
 ### E. Remotion 移除
 
-2. 确认 D 回归独立于 Spike 后删除实验入口、脚本、测试和探针样式，保留正式测试专用逐帧探针且禁止进入 production build。
-3. 用单一归档文件替代 Phase 0 原报告目录，保留环境、版本/哈希、正确性、性能、故障清理和路线决策依据。
-4. 删除 Remotion 导出宿主、相关依赖与传递打包产物，更新 lockfile、构建、CI 和文档。
-5. 重新构建无探针 production build，复跑产物、连续帧和生命周期检查。
+1. 确认 D 回归独立于 Spike 后删除实验入口、脚本、测试和探针样式，保留正式测试专用逐帧探针且禁止进入 production build。
+2. 用单一归档文件替代 Phase 0 原报告目录，保留环境、版本/哈希、正确性、性能、故障清理和路线决策依据。
+3. 删除 Remotion 导出宿主、相关依赖与传递打包产物，更新 lockfile、构建、CI 和文档。
+4. 重新构建无探针 production build，复跑产物、连续帧和生命周期检查。
 
 ### F. 打包与许可证迁移
 

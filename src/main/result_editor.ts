@@ -26,7 +26,8 @@ import {
   terminate_native_process,
 } from "./simulation";
 
-const JSON_LIMIT = 16 * 1024 * 1024;
+export const ANALYSIS_JSON_BYTE_LIMIT = 64 * 1024 * 1024;
+export const DISPLAY_CONFIG_JSON_BYTE_LIMIT = 16 * 1024 * 1024;
 const STDERR_LIMIT = 64 * 1024;
 
 type ResultEditorDependencies = {
@@ -38,6 +39,7 @@ type ResultEditorDependencies = {
   terminate_native_process?: (child: ChildProcess) => Promise<void>;
   native_dir?: string;
   random_uuid?: () => string;
+  analysis_json_byte_limit?: number;
 };
 
 export type ResultSnapshot = Readonly<{
@@ -231,11 +233,12 @@ export class ResultEditor {
   }
 
   private read_sidecar(path: string): DisplayConfig {
-    if (readFileSync(path).byteLength > JSON_LIMIT)
+    const contents = readFileSync(path);
+    if (contents.byteLength > DISPLAY_CONFIG_JSON_BYTE_LIMIT)
       throw new Error("非法 sidecar: 文件超过 16 MiB");
     let value: unknown;
     try {
-      value = JSON.parse(readFileSync(path, "utf8"));
+      value = JSON.parse(contents.toString("utf8"));
     } catch (error) {
       throw new Error(
         `非法 sidecar: ${error instanceof Error ? error.message : String(error)}`,
@@ -261,6 +264,9 @@ export class ResultEditor {
     if (!existsSync(command))
       throw new Error(`native analyzer not found: ${command}`);
     return new Promise((resolve_promise, reject) => {
+      const json_limit =
+        this.dependencies.analysis_json_byte_limit ?? ANALYSIS_JSON_BYTE_LIMIT;
+      const framed_limit = json_limit + 2;
       const child = (this.dependencies.spawn ?? spawn)(
         command,
         ["--input", path],
@@ -279,7 +285,7 @@ export class ResultEditor {
       child.stderr?.setEncoding("utf8");
       child.stdout?.on("data", (chunk: string) => {
         stdout_size += Buffer.byteLength(chunk);
-        if (stdout_size <= JSON_LIMIT) stdout += chunk;
+        if (stdout_size <= framed_limit) stdout += chunk;
         else void this.cancel().catch(() => undefined);
       });
       child.stderr?.on("data", (chunk: string) => {
@@ -294,8 +300,13 @@ export class ResultEditor {
           this.child_close = null;
         }
         resolve_close();
-        if (stdout_size > JSON_LIMIT)
-          reject(new Error("analyzer JSON exceeds 16 MiB"));
+        const json = stdout.endsWith("\r\n")
+          ? stdout.slice(0, -2)
+          : stdout.endsWith("\n")
+            ? stdout.slice(0, -1)
+            : stdout;
+        if (stdout_size > framed_limit || Buffer.byteLength(json) > json_limit)
+          reject(new Error("analyzer JSON exceeds 64 MiB"));
         else if (code !== 0)
           reject(
             new Error(
@@ -304,7 +315,7 @@ export class ResultEditor {
           );
         else {
           try {
-            resolve_promise(validate_analysis(JSON.parse(stdout)));
+            resolve_promise(validate_analysis(JSON.parse(json)));
           } catch (error) {
             reject(error);
           }

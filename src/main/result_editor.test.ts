@@ -6,7 +6,11 @@ import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 import type { ChildProcess } from "node:child_process";
-import { ResultEditor } from "./result_editor";
+import {
+  ANALYSIS_JSON_BYTE_LIMIT,
+  DISPLAY_CONFIG_JSON_BYTE_LIMIT,
+  ResultEditor,
+} from "./result_editor";
 
 const analysis = {
   result_item: { id: "draw_count", name: "抽数" },
@@ -131,6 +135,70 @@ test("rejects a v1 sidecar without overwriting it", async () => {
     children[0].close();
     await assert.rejects(opening, /非法 sidecar/);
     assert.equal(readFileSync(sidecar_path, "utf8"), legacy_sidecar);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("accepts one analyzer newline frame and enforces the JSON byte limit", async () => {
+  assert.equal(ANALYSIS_JSON_BYTE_LIMIT, 64 * 1024 * 1024);
+  assert.equal(DISPLAY_CONFIG_JSON_BYTE_LIMIT, 16 * 1024 * 1024);
+  const directory = mkdtempSync(
+    join(tmpdir(), "gachasimulate-result-limit-test-"),
+  );
+  const path = join(directory, "sample.gsr");
+  writeFileSync(path, "fixture");
+  const serialized = JSON.stringify(analysis);
+
+  try {
+    for (const newline of ["\n", "\r\n"]) {
+      const children: FakeChild[] = [];
+      const editor = new ResultEditor({
+        analysis_json_byte_limit: Buffer.byteLength(serialized),
+        spawn: () => {
+          const child = new FakeChild();
+          children.push(child);
+          return child as unknown as ChildProcess;
+        },
+      });
+      const opening = editor.open(path);
+      children[0].stdout.write(`${serialized}${newline}`);
+      children[0].close();
+      assert.deepEqual((await opening).analysis, analysis);
+    }
+
+    const children: FakeChild[] = [];
+    const editor = new ResultEditor({
+      analysis_json_byte_limit: Buffer.byteLength(serialized),
+      spawn: () => {
+        const child = new FakeChild();
+        children.push(child);
+        return child as unknown as ChildProcess;
+      },
+    });
+    const opening = editor.open(path);
+    children[0].stdout.write(`${serialized} \n`);
+    children[0].close();
+    await assert.rejects(opening, /analyzer JSON exceeds 64 MiB/);
+
+    let terminated = 0;
+    const oversized_children: FakeChild[] = [];
+    const oversized_editor = new ResultEditor({
+      analysis_json_byte_limit: Buffer.byteLength(serialized),
+      spawn: () => {
+        const child = new FakeChild();
+        oversized_children.push(child);
+        return child as unknown as ChildProcess;
+      },
+      terminate_native_process: async (child) => {
+        terminated += 1;
+        (child as unknown as FakeChild).close();
+      },
+    });
+    const oversized_opening = oversized_editor.open(path);
+    oversized_children[0].stdout.write(`${serialized}   `);
+    await assert.rejects(oversized_opening, /analyzer JSON exceeds 64 MiB/);
+    assert.equal(terminated, 1);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
