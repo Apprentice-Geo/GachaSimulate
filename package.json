@@ -14,12 +14,14 @@
     "check:cpp:debug": "pwsh -NoProfile -File scripts/check_cpp_win.ps1 -Task Debug",
     "check:cpp:tidy": "pwsh -NoProfile -File scripts/check_cpp_win.ps1 -Task Tidy",
     "check:cpp:release": "pwsh -NoProfile -File scripts/check_cpp_win.ps1 -Task Release",
-    "format": "prettier --write \"src/**/*.{ts,tsx,js,mjs,cjs,css,json}\" \"docs/schemas/**/*.json\" \"*.{ts,js,mjs,cjs,json}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,mjs,cjs,css,json}\" \"docs/schemas/**/*.json\" \"*.{ts,js,mjs,cjs,json}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs,json}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,mjs,cjs,css,json}\" \"docs/schemas/**/*.json\" \"*.{ts,js,mjs,cjs,json}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs,json}\" \"scripts/application_licenses*.mjs\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,mjs,cjs,css,json}\" \"docs/schemas/**/*.json\" \"*.{ts,js,mjs,cjs,json}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs,json}\" \"scripts/application_licenses*.mjs\"",
     "lint": "eslint \"src/**/*.{ts,tsx,js,mjs,cjs}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs}\" \"*.{ts,js,mjs,cjs}\"",
     "typecheck": "pnpm run build:packages && tsc --noEmit && pnpm --recursive --filter \"./packages/*\" typecheck",
     "build": "pnpm run build:packages && tsc --noEmit && electron-vite build",
-    "package:win": "pnpm run build && electron-builder --win nsis --publish never",
+    "prepare:application-licenses": "node scripts/application_licenses.mjs",
+    "test:application-licenses": "node --test --test-isolation=none scripts/application_licenses.test.mjs",
+    "package:win": "pnpm run build && pnpm run prepare:application-licenses && electron-builder --win nsis --publish never",
     "test:package:win": "pwsh -NoProfile -File scripts/check_windows_package.ps1",
     "capture:ui": "pnpm run build:packages && electron-vite build && tsx src/dev/capture_ui.ts",
     "prepare:ffmpeg:win": "pwsh -NoProfile -File scripts/prepare_ffmpeg.ps1",
@@ -44,7 +46,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "Apache-2.0",
+  "license": "GPL-3.0-or-later",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/Apprentice-Geo/GachaSimulate/issues"
@@ -60,6 +62,10 @@
       {
         "from": "build/native",
         "to": "native"
+      },
+      {
+        "from": "build/application-licenses",
+        "to": "licenses"
       }
     ],
     "win": {

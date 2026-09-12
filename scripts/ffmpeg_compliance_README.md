@@ -4,7 +4,8 @@ This archive covers the project's separately built FFmpeg/ffprobe and their
 zlib/x264 dependencies. It is not a license inventory for the whole application.
 FFmpeg is built with GPL components (`--enable-gpl`, libx264), without nonfree
 components. Preserve the original copyright and license notices in `licenses/`
-and in the source trees. The project's build scripts are Apache-2.0 licensed.
+and in the source trees. The project's build scripts are licensed under
+GPL-3.0-or-later.
 
 `source-lock.json` identifies the fixed upstream sources. `sources/` contains
 the original FFmpeg and zlib archives and a self-contained x264 Git bundle,

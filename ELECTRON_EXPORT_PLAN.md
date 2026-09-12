@@ -2,9 +2,9 @@
 
 ## 当前状态
 
-截至 2026-09-11，路线验证、阶段 A–D 以及阶段 E1–E4 均已完成。Phase 0 和阶段 D 的环境、正确性、性能及路线决策已集中到 [Electron 导出实验归档](docs/archived/ELECTRON_EXPORT_EXPERIMENTS.md)；未被消费的 heartbeat、Phase 0 Spike 和阶段 D 临时性能工具已经移除。Remotion 旧导出宿主、依赖、命令与 CI smoke 已删除，无 Remotion 的 production build 和正式 ExportHost 集成检查均已通过。
+截至 2026-09-12，路线验证、阶段 A–D、阶段 E1–E4、阶段 F1 以及主仓库许可证迁移均已完成。Phase 0 和阶段 D 的环境、正确性、性能及路线决策已集中到 [Electron 导出实验归档](docs/archived/ELECTRON_EXPORT_EXPERIMENTS.md)；未被消费的 heartbeat、Phase 0 Spike 和阶段 D 临时性能工具已经移除。Remotion 旧导出宿主、依赖、命令与 CI smoke 已删除，无 Remotion 的 production build 和正式 ExportHost 集成检查均已通过。
 
-下一项是阶段 F：完成许可证决策与 FFmpeg 安装包接入。阶段 E 的清理没有改变 `Analysis + DisplayConfig`、共享场景、动画或 Electron 逐帧语义。
+主仓库项目自有内容采用 `GPL-3.0-or-later`，安装包携带项目许可证、静态第三方声明和构建时生成的 npm 生产依赖许可证清单。既有 FFmpeg 分发义务与合规材料视为已经完成，下一项是接入 FFmpeg 安装包并完成最终验收。阶段 E 的清理和许可证迁移均未改变 `Analysis + DisplayConfig`、共享场景、动画或 Electron 逐帧语义。
 
 ## 稳定边界
 
@@ -41,13 +41,13 @@ main 持有规范目录、目标路径和 `TargetIdentity`，在覆盖确认及�
 
 ### F. 打包与许可证迁移
 
-- 评估迁移到 GPL v3.0 and later 的明显阻塞项，并由维护者决定如何处理。
-- 完成许可证决策与 FFmpeg 材料复核后，以 `extraResources` 将运行所需产物放在 ASAR 外；开发态和安装包分别使用固定资源路径。
+- F1 和主仓库 `GPL-3.0-or-later` 许可证迁移已完成；项目许可证、静态第三方声明和 npm 生产依赖许可证清单随安装包交付。
+- 复用已经完成的 FFmpeg 合规材料，以 `extraResources` 将运行所需产物放在 ASAR 外；开发态和安装包分别使用固定资源路径。
 
 ### G. 验收与文档收尾
 
 - 构建 Windows 安装包并本地验收 MP4/PNG、覆盖、中文及空格路径、字体、视觉一致性和安装态资源稳定性；断网且无开发工具或 PATH 依赖时仍能导出。本阶段不发布 Release。
-- 由维护者决定本分支开发文档的长期职责，并迁移或删除临时内容。
+- 完成剩余文档收尾，保留稳定职责与验收入口。
 
 ## 文档维护
 

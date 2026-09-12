@@ -96,6 +96,9 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check application license materials
+        run: pnpm run test:application-licenses
+
       - name: Check Node.js formatting
         run: pnpm run format:check
 

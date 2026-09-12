@@ -49,6 +49,7 @@ pnpm run check:cpp:release
 ## Node/Electron 完整检查
 
 ```powershell
+pnpm run test:application-licenses
 pnpm run format:check
 pnpm run lint
 pnpm run typecheck
@@ -74,6 +75,7 @@ Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构
 - Analysis 或 DisplayConfig 输入契约：同步核对 JSON Schema、semantic validator、TypeScript 类型和共享 fixture，并执行 `test:visualize:cdf`、`test:simulation`、typecheck 和 build。
 - CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑代表性实际 export。
 - Electron 导出 renderer、逐帧协议、CDP、FFmpeg 或输出提交：`test:visualize:cdf`、`test:electron-export`、typecheck、lint 和 build；Windows x64 继续执行下述正式宿主集成检查。
+- npm 生产依赖、字体、原生第三方组件或 Electron 打包资源：`test:application-licenses`、`package:win` 和 `test:package:win`；安装包检查会核对项目与静态第三方材料、npm 清单以及 Electron/Chromium 声明。
 - 桌面导出入口、格式/文件名、目标选择、覆盖、进度、终态或阻塞清理交互：在上一项基础上执行 `test:electron-layout`，并用 `capture:ui` 检查 format、overwrite、started、progress、partial-failure 和 cleanup-blocked 场景。系统原生目录选择器本身仍按人工验收项检查。
 - 仅文档：检查命令、链接和完成状态；跨层状态文档仍按对应范围验证。
 

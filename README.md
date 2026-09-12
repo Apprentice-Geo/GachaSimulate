@@ -40,3 +40,7 @@ Windows 开发准备和宿主检查见 [Development Checks](docs/DEVELOPMENT_CHE
 ## 开发检查
 
 模块边界见 [Architecture](ARCHITECTURE.md)，push 前检查见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)。FFmpeg 源码准备、编译和材料打包脚本见 [scripts README](scripts/README.md)。
+
+## 许可证
+
+[GachaSimulate 源码仓库](https://github.com/Apprentice-Geo/GachaSimulate)中的项目自有内容采用 [GNU General Public License v3.0 or later](LICENSE.txt)；第三方组件继续适用各自许可证，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。

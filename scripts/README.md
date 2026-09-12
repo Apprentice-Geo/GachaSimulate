@@ -16,7 +16,10 @@
 | [package_ffmpeg_compliance.test.ps1](package_ffmpeg_compliance.test.ps1) | 使用已有构建的独立副本验证材料打包、错误输入拒绝、旧包保护、安装包哈希关联和许可证缺口披露。                                                        |
 | [prepare_ffmpeg.ps1](prepare_ffmpeg.ps1)                                 | 迁移期间的第三方二进制准备入口，下载或读取固定 Gyan 归档。与自编译共用安装目录，执行后会替换当前产物；使用限制见分发文档。                          |
 | [check_cpp_win.ps1](check_cpp_win.ps1)                                   | Windows 本地与 CI 共用的 C++ 格式化、Debug/Release CTest、clang-tidy、安装和隔离 PATH 冒烟入口。                                                   |
-| [check_windows_package.ps1](check_windows_package.ps1)                   | 检查当前版本 NSIS 与 unpacked 原生程序存在，并在隔离开发工具 PATH 后运行包内 core/analyzer。                                                       |
+| [application_licenses.mjs](application_licenses.mjs)                     | 从实际 npm 生产依赖生成确定性的应用许可证材料；按版本化策略拒绝未复核许可证、缺失正文和版本失配。                                                  |
+| [application_licenses.test.mjs](application_licenses.test.mjs)           | 使用固定 fixture 验证生成、排序、拒绝路径和版本覆盖，并检查当前真实生产依赖树。                                                                     |
+| [application_licenses_policy.json](application_licenses_policy.json)     | 应用许可证生成器允许的表达式、精确版本人工覆盖和静态材料映射。                                                                                       |
+| [check_windows_package.ps1](check_windows_package.ps1)                   | 检查当前版本 NSIS、unpacked 原生程序和许可证材料，并在隔离开发工具 PATH 后运行包内 core/analyzer。                                                  |
 | [ffmpeg_windows_source_lock.json](ffmpeg_windows_source_lock.json)       | 自编译源码版本、归档名、哈希和 x264 提交的唯一配置来源。更新源码时同步相关检查，不在其他文档维护一份版本锁。                                        |
 | [ffmpeg_compliance_README.md](ffmpeg_compliance_README.md)               | 随合规包分发的英文说明模板，包含解包后的离线源码恢复和重建步骤。它面向材料接收者，保持自包含，不依赖仓库文档链接。                                  |
 
@@ -68,7 +71,7 @@ FFmpeg 从 `--disable-everything --disable-autodetect` 开始裁剪，启用 PNG
 
 每次构建的 `materials/` 保存：
 
-- **源码与重建输入**：原始 FFmpeg/zlib 归档、包含版本历史的 `x264.bundle`、源码锁与哈希、补丁清单、构建脚本副本及其 Apache-2.0 许可证、离线重建说明。当前三个组件均无本地源码补丁。
+- **源码与重建输入**：原始 FFmpeg/zlib 归档、包含版本历史的 `x264.bundle`、源码锁与哈希、补丁清单、构建脚本副本及其 `GPL-3.0-or-later` 许可证、离线重建说明。当前三个组件均无本地源码补丁。
 - **环境与构建记录**：所需包版本、完整 MSYS2 包快照、实际工具版本、路径、三套 configure 参数、完整构建与 configure 日志。
 - **产物证据**：版本/buildconf、能力清单、二进制 SHA-256、`*-link.map` 中的静态库成员和启动对象，以及 `*-pe-imports.txt` 中的 DLL 依赖。FFmpeg 没有 `-parsers` 命令行选项，parser 清单从本次生成注册表提取，并保留原始 `parser_list.c`。
 - **许可证**：三个组件的许可证，以及本次 MSYS2 安装中 `gcc-libs`、`crt`、`winpthreads`、`libwinpthread` 的完整声明目录。不按符号裁剪，也不进一步归档编译器源码或 MSYS2 构建配方；声明集合不表示其中每个库都参与了链接。
