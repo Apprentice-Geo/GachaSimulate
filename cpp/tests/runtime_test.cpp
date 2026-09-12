@@ -130,8 +130,9 @@ TEST(Paths, SupportsUtf8IrAndGsrFilenames) {
   std::filesystem::copy_file(fixture_path(), ir_path,
                              std::filesystem::copy_options::overwrite_existing);
   const auto program = gachasimulate::load_ir_file(path_utf8(ir_path));
-  gachasimulate::write_gsr_v2(path_utf8(gsr_path), program,
-                              gachasimulate::simulate_fixed_runs(program, 1, 0, 1), 0);
+  gachasimulate::write_gsr_v2(
+      path_utf8(gsr_path), program,
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 1, .seed = 0, .threads = 1}), 0);
   EXPECT_EQ(gachasimulate::read_gsr_v2(path_utf8(gsr_path)).runs, 1U);
   std::filesystem::remove(ir_path);
   std::filesystem::remove(gsr_path);
@@ -163,7 +164,10 @@ TEST(Runtime, LimitsRepeatAndCrossDrawSteps) {
 
   auto no_termination = gachasimulate::load_ir_file(fixture_path().string());
   no_termination.conditions[0].value = std::numeric_limits<int64_t>::max();
-  EXPECT_EQ(error_message([&] { gachasimulate::simulate_fixed_runs(no_termination, 3, 123, 2); }),
+  EXPECT_EQ(error_message([&] {
+              gachasimulate::simulate_fixed_runs(no_termination,
+                                                 {.total_runs = 3, .seed = 123, .threads = 2});
+            }),
             "runtime step limit exceeded");
 }
 
@@ -208,10 +212,14 @@ TEST(Runtime, LoadsInt64ResolveValuesAndRejectsInvalidOnes) {
 
 TEST(Batch, FixedRunsIgnoreSchedulingAndAreRepeatable) {
   const auto program = gachasimulate::load_ir_file(random_fixture_path().string());
-  const auto serial = gachasimulate::simulate_fixed_runs(program, 100, -123, 1);
-  const auto parallel = gachasimulate::simulate_fixed_runs(program, 100, -123, 4);
-  const auto chunked = gachasimulate::simulate_fixed_runs(program, 100, -123, 2, {}, 7);
-  const auto repeat = gachasimulate::simulate_fixed_runs(program, 100, -123, 4);
+  const auto serial =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 100, .seed = -123, .threads = 1});
+  const auto parallel =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 100, .seed = -123, .threads = 4});
+  const auto chunked = gachasimulate::simulate_fixed_runs(
+      program, {.total_runs = 100, .seed = -123, .threads = 2, .chunks = 7});
+  const auto repeat =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 100, .seed = -123, .threads = 4});
   EXPECT_EQ(serial.values.size(), 100U);
   EXPECT_EQ(serial.values, parallel.values);
   EXPECT_EQ(serial.reasons, parallel.reasons);
@@ -227,9 +235,11 @@ TEST(Batch, FixedRunsIgnoreSchedulingAndAreRepeatable) {
 TEST(Batch, FixedRunsHaveStablePrefixesAndProgress) {
   const auto program = gachasimulate::load_ir_file(random_fixture_path().string());
   std::vector<uint64_t> progress;
-  const auto small = gachasimulate::simulate_fixed_runs(program, 37, 123, 3);
+  const auto small =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 37, .seed = 123, .threads = 3});
   const auto large = gachasimulate::simulate_fixed_runs(
-      program, 100, 123, 4, [&](uint64_t completed) { progress.push_back(completed); }, 9);
+      program, {.total_runs = 100, .seed = 123, .threads = 4, .chunks = 9},
+      [&](uint64_t completed) { progress.push_back(completed); });
   EXPECT_TRUE(std::equal(small.values.begin(), small.values.end(), large.values.begin()));
   EXPECT_TRUE(std::equal(small.reasons.begin(), small.reasons.end(), large.reasons.begin()));
   EXPECT_EQ(small.total_result,
@@ -241,15 +251,19 @@ TEST(Batch, FixedRunsHaveStablePrefixesAndProgress) {
 
 TEST(Batch, SupportsAnArbitraryResultItem) {
   const auto program = gachasimulate::load_ir_file(cost_fixture_path().string());
-  const auto result = gachasimulate::simulate_fixed_runs(program, 3, 123, 1);
+  const auto result =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 3, .seed = 123, .threads = 1});
   EXPECT_EQ(result.values, (std::vector<uint64_t>{7, 7, 7}));
   EXPECT_EQ(result.total_result, 21U);
 }
 
 TEST(Batch, RejectsZeroWorkersAndInvalidResultValues) {
   const auto program = gachasimulate::load_ir_file(random_fixture_path().string());
-  EXPECT_THROW(gachasimulate::simulate_fixed_runs(program, 1, 123, 0, {}, 1), std::runtime_error);
-  EXPECT_THROW(gachasimulate::simulate_fixed_runs(program, 1'000'000'008, 123, 1),
+  EXPECT_THROW(gachasimulate::simulate_fixed_runs(
+                   program, {.total_runs = 1, .seed = 123, .threads = 0, .chunks = 1}),
+               std::runtime_error);
+  EXPECT_THROW(gachasimulate::simulate_fixed_runs(
+                   program, {.total_runs = 1'000'000'008, .seed = 123, .threads = 1}),
                std::runtime_error);
 
   auto negative = gachasimulate::load_ir_file(fixture_path().string());
@@ -257,7 +271,9 @@ TEST(Batch, RejectsZeroWorkersAndInvalidResultValues) {
   negative.actions[1].amount = 5;
   negative.conditions[0].value = -100;
   EXPECT_LT(gachasimulate::single_run(negative, 123).inventory[1], 0);
-  EXPECT_THROW(gachasimulate::simulate_fixed_runs(negative, 1, 123, 1), std::runtime_error);
+  EXPECT_THROW(
+      gachasimulate::simulate_fixed_runs(negative, {.total_runs = 1, .seed = 123, .threads = 1}),
+      std::runtime_error);
 
   auto overflow = gachasimulate::load_ir_file(fixture_path().string());
   overflow.result_item = 1;
@@ -265,14 +281,17 @@ TEST(Batch, RejectsZeroWorkersAndInvalidResultValues) {
   overflow.resolves[1] = {};
   EXPECT_EQ(gachasimulate::single_run(overflow, 123).inventory[1],
             std::numeric_limits<int64_t>::max());
-  EXPECT_THROW(gachasimulate::simulate_fixed_runs(overflow, 3, 123, 1), std::runtime_error);
+  EXPECT_THROW(
+      gachasimulate::simulate_fixed_runs(overflow, {.total_runs = 3, .seed = 123, .threads = 1}),
+      std::runtime_error);
 }
 
 TEST(Gsr, WritesV2HeaderAndFixture) {
   const auto path = output_path("v2_fixture");
   std::filesystem::remove(path);
   const auto program = gachasimulate::load_ir_file(fixture_path().string());
-  const auto result = gachasimulate::simulate_fixed_runs(program, 3, 123, 1);
+  const auto result =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 3, .seed = 123, .threads = 1});
   gachasimulate::write_gsr_v2(path.string(), program, result, 123);
   expect_gsr(path, 3, 3, "draw_count", "Draw count");
   EXPECT_EQ(hex(bytes(path)), fixture_text(GACHASIMULATE_TEST_GSR_FIXTURE));
@@ -281,12 +300,14 @@ TEST(Gsr, WritesV2HeaderAndFixture) {
 
 TEST(Gsr, RejectsInconsistentBatchDataAndOverflow) {
   const auto program = gachasimulate::load_ir_file(fixture_path().string());
-  auto result = gachasimulate::simulate_fixed_runs(program, 1, 123, 1);
+  auto result =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 1, .seed = 123, .threads = 1});
   result.reasons.clear();
   EXPECT_THROW(
       gachasimulate::write_gsr_v2(output_path("invalid_test").string(), program, result, 123),
       std::runtime_error);
-  result = gachasimulate::simulate_fixed_runs(program, 1, 123, 1);
+  result =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 1, .seed = 123, .threads = 1});
   result.reasons[0] = static_cast<uint32_t>(program.strings.size());
   EXPECT_THROW(gachasimulate::write_gsr_v2(output_path("invalid_reason_test").string(), program,
                                            result, 123),
@@ -434,8 +455,10 @@ TEST(Gsr, RejectsMalformedV2HeadersSectionsReasonsAndUtf8) {
   const auto invalid_path = output_path("invalid_reader_test");
   std::filesystem::remove(valid_path);
   auto program = gachasimulate::load_ir_file(fixture_path().string());
-  gachasimulate::write_gsr_v2(valid_path.string(), program,
-                              gachasimulate::simulate_fixed_runs(program, 3, 123, 1), 123);
+  gachasimulate::write_gsr_v2(
+      valid_path.string(), program,
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 3, .seed = 123, .threads = 1}),
+      123);
   const auto valid = bytes(valid_path);
   auto rejected = [&](const std::vector<unsigned char> &data) {
     write_bytes(invalid_path, data);

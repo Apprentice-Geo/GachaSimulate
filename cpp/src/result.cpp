@@ -114,7 +114,7 @@ nlohmann::json statistics(const Frequencies &frequencies, uint64_t mean, uint64_
   for (const auto &[value, frequency] : frequencies) {
     count += frequency;
     unique.push_back(decimal(value));
-    cumulative.push_back(static_cast<double>(count) / runs);
+    cumulative.push_back(static_cast<double>(count) / static_cast<double>(runs));
     if (value <= mean)
       mean_count = count;
   }
@@ -130,7 +130,7 @@ nlohmann::json statistics(const Frequencies &frequencies, uint64_t mean, uint64_
             {"P95", decimal(percentile(frequencies, runs, 95))},
             {"MIN", decimal(frequencies.front().first)},
             {"MEAN", decimal(mean)},
-            {"MEAN_LEVEL", static_cast<double>(mean_count) / runs},
+            {"MEAN_LEVEL", static_cast<double>(mean_count) / static_cast<double>(runs)},
             {"MAX", decimal(frequencies.back().first)}}}};
 }
 

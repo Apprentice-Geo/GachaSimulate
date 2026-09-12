@@ -74,13 +74,17 @@ struct BatchResult {
   std::vector<uint32_t> reasons;
   uint64_t total_result{};
 };
+struct FixedRunOptions {
+  uint64_t total_runs{};
+  int64_t seed{};
+  uint32_t threads{};
+  uint32_t chunks{};
+};
 RuntimeProgram load_ir_file(const std::string &utf8_path);
 std::filesystem::path utf8_path(std::string_view value);
 RunResult single_run(const RuntimeProgram &program, uint64_t run_seed);
-BatchResult simulate_fixed_runs(const RuntimeProgram &program, uint64_t total_runs, int64_t seed,
-                                uint32_t threads,
-                                const std::function<void(uint64_t)> &progress = {},
-                                uint32_t chunks = 0);
+BatchResult simulate_fixed_runs(const RuntimeProgram &program, const FixedRunOptions &options,
+                                const std::function<void(uint64_t)> &progress = {});
 } // namespace gachasimulate
 
 #endif
