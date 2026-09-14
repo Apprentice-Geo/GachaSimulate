@@ -37,6 +37,46 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 - 启动原生进程的一层负责终止、等待和清理；失败任务不得留下临时 IR 或半成品结果。
 - 修改跨层契约时，必须同时检查生产方、消费方、机器定义、兼容策略和行为测试。
 
+## 可视化与导出
+
+`src/visualize/` 是平台无关的结果可视化层，将经过校验的 `Analysis + DisplayConfig v2` 转换为 CDF view model，供 Electron 展示与素材导出共享。导航、模拟表单、GSR 对话框、结果编辑页与任务交互属于桌面宿主，不进入本层；本层不依赖 Electron 或 Node.js API。
+
+```text
+Analysis -------> validate_analysis -----------+
+                                               +-> build_cdf_view_model
+DisplayConfig -> validate_display_config ------+   (safe-integer conversion + merge)
+                                                   -> CDF view model
+                                                   -> shared scene
+                                                   -> Electron display or export
+```
+
+Analysis 和 DisplayConfig 不能绕过各自校验直接进入视图模型。组件只消费 CDF view model，不承担 schema 校验、数值转换、CDF 计算或展示规则编排。结果编辑和结果可视化共享 main 管理的当前 GSR 会话；数据来源与保存规则见 [DisplayConfig](docs/DISPLAY_CONFIG.md)。
+
+### 共享层职责
+
+- `data/`：Analysis、DisplayConfig 校验和 CDF 基础计算。
+- `view/`：展示模型、统计配置和与画面有关的布局计算；CDF、marker、统计分组与布局计算不得散入组件。
+- `components/`：共享画面与交互组件，保持偏渲染。
+- `animation/`：交互展示和逐帧导出共用的时间轴与进度计算。
+- `styles/`：共享设计 token、画面样式和宿主外壳样式，设计原则见 [UI Design](docs/UI_DESIGN.md)。
+- `types/`：Analysis、DisplayConfig 和 CDF view model 的静态类型。
+
+定位实现时优先搜索 `Analysis`、`DisplayConfig`、`build_cdf_view_model` 和 `VisualizeScene`。Electron 接入只提供输入并承载共享画面，不复制输入校验、视图模型或导出逻辑。
+
+### 宿主与逐帧语义
+
+素材导出是长期保留能力。Electron 展示和素材导出复用同一套输入处理、视图模型、画面组件和动画进度；替换宿主不得复制或分叉画面逻辑。`src/export-renderer/` 负责固定尺寸导出页面与逐帧提交，`src/main/export_host.ts` 负责 CDP、FFmpeg 和输出提交，两者均位于可视化层之外。
+
+桌面素材导出入口通过 `VisualizeShell` 的宿主回调接入。可视化层只呈现固定操作按钮、可用状态和辅助技术可读的禁用原因，不接收 session id、GSR 文件名、reservation、目录或任务路径。格式、目标选择、覆盖及任务交互由桌面 renderer 与 main 负责，流程状态与模态框不得进入 `src/visualize/`。
+
+`VisualizeScene` 通过 `render_mode` 区分交互与导出。export 模式固定图表尺寸并强制隐藏操作栏，不调用页面缩放 hook、真实时钟动画或宿主缩放；画布规格与适配原则见 UI Design。
+
+共享动画使用 60 FPS 帧制时间轴。交互页面以 elapsed time 调用共享进度入口，由入口换算为浮点帧进度；逐帧导出换算为同一时间输入，避免维护两套视觉行为。修改动画节奏集中在 `animation/`，继续遵循 UI Design 中的缓动与透明度约束。
+
+`resolve_export_frame_state` 是逐帧语义的唯一入口，只接受 0–59 的整数帧。动画在 `ANIMATION_COMPLETION_FRAME` 到达终态，当前值为第 57 帧；第 57–59 帧保持相同 idle 终态，静态 PNG 使用第 57 帧。从视频切换到 PNG 时不得出现布局或动画跳变。
+
+修改共享视觉 token 或画布规格时，同时检查交互展示、Electron 导出 renderer、导出结果和相关文档。检查命令见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)，FFmpeg 构建与分发限制见 [FFmpeg 开发使用与分发状态](docs/FFMPEG_DISTRIBUTION.md)。
+
 ## 契约索引
 
 | 契约 | 用途与边界 | 版本与兼容性 | 定义权威 | 生产方 | 消费方 | 文档 |
@@ -45,11 +85,11 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 | IR | TS 到 C++ 的临时 JSON 进程契约 | 仅供配套实现使用，不持久化 | Config Compiler；C++ loader 负责不可信输入防御 | Config Compiler | C++ Runtime | [`IR.md`](docs/IR.md) |
 | GSR | 持久化模拟结果 | GSR v2；不读取旧格式 | C++ codec 与固定 fixture | C++ Runtime | C++ analyzer | [`GSR_V2.md`](docs/GSR_V2.md) |
 | Analysis | analyzer 的 JSON 输出 | 严格拒绝未知字段 | JSON Schema 定义结构，semantic validator 定义跨字段不变量 | C++ analyzer | Electron、素材导出 | [`ANALYSIS.md`](docs/ANALYSIS.md) |
-| DisplayConfig | 独立可视化 sidecar | v2；不隐式兼容 v1 或旧字段 | JSON Schema | Electron 结果编辑 | Electron、素材导出 | [`VISUALIZE_FRONTEND_IMPLEMENTATION.md`](docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md) |
+| DisplayConfig | 独立可视化 sidecar | v2；不隐式兼容 v1 或旧字段 | JSON Schema | Electron 结果编辑 | Electron、素材导出 | [`DISPLAY_CONFIG.md`](docs/DISPLAY_CONFIG.md) |
 | Config Repository | 配置仓库 index、manifest 和包文件集合 | v1 | config-repository-contract validator | 配置仓库 | Electron 配置安装 | [`CONFIG_REPOSITORY_V1.md`](docs/CONFIG_REPOSITORY_V1.md) |
 
 JSON 契约按约束范围划分权威：JSON Schema 定义字段、类型、必填项和局部取值约束；semantic validator 定义 Schema 之外的跨字段不变量；TypeScript 类型只是消费方的静态视图。契约测试负责验证这些定义与生产方、消费方保持一致，不另行定义格式。
 
 ## 专项文档
 
-配置语法见 `docs/YAML_CONFIG_SYNTAX.md`，IR 见 `docs/IR.md`，配置仓库协议见 `docs/CONFIG_REPOSITORY_V1.md`，结果格式见 `docs/GSR_V2.md`，分析格式见 `docs/ANALYSIS.md`，可视化边界见 `docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md`，FFmpeg 开发与发布边界见 `docs/FFMPEG_DISTRIBUTION.md`，检查矩阵见 `docs/DEVELOPMENT_CHECKS.md`。
+配置语法见 `docs/YAML_CONFIG_SYNTAX.md`，IR 见 `docs/IR.md`，配置仓库协议见 `docs/CONFIG_REPOSITORY_V1.md`，结果格式见 `docs/GSR_V2.md`，分析格式见 `docs/ANALYSIS.md`，展示配置见 [DisplayConfig](docs/DISPLAY_CONFIG.md)，UI 设计原则与交互不变量见 [UI Design](docs/UI_DESIGN.md)，FFmpeg 开发与发布边界见 `docs/FFMPEG_DISTRIBUTION.md`，检查矩阵见 `docs/DEVELOPMENT_CHECKS.md`。

@@ -25,7 +25,7 @@ pnpm run dev
 
 - `<stem>.visualize.json`
 
-sidecar 是独立的 `DisplayConfig v2`，只保存 `title`、`target`、`result_item_name`、`note`、`subtitle` 和 `result_item_unit`；分析、result item ID、CDF、termination、total 和 runs 始终从 GSR 重新获取。v1 sidecar 和旧字段会按非法配置拒绝，不做迁移或自动改写。
+sidecar 是独立的 [DisplayConfig v2](docs/DISPLAY_CONFIG.md)，保存版本标记和六个展示字段；分析、result item ID、CDF、termination、total 和 runs 始终从 GSR 重新获取。字段定义、校验与兼容规则由该契约文档维护。
 
 桌面数据位于 `app.getPath("userData")` 下的 `configs/installed/` 与 `results/`。
 
@@ -39,7 +39,7 @@ Windows 开发准备和宿主检查见 [Development Checks](docs/DEVELOPMENT_CHE
 
 ## 开发检查
 
-模块边界见 [Architecture](ARCHITECTURE.md)，push 前检查见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)。FFmpeg 源码准备、编译和材料打包脚本见 [scripts README](scripts/README.md)。
+模块边界见 [Architecture](ARCHITECTURE.md)，UI 设计原则与交互不变量见 [UI Design](docs/UI_DESIGN.md)，push 前检查见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)。FFmpeg 源码准备、编译和材料打包脚本见 [scripts README](scripts/README.md)。
 
 ## 许可证
 

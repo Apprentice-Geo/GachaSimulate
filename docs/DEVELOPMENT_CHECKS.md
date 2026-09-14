@@ -72,7 +72,7 @@ Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构
 - 配置仓库 index、manifest 或包文件清单协议：`test:config-repository-contract`、`test:packages`、`test:simulation` 中的下载/安装行为测试和 typecheck。
 - C++ Runtime、GSR 或 Analysis：format/tidy、Debug/Release CTest、Release install 和冒烟。
 - Electron IPC、配置扫描、模拟/分析进程生命周期或 sidecar：`test:simulation`、typecheck、lint、build。
-- Analysis 或 DisplayConfig 输入契约：同步核对 JSON Schema、semantic validator、TypeScript 类型和共享 fixture，并执行 `test:visualize:cdf`、`test:simulation`、typecheck 和 build。
+- [Analysis](ANALYSIS.md) 或 [DisplayConfig](DISPLAY_CONFIG.md) 输入契约：同步核对 JSON Schema、semantic validator、TypeScript 类型和共享 fixture，并执行 `test:visualize:cdf`、`test:simulation`、typecheck 和 build。
 - CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑代表性实际 export。
 - Electron 导出 renderer、逐帧协议、CDP、FFmpeg 或输出提交：`test:visualize:cdf`、`test:electron-export`、typecheck、lint 和 build；Windows x64 继续执行下述正式宿主集成检查。
 - npm 生产依赖、字体、原生第三方组件或 Electron 打包资源：`test:application-licenses`、`package:win` 和 `test:package:win`；安装包检查会核对项目与静态第三方材料、npm 清单以及 Electron/Chromium 声明。
@@ -100,6 +100,8 @@ pnpm run test:electron-export:integration
 该准备流程和 Windows CI 只用于技术验证，不表示 FFmpeg 已获准随应用分发。当前 `electron-builder` 配置不携带 FFmpeg；不得把 `build/ffmpeg` 加入安装包。发布阻塞、已知风险和解除条件见 [FFmpeg 开发使用与分发状态](FFMPEG_DISTRIBUTION.md)。
 
 ## Electron 人工验收
+
+视觉语言、布局与交互不变量以 [UI Design](UI_DESIGN.md) 为验收依据；共享场景与逐帧语义见 [Architecture](../ARCHITECTURE.md#可视化与导出)。修改设计规格时，同步更新相关布局断言与验收要求。
 
 UI 回归分工：`capture:ui` 只准备场景并输出截图；布局、滚动、renderer 缩放和真实 DOM/SVG 几何由 `pnpm run test:electron-layout` 独立检查。内部滚动区域必须有明确滚动所有者，panel 标题不能放入内容滚动容器；缩放按实际 CSS viewport 验证。CDF compact/default 同时检查纯几何参数与最终 DOM。结果字段只在失焦时保存。
 
