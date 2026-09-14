@@ -8,6 +8,14 @@
     }
   },
   "application_files": [
+    {
+      "source": "third_party/licenses/JetBrainsMono-OFL-1.1.txt",
+      "output": "JetBrainsMono-OFL-1.1.txt"
+    },
+    {
+      "source": "third_party/licenses/JetBrainsMono-AUTHORS.txt",
+      "output": "JetBrainsMono-AUTHORS.txt"
+    },
     { "source": "LICENSE.txt", "output": "LICENSE.txt" },
     { "source": "THIRD_PARTY_NOTICES.md", "output": "THIRD_PARTY_NOTICES.md" },
     {

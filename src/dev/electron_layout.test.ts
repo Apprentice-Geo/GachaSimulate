@@ -146,6 +146,82 @@ async function assert_full_window_host_rects(page: Page) {
   );
 }
 
+// Compare rendered geometry, including renderer zoom, without fixing padding or
+// panel heights. One physical pixel allows Chromium's subpixel rounding.
+async function vertical_geometry(page: Page, selector: string) {
+  return page.locator(selector).evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    const scale = Number(
+      getComputedStyle(document.querySelector(".renderer-shell")!).zoom,
+    );
+    const top_inset =
+      parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop);
+    const bottom_inset =
+      parseFloat(style.borderBottomWidth) + parseFloat(style.paddingBottom);
+    return {
+      top: rect.top,
+      bottom: rect.bottom,
+      content_top: rect.top + top_inset * scale,
+      content_bottom: rect.bottom - bottom_inset * scale,
+      content_height: rect.height - (top_inset + bottom_inset) * scale,
+      margin_bottom: parseFloat(style.marginBottom) * scale,
+    };
+  });
+}
+
+function assert_pixel_equal(actual: number, expected: number, message: string) {
+  assert.ok(
+    Math.abs(actual - expected) <= 1,
+    `${message}: expected ${expected}, got ${actual}`,
+  );
+}
+
+async function assert_vertical_fill(
+  page: Page,
+  parent: string,
+  first: string,
+  last = first,
+) {
+  const [outer, start, end] = await Promise.all([
+    vertical_geometry(page, parent),
+    vertical_geometry(page, first),
+    vertical_geometry(page, last),
+  ]);
+  assert_pixel_equal(
+    start.top,
+    outer.content_top,
+    `${first} fills ${parent} top`,
+  );
+  assert_pixel_equal(
+    end.bottom,
+    outer.content_bottom,
+    `${last} fills ${parent} bottom`,
+  );
+}
+
+async function assert_repository_space(page: Page) {
+  await assert_vertical_fill(page, ".renderer-main", ".repository-page");
+  await assert_vertical_fill(
+    page,
+    ".repository-page",
+    ".repository-header",
+    ".local-source",
+  );
+  const [official, local] = await Promise.all([
+    vertical_geometry(page, ".official-source"),
+    vertical_geometry(page, ".local-source"),
+  ]);
+  // flex 7:3 distributes content-box space, excluding padding and borders.
+  const available = official.content_height + local.content_height;
+  assert.ok(available > 0);
+  assert_pixel_equal(
+    official.content_height,
+    available * 0.7,
+    "official/local content space is 7:3",
+  );
+}
+
 async function fail_with_layout(page: Page, message: string): Promise<never> {
   const details = await page.evaluate(() => ({
     viewport: { width: innerWidth, height: innerHeight },
@@ -192,6 +268,16 @@ async function assert_layout(
   height: number,
 ) {
   await page.getByText("状态 / 待运行").waitFor();
+  await page.evaluate(() => document.fonts.ready);
+  const space_failures: string[] = [];
+  const check_space = async (check: () => Promise<void>) => {
+    try {
+      await check();
+    } catch (error) {
+      if (!(error instanceof assert.AssertionError)) throw error;
+      space_failures.push(error.message);
+    }
+  };
   const expected_zoom = width === 2560 && height === 1440 ? "1.25" : "1";
   assert.equal(
     await page
@@ -216,6 +302,39 @@ async function assert_layout(
     );
   });
   assert.equal(contained, true);
+  await check_space(() =>
+    assert_vertical_fill(page, ".renderer-main", ".simulation-page"),
+  );
+  for (const panel of [".simulation-selection", ".simulation-control"]) {
+    await check_space(() =>
+      assert_vertical_fill(page, ".simulation-workbench", panel),
+    );
+  }
+  await check_space(async () => {
+    const [trace, status] = await Promise.all([
+      vertical_geometry(page, ".simulation-trace"),
+      vertical_geometry(page, ".simulation-status"),
+    ]);
+    assert_pixel_equal(
+      trace.bottom + trace.margin_bottom,
+      status.top,
+      "simulation trace fills remaining control space",
+    );
+    await assert_vertical_fill(
+      page,
+      ".simulation-trace",
+      ".simulation-trace li:first-child",
+      ".simulation-trace li:last-child",
+    );
+  });
+  await check_space(() =>
+    assert_vertical_fill(
+      page,
+      ".simulation-page",
+      ".simulation-page .page-heading",
+      ".simulation-workbench",
+    ),
+  );
   assert.equal(
     await page
       .locator(".renderer-main")
@@ -252,6 +371,25 @@ async function assert_layout(
   await page.getByRole("button", { name: "更换 GSR" }).waitFor();
   await page.getByLabel("副标题", { exact: true }).waitFor();
   await page.getByLabel("统计物品展示单位", { exact: true }).waitFor();
+  await page.evaluate(() => document.fonts.ready);
+  await assert_vertical_fill(page, ".renderer-main", ".result-editor");
+  await assert_vertical_fill(
+    page,
+    ".result-editor",
+    ".result-editor-header",
+    ".result-save-status",
+  );
+  for (const panel of [".result-editor-left", ".result-cdf-preview"]) {
+    await assert_vertical_fill(page, ".result-editor-workbench", panel);
+  }
+  await check_space(() =>
+    assert_vertical_fill(
+      page,
+      ".result-editor-left",
+      ".result-editor-form",
+      ".result-preview",
+    ),
+  );
 
   const preview = page.locator('[data-testid="result-preview"]');
   const scroll = page.locator('[data-testid="result-preview-scroll"]');
@@ -680,6 +818,7 @@ async function assert_layout(
   assert.ok(official_box && local_box);
   assert.ok(official_box.height / local_box.height > 2);
   assert.ok(official_box.height / local_box.height < 2.7);
+  await assert_repository_space(page);
   assert.equal(
     await repository.evaluate((node) => node.scrollHeight <= node.clientHeight),
     true,
@@ -737,13 +876,17 @@ async function assert_layout(
   ]);
   assert.ok(list_box && card_box);
   assert.ok(card_box.height < list_box.height);
+  await assert_repository_space(page);
+  assert.deepEqual(await official.boundingBox(), official_box);
+  assert.deepEqual(await local.boundingBox(), local_box);
+  assert.equal(space_failures.length, 0, space_failures.join("\n"));
 }
 
-test("Electron renderer layout contracts hold at both supported sizes", async () => {
-  for (const [width, height] of [
-    [2560, 1440],
-    [1280, 720],
-  ] as const) {
+for (const [width, height] of [
+  [2560, 1440],
+  [1280, 720],
+] as const) {
+  test(`Electron renderer layout contracts hold at ${width}x${height}`, async () => {
     const { application, cdp, config_home, page } = await launch(width, height);
     try {
       await assert_layout(application, page, width, height);
@@ -763,5 +906,5 @@ test("Electron renderer layout contracts hold at both supported sizes", async ()
         }
       }
     }
-  }
-});
+  });
+}

@@ -31,6 +31,7 @@ import VisualizeApp from "../visualize/App";
 import { ANIMATION_TOTAL_MS } from "../visualize/animation/timeline";
 import { build_animation_progress } from "../visualize/animation/progress";
 import { CDFChart } from "../visualize/components/CDFChart";
+import { ResultValue } from "../visualize/components/ResultValue";
 import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
 import { get_distribution_statistic_groups } from "../visualize/view/statistic_view_config";
 import {
@@ -341,8 +342,8 @@ function SimulationPage({ active }: { active: boolean }) {
                     onChange={() => set_result_item(item.id)}
                   />
                   <span>
-                    <code>{item.id}</code>
                     <strong>{item.name}</strong>
+                    <code>{item.id}</code>
                   </span>
                 </label>
               ))}
@@ -689,7 +690,12 @@ function ResultEditorPage({
                       </div>
                       <div>
                         <span>累计{preview_data.result_item.name}</span>
-                        <strong>{preview_data.total_result_display}</strong>
+                        <strong>
+                          <ResultValue
+                            value={preview_data.total_result_display}
+                            unit={preview_data.result_item_unit}
+                          />
+                        </strong>
                       </div>
                     </div>
                   </div>
@@ -706,7 +712,12 @@ function ResultEditorPage({
                           }
                         >
                           <dt>{metric.key}</dt>
-                          <dd>{metric.display_value}</dd>
+                          <dd>
+                            <ResultValue
+                              value={metric.display_value}
+                              unit={preview_data.result_item_unit}
+                            />
+                          </dd>
                         </div>
                       ) : null;
                     })}

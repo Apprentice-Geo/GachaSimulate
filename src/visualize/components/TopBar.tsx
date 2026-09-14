@@ -1,6 +1,7 @@
 import { metric_style } from "../animation/progress";
 import type { AnimationProgress } from "../animation/progress";
 import type { CDFViewModel } from "../types/cdf";
+import { ResultValue } from "./ResultValue";
 
 interface TopBarProps {
   data: CDFViewModel | null;
@@ -17,11 +18,35 @@ function format_statistic(value: number, unit: string): string {
 export function TopBar({ data, animation_progress }: TopBarProps) {
   const metadata_items = data
     ? [
-        `模拟目标：${data.target}`,
-        `累计模拟次数：${format_statistic(data.runs, "")} 次`,
-        `累计${data.result_item.name}：${data.total_result_display}`,
+        { key: "target", content: `模拟目标：${data.target}` },
+        {
+          key: "runs",
+          content: (
+            <>
+              累计模拟次数：
+              <span className="metadata-number">
+                {format_statistic(data.runs, "")}
+              </span>{" "}
+              次
+            </>
+          ),
+        },
+        {
+          key: "result",
+          content: (
+            <>
+              累计{data.result_item.name}：
+              <span className="metadata-value">
+                <ResultValue
+                  value={data.total_result_display}
+                  unit={data.result_item_unit}
+                />
+              </span>
+            </>
+          ),
+        },
       ]
-    : ["导入模拟器输出 JSON 后生成结果页面"];
+    : [{ key: "empty", content: "导入模拟器输出 JSON 后生成结果页面" }];
   const title_style = (index: number) =>
     animation_progress
       ? metric_style(animation_progress.title_area(index))
@@ -47,8 +72,8 @@ export function TopBar({ data, animation_progress }: TopBarProps) {
         </div>
         <div className="top-meta" aria-label="模拟元信息">
           {metadata_items.map((item, index) => (
-            <div key={item} style={metadata_style(index)}>
-              {item}
+            <div key={item.key} style={metadata_style(index)}>
+              {item.content}
             </div>
           ))}
         </div>

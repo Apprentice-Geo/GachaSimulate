@@ -20,6 +20,8 @@ if (($NativeNames -join ',') -ne ($ExpectedNames -join ',')) {
 }
 
 $LicenseMappings = @{
+  "JetBrainsMono-OFL-1.1.txt" = "third_party/licenses/JetBrainsMono-OFL-1.1.txt"
+  "JetBrainsMono-AUTHORS.txt" = "third_party/licenses/JetBrainsMono-AUTHORS.txt"
   "LICENSE.txt" = "LICENSE.txt"
   "THIRD_PARTY_NOTICES.md" = "THIRD_PARTY_NOTICES.md"
   "SourceHanSansSC-OFL-1.1.txt" = "third_party/licenses/SourceHanSansSC-OFL-1.1.txt"

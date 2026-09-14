@@ -69,6 +69,7 @@ body {
 
 .export-dialog h2 {
   font-size: 25px;
+  font-weight: 500;
   margin: 0;
 }
 
@@ -161,17 +162,14 @@ body {
   background: rgba(8, 7, 14, 0.72);
   border: 1px solid var(--color-hairline-strong);
   color: var(--color-text-primary);
-  font:
-    15px "Cascadia Mono",
-    Consolas,
-    monospace;
+  font: 15px var(--font-mono);
   padding: 10px 12px;
 }
 
 .export-preview,
 .export-dialog li {
   color: var(--color-cyan);
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: var(--font-mono);
   overflow-wrap: anywhere;
 }
 
@@ -208,10 +206,7 @@ body {
 }
 
 .export-task-summary strong {
-  font:
-    18px "Cascadia Mono",
-    Consolas,
-    monospace;
+  font: 18px var(--font-mono);
 }
 
 .export-task-summary span {
@@ -301,8 +296,7 @@ button:focus-visible,
 .renderer-placeholder input[type="number"],
 .result-totals strong,
 .quantile-preview dd {
-  font-family:
-    "Cascadia Mono", "SFMono-Regular", Consolas, SourceHanSansSC, monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -318,8 +312,11 @@ button:focus-visible,
 }
 
 .renderer-shell {
+  font-variant-ligatures: none;
   display: grid;
   font-size: 16px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
   grid-template-columns: 88px minmax(0, 1fr);
   height: 100%;
   min-width: 0;
@@ -348,15 +345,15 @@ button:focus-visible,
 
 .renderer-brand-mark,
 .renderer-placeholder-mark {
-  background: var(--color-nvidia-green);
-  color: var(--color-canvas);
+  color: var(--color-nvidia-green);
   display: grid;
   place-items: center;
 }
 
 .renderer-brand-mark {
-  height: 20px;
-  width: 20px;
+  background: var(--color-nvidia-green);
+  height: 8px;
+  width: 8px;
 }
 
 .renderer-nav-label,
@@ -403,7 +400,7 @@ button:focus-visible,
 .renderer-nav-button strong {
   color: var(--color-text-primary);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -473,8 +470,20 @@ button:focus-visible,
 }
 
 .renderer-placeholder-mark {
+  border: 1px solid var(--color-hairline-strong);
   height: 52px;
+  position: relative;
   width: 52px;
+}
+
+.renderer-placeholder-mark::after {
+  background: var(--color-nvidia-green);
+  content: "";
+  height: 8px;
+  position: absolute;
+  right: -1px;
+  top: -1px;
+  width: 8px;
 }
 
 .renderer-placeholder-mark svg {
@@ -485,6 +494,7 @@ button:focus-visible,
 .renderer-placeholder h1 {
   color: var(--color-text-primary);
   font-size: clamp(29px, 2.3vw, 38px);
+  font-weight: 500;
   letter-spacing: -0.035em;
   line-height: 1.05;
   margin: 5px 0 0;
@@ -495,15 +505,14 @@ button:focus-visible,
 }
 
 .instrument-panel {
-  background:
-    linear-gradient(90deg, rgba(34, 211, 238, 0.035), transparent 38%),
-    var(--color-panel);
+  background: var(--color-panel);
   border: 1px solid var(--color-hairline);
   min-width: 0;
   padding: 20px;
 }
 
 .panel-heading {
+  font-weight: 400;
   align-items: flex-start;
   border-bottom: 1px solid var(--color-hairline);
   display: flex;
@@ -516,10 +525,16 @@ button:focus-visible,
 .panel-heading h2 {
   color: var(--color-text-primary);
   font-size: 20px;
+  font-weight: 500;
   margin: 4px 0 0;
 }
 
-.panel-heading > code,
+.panel-heading > code {
+  color: var(--color-text-faint);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
 .panel-heading > span {
   color: var(--color-cyan);
   font-size: 13px;
@@ -617,7 +632,7 @@ button:focus-visible,
 
 .item-list-heading small {
   color: var(--color-cyan);
-  font-family: "Cascadia Mono", Consolas, SourceHanSansSC, monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
 }
 
@@ -710,7 +725,7 @@ button:focus-visible,
 }
 
 .simulation-item code {
-  color: var(--color-cyan);
+  color: var(--color-text-faint);
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -789,7 +804,7 @@ button:focus-visible,
 
 .output-item code,
 .result-metric-primary code {
-  color: var(--color-cyan);
+  color: var(--color-text-faint);
   font-size: 13px;
 }
 
@@ -903,7 +918,7 @@ button:focus-visible,
 
 .simulation-trace small {
   color: var(--color-text-faint);
-  font-family: "Cascadia Mono", Consolas, SourceHanSansSC, monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -986,7 +1001,7 @@ button:focus-visible,
 
 .repository-overview dd {
   color: var(--color-cyan);
-  font-family: "Cascadia Mono", Consolas, SourceHanSansSC, monospace;
+  font-family: var(--font-mono);
   font-size: 22px;
   margin: 0;
 }
@@ -1038,6 +1053,7 @@ button:focus-visible,
 .repository-source h2 {
   color: var(--color-text-primary);
   font-size: 20px;
+  font-weight: 500;
   margin: 0;
 }
 
@@ -1050,11 +1066,11 @@ button:focus-visible,
 }
 
 .source-installed {
-  border-color: var(--color-cyan);
+  border-color: var(--color-hairline-strong);
 }
 
 .source-local {
-  border-color: var(--color-sentry-pink);
+  border-color: var(--color-hairline-strong);
 }
 
 .repository-list {
@@ -1097,6 +1113,7 @@ button:focus-visible,
 .repository-card h3 {
   color: var(--color-text-primary);
   font-size: 17px;
+  font-weight: 500;
   margin: 0;
 }
 
@@ -1109,7 +1126,7 @@ button:focus-visible,
 
 .repository-card code,
 .local-config-list code {
-  color: var(--color-cyan);
+  color: var(--color-text-faint);
   font-size: 13px;
 }
 
@@ -1137,15 +1154,14 @@ button:focus-visible,
 }
 
 .local-source {
-  background: rgba(250, 127, 170, 0.025);
   flex: 3 1 0;
   margin-top: 2px;
 }
 
 .local-directory {
   background: var(--color-panel-soft);
-  border-left: 3px solid var(--color-sentry-pink);
-  font-family: "Cascadia Mono", Consolas, SourceHanSansSC, monospace;
+  border-left: 2px solid var(--color-hairline-strong);
+  font-family: var(--font-mono);
   font-size: 13px;
   overflow: hidden;
   padding: 8px 11px;
@@ -1175,6 +1191,7 @@ button:focus-visible,
 .local-config-list strong {
   color: var(--color-text-primary);
   font-size: 15px;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1293,6 +1310,7 @@ button:focus-visible,
 }
 
 .result-totals strong {
+  font-weight: 600;
   color: var(--color-text-primary);
   font-size: 26px;
 }
@@ -1309,7 +1327,7 @@ button:focus-visible,
 
 .quantile-preview > div {
   background: var(--color-panel-soft);
-  border-top: 2px solid var(--metric-color);
+  border-left: 2px solid var(--metric-color);
   display: grid;
   align-content: center;
   padding: 9px 10px;
@@ -1330,6 +1348,20 @@ button:focus-visible,
   color: var(--color-text-muted);
   font-size: 13px;
   margin: 12px 0 0;
+}
+
+.quantile-preview dd small,
+.result-totals strong small {
+  font-family: var(--font-ui);
+  color: var(--color-text-muted);
+  font-size: 0.65em;
+  font-weight: 400;
+}
+
+.result-totals strong span {
+  color: inherit;
+  font-size: inherit;
+  letter-spacing: normal;
 }
 
 @media (prefers-reduced-motion: reduce) {
