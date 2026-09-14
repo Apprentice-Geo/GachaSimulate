@@ -55,6 +55,17 @@ UI 面向配置、运行模拟与分析结果，采用深色数据监控台方�
 
 长内容在所属区域内滚动，滚动所有者必须明确；面板标题保留在内容滚动区域之外，避免用户滚动后失去分区上下文。
 
+Electron 桌面不使用整体 `zoom` 填充大屏。Shell 的 Grid 分配 Sidebar 与 Main，页面通过纵向 Flex 让 Header 按内容占高、Workbench 填满剩余空间；结果编辑页另为保存状态与错误信息保留内容高度。Workbench 使用 `fr` 列比例和 `minmax(0, 1fr)` 行，参与收缩的 Grid/Flex item 显式设置最小尺寸。沿用共享 `border-box`，padding 与 border 均计入容器尺寸。页面不设置大屏最大宽度，基础字号在 1280–2560px 宽度间从 18px 连续增大至 27px；其它字号、控件、图标和主要间距在原有连续比例上同步放大 15%，更宽时保持上限。侧边栏在该范围保持约 6.9% 占比，宽度限制为 88–176px。compact CDF 同步调整文字与留白，固定结果画布保持设计坐标，横向页面 padding 使用有上下限的 `clamp()`。
+
+深层组件不得以 `100vh - Npx` 推导父容器剩余高度。Breakpoint 仅用于必要的结构变化；当前桌面窗口最小规格为 1280×720，使用双栏布局，不维护低于该范围的 1100/820/620px 历史断点。若未来降低窗口下限，应一并设计结构变化并补充布局测试。
+
+滚动所有者：
+
+- 运行模拟：物品列表 `.simulation-item-panel`；控制区标题下的 `.simulation-control-body`。轨迹均分剩余空间，每步保留可读的最小高度；高度不足时控制区正文滚动，操作、轨迹与状态均可访问。
+- 结果编辑：`.result-editor-fields` 滚动表单字段；Form 按内容占高，但最多使用 Left 的 65%，Preview 获得扣除 gap 后的剩余区域。`.result-preview-scroll` 滚动指标；`.result-cdf-chart` 承载必要的图表滚动，面板标题固定。
+- 配置仓库：`.repository-list` 与 `.local-config-list` 分别滚动，分区标题与本地目录保持可见。
+- Main、Page 和 Workbench 不承担普通页面滚动，也不以裁切内容隐藏布局越界。可视化画布由独立宿主适配。
+
 当前配置仓库规格：官方与本地分区按 **7:3** 分配剩余空间。少量内容时仍保留分区高度，长列表在各自内容区域内滚动。
 
 ### 结果画布
@@ -93,4 +104,4 @@ CDF 曲线、坐标、marker 和统计指标组成同一套阅读层级。网格
 
 模块职责、共享场景和动画实现边界由 [Architecture](../ARCHITECTURE.md#可视化与导出) 维护。输入结构分别由 [Analysis JSON](ANALYSIS.md) 与 [DisplayConfig](DISPLAY_CONFIG.md) 维护，组件不自行解释或扩展契约。
 
-截图用于观察真实渲染的视觉层级，布局测试验证空间分配、滚动和缩放，实际导出验证共享画面。按影响范围选择检查，命令和人工验收要求统一见 [Development Checks](DEVELOPMENT_CHECKS.md)。
+截图用于观察真实渲染的视觉层级，布局测试验证空间分配、滚动、边界对齐与固定画布适配等契约，不绑定 CSS 实现细节或桌面 zoom 倍率；实际导出验证共享画面。按影响范围选择检查，命令和人工验收要求统一见 [Development Checks](DEVELOPMENT_CHECKS.md)。

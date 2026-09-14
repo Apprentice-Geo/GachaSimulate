@@ -194,6 +194,12 @@ test("compact CDF markers keep data and scales geometry while shrinking visuals"
   for (const weight of Object.keys(MARKER_VISUALS) as CDFMarker["weight"][]) {
     const normal_visual = get_marker_visual(weight);
     const compact_visual = get_marker_visual(weight, true);
+    const enlarged_visual = get_marker_visual(weight, true, 1.5);
+    assert.equal(
+      enlarged_visual.label_font_size,
+      compact_visual.label_font_size * 1.5,
+    );
+    assert.deepEqual(get_marker_visual(weight, false, 1.5), normal_visual);
     assert.ok(compact_visual.point_radius < normal_visual.point_radius);
     assert.ok(compact_visual.stroke_width < normal_visual.stroke_width);
     assert.ok(compact_visual.label_font_size < normal_visual.label_font_size);

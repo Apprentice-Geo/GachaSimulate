@@ -363,108 +363,110 @@ function SimulationPage({ active }: { active: boolean }) {
                 {status_labels[status]}
               </span>
             </div>
-            <div className="simulation-fields">
-              <label className="target-field">
-                固定次数
-                <input
-                  disabled={busy}
-                  max={MAX_TOTAL_RUNS}
-                  min="1"
-                  type="number"
-                  value={target_value}
-                  onChange={(event) => set_target_value(event.target.value)}
-                />
-              </label>
-              <label>
-                随机种子
-                <input
-                  disabled={busy}
-                  step="1"
-                  type="number"
-                  value={seed}
-                  onChange={(event) => set_seed(event.target.value)}
-                />
-              </label>
-              <label>
-                线程数 <span>1–{logical_cpu_count}</span>
-                <input
-                  disabled={busy}
-                  max={logical_cpu_count}
-                  min="1"
-                  step="1"
-                  type="number"
-                  value={threads}
-                  onChange={(event) => set_threads(event.target.value)}
-                />
-              </label>
-            </div>
-            <div className="output-item">
-              <span>当前输出物品</span>
-              <strong>{selected_item?.name ?? "未选择"}</strong>
-              <code>{selected_item?.id ?? "—"}</code>
-            </div>
-            <div className="simulation-actions">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void start()}
-              >
-                <Play size={16} aria-hidden="true" />
-                启动模拟
-              </button>
-              <button
-                type="button"
-                disabled={!busy || status === "cancelling"}
-                onClick={() => void cancel()}
-              >
-                取消
-              </button>
-            </div>
-            {operation_error && (
-              <div className="simulation-error" role="alert">
-                错误：{operation_error}
+            <div className="simulation-control-body">
+              <div className="simulation-fields">
+                <label className="target-field">
+                  固定次数
+                  <input
+                    disabled={busy}
+                    max={MAX_TOTAL_RUNS}
+                    min="1"
+                    type="number"
+                    value={target_value}
+                    onChange={(event) => set_target_value(event.target.value)}
+                  />
+                </label>
+                <label>
+                  随机种子
+                  <input
+                    disabled={busy}
+                    step="1"
+                    type="number"
+                    value={seed}
+                    onChange={(event) => set_seed(event.target.value)}
+                  />
+                </label>
+                <label>
+                  线程数 <span>1–{logical_cpu_count}</span>
+                  <input
+                    disabled={busy}
+                    max={logical_cpu_count}
+                    min="1"
+                    step="1"
+                    type="number"
+                    value={threads}
+                    onChange={(event) => set_threads(event.target.value)}
+                  />
+                </label>
               </div>
-            )}
-            <ol className="simulation-trace" aria-label="模拟任务轨迹">
-              {[
-                ["编译配置", "YAML → IR"],
-                [
-                  "运行模拟",
-                  progress
-                    ? `${progress.completed} / ${progress.total} runs`
-                    : "等待 core",
-                ],
-                [
-                  "保存 GSR",
-                  result_path ? result_path.split(/[\\/]/).pop() : "等待写入",
-                ],
-              ].map(([label, detail], index) => (
-                <li data-state={trace_state(index)} key={label}>
-                  <i aria-hidden="true" />
-                  <span>
-                    <strong>{label}</strong>
-                    <small title={index === 2 ? result_path : undefined}>
-                      {detail}
-                    </small>
-                  </span>
-                </li>
-              ))}
-            </ol>
-            {progress && (
-              <progress
-                aria-label="模拟进度"
-                max={progress.total}
-                value={progress.completed}
-              />
-            )}
-            <div className="simulation-status" role="status">
-              <span>状态 / {status_labels[status]}</span>
-              {result_path && (
-                <button type="button" onClick={() => void open_results()}>
-                  <FolderOpen size={16} aria-hidden="true" />
-                  打开结果目录
+              <div className="output-item">
+                <span>当前输出物品</span>
+                <strong>{selected_item?.name ?? "未选择"}</strong>
+                <code>{selected_item?.id ?? "—"}</code>
+              </div>
+              <div className="simulation-actions">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void start()}
+                >
+                  <Play size={16} aria-hidden="true" />
+                  启动模拟
                 </button>
+                <button
+                  type="button"
+                  disabled={!busy || status === "cancelling"}
+                  onClick={() => void cancel()}
+                >
+                  取消
+                </button>
+              </div>
+              {operation_error && (
+                <div className="simulation-error" role="alert">
+                  错误：{operation_error}
+                </div>
               )}
+              <ol className="simulation-trace" aria-label="模拟任务轨迹">
+                {[
+                  ["编译配置", "YAML → IR"],
+                  [
+                    "运行模拟",
+                    progress
+                      ? `${progress.completed} / ${progress.total} runs`
+                      : "等待 core",
+                  ],
+                  [
+                    "保存 GSR",
+                    result_path ? result_path.split(/[\\/]/).pop() : "等待写入",
+                  ],
+                ].map(([label, detail], index) => (
+                  <li data-state={trace_state(index)} key={label}>
+                    <i aria-hidden="true" />
+                    <span>
+                      <strong>{label}</strong>
+                      <small title={index === 2 ? result_path : undefined}>
+                        {detail}
+                      </small>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              {progress && (
+                <progress
+                  aria-label="模拟进度"
+                  max={progress.total}
+                  value={progress.completed}
+                />
+              )}
+              <div className="simulation-status" role="status">
+                <span>状态 / {status_labels[status]}</span>
+                {result_path && (
+                  <button type="button" onClick={() => void open_results()}>
+                    <FolderOpen size={16} aria-hidden="true" />
+                    打开结果目录
+                  </button>
+                )}
+              </div>
             </div>
           </section>
         </div>
@@ -480,6 +482,18 @@ function ResultEditorPage({
   state: ResultEditorState | null;
   on_state: (state: ResultEditorState) => void;
 }) {
+  const [visual_density, set_visual_density] = useState(1);
+  useEffect(() => {
+    const update = () =>
+      set_visual_density(
+        parseFloat(
+          getComputedStyle(document.querySelector(".renderer-shell")!).fontSize,
+        ) / 16,
+      );
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
   const [fields, set_fields] = useState<DisplayFields | null>(null);
   const [status, set_status] = useState("请选择 GSR 文件。");
   const [loading, set_loading] = useState(false);
@@ -648,17 +662,19 @@ function ResultEditorPage({
                 </div>
                 <span>失焦自动保存</span>
               </div>
-              {field("title", "标题")}
-              {field("target", "目标")}
-              {field("result_item_name", "统计物品展示名称")}
-              {field("note", "说明", false, "result-note")}
-              {field("subtitle", "副标题", false, "result-subtitle")}
-              {field(
-                "result_item_unit",
-                "统计物品展示单位",
-                false,
-                "result-item-unit",
-              )}
+              <div className="result-editor-fields">
+                {field("title", "标题")}
+                {field("target", "目标")}
+                {field("result_item_name", "统计物品展示名称")}
+                {field("note", "说明", false, "result-note")}
+                {field("subtitle", "副标题", false, "result-subtitle")}
+                {field(
+                  "result_item_unit",
+                  "统计物品展示单位",
+                  false,
+                  "result-item-unit",
+                )}
+              </div>
             </div>
             <section
               className="instrument-panel result-preview"
@@ -739,6 +755,7 @@ function ResultEditorPage({
             <div className="result-cdf-chart">
               <CDFChart
                 animation_progress={preview_animation}
+                visual_density={visual_density}
                 compact
                 data={preview_data}
               />

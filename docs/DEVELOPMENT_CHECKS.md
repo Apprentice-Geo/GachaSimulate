@@ -74,6 +74,7 @@ Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构
 - Electron IPC、配置扫描、模拟/分析进程生命周期或 sidecar：`test:simulation`、typecheck、lint、build。
 - [Analysis](ANALYSIS.md) 或 [DisplayConfig](DISPLAY_CONFIG.md) 输入契约：同步核对 JSON Schema、semantic validator、TypeScript 类型和共享 fixture，并执行 `test:visualize:cdf`、`test:simulation`、typecheck 和 build。
 - CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑代表性实际 export。
+- Electron 桌面布局：`test:electron-layout`、`test:simulation`、`test:visualize:cdf`、typecheck、lint、format:check 和 build；查看大小窗口真实截图，确认空间利用率、文字与控件密度及内部滚动。固定画布的适配不应受桌面布局影响。
 - Electron 导出 renderer、逐帧协议、CDP、FFmpeg 或输出提交：`test:visualize:cdf`、`test:electron-export`、typecheck、lint 和 build；Windows x64 继续执行下述正式宿主集成检查。
 - npm 生产依赖、字体、原生第三方组件或 Electron 打包资源：`test:application-licenses`、`package:win` 和 `test:package:win`；安装包检查会核对项目与静态第三方材料、npm 清单以及 Electron/Chromium 声明。
 - 桌面导出入口、格式/文件名、目标选择、覆盖、进度、终态或阻塞清理交互：在上一项基础上执行 `test:electron-layout`，并用 `capture:ui` 检查 format、overwrite、started、progress、partial-failure 和 cleanup-blocked 场景。系统原生目录选择器本身仍按人工验收项检查。
@@ -103,9 +104,11 @@ pnpm run test:electron-export:integration
 
 视觉语言、布局与交互不变量以 [UI Design](UI_DESIGN.md) 为验收依据；共享场景与逐帧语义见 [Architecture](../ARCHITECTURE.md#可视化与导出)。修改设计规格时，同步更新相关布局断言与验收要求。
 
-UI 回归分工：`capture:ui` 只准备场景并输出截图；布局、滚动、renderer 缩放和真实 DOM/SVG 几何由 `pnpm run test:electron-layout` 独立检查。内部滚动区域必须有明确滚动所有者，panel 标题不能放入内容滚动容器；缩放按实际 CSS viewport 验证。CDF compact/default 同时检查纯几何参数与最终 DOM。结果字段只在失焦时保存。
+UI 回归分工：`capture:ui` 只准备场景并输出截图；布局、滚动、固定结果画布适配和真实 DOM/SVG 几何由 `pnpm run test:electron-layout` 独立检查。桌面 UI 不使用全局 zoom；内部滚动区域必须有明确滚动所有者，panel 标题不能放入内容滚动容器。测试使用实际 CSS viewport 和 DOM 坐标，不做桌面 zoom 坐标换算。CDF compact/default 同时检查纯几何参数与最终 DOM。结果字段只在失焦时保存。
 
-布局测试分别在 2560×1440 和 1280×720 验证运行模拟、结果编辑与配置仓库填满可用空间，以及模拟轨迹填满控制区剩余高度。配置仓库同时覆盖多项与单项配置，检查分区高度不随内容收缩，并按扣除边框、内边距后的内容高度验证 7:3 分配；几何比较允许 1 个物理像素的取整误差。新增断言暴露既有布局问题时，应报告或修复布局，不得放宽断言迁就越界或收缩行为。
+布局测试分别在 2560×1440、1600×900、1280×720 和 2560×900 验证 Page 填满 Main、Workbench 与 Header 衔接及填满剩余空间、双栏边界对齐、Preview 填满父布局分配区域，以及模拟轨迹填满控制正文剩余高度。跨尺寸检查基础字号从 18px 到 27px 连续变化，其它字号、控件、图标和主要间距相对原有比例同步放大 15%，并检查侧边栏约 6.9% 占比。宽而矮的 2560×900 下检查字段、操作与导航可访问。低高度下正文可滚动，轨迹不被压扁或裁切。长列表 fixture 使用足够多的项目触发大窗口滚动；少量内容仍保留分区高度。配置仓库按扣除边框、内边距后的内容高度验证 7:3 分配；几何比较允许 1 个 CSS 像素的取整误差（测试 deviceScaleFactor 为 1）。新增断言暴露既有布局问题时，应报告或修复布局，不得放宽断言迁就越界或收缩行为。布局原则与各页滚动所有者以 [UI Design](UI_DESIGN.md#桌面工作空间) 为准。
+
+需要同时留存布局测试四个尺寸的截图时，在 PowerShell 设置 `$env:GACHASIMULATE_LAYOUT_CAPTURE = "1"` 后执行 `pnpm run test:electron-layout`。截图写入 `tmp/ui-captures/layout-*.png`；完成后执行 `Remove-Item Env:GACHASIMULATE_LAYOUT_CAPTURE`。普通 `capture:ui` 继续提供原有场景截图。
 
 - 固定次数能运行，threads 边界正确，任务互斥。
 - 取消、窗口关闭和应用退出后无残留 core/analyzer；失败任务不留下临时 IR 或半成品 GSR。

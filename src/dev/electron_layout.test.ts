@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -15,7 +15,7 @@ import { result_fixture, simulation_fixture } from "./ui_fixtures";
 
 const PROJECT_ROOT = process.cwd();
 
-function repository_fixture(count = 32): ConfigRepositoryState {
+function repository_fixture(count = 80): ConfigRepositoryState {
   return {
     official: Array.from({ length: count }, (_, index) => ({
       id: `config_${index}`,
@@ -57,10 +57,19 @@ async function launch(width: number, height: number) {
         XDG_CONFIG_HOME: config_home,
       },
     });
-    await application.evaluate(({ ipcMain }, fixture) => {
-      ipcMain.removeHandler("list-configs");
-      ipcMain.handle("list-configs", () => fixture);
-    }, simulation_fixture());
+    await application.evaluate(
+      ({ ipcMain }, fixture) => {
+        ipcMain.removeHandler("list-configs");
+        ipcMain.handle("list-configs", () => fixture);
+      },
+      simulation_fixture().map((config) => ({
+        ...config,
+        items: Array.from({ length: 80 }, (_, index) => ({
+          id: `item_${index}`,
+          name: `统计物品 ${index}`,
+        })),
+      })),
+    );
     const page = await application.firstWindow();
     const automation_state = await application.evaluate(({ BrowserWindow }) => {
       const window = BrowserWindow.getAllWindows()[0];
@@ -146,15 +155,105 @@ async function assert_full_window_host_rects(page: Page) {
   );
 }
 
-// Compare rendered geometry, including renderer zoom, without fixing padding or
+async function assert_contained(page: Page, parent: string, child: string) {
+  const [outer, inner] = await Promise.all([
+    page.locator(parent).boundingBox(),
+    page.locator(child).boundingBox(),
+  ]);
+  assert.ok(outer && inner);
+  assert.ok(
+    inner.x >= outer.x && inner.y >= outer.y,
+    `${child} starts inside ${parent}`,
+  );
+  assert.ok(
+    inner.x + inner.width <= outer.x + outer.width + 1,
+    `${child} fits ${parent} width`,
+  );
+  assert.ok(
+    inner.y + inner.height <= outer.y + outer.height + 1,
+    `${child} fits ${parent} height`,
+  );
+}
+
+async function assert_scroll_owner(page: Page, selector: string) {
+  const result = await page.locator(selector).evaluate((node) => {
+    const heading = node.parentElement?.querySelector(".panel-heading");
+    const heading_top = heading?.getBoundingClientRect().top;
+    node.scrollTop = node.scrollHeight;
+    const result = {
+      overflow: node.scrollHeight > node.clientHeight,
+      top: node.scrollTop,
+      heading_stable: heading?.getBoundingClientRect().top === heading_top,
+    };
+    node.scrollTop = 0;
+    return result;
+  });
+  if (result.overflow)
+    assert.ok(result.top > 0, `${selector} can scroll overflowing content`);
+  assert.ok(
+    result.heading_stable,
+    `${selector} leaves its panel heading stationary`,
+  );
+}
+
+async function assert_page_space(
+  page: Page,
+  selector: string,
+  workbench?: string,
+) {
+  await assert_full_window_host_rects(page);
+  await assert_contained(page, ".renderer-main", selector);
+  for (const container of [
+    "#root",
+    ".renderer-main",
+    ".renderer-content",
+    selector,
+  ]) {
+    assert.equal(
+      await page
+        .locator(container)
+        .evaluate(
+          (node) =>
+            node.scrollHeight <= node.clientHeight &&
+            node.scrollWidth <= node.clientWidth &&
+            node.scrollTop === 0,
+        ),
+      true,
+      `${container} has no outer overflow or scroll offset`,
+    );
+  }
+  if (workbench) {
+    const [heading, body] = await Promise.all([
+      vertical_geometry(page, `${selector} > .page-heading`),
+      vertical_geometry(page, workbench),
+    ]);
+    assert_pixel_equal(
+      body.top,
+      heading.bottom + heading.margin_bottom,
+      "workbench starts below page heading",
+    );
+  }
+}
+
+async function capture_layout(page: Page, name: string) {
+  if (!process.env.GACHASIMULATE_LAYOUT_CAPTURE) return;
+  const { width, height } = await page.evaluate(() => ({
+    width: innerWidth,
+    height: innerHeight,
+  }));
+  const directory = path.join(PROJECT_ROOT, "tmp", "ui-captures");
+  await mkdir(directory, { recursive: true });
+  await page.screenshot({
+    path: path.join(directory, `layout-${name}-${width}x${height}.png`),
+  });
+}
+
+// Compare rendered geometry without fixing padding or
 // panel heights. One physical pixel allows Chromium's subpixel rounding.
 async function vertical_geometry(page: Page, selector: string) {
   return page.locator(selector).evaluate((node) => {
     const rect = node.getBoundingClientRect();
     const style = getComputedStyle(node);
-    const scale = Number(
-      getComputedStyle(document.querySelector(".renderer-shell")!).zoom,
-    );
     const top_inset =
       parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop);
     const bottom_inset =
@@ -162,10 +261,10 @@ async function vertical_geometry(page: Page, selector: string) {
     return {
       top: rect.top,
       bottom: rect.bottom,
-      content_top: rect.top + top_inset * scale,
-      content_bottom: rect.bottom - bottom_inset * scale,
-      content_height: rect.height - (top_inset + bottom_inset) * scale,
-      margin_bottom: parseFloat(style.marginBottom) * scale,
+      content_top: rect.top + top_inset,
+      content_bottom: rect.bottom - bottom_inset,
+      content_height: rect.height - (top_inset + bottom_inset),
+      margin_bottom: parseFloat(style.marginBottom),
     };
   });
 }
@@ -225,9 +324,6 @@ async function assert_repository_space(page: Page) {
 async function fail_with_layout(page: Page, message: string): Promise<never> {
   const details = await page.evaluate(() => ({
     viewport: { width: innerWidth, height: innerHeight },
-    zoom: getComputedStyle(
-      document.querySelector(".renderer-shell") as HTMLElement,
-    ).zoom,
     scroll: Object.fromEntries(
       [
         ".renderer-main",
@@ -261,14 +357,44 @@ async function fail_with_layout(page: Page, message: string): Promise<never> {
   );
 }
 
-async function assert_layout(
-  application: ElectronApplication,
-  page: Page,
-  width: number,
-  height: number,
-) {
+async function assert_layout(application: ElectronApplication, page: Page) {
   await page.getByText("状态 / 待运行").waitFor();
   await page.evaluate(() => document.fonts.ready);
+  const visual = await page.evaluate(() => {
+    return {
+      width: innerWidth,
+      font: parseFloat(
+        getComputedStyle(document.querySelector(".renderer-shell")!).fontSize,
+      ),
+      body: parseFloat(
+        getComputedStyle(document.querySelector(".config-description")!)
+          .fontSize,
+      ),
+      small: parseFloat(
+        getComputedStyle(document.querySelector(".panel-kicker")!).fontSize,
+      ),
+      sidebar: document
+        .querySelector(".renderer-sidebar")!
+        .getBoundingClientRect().width,
+      control: document
+        .querySelector(".simulation-control input")!
+        .getBoundingClientRect().height,
+      icon: document
+        .querySelector(".renderer-nav-button svg")!
+        .getBoundingClientRect().width,
+    };
+  });
+  const density =
+    Math.min(1.5, Math.max(1, (8 + visual.width * 0.00625) / 16)) * 1.15;
+  for (const [actual, expected] of [
+    [visual.font, Math.min(27, 9 + visual.width * 0.00703125)],
+    [visual.body, 15 * density],
+    [visual.small, 12 * density],
+    [visual.control, 40 * density],
+    [visual.icon, 18 * density],
+    [visual.sidebar, Math.min(176, Math.max(88, visual.width * 0.06875))],
+  ])
+    assert.ok(Math.abs(actual - expected) < 1, JSON.stringify(visual));
   const space_failures: string[] = [];
   const check_space = async (check: () => Promise<void>) => {
     try {
@@ -278,13 +404,6 @@ async function assert_layout(
       space_failures.push(error.message);
     }
   };
-  const expected_zoom = width === 2560 && height === 1440 ? "1.25" : "1";
-  assert.equal(
-    await page
-      .locator(".renderer-shell")
-      .evaluate((node) => getComputedStyle(node).zoom),
-    expected_zoom,
-  );
   const simulation = page.locator('[data-testid="simulation-selection"]');
   const list = page.locator('[data-testid="simulation-item-list"]');
   const contained = await simulation.evaluate((parent) => {
@@ -345,6 +464,28 @@ async function assert_layout(
     await list.evaluate((node) => node.scrollHeight > node.clientHeight),
     true,
   );
+  await assert_scroll_owner(page, '[data-testid="simulation-item-list"]');
+  await assert_scroll_owner(page, ".simulation-control-body");
+  await assert_contained(
+    page,
+    ".simulation-control",
+    ".simulation-control-body",
+  );
+  await assert_page_space(page, ".simulation-page", ".simulation-workbench");
+  await capture_layout(page, "simulation");
+  const selection_before = await simulation.boundingBox();
+  const search = page.getByRole("searchbox", { name: "搜索统计物品" });
+  await search.fill("item_79");
+  await page.waitForFunction(
+    () => document.querySelectorAll(".simulation-item").length === 1,
+  );
+  assert.deepEqual(await simulation.boundingBox(), selection_before);
+  await assert_contained(
+    page,
+    ".simulation-selection",
+    ".simulation-item-panel",
+  );
+  await search.fill("");
 
   await page.getByRole("button", { name: "结果可视化" }).click();
   const unavailable_export = page.getByRole("button", { name: "导出素材" });
@@ -392,6 +533,29 @@ async function assert_layout(
   );
 
   const preview = page.locator('[data-testid="result-preview"]');
+  await assert_contained(page, ".result-editor-left", ".result-preview");
+  await assert_vertical_fill(
+    page,
+    ".result-preview",
+    ".result-preview .panel-heading",
+    ".result-preview-scroll",
+  );
+  await assert_scroll_owner(page, ".result-editor-fields");
+  await assert_scroll_owner(page, ".result-preview-scroll");
+  await assert_page_space(page, ".result-editor", ".result-editor-workbench");
+  const [workbench_end, save_status] = await Promise.all([
+    vertical_geometry(page, ".result-editor-workbench"),
+    page.locator(".result-save-status").evaluate((node) => ({
+      top: node.getBoundingClientRect().top,
+      margin: parseFloat(getComputedStyle(node).marginTop),
+    })),
+  ]);
+  assert_pixel_equal(
+    workbench_end.bottom,
+    save_status.top - save_status.margin,
+    "editor workbench fills space above save status",
+  );
+  await capture_layout(page, "editor");
   const scroll = page.locator('[data-testid="result-preview-scroll"]');
   const heading = preview.getByRole("heading", { name: "核心指标" });
   const before = await heading.boundingBox();
@@ -586,6 +750,7 @@ async function assert_layout(
   await export_button.click();
   const dialog = page.getByRole("dialog", { name: "导出素材" });
   await dialog.waitFor();
+  await capture_layout(page, "export");
   await assert_full_window_host_rects(page);
   await page.keyboard.press("Escape");
   await dialog.waitFor({ state: "hidden" });
@@ -769,9 +934,11 @@ async function assert_layout(
   );
 
   await page.getByRole("button", { name: "重新绘制动画" }).click();
-  await page
-    .locator('[data-testid="visualize-root"][data-animation-state="playing"]')
-    .waitFor();
+  await page.waitForFunction(
+    () => document.documentElement.dataset.animationRestartCount === "1",
+    undefined,
+    { timeout: 10_000 },
+  );
   await page
     .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
     .waitFor({ timeout: 10_000 });
@@ -783,9 +950,11 @@ async function assert_layout(
   );
 
   await page.getByRole("button", { name: "选择结果" }).click();
-  await page
-    .locator('[data-testid="visualize-root"][data-animation-state="playing"]')
-    .waitFor();
+  await page.waitForFunction(
+    () => document.documentElement.dataset.animationRestartCount === "2",
+    undefined,
+    { timeout: 10_000 },
+  );
   await page
     .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
     .waitFor({ timeout: 10_000 });
@@ -816,9 +985,9 @@ async function assert_layout(
     local.boundingBox(),
   ]);
   assert.ok(official_box && local_box);
-  assert.ok(official_box.height / local_box.height > 2);
-  assert.ok(official_box.height / local_box.height < 2.7);
   await assert_repository_space(page);
+  await capture_layout(page, "repository");
+  await assert_page_space(page, ".repository-page");
   assert.equal(
     await repository.evaluate((node) => node.scrollHeight <= node.clientHeight),
     true,
@@ -885,11 +1054,13 @@ async function assert_layout(
 for (const [width, height] of [
   [2560, 1440],
   [1280, 720],
+  [1600, 900],
+  [2560, 900],
 ] as const) {
   test(`Electron renderer layout contracts hold at ${width}x${height}`, async () => {
     const { application, cdp, config_home, page } = await launch(width, height);
     try {
-      await assert_layout(application, page, width, height);
+      await assert_layout(application, page);
     } catch (error) {
       await fail_with_layout(
         page,

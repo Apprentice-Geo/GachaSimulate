@@ -285,16 +285,16 @@
   aspect-ratio: 16 / 10;
   border-width: 1px;
   height: auto;
-  min-height: 240px;
+  min-height: calc(240px * var(--cdf-density, 1));
 }
 
 .cdf-chart-shell-compact .y-axis-title,
 .cdf-chart-shell-compact .axis-title {
-  font-size: 14px;
+  font-size: calc(14px * var(--cdf-density, 1));
 }
 
 .cdf-chart-shell-compact .recharts-cartesian-axis-tick-value {
-  font-size: 12px !important;
+  font-size: calc(12px * var(--cdf-density, 1)) !important;
 }
 
 .cdf-chart-shell-compact .marker-label {
