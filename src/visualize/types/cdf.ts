@@ -58,12 +58,12 @@ export interface CDFViewModel {
   title: string;
   target: string;
   result_item: { id: string; name: string };
-  total: number;
-  total_display: string;
+  total_result: number;
+  total_result_display: string;
   runs: number;
-  display_unit: string;
+  result_item_unit: string;
   axis_title: string;
-  price: string;
+  subtitle: string;
   note: string;
   chart_points: CDFPoint[];
   termination_reason: TerminationReason[];

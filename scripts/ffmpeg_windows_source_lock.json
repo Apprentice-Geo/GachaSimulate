@@ -1,0 +1,16 @@
+{
+  "target": "win32-x64-ucrt64",
+  "zlib": {
+    "version": "1.3.2",
+    "archive_name": "zlib-1.3.2.tar.xz",
+    "archive_sha256": "d7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3"
+  },
+  "x264": {
+    "commit": "b35605ace3ddf7c1a5d67a2eb553f034aef41d55"
+  },
+  "ffmpeg": {
+    "version": "9.0.1",
+    "archive_name": "ffmpeg-9.0.1.tar.xz",
+    "archive_sha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635"
+  }
+}

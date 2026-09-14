@@ -7,6 +7,7 @@ import {
   get_statistic_description,
 } from "../view/statistic_view_config";
 import type { DistributionStatisticKey } from "../view/statistic_view_config";
+import { ResultValue } from "./ResultValue";
 
 interface StatisticPanelProps {
   data: CDFViewModel | null;
@@ -46,11 +47,13 @@ function order_metric_keys(
 
 function MetricRow({
   metric,
+  unit,
   index,
   description,
   animation_progress,
 }: {
   metric: StatisticMetric;
+  unit: string;
   index: number;
   description: string;
   animation_progress: AnimationProgress | null;
@@ -75,7 +78,7 @@ function MetricRow({
         <div className="metric-description">{description}</div>
       </div>
       <div className="metric-value">
-        <span>{metric.display_value}</span>
+        <ResultValue value={metric.display_value} unit={unit} />
       </div>
     </div>
   );
@@ -115,12 +118,16 @@ export function StatisticPanel({
       className="statistic-panel"
       data-testid="statistic-panel"
       data-ready={is_ready}
-      style={
-        animation_progress
-          ? fade_style(animation_progress.stat_panel)
-          : undefined
-      }
     >
+      <div
+        aria-hidden="true"
+        className="statistic-panel-surface panel-surface"
+        style={
+          animation_progress
+            ? fade_style(animation_progress.stat_surface)
+            : undefined
+        }
+      />
       {data ? (
         <div className="metric-list">
           {visible_metric_groups.map((group) => (
@@ -155,6 +162,7 @@ export function StatisticPanel({
                     index={display_index_by_key.get(key) ?? 0}
                     key={metric.key}
                     metric={metric}
+                    unit={data.result_item_unit}
                   />
                 );
               })}

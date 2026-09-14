@@ -1,5 +1,6 @@
-import react from "@vitejs/plugin-react";
 import { defineConfig, externalizeDepsPlugin } from "electron-vite";
+import { resolve } from "node:path";
+import { create_renderer_config } from "./electron.vite.renderer.config";
 
 export default defineConfig({
   main: {
@@ -14,8 +15,20 @@ export default defineConfig({
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
+    build: {
+      rollupOptions: {
+        external: ["electron"],
+        input: {
+          index: resolve(__dirname, "src/preload/index.ts"),
+          export: resolve(__dirname, "src/preload/export.ts"),
+        },
+        output: {
+          chunkFileNames: "chunks/[name]-[hash].js",
+          entryFileNames: "[name].js",
+          format: "cjs",
+        },
+      },
+    },
   },
-  renderer: {
-    plugins: [react()],
-  },
+  renderer: create_renderer_config(),
 });

@@ -72,7 +72,6 @@ terminations:
   );
   assert.equal(analyzed.status, 0, analyzed.stderr);
   const analysis = JSON.parse(analyzed.stdout);
-  assert.equal(analysis.analysis_version, 2);
   assert.deepEqual(analysis.result_item, { id: "draw_count", name: "抽数" });
   assert.equal(analysis.totals.runs, "4");
 });

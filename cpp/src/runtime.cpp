@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <cstddef>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -18,8 +19,8 @@
 namespace gachasimulate {
 namespace {
 using Json = nlohmann::json;
-constexpr size_t kMaxFile = 64 * 1024 * 1024, kMaxArena = 1'000'000, kMaxConditionDepth = 256,
-                 kMaxRunSteps = 1'000'000, kMaxFrameDepth = 1'024;
+constexpr size_t kMaxFile = size_t{64} * 1024 * 1024, kMaxArena = 1'000'000,
+                 kMaxConditionDepth = 256, kMaxRunSteps = 1'000'000, kMaxFrameDepth = 1'024;
 [[noreturn]] void fail(const std::string &message) {
   throw std::runtime_error("invalid IR: " + message);
 }
@@ -35,12 +36,11 @@ void object(const Json &value, std::initializer_list<const char *> allowed) {
     if (std::find(allowed.begin(), allowed.end(), key) == allowed.end())
       fail("unknown field " + key);
 }
-const Json &array(const Json &value, const char *name) {
+void require_array(const Json &value, const char *name) {
   if (!value.is_array())
     fail(std::string(name) + " must be an array");
   if (value.size() > kMaxArena)
     fail(std::string(name) + " exceeds arena limit");
-  return value;
 }
 uint32_t u32(const Json &value, const char *name) {
   if ((!value.is_number_unsigned() && !value.is_number_integer()))
@@ -141,7 +141,7 @@ bool condition(const RuntimeProgram &p, State &s, uint32_t id, std::vector<Range
     for (uint32_t i = 0; i < node.children.count; ++i)
       if (condition(p, s, p.children[node.children.begin + i], output)) {
         if (node.actions.count)
-          output.insert(output.begin() + start, node.actions);
+          output.insert(output.begin() + static_cast<std::ptrdiff_t>(start), node.actions);
         return true;
       }
     output.resize(start);
@@ -153,7 +153,7 @@ bool condition(const RuntimeProgram &p, State &s, uint32_t id, std::vector<Range
       return false;
     }
   if (node.actions.count)
-    output.insert(output.begin() + start, node.actions);
+    output.insert(output.begin() + static_cast<std::ptrdiff_t>(start), node.actions);
   return true;
 }
 void execute(const RuntimeProgram &p, State &s, Range initial) {
@@ -241,20 +241,20 @@ RuntimeProgram load_ir_file(const std::string &path) {
     throw std::runtime_error("IR exceeds 64 MiB");
   input.seekg(0);
   const auto root = Json::parse(input);
-  object(root, {"ir_version", "result_item", "items", "strings", "actions", "pools", "pool_entries",
-                "rules", "condition_nodes", "condition_children", "item_resolve", "initial",
-                "every_draw", "termination_condition"});
-  if (u32(field(root, "ir_version"), "ir_version") != 2)
-    fail("unsupported ir_version");
+  object(root, {"result_item", "items", "strings", "actions", "pools", "pool_entries", "rules",
+                "condition_nodes", "condition_children", "item_resolve", "initial", "every_draw",
+                "termination_condition"});
   RuntimeProgram p;
   p.result_item = u32(field(root, "result_item"), "result_item");
-  const auto &strings = array(field(root, "strings"), "strings");
+  const auto &strings = field(root, "strings");
+  require_array(strings, "strings");
   for (const auto &value : strings) {
     if (!value.is_string())
       fail("strings contains non-string");
     p.strings.push_back(value.get<std::string>());
   }
-  const auto &items = array(field(root, "items"), "items");
+  const auto &items = field(root, "items");
+  require_array(items, "items");
   if (items.empty() || p.result_item >= items.size())
     fail("invalid result_item");
   for (const auto &value : items) {
@@ -265,7 +265,8 @@ RuntimeProgram load_ir_file(const std::string &path) {
   }
   p.result_id = p.strings[u32(field(items[p.result_item], "id"), "item id")];
   p.result_name = p.strings[u32(field(items[p.result_item], "name"), "item name")];
-  const auto &actions = array(field(root, "actions"), "actions");
+  const auto &actions = field(root, "actions");
+  require_array(actions, "actions");
   for (const auto &value : actions) {
     if (!value.is_object() || !field(value, "kind").is_string())
       fail("action kind must be string");
@@ -287,7 +288,8 @@ RuntimeProgram load_ir_file(const std::string &path) {
     }
     p.actions.push_back(a);
   }
-  const auto &entries = array(field(root, "pool_entries"), "pool_entries");
+  const auto &entries = field(root, "pool_entries");
+  require_array(entries, "pool_entries");
   for (const auto &value : entries) {
     object(value, {"threshold", "actions"});
     if (!field(value, "threshold").is_number())
@@ -295,7 +297,8 @@ RuntimeProgram load_ir_file(const std::string &path) {
     p.entries.push_back({field(value, "threshold").get<double>(),
                          range(field(value, "actions"), "entry actions", p.actions.size())});
   }
-  const auto &pools = array(field(root, "pools"), "pools");
+  const auto &pools = field(root, "pools");
+  require_array(pools, "pools");
   if (pools.empty())
     fail("empty pools");
   for (const auto &value : pools) {
@@ -322,10 +325,12 @@ RuntimeProgram load_ir_file(const std::string &path) {
     if (previous != 1.0)
       fail("CDF final value must be 1");
   }
-  const auto &children = array(field(root, "condition_children"), "condition_children");
+  const auto &children = field(root, "condition_children");
+  require_array(children, "condition_children");
   for (const auto &value : children)
     p.children.push_back(u32(value, "condition child"));
-  const auto &nodes = array(field(root, "condition_nodes"), "condition_nodes");
+  const auto &nodes = field(root, "condition_nodes");
+  require_array(nodes, "condition_nodes");
   for (const auto &value : nodes) {
     if (!value.is_object())
       fail("condition must be object");
@@ -364,7 +369,8 @@ RuntimeProgram load_ir_file(const std::string &path) {
   for (const auto id : p.children)
     if (id >= p.conditions.size())
       fail("invalid condition child id");
-  const auto &resolves = array(field(root, "item_resolve"), "item_resolve");
+  const auto &resolves = field(root, "item_resolve");
+  require_array(resolves, "item_resolve");
   if (resolves.size() != items.size())
     fail("item_resolve size mismatch");
   for (uint32_t item = 0; item < resolves.size(); ++item) {
@@ -388,7 +394,8 @@ RuntimeProgram load_ir_file(const std::string &path) {
       fail("invalid resolve");
     p.resolves.push_back(r);
   }
-  const auto &rules = array(field(root, "rules"), "rules");
+  const auto &rules = field(root, "rules");
+  require_array(rules, "rules");
   for (const auto &value : rules) {
     object(value, {"id", "mode", "condition"});
     if (!field(value, "mode").is_string())
@@ -411,6 +418,8 @@ RuntimeProgram load_ir_file(const std::string &path) {
   if (p.termination_condition >= p.conditions.size())
     fail("invalid termination condition");
   std::vector<uint8_t> visiting(p.conditions.size());
+  // Node id and recursion depth are distinct within this local traversal.
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   const auto depth = [&](auto &&self, uint32_t id, size_t level) -> void {
     if (level > kMaxConditionDepth)
       fail("condition depth exceeds 256");
@@ -557,9 +566,12 @@ BatchResult batches(uint64_t work, uint32_t threads, uint32_t requested_chunks, 
 }
 } // namespace
 
-BatchResult simulate_fixed_runs(const RuntimeProgram &p, uint64_t total_runs, int64_t seed,
-                                uint32_t threads, const std::function<void(uint64_t)> &progress,
-                                uint32_t chunks) {
+BatchResult simulate_fixed_runs(const RuntimeProgram &p, const FixedRunOptions &options,
+                                const std::function<void(uint64_t)> &progress) {
+  const auto total_runs = options.total_runs;
+  const auto seed = options.seed;
+  const auto threads = options.threads;
+  const auto chunks = options.chunks;
   if (!total_runs || total_runs > 1'000'000'007)
     throw std::runtime_error("total-runs out of range");
   return batches(

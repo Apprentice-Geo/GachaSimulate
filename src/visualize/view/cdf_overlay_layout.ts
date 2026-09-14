@@ -60,8 +60,9 @@ function clamp_label_x(
 export function resolve_marker_label_collisions(
   views: readonly MarkerView[],
   compact = false,
+  visual_density = 1,
 ): MarkerView[] {
-  const spacing_scale = compact ? 0.45 : 1;
+  const spacing_scale = compact ? 0.45 * visual_density : 1;
   const adjusted_label_y_by_key = new Map<CDFMarker["key"], number>();
   const adjusted_sorted_views: MarkerView[] = [];
 
@@ -96,6 +97,7 @@ export function build_marker_views(
   x_scale: ScaleFunction | undefined,
   y_scale: ScaleFunction | undefined,
   compact = false,
+  visual_density = 1,
 ): MarkerView[] {
   if (!plot_area || !x_scale || !y_scale) {
     return [];
@@ -112,7 +114,7 @@ export function build_marker_views(
   const p50 = markers.find((marker) => marker.key === "P50");
   const mean = markers.find((marker) => marker.key === "MEAN");
   const p50_is_greater_than_mean = (p50?.draw ?? 0) > (mean?.draw ?? 0);
-  const spacing_scale = compact ? 0.45 : 1;
+  const spacing_scale = compact ? 0.45 * visual_density : 1;
 
   const views = markers.flatMap((marker) => {
     const x = x_scale(marker.draw);
@@ -169,16 +171,18 @@ export function build_marker_views(
     };
   });
 
-  return resolve_marker_label_collisions(views, compact).map((view) => ({
-    ...view,
-    label_x: clamp_label_x(
-      view.label_x,
-      view.text_anchor,
-      view.label_text,
-      plot_box,
-    ),
-    label_y: clamp(view.label_y, 48, plot_box.bottom - 16),
-  }));
+  return resolve_marker_label_collisions(views, compact, visual_density).map(
+    (view) => ({
+      ...view,
+      label_x: clamp_label_x(
+        view.label_x,
+        view.text_anchor,
+        view.label_text,
+        plot_box,
+      ),
+      label_y: clamp(view.label_y, 48, plot_box.bottom - 16),
+    }),
+  );
 }
 
 export function build_curve_path(

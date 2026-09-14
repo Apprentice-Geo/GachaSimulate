@@ -1,12 +1,73 @@
 @font-face {
   font-family: SourceHanSansSC;
   font-style: normal;
+  font-weight: 400;
+  src: url("../../../fonts/SourceHanSansSC/OTF/SimplifiedChinese/SourceHanSansSC-Regular.otf")
+    format("opentype");
+}
+
+@font-face {
+  font-family: SourceHanSansSC;
+  font-style: normal;
   font-weight: 500;
-  src: url("../../../fonts/SourceHanSansSC-Medium.otf") format("opentype");
+  src: url("../../../fonts/SourceHanSansSC/OTF/SimplifiedChinese/SourceHanSansSC-Medium.otf")
+    format("opentype");
+}
+
+@font-face {
+  font-family: SourceHanSansSC;
+  font-style: normal;
+  font-weight: 700;
+  src: url("../../../fonts/SourceHanSansSC/OTF/SimplifiedChinese/SourceHanSansSC-Bold.otf")
+    format("opentype");
 }
 
 * {
   box-sizing: border-box;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  src: url("../../../fonts/JetBrainsMono/fonts/webfonts/JetBrainsMono-Regular.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 600;
+  src: url("../../../fonts/JetBrainsMono/fonts/webfonts/JetBrainsMono-SemiBold.woff2")
+    format("woff2");
+}
+
+.result-number,
+.metadata-number,
+.metric-label,
+.marker-label,
+.reason-item strong,
+.cdf-chart-shell .recharts-cartesian-axis-tick-value {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-number,
+.reason-item strong {
+  font-weight: 600;
+}
+
+.metric-value small {
+  font-family: var(--font-ui);
+}
+
+.metadata-value .result-number {
+  font-weight: 400;
+}
+
+.metadata-value small {
+  font-size: inherit;
 }
 
 .visualize-page {
@@ -18,6 +79,8 @@
   border: 2px solid var(--color-hairline);
   color: var(--color-text-primary);
   font-family: var(--font-ui);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
   height: var(--canvas-height);
   flex-shrink: 0;
   overflow: visible;
@@ -72,8 +135,8 @@
 
 .section-kicker {
   color: var(--color-nvidia-green);
-  font-size: var(--square-length);
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 500;
   letter-spacing: 0.2px;
   line-height: 1;
   margin: 0;
@@ -141,6 +204,13 @@
   color: var(--color-text-faint);
 }
 
+.command-button[aria-disabled="true"] {
+  background: var(--color-panel-soft);
+  border-color: var(--color-hairline);
+  color: var(--color-text-faint);
+  cursor: not-allowed;
+}
+
 .main-region {
   display: grid;
   gap: 64px;
@@ -196,9 +266,8 @@
 }
 
 .cdf-chart-shell,
-.statistic-panel,
 .state-panel,
-.termination-region {
+.panel-surface {
   background: var(--color-panel);
   border: 2px solid var(--color-hairline);
   border-radius: var(--radius-card);
@@ -216,16 +285,16 @@
   aspect-ratio: 16 / 10;
   border-width: 1px;
   height: auto;
-  min-height: 240px;
+  min-height: calc(240px * var(--cdf-density, 1));
 }
 
 .cdf-chart-shell-compact .y-axis-title,
 .cdf-chart-shell-compact .axis-title {
-  font-size: 14px;
+  font-size: calc(14px * var(--cdf-density, 1));
 }
 
 .cdf-chart-shell-compact .recharts-cartesian-axis-tick-value {
-  font-size: 12px !important;
+  font-size: calc(12px * var(--cdf-density, 1)) !important;
 }
 
 .cdf-chart-shell-compact .marker-label {
@@ -244,8 +313,8 @@
 }
 
 .cdf-chart-shell.cdf-chart-shell-compact::before {
-  height: 14px;
-  width: 14px;
+  height: 8px;
+  width: 8px;
 }
 
 .cdf-chart-shell::before {
@@ -370,11 +439,19 @@
   height: 100%;
   min-width: 0;
   overflow: hidden;
-  padding: 44px 40px;
+  border-radius: var(--radius-card);
+  padding: 46px 42px;
   position: relative;
 }
 
-.statistic-panel::before {
+.panel-surface {
+  inset: 0;
+  position: absolute;
+  z-index: 0;
+}
+
+.statistic-panel-surface::before,
+.termination-region-surface::before {
   background: var(--color-nvidia-green);
   content: "";
   position: absolute;
@@ -382,6 +459,12 @@
   top: 0;
   height: var(--square-length);
   width: var(--square-length);
+}
+
+.metric-list,
+.metric-placeholder {
+  position: relative;
+  z-index: 1;
 }
 
 .panel-heading {
@@ -441,7 +524,7 @@
   animation: none;
   background: var(--color-panel-soft);
   border: 2px solid var(--color-hairline);
-  border-left: 10px solid var(--metric-color);
+  border-left: 4px solid var(--metric-color);
   border-radius: 2px;
   display: flex;
   /*统计量卡片高度*/
@@ -454,8 +537,8 @@
 .metric-label {
   color: var(--color-text-muted);
   /* 核心统计量名称的字体大小和粗细 */
-  font-size: 64px;
-  font-weight: 600;
+  font-size: 56px;
+  font-weight: 500;
   line-height: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -486,15 +569,15 @@
 
 .metric-value span {
   /* 核心统计量数值的字体大小和粗细 */
-  font-size: 96px;
-  font-weight: 700;
+  font-size: 88px;
+  font-weight: 600;
   line-height: 1;
 }
 
 .metric-value small {
-  color: var(--color-text-faint);
-  font-size: 24px;
-  font-weight: 700;
+  color: var(--color-text-muted);
+  font-size: 36px;
+  font-weight: 400;
 }
 
 .metric-placeholder {
@@ -563,7 +646,7 @@
   border: 2px solid rgba(229, 32, 32, 0.34);
   border-radius: 2px;
   color: var(--color-text-primary);
-  font-family: Monaco, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 26px;
   line-height: 1.5;
   margin: 28px 0 40px;
@@ -590,18 +673,10 @@
   gap: 68px;
   grid-template-columns: 36fr 64fr;
   height: var(--footer-height);
-  padding: 48px 56px;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  padding: 50px 58px;
   position: relative;
-}
-
-.termination-region::before {
-  background: var(--color-nvidia-green);
-  content: "";
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: var(--square-length);
-  width: var(--square-length);
 }
 
 .termination-copy h2 {
@@ -614,7 +689,7 @@
 .termination-copy p {
   color: var(--color-text-muted);
   font-size: 30px;
-  font-weight: 100;
+  font-weight: 400;
   line-height: 1.45;
 }
 
@@ -626,6 +701,8 @@
   grid-column: 1 / -1;
   min-width: 0;
   width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .termination-heading {
@@ -717,7 +794,7 @@
   z-index: 1;
   color: var(--color-text-muted);
   font-size: 36px;
-  font-weight: 100;
+  font-weight: 400;
   line-height: 1.45;
 }
 

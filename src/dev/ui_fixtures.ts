@@ -2,13 +2,14 @@ import analysis from "../visualize/fixtures/example_analysis.json";
 import display from "../visualize/fixtures/example_display.json";
 import type { ResultEditorState } from "../shared/result_editor";
 import type { InstalledConfig } from "../shared/installed_config";
-import type { AnalysisV2 } from "../visualize/types/analysis";
+import type { Analysis } from "../visualize/types/analysis";
 import type { DisplayConfig } from "../visualize/types/display_config";
 
 export function result_fixture(): ResultEditorState {
-  const analysis_fixture = analysis as AnalysisV2;
+  const analysis_fixture = analysis as Analysis;
   const display_fixture = display as DisplayConfig;
   return {
+    session_id: "fixture-session",
     path: "/tmp/example.gsr",
     filename: "example.gsr",
     fields: {
@@ -16,8 +17,8 @@ export function result_fixture(): ResultEditorState {
       target: display_fixture.target,
       result_item_name: display_fixture.result_item_name,
       note: display_fixture.note,
-      price: display_fixture.price,
-      unit: display_fixture.unit,
+      subtitle: display_fixture.subtitle,
+      result_item_unit: display_fixture.result_item_unit,
     },
     analysis: analysis_fixture,
     display: display_fixture,

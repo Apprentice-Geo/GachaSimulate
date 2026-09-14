@@ -44,12 +44,12 @@ classify_path() {
       ;;
   esac
   case "$path" in
-    src/visualize/*|src/export/*|docs/schemas/*|docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md)
+    src/visualize/*|src/export-renderer/*|docs/schemas/*|docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md)
       visualize_changed=1
       ;;
   esac
   case "$path" in
-    src/main/*|src/preload/*|src/renderer/*|src/visualize/*|src/dev/electron_layout.test.ts|electron.vite.config.ts|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|tsconfig*.json)
+    src/main/*|src/preload/*|src/renderer/*|src/export-renderer/*|src/visualize/*|src/dev/electron_layout.test.ts|electron.vite.config.ts|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|tsconfig*.json)
       electron_build=1
       ;;
   esac
@@ -219,26 +219,17 @@ fi
 if ((cpp_changed)); then
   require_command clang-format
   require_command clang-tidy
-  require_command clang++
+  require_command g++
   require_command cmake
   require_command ninja
+  require_command pwsh
 
   echo "[pre-commit] checking C++ formatting"
-  find cpp/include cpp/src cpp/tests -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
-    | xargs -0 clang-format --dry-run --Werror
+  pnpm run check:cpp:format
 
   echo "[pre-commit] building and testing C++ Debug"
-  (
-    cd cpp
-    cmake --preset linux-debug
-    cmake --build --preset linux-debug
-    ctest --preset linux-debug
-  )
+  pnpm run check:cpp:debug
 
   echo "[pre-commit] running clang-tidy"
-  (
-    cd cpp
-    find src tests -name '*.cpp' -print0 \
-      | xargs -0 clang-tidy -p ../build/cpp/linux-debug
-  )
+  pnpm run check:cpp:tidy
 fi

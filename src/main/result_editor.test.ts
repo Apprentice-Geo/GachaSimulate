@@ -6,10 +6,13 @@ import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 import type { ChildProcess } from "node:child_process";
-import { ResultEditor } from "./result_editor";
+import {
+  ANALYSIS_JSON_BYTE_LIMIT,
+  DISPLAY_CONFIG_JSON_BYTE_LIMIT,
+  ResultEditor,
+} from "./result_editor";
 
 const analysis = {
-  analysis_version: 2,
   result_item: { id: "draw_count", name: "抽数" },
   totals: { runs: "2", result: "3" },
   values: ["1", "2"],
@@ -42,13 +45,14 @@ test("saves and restores DisplayConfig while analysis remains authoritative", as
   const path = join(directory, "sample.gsr");
   writeFileSync(path, "fixture");
   const children: FakeChild[] = [];
+  let uuid = 0;
   const editor = new ResultEditor({
     spawn: () => {
       const child = new FakeChild();
       children.push(child);
       return child as unknown as ChildProcess;
     },
-    random_uuid: () => "atomic",
+    random_uuid: () => `id-${++uuid}`,
   });
   try {
     const opening = editor.open(path);
@@ -56,20 +60,145 @@ test("saves and restores DisplayConfig while analysis remains authoritative", as
     children[0].close();
     const opened = await opening;
     assert.equal(opened.analysis.result_item.id, "draw_count");
-    const saved = editor.save({
-      title: "标题",
-      target: "目标",
-      result_item_name: "代币",
-      note: "",
-      price: "",
-      unit: "个",
+    assert.equal(opened.display.display_version, 2);
+    assert.equal(opened.display.subtitle, "");
+    assert.equal(opened.display.result_item_unit, "");
+    const saved = await editor.save({
+      session_id: opened.session_id,
+      fields: {
+        title: "标题",
+        target: "目标",
+        result_item_name: "代币",
+        note: "",
+        subtitle: "兑换结果",
+        result_item_unit: "个",
+      },
     });
     assert.deepEqual(
       JSON.parse(readFileSync(saved.sidecar_path, "utf8")),
       saved.display,
     );
     assert.equal(saved.display.result_item_name, "代币");
+    assert.equal(saved.display.display_version, 2);
     assert.equal("timestamp" in saved.display, false);
+    const snapshot = await editor.snapshot(opened.session_id);
+    assert.deepEqual(snapshot.analysis, opened.analysis);
+    assert.notEqual(snapshot.analysis, opened.analysis);
+    assert.deepEqual(snapshot.display, saved.display);
+
+    const reopening = editor.open(path);
+    children[1].stdout.write(JSON.stringify(analysis));
+    children[1].close();
+    const reopened = await reopening;
+    assert.deepEqual(reopened.display, saved.display);
+    assert.notEqual(reopened.session_id, opened.session_id);
+    await assert.rejects(
+      editor.save({ session_id: opened.session_id, fields: saved.fields }),
+      /session has changed/,
+    );
+    assert.deepEqual(snapshot.display, saved.display);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects a v1 sidecar without overwriting it", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "gachasimulate-result-test-"));
+  const path = join(directory, "sample.gsr");
+  const sidecar_path = join(directory, "sample.visualize.json");
+  const legacy_sidecar = `${JSON.stringify(
+    {
+      display_version: 1,
+      title: "旧标题",
+      target: "旧目标",
+      result_item_name: "抽数",
+      note: "",
+      price: "",
+      unit: "抽",
+    },
+    null,
+    2,
+  )}\n`;
+  writeFileSync(path, "fixture");
+  writeFileSync(sidecar_path, legacy_sidecar);
+  const children: FakeChild[] = [];
+  const editor = new ResultEditor({
+    spawn: () => {
+      const child = new FakeChild();
+      children.push(child);
+      return child as unknown as ChildProcess;
+    },
+  });
+  try {
+    const opening = editor.open(path);
+    children[0].stdout.write(JSON.stringify(analysis));
+    children[0].close();
+    await assert.rejects(opening, /非法 sidecar/);
+    assert.equal(readFileSync(sidecar_path, "utf8"), legacy_sidecar);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("accepts one analyzer newline frame and enforces the JSON byte limit", async () => {
+  assert.equal(ANALYSIS_JSON_BYTE_LIMIT, 64 * 1024 * 1024);
+  assert.equal(DISPLAY_CONFIG_JSON_BYTE_LIMIT, 16 * 1024 * 1024);
+  const directory = mkdtempSync(
+    join(tmpdir(), "gachasimulate-result-limit-test-"),
+  );
+  const path = join(directory, "sample.gsr");
+  writeFileSync(path, "fixture");
+  const serialized = JSON.stringify(analysis);
+
+  try {
+    for (const newline of ["\n", "\r\n"]) {
+      const children: FakeChild[] = [];
+      const editor = new ResultEditor({
+        analysis_json_byte_limit: Buffer.byteLength(serialized),
+        spawn: () => {
+          const child = new FakeChild();
+          children.push(child);
+          return child as unknown as ChildProcess;
+        },
+      });
+      const opening = editor.open(path);
+      children[0].stdout.write(`${serialized}${newline}`);
+      children[0].close();
+      assert.deepEqual((await opening).analysis, analysis);
+    }
+
+    const children: FakeChild[] = [];
+    const editor = new ResultEditor({
+      analysis_json_byte_limit: Buffer.byteLength(serialized),
+      spawn: () => {
+        const child = new FakeChild();
+        children.push(child);
+        return child as unknown as ChildProcess;
+      },
+    });
+    const opening = editor.open(path);
+    children[0].stdout.write(`${serialized} \n`);
+    children[0].close();
+    await assert.rejects(opening, /analyzer JSON exceeds 64 MiB/);
+
+    let terminated = 0;
+    const oversized_children: FakeChild[] = [];
+    const oversized_editor = new ResultEditor({
+      analysis_json_byte_limit: Buffer.byteLength(serialized),
+      spawn: () => {
+        const child = new FakeChild();
+        oversized_children.push(child);
+        return child as unknown as ChildProcess;
+      },
+      terminate_native_process: async (child) => {
+        terminated += 1;
+        (child as unknown as FakeChild).close();
+      },
+    });
+    const oversized_opening = oversized_editor.open(path);
+    oversized_children[0].stdout.write(`${serialized}   `);
+    await assert.rejects(oversized_opening, /analyzer JSON exceeds 64 MiB/);
+    assert.equal(terminated, 1);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

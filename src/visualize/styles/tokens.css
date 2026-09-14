@@ -6,7 +6,7 @@
   --top-height: 240px;
   --main-height: 1520px;
   --footer-height: 280px;
-  --square-length: 30px;
+  --square-length: 20px;
 
   --color-sentry-primary: #150f23;
   --color-sentry-ink: #1f1633;
@@ -23,7 +23,7 @@
   --color-hairline-strong: #51436f;
   --color-text-primary: #f7f3ff;
   --color-text-muted: rgba(247, 243, 255, 0.68);
-  --color-text-faint: rgba(247, 243, 255, 0.42);
+  --color-text-faint: rgba(247, 243, 255, 0.54);
   --color-pk-a: #6a5fc1;
   --color-pk-b: #fa7faa;
   --color-pk-c: #22d3ee;
@@ -47,7 +47,8 @@
   --color-cdf-marker-p95: #df6500;
   --color-cdf-marker-max: var(--color-danger);
 
-  --font-ui: SourceHanSansSC, Rubik, "Segoe UI", sans-serif;
+  --font-ui: SourceHanSansSC, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", SourceHanSansSC, monospace;
   --radius-card: 2px;
   --radius-button: 2px;
   --color-stardust: rgba(247, 243, 255, 0.025);

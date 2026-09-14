@@ -56,17 +56,25 @@ export function TerminationBar({
     : [];
 
   return (
-    <footer
-      className="termination-region"
-      data-ready={is_ready}
-      style={
-        animation_progress
-          ? fade_style(animation_progress.termination_panel)
-          : undefined
-      }
-    >
+    <footer className="termination-region" data-ready={is_ready}>
+      <div
+        aria-hidden="true"
+        className="termination-region-surface panel-surface"
+        style={
+          animation_progress
+            ? fade_style(animation_progress.termination_surface)
+            : undefined
+        }
+      />
       <div className="termination-bars" data-testid="termination-bar">
-        <div className="metric-group-heading termination-heading">
+        <div
+          className="metric-group-heading termination-heading"
+          style={
+            animation_progress
+              ? fade_style(animation_progress.termination_title)
+              : undefined
+          }
+        >
           <h2>达成路径分布</h2>
         </div>
         {data ? (

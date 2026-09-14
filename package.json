@@ -8,17 +8,32 @@
   "scripts": {
     "dev": "pnpm run build:packages && electron-vite dev",
     "hooks:install": "git config core.hooksPath .githooks",
-    "format": "prettier --write \"src/**/*.{ts,tsx,js,mjs,cjs,css,json}\" \"docs/schemas/**/*.json\" \"*.{ts,js,mjs,cjs,json}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,mjs,cjs,css,json}\" \"docs/schemas/**/*.json\" \"*.{ts,js,mjs,cjs,json}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs,json}\"",
+    "test:pre-commit": "git -c core.hooksPath=.githooks hook run pre-commit -- --self-test",
+    "check:cpp": "pwsh -NoProfile -File scripts/check_cpp_win.ps1",
+    "check:cpp:format": "pwsh -NoProfile -File scripts/check_cpp_win.ps1 -Task Format",
+    "check:cpp:debug": "pwsh -NoProfile -File scripts/check_cpp_win.ps1 -Task Debug",
+    "check:cpp:tidy": "pwsh -NoProfile -File scripts/check_cpp_win.ps1 -Task Tidy",
+    "check:cpp:release": "pwsh -NoProfile -File scripts/check_cpp_win.ps1 -Task Release",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,mjs,cjs,css,json}\" \"docs/schemas/**/*.json\" \"*.{ts,js,mjs,cjs,json}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs,json}\" \"scripts/application_licenses*.mjs\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,mjs,cjs,css,json}\" \"docs/schemas/**/*.json\" \"*.{ts,js,mjs,cjs,json}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs,json}\" \"scripts/application_licenses*.mjs\"",
     "lint": "eslint \"src/**/*.{ts,tsx,js,mjs,cjs}\" \"packages/*/{src,test}/**/*.{ts,tsx,js,mjs,cjs}\" \"*.{ts,js,mjs,cjs}\"",
-    "typecheck": "pnpm run build:packages && tsc --noEmit && pnpm --recursive --filter './packages/*' typecheck",
+    "typecheck": "pnpm run build:packages && tsc --noEmit && pnpm --recursive --filter \"./packages/*\" typecheck",
     "build": "pnpm run build:packages && tsc --noEmit && electron-vite build",
-    "package:win": "pnpm run build && electron-builder --win nsis --publish never",
+    "prepare:application-licenses": "node scripts/application_licenses.mjs",
+    "test:application-licenses": "node --test --test-isolation=none scripts/application_licenses.test.mjs",
+    "package:win": "pnpm run build && pnpm run prepare:application-licenses && electron-builder --win nsis --publish never",
+    "test:package:win": "pwsh -NoProfile -File scripts/check_windows_package.ps1",
     "capture:ui": "pnpm run build:packages && electron-vite build && tsx src/dev/capture_ui.ts",
+    "prepare:ffmpeg:win": "pwsh -NoProfile -File scripts/prepare_ffmpeg.ps1",
+    "build:ffmpeg:win": "pwsh -NoProfile -File scripts/build_ffmpeg_win.ps1",
+    "package:ffmpeg:compliance": "pwsh -NoProfile -File scripts/package_ffmpeg_compliance.ps1",
+    "test:ffmpeg:compliance": "pwsh -NoProfile -File scripts/package_ffmpeg_compliance.test.ps1",
+    "test:build:ffmpeg:win": "node scripts/build_ffmpeg_win.test.mjs",
+    "test:electron-export": "tsx --test src/export-renderer/export_renderer.test.ts src/main/export_host.test.ts src/main/export_task.test.ts src/dev/export_renderer_dev_smoke.test.ts",
+    "test:electron-export:integration": "tsx src/dev/export_host_integration.ts",
     "test:visualize:cdf": "tsx --test src/visualize/test/cdf.test.ts src/visualize/test/analysis.test.ts",
     "test:electron-layout": "pnpm run build:packages && electron-vite build && tsx --test src/dev/electron_layout.test.ts",
     "test:simulation": "pnpm run build:packages && tsx --test src/main/config_download.test.ts src/main/config_manager.test.ts src/main/native_pipeline.test.ts src/main/simulation.test.ts src/main/result_editor.test.ts src/renderer/simulation_items.test.ts",
-    "export:cdf": "tsx src/export/export_cdf.ts",
     "test:compiler": "pnpm --dir packages/config-compiler test",
     "test:config-repository-contract": "pnpm --dir packages/config-repository-contract test",
     "test:packages": "pnpm --dir packages/config-compiler test && pnpm --dir packages/config-repository-contract test",
@@ -31,7 +46,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "GPL-3.0-or-later",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/Apprentice-Geo/GachaSimulate/issues"
@@ -47,6 +62,10 @@
       {
         "from": "build/native",
         "to": "native"
+      },
+      {
+        "from": "build/application-licenses",
+        "to": "licenses"
       }
     ],
     "win": {
@@ -56,14 +75,11 @@
   "dependencies": {
     "@gachasimulate/config-compiler": "workspace:*",
     "@gachasimulate/config-repository-contract": "workspace:*",
-    "@remotion/bundler": "^4.0.484",
-    "@remotion/renderer": "^4.0.484",
     "ajv": "^8.20.0",
     "lucide-react": "^1.14.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "recharts": "^3.8.1",
-    "remotion": "^4.0.484",
     "yaml": "^2.9.0",
     "yauzl": "^3.4.0"
   },

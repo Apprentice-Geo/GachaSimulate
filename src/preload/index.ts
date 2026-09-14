@@ -20,8 +20,30 @@ contextBridge.exposeInMainWorld("desktopApi", {
     ipcRenderer.invoke("start-simulation", request),
   cancelSimulation: () => ipcRenderer.invoke("cancel-simulation"),
   selectGsrResult: () => ipcRenderer.invoke("select-gsr-result"),
-  saveResultFields: (fields: import("../shared/result_editor").DisplayFields) =>
-    ipcRenderer.invoke("save-result-fields", fields),
+  saveResultFields: (
+    request: import("../shared/result_editor").SaveResultFieldsRequest,
+  ) => ipcRenderer.invoke("save-result-fields", request),
+  prepareExport: (
+    request: import("../shared/export_task").ExportPreparationRequest,
+  ) => ipcRenderer.invoke("prepare-export", request),
+  selectExportDestination: (
+    request: import("../shared/export_task").ExportDestinationRequest,
+  ) => ipcRenderer.invoke("select-export-destination", request),
+  confirmExportOverwrite: (
+    request: import("../shared/export_task").ExportDestinationRequest,
+  ) => ipcRenderer.invoke("confirm-export-overwrite", request),
+  cancelExport: (
+    request: import("../shared/export_task").ExportCancelRequest,
+  ) => ipcRenderer.invoke("cancel-export", request),
+  retryExportCleanup: (
+    request: import("../shared/export_task").ExportTaskRequest,
+  ) => ipcRenderer.invoke("retry-export-cleanup", request),
+  openExportDirectory: (
+    request: import("../shared/export_task").ExportTaskRequest,
+  ) => ipcRenderer.invoke("open-export-directory", request),
+  exitAfterExportCleanup: (
+    request: import("../shared/export_task").ExportTaskRequest,
+  ) => ipcRenderer.invoke("exit-after-export-cleanup", request),
   openResultsDirectory: () => ipcRenderer.invoke("open-results-directory"),
   onSimulationEvent: (listener: (event: DesktopSimulationEvent) => void) => {
     const handler = (
@@ -30,5 +52,17 @@ contextBridge.exposeInMainWorld("desktopApi", {
     ) => listener(value);
     ipcRenderer.on("simulation-event", handler);
     return () => ipcRenderer.removeListener("simulation-event", handler);
+  },
+  onExportEvent: (
+    listener: (
+      event: import("../shared/export_task").DesktopExportEvent,
+    ) => void,
+  ) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      value: import("../shared/export_task").DesktopExportEvent,
+    ) => listener(value);
+    ipcRenderer.on("export-event", handler);
+    return () => ipcRenderer.removeListener("export-event", handler);
   },
 });

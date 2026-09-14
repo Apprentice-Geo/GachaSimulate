@@ -1,0 +1,13 @@
+html,
+body,
+#root {
+  height: 2160px;
+  margin: 0;
+  overflow: hidden;
+  padding: 0;
+  width: 3840px;
+}
+
+body {
+  background: var(--color-canvas);
+}

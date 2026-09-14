@@ -2,6 +2,7 @@
   "name": "@gachasimulate/config-repository-contract",
   "version": "1.0.0",
   "description": "GachaSimulate configuration repository protocol validation",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "exports": {
     ".": {

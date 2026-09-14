@@ -539,7 +539,6 @@ export function prepare_config(configValue: unknown): PreparedConfig {
       if (validate_only) return;
       return {
         ir: {
-          ir_version: 2,
           result_item: resultItem,
           items,
           strings,

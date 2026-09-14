@@ -1,9 +1,9 @@
 export interface DisplayConfig {
-  display_version: 1;
+  display_version: 2;
   title: string;
   target: string;
   result_item_name: string;
   note: string;
-  price: string;
-  unit: string;
+  subtitle: string;
+  result_item_unit: string;
 }

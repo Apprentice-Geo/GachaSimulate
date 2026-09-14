@@ -1,4 +1,4 @@
-import { FolderOpen } from "lucide-react";
+import { Download, FolderOpen } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { fade_style } from "../animation/progress";
 import type { AnimationProgress } from "../animation/progress";
@@ -17,6 +17,8 @@ interface VisualizeShellProps {
   load_state: "idle" | "loading" | "error" | "ready";
   on_select_file?: () => void;
   on_replay?: () => void;
+  on_export?: () => void;
+  export_disabled_reason?: string;
   show_controls?: boolean;
   style?: CSSProperties;
 }
@@ -30,6 +32,8 @@ export function VisualizeShell({
   load_state,
   on_select_file,
   on_replay,
+  on_export,
+  export_disabled_reason,
   show_controls = true,
   style,
 }: VisualizeShellProps) {
@@ -56,6 +60,31 @@ export function VisualizeShell({
                   is_animating={is_animating}
                   on_replay={on_replay}
                 />
+                {on_export && (
+                  <>
+                    <button
+                      aria-describedby={
+                        export_disabled_reason
+                          ? "export-disabled-reason"
+                          : undefined
+                      }
+                      aria-disabled={Boolean(export_disabled_reason)}
+                      className="command-button"
+                      type="button"
+                      onClick={() => {
+                        if (!export_disabled_reason) on_export();
+                      }}
+                    >
+                      <Download aria-hidden="true" size={18} />
+                      <span>导出素材</span>
+                    </button>
+                    {export_disabled_reason && (
+                      <span className="sr-only" id="export-disabled-reason">
+                        {export_disabled_reason}
+                      </span>
+                    )}
+                  </>
+                )}
                 {on_select_file && (
                   <button
                     className="command-button"

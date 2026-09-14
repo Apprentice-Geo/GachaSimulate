@@ -35,4 +35,4 @@ GSR 是 little-endian 二进制结果交换格式。GSR v2 为每个固定模拟
 
 reader 和 writer 拒绝超过 16 GiB 的文件、超过 1,000,000,007 个 run、超过 65,536 个 reason、空字符串或超过 1 MiB 的字符串、非法 UTF-8、非法 offset、trailing data 和算术溢出。旧 header 以及独立 metric/cost section 均会被拒绝；本仓库没有旧格式 reader 或兼容路径。
 
-分析输出契约见 [Analysis JSON v2](ANALYSIS_V2.md)。
+分析输出契约见 [Analysis JSON](ANALYSIS.md)。

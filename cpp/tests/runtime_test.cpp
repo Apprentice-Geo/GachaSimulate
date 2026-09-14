@@ -2,6 +2,7 @@
 #include "gachasimulate/runtime.hpp"
 
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <array>
@@ -76,6 +77,10 @@ std::string path_utf8(const std::filesystem::path &path) {
   return path.string();
 #endif
 }
+nlohmann::json analyze(const std::filesystem::path &path,
+                       uint64_t byte_limit = gachasimulate::kAnalysisJsonByteLimit) {
+  return nlohmann::json::parse(gachasimulate::analyze_gsr_v2(path_utf8(path), byte_limit));
+}
 template <class F> std::string error_message(F &&call) {
   try {
     call();
@@ -125,8 +130,9 @@ TEST(Paths, SupportsUtf8IrAndGsrFilenames) {
   std::filesystem::copy_file(fixture_path(), ir_path,
                              std::filesystem::copy_options::overwrite_existing);
   const auto program = gachasimulate::load_ir_file(path_utf8(ir_path));
-  gachasimulate::write_gsr_v2(path_utf8(gsr_path), program,
-                              gachasimulate::simulate_fixed_runs(program, 1, 0, 1), 0);
+  gachasimulate::write_gsr_v2(
+      path_utf8(gsr_path), program,
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 1, .seed = 0, .threads = 1}), 0);
   EXPECT_EQ(gachasimulate::read_gsr_v2(path_utf8(gsr_path)).runs, 1U);
   std::filesystem::remove(ir_path);
   std::filesystem::remove(gsr_path);
@@ -158,18 +164,21 @@ TEST(Runtime, LimitsRepeatAndCrossDrawSteps) {
 
   auto no_termination = gachasimulate::load_ir_file(fixture_path().string());
   no_termination.conditions[0].value = std::numeric_limits<int64_t>::max();
-  EXPECT_EQ(error_message([&] { gachasimulate::simulate_fixed_runs(no_termination, 3, 123, 2); }),
+  EXPECT_EQ(error_message([&] {
+              gachasimulate::simulate_fixed_runs(no_termination,
+                                                 {.total_runs = 3, .seed = 123, .threads = 2});
+            }),
             "runtime step limit exceeded");
 }
 
-TEST(Runtime, RejectsV1AndInvalidPoolReference) {
+TEST(Runtime, RejectsUnknownFieldsAndInvalidPoolReference) {
   const auto path = std::filesystem::temp_directory_path() / "gachasimulate_invalid_ir.json";
   std::ifstream input(random_fixture_path());
   auto ir = nlohmann::json::parse(input);
-  ir["ir_version"] = 1;
+  ir["unexpected"] = true;
   std::ofstream(path) << ir;
   EXPECT_THROW(gachasimulate::load_ir_file(path.string()), std::runtime_error);
-  ir["ir_version"] = 2;
+  ir.erase("unexpected");
   ir["actions"][2]["pool"] = 1;
   std::ofstream(path) << ir;
   EXPECT_THROW(gachasimulate::load_ir_file(path.string()), std::runtime_error);
@@ -203,10 +212,14 @@ TEST(Runtime, LoadsInt64ResolveValuesAndRejectsInvalidOnes) {
 
 TEST(Batch, FixedRunsIgnoreSchedulingAndAreRepeatable) {
   const auto program = gachasimulate::load_ir_file(random_fixture_path().string());
-  const auto serial = gachasimulate::simulate_fixed_runs(program, 100, -123, 1);
-  const auto parallel = gachasimulate::simulate_fixed_runs(program, 100, -123, 4);
-  const auto chunked = gachasimulate::simulate_fixed_runs(program, 100, -123, 2, {}, 7);
-  const auto repeat = gachasimulate::simulate_fixed_runs(program, 100, -123, 4);
+  const auto serial =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 100, .seed = -123, .threads = 1});
+  const auto parallel =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 100, .seed = -123, .threads = 4});
+  const auto chunked = gachasimulate::simulate_fixed_runs(
+      program, {.total_runs = 100, .seed = -123, .threads = 2, .chunks = 7});
+  const auto repeat =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 100, .seed = -123, .threads = 4});
   EXPECT_EQ(serial.values.size(), 100U);
   EXPECT_EQ(serial.values, parallel.values);
   EXPECT_EQ(serial.reasons, parallel.reasons);
@@ -222,9 +235,11 @@ TEST(Batch, FixedRunsIgnoreSchedulingAndAreRepeatable) {
 TEST(Batch, FixedRunsHaveStablePrefixesAndProgress) {
   const auto program = gachasimulate::load_ir_file(random_fixture_path().string());
   std::vector<uint64_t> progress;
-  const auto small = gachasimulate::simulate_fixed_runs(program, 37, 123, 3);
+  const auto small =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 37, .seed = 123, .threads = 3});
   const auto large = gachasimulate::simulate_fixed_runs(
-      program, 100, 123, 4, [&](uint64_t completed) { progress.push_back(completed); }, 9);
+      program, {.total_runs = 100, .seed = 123, .threads = 4, .chunks = 9},
+      [&](uint64_t completed) { progress.push_back(completed); });
   EXPECT_TRUE(std::equal(small.values.begin(), small.values.end(), large.values.begin()));
   EXPECT_TRUE(std::equal(small.reasons.begin(), small.reasons.end(), large.reasons.begin()));
   EXPECT_EQ(small.total_result,
@@ -236,15 +251,19 @@ TEST(Batch, FixedRunsHaveStablePrefixesAndProgress) {
 
 TEST(Batch, SupportsAnArbitraryResultItem) {
   const auto program = gachasimulate::load_ir_file(cost_fixture_path().string());
-  const auto result = gachasimulate::simulate_fixed_runs(program, 3, 123, 1);
+  const auto result =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 3, .seed = 123, .threads = 1});
   EXPECT_EQ(result.values, (std::vector<uint64_t>{7, 7, 7}));
   EXPECT_EQ(result.total_result, 21U);
 }
 
 TEST(Batch, RejectsZeroWorkersAndInvalidResultValues) {
   const auto program = gachasimulate::load_ir_file(random_fixture_path().string());
-  EXPECT_THROW(gachasimulate::simulate_fixed_runs(program, 1, 123, 0, {}, 1), std::runtime_error);
-  EXPECT_THROW(gachasimulate::simulate_fixed_runs(program, 1'000'000'008, 123, 1),
+  EXPECT_THROW(gachasimulate::simulate_fixed_runs(
+                   program, {.total_runs = 1, .seed = 123, .threads = 0, .chunks = 1}),
+               std::runtime_error);
+  EXPECT_THROW(gachasimulate::simulate_fixed_runs(
+                   program, {.total_runs = 1'000'000'008, .seed = 123, .threads = 1}),
                std::runtime_error);
 
   auto negative = gachasimulate::load_ir_file(fixture_path().string());
@@ -252,7 +271,9 @@ TEST(Batch, RejectsZeroWorkersAndInvalidResultValues) {
   negative.actions[1].amount = 5;
   negative.conditions[0].value = -100;
   EXPECT_LT(gachasimulate::single_run(negative, 123).inventory[1], 0);
-  EXPECT_THROW(gachasimulate::simulate_fixed_runs(negative, 1, 123, 1), std::runtime_error);
+  EXPECT_THROW(
+      gachasimulate::simulate_fixed_runs(negative, {.total_runs = 1, .seed = 123, .threads = 1}),
+      std::runtime_error);
 
   auto overflow = gachasimulate::load_ir_file(fixture_path().string());
   overflow.result_item = 1;
@@ -260,14 +281,17 @@ TEST(Batch, RejectsZeroWorkersAndInvalidResultValues) {
   overflow.resolves[1] = {};
   EXPECT_EQ(gachasimulate::single_run(overflow, 123).inventory[1],
             std::numeric_limits<int64_t>::max());
-  EXPECT_THROW(gachasimulate::simulate_fixed_runs(overflow, 3, 123, 1), std::runtime_error);
+  EXPECT_THROW(
+      gachasimulate::simulate_fixed_runs(overflow, {.total_runs = 3, .seed = 123, .threads = 1}),
+      std::runtime_error);
 }
 
 TEST(Gsr, WritesV2HeaderAndFixture) {
   const auto path = output_path("v2_fixture");
   std::filesystem::remove(path);
   const auto program = gachasimulate::load_ir_file(fixture_path().string());
-  const auto result = gachasimulate::simulate_fixed_runs(program, 3, 123, 1);
+  const auto result =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 3, .seed = 123, .threads = 1});
   gachasimulate::write_gsr_v2(path.string(), program, result, 123);
   expect_gsr(path, 3, 3, "draw_count", "Draw count");
   EXPECT_EQ(hex(bytes(path)), fixture_text(GACHASIMULATE_TEST_GSR_FIXTURE));
@@ -276,12 +300,14 @@ TEST(Gsr, WritesV2HeaderAndFixture) {
 
 TEST(Gsr, RejectsInconsistentBatchDataAndOverflow) {
   const auto program = gachasimulate::load_ir_file(fixture_path().string());
-  auto result = gachasimulate::simulate_fixed_runs(program, 1, 123, 1);
+  auto result =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 1, .seed = 123, .threads = 1});
   result.reasons.clear();
   EXPECT_THROW(
       gachasimulate::write_gsr_v2(output_path("invalid_test").string(), program, result, 123),
       std::runtime_error);
-  result = gachasimulate::simulate_fixed_runs(program, 1, 123, 1);
+  result =
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 1, .seed = 123, .threads = 1});
   result.reasons[0] = static_cast<uint32_t>(program.strings.size());
   EXPECT_THROW(gachasimulate::write_gsr_v2(output_path("invalid_reason_test").string(), program,
                                            result, 123),
@@ -292,7 +318,7 @@ TEST(Gsr, RejectsInconsistentBatchDataAndOverflow) {
       std::runtime_error);
 }
 
-TEST(Gsr, ReadsAndAnalyzesV2Statistics) {
+TEST(Gsr, ReadsV2AndAnalyzesStatistics) {
   const auto path = output_path("analysis_test");
   std::filesystem::remove(path);
   auto program = gachasimulate::load_ir_file(fixture_path().string());
@@ -302,19 +328,107 @@ TEST(Gsr, ReadsAndAnalyzesV2Statistics) {
   program.strings.push_back("skin");
   gachasimulate::BatchResult result{{1, 2, 4, 4}, {exchange, skin, skin, skin}, 11};
   gachasimulate::write_gsr_v2(path.string(), program, result, 0);
-  const auto analysis = gachasimulate::analyze_gsr_v2(path.string());
-  EXPECT_EQ(analysis.at("analysis_version"), 2);
+  const auto analysis = analyze(path);
   EXPECT_EQ(analysis.at("result_item"),
             nlohmann::json({{"id", "draw_count"}, {"name", "Draw count"}}));
   EXPECT_EQ(analysis.at("totals"), nlohmann::json({{"runs", "4"}, {"result", "11"}}));
   EXPECT_EQ(analysis.at("values"), nlohmann::json({"1", "2", "4"}));
   EXPECT_EQ(analysis.at("cumulative"), nlohmann::json({0.25, 0.5, 1.0}));
+  EXPECT_EQ(analysis.at("statistic"), nlohmann::json({{"P5", "1"},
+                                                      {"P25", "1"},
+                                                      {"P50", "3"},
+                                                      {"P75", "4"},
+                                                      {"P95", "4"},
+                                                      {"MIN", "1"},
+                                                      {"MEAN", "2"},
+                                                      {"MEAN_LEVEL", 0.5},
+                                                      {"MAX", "4"}}));
   EXPECT_EQ(analysis.at("statistic").at("P50"), "3");
   EXPECT_EQ(analysis.at("statistic").at("MEAN"), "2");
   EXPECT_EQ(analysis.at("statistic").at("MEAN_LEVEL"), 0.5);
   EXPECT_EQ(analysis.at("termination_reason"),
             nlohmann::json({{{"reason", "exchange"}, {"proportion", 25}},
                             {{"reason", "skin"}, {"proportion", 75}}}));
+  std::filesystem::remove(path);
+}
+
+TEST(Gsr, AnalyzesWeightedPercentilesSparseValuesAndUint64Maximum) {
+  auto program = gachasimulate::load_ir_file(fixture_path().string());
+  const auto path = output_path("weighted_analysis_test");
+  gachasimulate::write_gsr_v2(path.string(), program, {{0, 10, 20, 30, 40}, {4, 4, 4, 4, 4}, 100},
+                              0);
+  const auto analysis = analyze(path);
+  EXPECT_EQ(analysis.at("values"), nlohmann::json({"0", "10", "20", "30", "40"}));
+  EXPECT_EQ(analysis.at("cumulative"), nlohmann::json({0.2, 0.4, 0.6, 0.8, 1.0}));
+  EXPECT_EQ(analysis.at("statistic"), nlohmann::json({{"P5", "2"},
+                                                      {"P25", "10"},
+                                                      {"P50", "20"},
+                                                      {"P75", "30"},
+                                                      {"P95", "38"},
+                                                      {"MIN", "0"},
+                                                      {"MEAN", "20"},
+                                                      {"MEAN_LEVEL", 0.6},
+                                                      {"MAX", "40"}}));
+
+  gachasimulate::write_gsr_v2(
+      path.string(), program,
+      {{std::numeric_limits<uint64_t>::max()}, {4}, std::numeric_limits<uint64_t>::max()}, 0);
+  const auto maximum = std::to_string(std::numeric_limits<uint64_t>::max());
+  const auto extreme = analyze(path);
+  EXPECT_EQ(extreme.at("values"), nlohmann::json({maximum}));
+  EXPECT_EQ(extreme.at("statistic").at("P5"), maximum);
+  EXPECT_EQ(extreme.at("statistic").at("P95"), maximum);
+  EXPECT_EQ(extreme.at("statistic").at("MEAN"), maximum);
+  std::filesystem::remove(path);
+}
+
+TEST(Gsr, UsesReasonNameTieBreakAndExcludesZeroCountReasons) {
+  auto program = gachasimulate::load_ir_file(fixture_path().string());
+  std::vector<uint32_t> ids;
+  for (const auto *name : {"foxtrot", "alpha", "echo", "bravo", "delta", "charlie"}) {
+    ids.push_back(static_cast<uint32_t>(program.strings.size()));
+    program.strings.push_back(name);
+  }
+  const auto path = output_path("termination_tie_test");
+  gachasimulate::write_gsr_v2(path.string(), program, {{0, 0, 0, 0, 0, 0}, ids, 0}, 0);
+  auto raw = bytes(path);
+  set<uint32_t>(raw, 40, 7);
+  const std::string unused = "unused";
+  raw.insert(raw.end(), {static_cast<unsigned char>(unused.size()), 0, 0, 0});
+  raw.insert(raw.end(), unused.begin(), unused.end());
+  set<uint64_t>(raw, 80, static_cast<uint64_t>(raw.size()));
+  write_bytes(path, raw);
+  EXPECT_EQ(analyze(path).at("termination_reason"),
+            nlohmann::json({{{"reason", "alpha"}, {"proportion", 17}},
+                            {{"reason", "bravo"}, {"proportion", 17}},
+                            {{"reason", "charlie"}, {"proportion", 17}},
+                            {{"reason", "delta"}, {"proportion", 17}},
+                            {{"reason", "echo"}, {"proportion", 16}},
+                            {{"reason", "foxtrot"}, {"proportion", 16}}}));
+  std::filesystem::remove(path);
+}
+
+TEST(Gsr, EnforcesAnalysisMinimumAndExactSerializedByteLimits) {
+  EXPECT_EQ(gachasimulate::kAnalysisJsonByteLimit, 64ULL * 1024 * 1024);
+  auto program = gachasimulate::load_ir_file(fixture_path().string());
+  const auto path = output_path("analysis_size_test");
+  gachasimulate::write_gsr_v2(path.string(), program, {{42}, {4}, 42}, 0);
+
+  auto invalid_reason = bytes(path);
+  set<uint32_t>(invalid_reason, static_cast<size_t>(read<uint64_t>(invalid_reason, 64)), 1);
+  write_bytes(path, invalid_reason);
+  EXPECT_EQ(error_message([&] { static_cast<void>(analyze(path, 8)); }),
+            "analysis JSON exceeds 64 MiB");
+  EXPECT_EQ(error_message([&] { static_cast<void>(analyze(path, 9)); }),
+            "invalid GSR: invalid reason id");
+
+  gachasimulate::write_gsr_v2(path.string(), program, {{42}, {4}, 42}, 0);
+  const auto serialized = gachasimulate::analyze_gsr_v2(path.string());
+  EXPECT_EQ(gachasimulate::analyze_gsr_v2(path.string(), serialized.size()), serialized);
+  EXPECT_EQ(error_message([&] {
+              static_cast<void>(analyze(path, static_cast<uint64_t>(serialized.size() - 1)));
+            }),
+            "analysis JSON exceeds 64 MiB");
   std::filesystem::remove(path);
 }
 
@@ -341,8 +455,10 @@ TEST(Gsr, RejectsMalformedV2HeadersSectionsReasonsAndUtf8) {
   const auto invalid_path = output_path("invalid_reader_test");
   std::filesystem::remove(valid_path);
   auto program = gachasimulate::load_ir_file(fixture_path().string());
-  gachasimulate::write_gsr_v2(valid_path.string(), program,
-                              gachasimulate::simulate_fixed_runs(program, 3, 123, 1), 123);
+  gachasimulate::write_gsr_v2(
+      valid_path.string(), program,
+      gachasimulate::simulate_fixed_runs(program, {.total_runs = 3, .seed = 123, .threads = 1}),
+      123);
   const auto valid = bytes(valid_path);
   auto rejected = [&](const std::vector<unsigned char> &data) {
     write_bytes(invalid_path, data);

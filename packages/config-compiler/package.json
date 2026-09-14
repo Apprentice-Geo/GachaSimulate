@@ -2,6 +2,7 @@
   "name": "@gachasimulate/config-compiler",
   "version": "1.0.0",
   "description": "GachaSimulate YAML configuration compiler",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "exports": {
     ".": {

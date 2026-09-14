@@ -27,6 +27,7 @@ interface CDFChartProps {
   data: CDFViewModel;
   animation_progress: AnimationProgress;
   compact?: boolean;
+  visual_density?: number;
   fixed_size?: { width: number; height: number };
   style?: CSSProperties;
 }
@@ -45,24 +46,42 @@ export function CDFChart({
   data,
   animation_progress,
   compact = false,
+  visual_density = 1,
   fixed_size,
   style,
 }: CDFChartProps) {
   const [chart_ref, chart_size] = use_element_size<HTMLDivElement>();
   const render_size = fixed_size ?? chart_size;
-  const margin = compact ? COMPACT_CHART_MARGIN : CHART_MARGIN;
-  const y_axis_width = compact ? COMPACT_Y_AXIS_WIDTH : Y_AXIS_WIDTH;
-  const x_axis_height = compact ? COMPACT_X_AXIS_HEIGHT : X_AXIS_HEIGHT;
+  const density = compact ? visual_density : 1;
+  const base_margin = compact ? COMPACT_CHART_MARGIN : CHART_MARGIN;
+  const margin = {
+    top: base_margin.top * density,
+    right: base_margin.right * density,
+    bottom: base_margin.bottom * density,
+    left: base_margin.left * density,
+  };
+  const y_axis_width = compact ? COMPACT_Y_AXIS_WIDTH * density : Y_AXIS_WIDTH;
+  const x_axis_height = compact
+    ? COMPACT_X_AXIS_HEIGHT * density
+    : X_AXIS_HEIGHT;
 
   return (
     <div
       ref={chart_ref}
       className={`cdf-chart-shell${compact ? " cdf-chart-shell-compact" : ""}`}
       data-testid="cdf-chart"
-      style={style}
+      style={{ ...style, "--cdf-density": density } as CSSProperties}
     >
       {/* Keep the Y-axis title outside Recharts so its rotated position stays stable in the responsive shell. */}
-      <div className="y-axis-title">累计占比</div>
+      <div
+        className="y-axis-title"
+        style={{
+          opacity: animation_progress.chart_surface.opacity,
+          transform: `translateY(calc(-50% + ${animation_progress.chart_surface.translate_y}px)) rotate(-90deg)`,
+        }}
+      >
+        累计占比
+      </div>
       {render_size.width > 0 && render_size.height > 0 && (
         <LineChart
           data={data.chart_points}
@@ -87,7 +106,7 @@ export function CDFChart({
             stroke={CDF_CHART_VIEW_CONFIG.axis_color}
             tick={{
               fill: CDF_CHART_VIEW_CONFIG.x_tick_color,
-              fontSize: compact ? 14 : 32,
+              fontSize: compact ? 14 * density : 32,
             }}
             tickFormatter={format_draw}
             height={x_axis_height}
@@ -106,17 +125,18 @@ export function CDFChart({
             stroke={CDF_CHART_VIEW_CONFIG.axis_color}
             tick={{
               fill: CDF_CHART_VIEW_CONFIG.y_tick_color,
-              fontSize: compact ? 13 : 28,
+              fontSize: compact ? 13 * density : 28,
             }}
             tickFormatter={format_percent}
             ticks={Y_CDF_AXIS_TICKS}
-            tickMargin={10}
+            tickMargin={10 * density}
             tickLine={{ stroke: CDF_CHART_VIEW_CONFIG.axis_tick_color }}
             type="number"
             width={y_axis_width}
           />
           <CDFOverlay
             compact={compact}
+            visual_density={density}
             data={data}
             animation_progress={animation_progress}
           />

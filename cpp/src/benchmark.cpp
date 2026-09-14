@@ -8,6 +8,8 @@
 #include <stdexcept>
 
 namespace {
+// Input text and its diagnostic label are distinct at every local call site.
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 template <class T> T integer(const char *text, const char *name) {
   T value{};
   const auto [end, error] =
@@ -51,7 +53,8 @@ int main(int argc, char **argv) {
       usage();
     const auto start = std::chrono::steady_clock::now();
     const auto program = gachasimulate::load_ir_file(ir);
-    const auto result = gachasimulate::simulate_fixed_runs(program, runs, seed, threads);
+    const auto result = gachasimulate::simulate_fixed_runs(
+        program, {.total_runs = runs, .seed = seed, .threads = threads});
     gachasimulate::write_gsr_v2(output, program, result, seed);
     const auto elapsed =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();

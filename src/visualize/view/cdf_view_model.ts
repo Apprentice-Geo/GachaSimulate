@@ -1,5 +1,5 @@
 import { get_cdf_level_at_draw } from "../data/cdf";
-import type { AnalysisV2 } from "../types/analysis";
+import type { Analysis } from "../types/analysis";
 import type {
   CDFMarker,
   CDFViewModel,
@@ -33,7 +33,7 @@ function get_metric_color(key: StatisticKey): string {
 }
 
 export function build_cdf_view_model(
-  analysis: AnalysisV2,
+  analysis: Analysis,
   display: DisplayConfig,
 ): CDFViewModel {
   const number = (value: string, name: string) => non_negative(value, name);
@@ -83,20 +83,22 @@ export function build_cdf_view_model(
     ...analysis.result_item,
     name: display.result_item_name,
   };
-  const total = number(analysis.totals.result, "totals.result");
+  const total_result = number(analysis.totals.result, "totals.result");
+  const format_result_item_value = (value: number) =>
+    display.result_item_unit
+      ? `${format_number(value)} ${display.result_item_unit}`
+      : format_number(value);
 
   return {
     title: display.title,
     target: display.target,
     result_item,
-    total,
-    total_display: display.unit
-      ? `${format_number(total)} ${display.unit}`
-      : format_number(total),
+    total_result,
+    total_result_display: format_result_item_value(total_result),
     runs: number(analysis.totals.runs, "totals.runs"),
-    display_unit: display.unit,
+    result_item_unit: display.result_item_unit,
     axis_title: `结束时的${result_item.name}`,
-    price: display.price,
+    subtitle: display.subtitle,
     note: display.note,
     chart_points,
     termination_reason: analysis.termination_reason,
@@ -108,7 +110,7 @@ export function build_cdf_view_model(
       key,
       label: STATISTIC_VIEW_CONFIG[key].label,
       value: statistic[key],
-      display_value: format_number(statistic[key]),
+      display_value: format_result_item_value(statistic[key]),
       color: get_metric_color(key),
     })),
     markers,

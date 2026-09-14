@@ -16,9 +16,15 @@ function get_error_message(error: unknown): string {
 export default function App({
   input,
   on_select_result,
+  on_export,
+  export_active = false,
+  export_available = false,
 }: {
   input: CDFViewModel | null;
   on_select_result: () => Promise<boolean>;
+  on_export?: () => void;
+  export_active?: boolean;
+  export_available?: boolean;
 }) {
   const [loading, set_loading] = useState(false);
   const [error, set_error] = useState<string | null>(null);
@@ -100,6 +106,13 @@ export default function App({
     [animation_elapsed_ms],
   );
   const animation_state = is_animating ? "playing" : "idle";
+  const export_disabled_reason = export_active
+    ? "已有导出流程正在进行。"
+    : !export_available
+      ? "请先载入结果后再导出。"
+      : load_state !== "ready"
+        ? "结果尚未准备完成。"
+        : undefined;
 
   return (
     <div className="visualize-viewport" ref={viewport_ref}>
@@ -111,6 +124,9 @@ export default function App({
           is_animating={is_animating}
           on_select_file={() => void handle_desktop_file_select()}
           on_replay={start_animation}
+          on_export={on_export}
+          export_disabled_reason={export_disabled_reason}
+          render_mode="interactive"
         />
       ) : (
         <VisualizeShell
@@ -130,6 +146,8 @@ export default function App({
           load_state={load_state}
           on_select_file={() => void handle_desktop_file_select()}
           on_replay={start_animation}
+          on_export={on_export}
+          export_disabled_reason={export_disabled_reason}
         />
       )}
     </div>
