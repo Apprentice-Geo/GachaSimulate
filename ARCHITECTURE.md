@@ -75,7 +75,7 @@ Analysis 和 DisplayConfig 不能绕过各自校验直接进入视图模型。�
 
 `resolve_export_frame_state` 是逐帧语义的唯一入口，只接受 0–59 的整数帧。动画在 `ANIMATION_COMPLETION_FRAME` 到达终态，当前值为第 57 帧；第 57–59 帧保持相同 idle 终态，静态 PNG 使用第 57 帧。从视频切换到 PNG 时不得出现布局或动画跳变。
 
-修改共享视觉 token 或画布规格时，同时检查交互展示、Electron 导出 renderer、导出结果和相关文档。检查命令见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)，FFmpeg 构建与分发限制见 [FFmpeg 开发使用与分发状态](docs/FFMPEG_DISTRIBUTION.md)。
+修改共享视觉 token 或画布规格时，同时检查交互展示、Electron 导出 renderer、导出结果和相关文档。检查命令见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)，FFmpeg 构建与分发限制见 [FFmpeg 文档](scripts/README.md)。
 
 ## 契约索引
 
@@ -83,13 +83,13 @@ Analysis 和 DisplayConfig 不能绕过各自校验直接进入视图模型。�
 | --- | --- | --- | --- | --- | --- | --- |
 | YAML Config | 用户配置输入 | schema v2 | Config Compiler validator | 配置作者 | Config Compiler | [`YAML_CONFIG_SYNTAX.md`](docs/YAML_CONFIG_SYNTAX.md) |
 | IR | TS 到 C++ 的临时 JSON 进程契约 | 仅供配套实现使用，不持久化 | Config Compiler；C++ loader 负责不可信输入防御 | Config Compiler | C++ Runtime | [`IR.md`](docs/IR.md) |
-| GSR | 持久化模拟结果 | GSR v2；不读取旧格式 | C++ codec 与固定 fixture | C++ Runtime | C++ analyzer | [`GSR_V2.md`](docs/GSR_V2.md) |
+| GSR | 持久化模拟结果 | v2；不读取旧格式 | C++ codec 与固定 fixture | C++ Runtime | C++ analyzer | [`GSR.md`](docs/GSR.md) |
 | Analysis | analyzer 的 JSON 输出 | 严格拒绝未知字段 | JSON Schema 定义结构，semantic validator 定义跨字段不变量 | C++ analyzer | Electron、素材导出 | [`ANALYSIS.md`](docs/ANALYSIS.md) |
 | DisplayConfig | 独立可视化 sidecar | v2；不隐式兼容 v1 或旧字段 | JSON Schema | Electron 结果编辑 | Electron、素材导出 | [`DISPLAY_CONFIG.md`](docs/DISPLAY_CONFIG.md) |
-| Config Repository | 配置仓库 index、manifest 和包文件集合 | v1 | config-repository-contract validator | 配置仓库 | Electron 配置安装 | [`CONFIG_REPOSITORY_V1.md`](docs/CONFIG_REPOSITORY_V1.md) |
+| Config Repository | 配置仓库 index、manifest 和包文件集合 | v1 | config-repository-contract validator | 配置仓库 | Electron 配置安装 | [`CONFIG_REPOSITORY.md`](docs/CONFIG_REPOSITORY.md) |
 
 JSON 契约按约束范围划分权威：JSON Schema 定义字段、类型、必填项和局部取值约束；semantic validator 定义 Schema 之外的跨字段不变量；TypeScript 类型只是消费方的静态视图。契约测试负责验证这些定义与生产方、消费方保持一致，不另行定义格式。
 
 ## 专项文档
 
-配置语法见 `docs/YAML_CONFIG_SYNTAX.md`，IR 见 `docs/IR.md`，配置仓库协议见 `docs/CONFIG_REPOSITORY_V1.md`，结果格式见 `docs/GSR_V2.md`，分析格式见 `docs/ANALYSIS.md`，展示配置见 [DisplayConfig](docs/DISPLAY_CONFIG.md)，UI 设计原则与交互不变量见 [UI Design](docs/UI_DESIGN.md)，FFmpeg 开发与发布边界见 `docs/FFMPEG_DISTRIBUTION.md`，检查矩阵见 `docs/DEVELOPMENT_CHECKS.md`。
+配置语法见 `docs/YAML_CONFIG_SYNTAX.md`，IR 见 `docs/IR.md`，配置仓库协议见 `docs/CONFIG_REPOSITORY.md`，结果格式见 `docs/GSR.md`，分析格式见 `docs/ANALYSIS.md`，展示配置见 [DisplayConfig](docs/DISPLAY_CONFIG.md)，UI 设计原则与交互不变量见 [UI Design](docs/UI_DESIGN.md)，FFmpeg 开发与发布边界见 `scripts/README.md`，检查矩阵见 `docs/DEVELOPMENT_CHECKS.md`。

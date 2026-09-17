@@ -1,6 +1,8 @@
-# GSR v2
+# GSR
 
-GSR 是 little-endian 二进制结果交换格式。GSR v2 为每个固定模拟 run 保存本次模拟所选 result item 的期末库存。
+> 版本号：v2
+
+GSR 是 little-endian 二进制结果交换格式。GSR 为每个固定模拟 run 保存本次模拟所选 result item 的期末库存。
 
 固定 header 为 96 bytes：
 

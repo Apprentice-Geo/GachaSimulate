@@ -2,7 +2,7 @@
 
 > 本文已于 2026-9-11 归档，记录 Electron 自研素材导出路线在 Phase 0 和阶段 D 的三轮实验
 
-实验 harness、原始数据和临时性能入口已在阶段 E1 删除；本文只保留能解释长期技术决策的环境、结果和限制。正式实现、检查矩阵与分发边界分别以源码、[Development Checks](../DEVELOPMENT_CHECKS.md) 和 [FFmpeg 分发文档](../FFMPEG_DISTRIBUTION.md) 为准。
+实验 harness、原始数据和临时性能入口已在阶段 E1 删除；本文只保留能解释长期技术决策的环境、结果和限制。正式实现、检查矩阵与分发边界分别以当前源码、文档为准。
 
 ## 2026-08-27：Phase 0 截图后端与 frame-ready 边界
 

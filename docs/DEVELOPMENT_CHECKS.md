@@ -82,7 +82,7 @@ Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构
 
 ## Windows x64 Electron 导出检查
 
-先按 [scripts README](../scripts/README.md#环境与运行顺序) 从固定源码构建 FFmpeg，并执行对应的材料检查。旧第三方准备入口仅保留作迁移历史兼容，不用于 CI。当前迁移状态及分发限制见 [FFmpeg 开发使用与分发状态](FFMPEG_DISTRIBUTION.md)。
+先按 [scripts README](../scripts/README.md#环境与运行顺序) 从固定源码构建 FFmpeg，并执行对应的材料检查。
 
 资产准备完成后，先验证共享契约、宿主单元测试和普通 production build，再生成只供集成检查使用的像素探针 build 并直接驱动 `ExportHost`：
 
@@ -95,10 +95,8 @@ pnpm run build
 $env:GACHASIMULATE_REQUIRE_EXPORT_HOST_INTEGRATION = "1"
 pnpm run test:electron-export:integration
 ```
-
+像素探针仅用于集成测试，通过在导出画面编码当前帧号验证 CDP 捕获的逐帧连续性；普通 production build 不包含该探针。
 正式 production build 不得设置 `GACHASIMULATE_EXPORT_FRAME_PROBE`。集成检查只在临时目录生成 PNG、MP4、harness 和故障注入产物，并使用同包 `ffprobe.exe` 检查视频规格。
-
-该准备流程和 Windows CI 只用于技术验证，不表示 FFmpeg 已获准随应用分发。当前 `electron-builder` 配置不携带 FFmpeg；不得把 `build/ffmpeg` 加入安装包。发布阻塞、已知风险和解除条件见 [FFmpeg 开发使用与分发状态](FFMPEG_DISTRIBUTION.md)。
 
 ## Electron 人工验收
 
@@ -119,4 +117,4 @@ UI 回归分工：`capture:ui` 只准备场景并输出截图；布局、滚动�
 - 素材导出系统目录选择器以主窗口为 parent；取消/返回、中文与空格目录、统一覆盖以及 MP4/PNG/双格式实际产物正确。使用屏幕阅读器复核导出入口禁用原因、模态标题与焦点播报。
 - 取消确认后保持阻塞直到唯一终态；部分成功列出已保存与失败格式。注入文件占用时清理壳不能通过 Esc、遮罩或导航绕过，重复重试与退出后的单次后台清理不留下可避免的 FFmpeg、窗口、partial 或 backup。
 
-格式失败时执行 `pnpm run format`；其它失败按首个具体错误修复，不用批量改动掩盖问题。
+格式失败时执行 `pnpm run format`；其它失败按首个具体错误修复。

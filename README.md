@@ -25,7 +25,7 @@ pnpm run dev
 
 - `<stem>.visualize.json`
 
-sidecar 是独立的 [DisplayConfig v2](docs/DISPLAY_CONFIG.md)，保存版本标记和六个展示字段；分析、result item ID、CDF、termination、total 和 runs 始终从 GSR 重新获取。字段定义、校验与兼容规则由该契约文档维护。
+sidecar 是独立的 [DisplayConfig](docs/DISPLAY_CONFIG.md)，保存版本标记和六个展示字段；分析、result item ID、CDF、termination、total 和 runs 始终从 GSR 重新获取。字段定义、校验与兼容规则由该契约文档维护。
 
 桌面数据位于 `app.getPath("userData")` 下的 `configs/installed/` 与 `results/`。
 

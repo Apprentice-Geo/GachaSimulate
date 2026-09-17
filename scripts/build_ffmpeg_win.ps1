@@ -29,7 +29,7 @@ function Resolve-RequiredPath {
 
   $PathType = if ($Kind -eq "Leaf") { "Leaf" } else { "Container" }
   if (-not (Test-Path -LiteralPath $Path -PathType $PathType)) {
-    throw "$Description is missing at '$Path'. See docs/FFMPEG_DISTRIBUTION.md for the pinned offline prerequisite."
+    throw "$Description is missing at '$Path'. See scripts/README.md for the pinned offline prerequisite."
   }
   return [System.IO.Path]::GetFullPath((Resolve-Path -LiteralPath $Path).Path)
 }
@@ -163,7 +163,7 @@ $InstalledPackages = [ordered]@{}
 foreach ($PackageName in $RequiredMsys2Packages) {
   $InstalledVersion = $AllInstalledPackages[$PackageName]
   if (-not $InstalledVersion) {
-    throw "Required MSYS2 package '$PackageName' is missing. See docs/FFMPEG_DISTRIBUTION.md."
+    throw "Required MSYS2 package '$PackageName' is missing. See scripts/README.md.md."
   }
   $InstalledPackages[$PackageName] = $InstalledVersion
 }

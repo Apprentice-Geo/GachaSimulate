@@ -1,4 +1,6 @@
-# 配置仓库协议 v1
+# 配置仓库协议
+
+> 版本号：v1
 
 配置仓库协议定义 repository index、配置 manifest 和下载包的文件集合。`@gachasimulate/config-repository-contract` 是纯协议 validator，不执行网络请求、ZIP 解压或文件系统操作。
 

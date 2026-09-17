@@ -24,7 +24,7 @@
     "package:win": "pnpm run build && pnpm run prepare:application-licenses && electron-builder --win nsis --publish never",
     "test:package:win": "pwsh -NoProfile -File scripts/check_windows_package.ps1",
     "capture:ui": "pnpm run build:packages && electron-vite build && tsx src/dev/capture_ui.ts",
-    "prepare:ffmpeg:win": "pwsh -NoProfile -File scripts/prepare_ffmpeg.ps1",
+    "setup:ffmpeg:win": "pwsh -NoProfile -File scripts/setup_ffmpeg_win.ps1",
     "build:ffmpeg:win": "pwsh -NoProfile -File scripts/build_ffmpeg_win.ps1",
     "package:ffmpeg:compliance": "pwsh -NoProfile -File scripts/package_ffmpeg_compliance.ps1",
     "test:ffmpeg:compliance": "pwsh -NoProfile -File scripts/package_ffmpeg_compliance.test.ps1",
@@ -66,6 +66,10 @@
       {
         "from": "build/application-licenses",
         "to": "licenses"
+      },
+      {
+        "from": "build/ffmpeg/win32-x64/bin/ffmpeg.exe",
+        "to": "ffmpeg/bin/ffmpeg.exe"
       }
     ],
     "win": {

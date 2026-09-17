@@ -22,7 +22,7 @@ main 持有规范目录、目标路径和 `TargetIdentity`，在覆盖确认及�
 
 ### A–B. Windows 与 FFmpeg 基线
 
-建立 Windows x64 原生开发基准、固定源码 FFmpeg、构建材料与哈希记录、隔离 PATH、CI/CD 检查和安装包分发阻塞。检查命令见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)，源码准备职责见 [scripts README](scripts/README.md)，许可证和分发状态见 [FFmpeg 文档](docs/FFMPEG_DISTRIBUTION.md)。
+建立 Windows x64 原生开发基准、固定源码 FFmpeg、构建材料与哈希记录、隔离 PATH、CI/CD 检查和安装包分发阻塞。检查命令见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)，源码准备职责见 [scripts README](scripts/README.md)，许可证和分发状态见 [FFmpeg 文档](scripts/README.md)。
 
 ### C1–C3. 正式入口与完整生命周期
 
@@ -42,11 +42,11 @@ main 持有规范目录、目标路径和 `TargetIdentity`，在覆盖确认及�
 ### F. 打包与许可证迁移
 
 - F1 和主仓库 `GPL-3.0-or-later` 许可证迁移已完成；项目许可证、静态第三方声明和 npm 生产依赖许可证清单随安装包交付。
-- 复用已经完成的 FFmpeg 合规材料，以 `extraResources` 将运行所需产物放在 ASAR 外；开发态和安装包分别使用固定资源路径。
+- （已完成）复用已经完成的 FFmpeg 合规材料，以 `extraResources` 将运行所需产物放在 ASAR 外；开发态和安装包分别使用固定资源路径。
 
 ### G. 验收与文档收尾
 
-- 构建 Windows 安装包并本地验收 MP4/PNG、覆盖、中文及空格路径、字体、视觉一致性和安装态资源稳定性；断网且无开发工具或 PATH 依赖时仍能导出。本阶段不发布 Release。
+- （已完成）构建 Windows 安装包并本地验收 MP4/PNG、覆盖、中文及空格路径、字体、视觉一致性和安装态资源稳定性；断网且无开发工具或 PATH 依赖时仍能导出。本阶段不发布 Release。
 - 完成剩余文档收尾，保留稳定职责与验收入口。
 
 ## 文档维护
