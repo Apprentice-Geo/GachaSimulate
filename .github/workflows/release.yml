@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   release:
@@ -33,6 +34,32 @@ jobs:
           if ($env:GITHUB_REF_NAME -ne "v$version") {
             throw "tag $env:GITHUB_REF_NAME must match package version v$version"
           }
+
+      - name: Require successful CI for release commit
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $runs = gh run list `
+            --workflow "CI" `
+            --commit "$env:GITHUB_SHA" `
+            --event push `
+            --json status,conclusion,headSha,createdAt,url `
+            --limit 20 | ConvertFrom-Json
+
+          $run = $runs |
+            Sort-Object { [datetime]$_.createdAt } -Descending |
+            Select-Object -First 1
+
+          if (-not $run) {
+            throw "No CI run found for commit $env:GITHUB_SHA."
+          }
+
+          if ($run.status -ne "completed" -or $run.conclusion -ne "success") {
+            throw "Latest CI run for commit $env:GITHUB_SHA did not succeed: $($run.url)"
+          }
+
+          Write-Host "Verified successful CI: $($run.url)"
 
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile

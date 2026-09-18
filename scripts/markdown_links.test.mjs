@@ -18,7 +18,7 @@ const trackedFiles = new Set(
     .split(/\r?\n/)
     .filter(Boolean)
     .map((file) => file.replaceAll("\\", "/"))
-    .filter((file) => fs.existsSync(path.join(repoRoot,file))),
+    .filter((file) => fs.existsSync(path.join(repoRoot, file))),
 );
 
 const markdownFiles = [...trackedFiles].filter((file) => file.endsWith(".md"));
@@ -48,18 +48,17 @@ function extractLocalLinks(content) {
     }
 
     links.push({
-  target,
-  index: match.index,
-});
+      target,
+      index: match.index,
+    });
   }
 
   return links;
 }
 
 function removeFencedCodeBlocks(content) {
-  return content.replace(
-    /```[\s\S]*?```|~~~[\s\S]*?~~~/g,
-    (block) => block.replace(/[^\r\n]/g, " "),
+  return content.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g, (block) =>
+    block.replace(/[^\r\n]/g, " "),
   );
 }
 
@@ -84,10 +83,10 @@ test("tracked Markdown local links point to tracked files", () => {
       } catch {
         decodedTarget = targetPath;
       }
-      const line = content.slice(0, index).split('\n').length;
-const resolved = path
-  .normalize(path.join(path.dirname(markdownFile), decodedTarget))
-  .replaceAll("\\", "/");
+      const line = content.slice(0, index).split("\n").length;
+      const resolved = path
+        .normalize(path.join(path.dirname(markdownFile), decodedTarget))
+        .replaceAll("\\", "/");
 
       if (!trackedFiles.has(resolved)) {
         brokenLinks.push(`${markdownFile}:${line}: ${target} -> ${resolved}`);

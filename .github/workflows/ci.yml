@@ -117,7 +117,7 @@ jobs:
   node-build-test:
     name: Node.js build and tests (Windows)
     runs-on: windows-latest
-    needs: native-windows
+    needs: [node-quality, native-windows]
 
     steps:
       - name: Preserve repository line endings
@@ -159,7 +159,7 @@ jobs:
   electron-layout:
     name: Electron renderer layout (Windows)
     runs-on: windows-latest
-    needs: native-windows
+    needs: [node-quality, native-windows]
 
     steps:
       - name: Preserve repository line endings
@@ -192,7 +192,7 @@ jobs:
   package-windows:
     name: Windows installer
     runs-on: windows-latest
-    needs: [native-windows, ffmpeg-windows]
+    needs: [node-quality, native-windows, ffmpeg-windows]
 
     steps:
       - name: Preserve repository line endings
@@ -242,6 +242,7 @@ jobs:
   ffmpeg-windows:
     name: Build FFmpeg from fixed sources (Windows UCRT64)
     runs-on: windows-latest
+    needs: node-quality
 
     steps:
       - name: Preserve repository line endings
@@ -316,7 +317,7 @@ jobs:
   electron-export-windows:
     name: Electron export host (Windows x64, self-built FFmpeg)
     runs-on: windows-latest
-    needs: [native-windows, ffmpeg-windows]
+    needs: [node-quality, native-windows, ffmpeg-windows]
 
     steps:
       - name: Preserve repository line endings

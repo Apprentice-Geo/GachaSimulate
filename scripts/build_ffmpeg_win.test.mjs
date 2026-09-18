@@ -54,10 +54,5 @@ test("source lock pins only the requested source identities", async () => {
     lock.ffmpeg.archive_sha256,
     "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
   );
-  assert.deepEqual(Object.keys(lock), [
-    "target",
-    "zlib",
-    "x264",
-    "ffmpeg",
-  ]);
+  assert.deepEqual(Object.keys(lock), ["target", "zlib", "x264", "ffmpeg"]);
 });

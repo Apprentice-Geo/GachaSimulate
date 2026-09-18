@@ -10,7 +10,7 @@
 - 持久化结果与分析输出格式：[GSR](<docs/GSR.md>)、[Analysis JSON](<docs/ANALYSIS.md>)。
 - 独立展示配置与保存契约：[DisplayConfig](<docs/DISPLAY_CONFIG.md>)。
 - UI 设计原则与交互不变量：[UI Design](<docs/UI_DESIGN.md>)。
-- 按影响范围选择检查及 push 前完整矩阵：[Development Checks](<docs/DEVELOPMENT_CHECKS.md>)。
+- 通过仓库的 pre-commit hook 检查，或在不创建提交时按影响范围执行检查：[Development Checks](<docs/DEVELOPMENT_CHECKS.md>)。
 - FFmpeg 源码准备、构建脚本职责与材料收集等项目维护脚本：[scripts README](<scripts/README.md>)。
 - 此处未列出的文档视作开发临时文档，不承诺长期存在和有效。
 
