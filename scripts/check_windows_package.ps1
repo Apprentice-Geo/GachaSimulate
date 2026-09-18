@@ -6,9 +6,10 @@ $UnpackedRoot = Join-Path $ProjectRoot "dist/win-unpacked"
 $LicenseRoot = Join-Path $UnpackedRoot "resources/licenses"
 $Core = Join-Path $UnpackedBin "gachasimulate-core.exe"
 $Analyzer = Join-Path $UnpackedBin "gachasimulate-analyze.exe"
+$ffmpeg = Join-Path $UnpackedRoot "resources/ffmpeg/bin/ffmpeg.exe"
 $Installer = Join-Path $ProjectRoot "dist/GachaSimulate Setup $($Package.version).exe"
 
-foreach ($Path in @($Core, $Analyzer, $Installer)) {
+foreach ($Path in @($Core, $Analyzer, $ffmpeg, $Installer)) {
   if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
     throw "Missing Windows package artifact: $Path"
   }

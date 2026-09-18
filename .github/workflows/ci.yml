@@ -105,6 +105,9 @@ jobs:
       - name: Check repository hook
         run: pnpm run test:pre-commit
 
+      - name: Check Markdown links
+        run: pnpm run test:markdown:links
+
       - name: Lint Node.js
         run: pnpm run lint
 
@@ -189,7 +192,7 @@ jobs:
   package-windows:
     name: Windows installer
     runs-on: windows-latest
-    needs: native-windows
+    needs: [native-windows, ffmpeg-windows]
 
     steps:
       - name: Preserve repository line endings
@@ -215,6 +218,12 @@ jobs:
         with:
           name: native-windows-x64
           path: build/native
+
+      - name: Download FFmpeg
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-windows-x64
+          path: build/ffmpeg/win32-x64/bin
 
       - name: Build Windows installer
         run: pnpm run package:win

@@ -76,9 +76,9 @@ Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构
 - CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑代表性实际 export。
 - Electron 桌面布局：`test:electron-layout`、`test:simulation`、`test:visualize:cdf`、typecheck、lint、format:check 和 build；查看大小窗口真实截图，确认空间利用率、文字与控件密度及内部滚动。固定画布的适配不应受桌面布局影响。
 - Electron 导出 renderer、逐帧协议、CDP、FFmpeg 或输出提交：`test:visualize:cdf`、`test:electron-export`、typecheck、lint 和 build；Windows x64 继续执行下述正式宿主集成检查。
-- npm 生产依赖、字体、原生第三方组件或 Electron 打包资源：`test:application-licenses`、`package:win` 和 `test:package:win`；安装包检查会核对项目与静态第三方材料、npm 清单以及 Electron/Chromium 声明。
+- npm 生产依赖、字体、原生第三方组件或 Electron 打包资源：`test:application-licenses`、`package:win` 和 `test:package:win`；执行 Windows 打包检查前，需要先按照 [scripts/README.md](../scripts/README.md) 构建项目固定版本的 FFmpeg，安装包检查会核对项目与静态第三方材料、npm 清单以及 Electron/Chromium 声明。
 - 桌面导出入口、格式/文件名、目标选择、覆盖、进度、终态或阻塞清理交互：在上一项基础上执行 `test:electron-layout`，并用 `capture:ui` 检查 format、overwrite、started、progress、partial-failure 和 cleanup-blocked 场景。系统原生目录选择器本身仍按人工验收项检查。
-- 仅文档：检查命令、链接和完成状态；跨层状态文档仍按对应范围验证。
+- 文档：检查命令和完成状态，使用 `test:markdown:links` 检查仓库内链接；跨层状态文档仍按对应范围验证。
 
 ## Windows x64 Electron 导出检查
 

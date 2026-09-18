@@ -11,7 +11,7 @@
 - 独立展示配置与保存契约：[DisplayConfig](<docs/DISPLAY_CONFIG.md>)。
 - UI 设计原则与交互不变量：[UI Design](<docs/UI_DESIGN.md>)。
 - 按影响范围选择检查及 push 前完整矩阵：[Development Checks](<docs/DEVELOPMENT_CHECKS.md>)。
-- FFmpeg 源码准备、构建脚本职责与材料收集：[scripts README](<scripts/README.md>)。
+- FFmpeg 源码准备、构建脚本职责与材料收集等项目维护脚本：[scripts README](<scripts/README.md>)。
 - 此处未列出的文档视作开发临时文档，不承诺长期存在和有效。
 
 ## 开发环境与启动入口

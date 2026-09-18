@@ -35,11 +35,13 @@ sidecar 是独立的 [DisplayConfig](docs/DISPLAY_CONFIG.md)，保存版本标�
 
 Electron 展示与素材导出共享 `Analysis + DisplayConfig v2` 输入、CDF 视图模型、画面和动画。桌面应用通过独立隐藏 renderer、CDP 逐帧截图和固定 Windows FFmpeg 管道导出 3840×2160、60 FPS 的 MP4 与 PNG，并提供进度、正式取消、部分成功详情与可恢复清理。
 
-Windows 开发准备和宿主检查见 [Development Checks](docs/DEVELOPMENT_CHECKS.md#windows-x64-electron-导出检查)，后续分发阶段见 [Electron 素材导出计划](ELECTRON_EXPORT_PLAN.md)。当前 FFmpeg 仅供开发与 CI，不进入安装包；发布边界见 [FFmpeg 开发使用与分发状态](docs/FFMPEG_DISTRIBUTION.md)。
+Windows 开发准备和宿主检查见 [Development Checks](docs/DEVELOPMENT_CHECKS.md#windows-x64-electron-导出检查)。
+
+Windows 安装包会附带项目固定版本构建的 FFmpeg。FFmpeg 的源码获取、构建、合规检查与发布流程见 [scripts README](scripts/README.md)。
 
 ## 开发检查
 
-模块边界见 [Architecture](ARCHITECTURE.md)，UI 设计原则与交互不变量见 [UI Design](docs/UI_DESIGN.md)，push 前检查见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)。FFmpeg 源码准备、编译和材料打包脚本见 [scripts README](scripts/README.md)。
+模块边界见 [Architecture](ARCHITECTURE.md)，UI 设计原则与交互不变量见 [UI Design](docs/UI_DESIGN.md)，push 前检查见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)。FFmpeg 源码准备、编译和材料打包等脚本见 [scripts README](scripts/README.md)。
 
 ## 许可证
 

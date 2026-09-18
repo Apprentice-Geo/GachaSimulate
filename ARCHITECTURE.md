@@ -75,7 +75,7 @@ Analysis 和 DisplayConfig 不能绕过各自校验直接进入视图模型。�
 
 `resolve_export_frame_state` 是逐帧语义的唯一入口，只接受 0–59 的整数帧。动画在 `ANIMATION_COMPLETION_FRAME` 到达终态，当前值为第 57 帧；第 57–59 帧保持相同 idle 终态，静态 PNG 使用第 57 帧。从视频切换到 PNG 时不得出现布局或动画跳变。
 
-修改共享视觉 token 或画布规格时，同时检查交互展示、Electron 导出 renderer、导出结果和相关文档。检查命令见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)，FFmpeg 构建与分发限制见 [FFmpeg 文档](scripts/README.md)。
+修改共享视觉 token 或画布规格时，同时检查交互展示、Electron 导出 renderer、导出结果和相关文档。检查命令见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)，FFmpeg 构建与分发限制见 [scripts README](scripts/README.md)。
 
 ## 契约索引
 
