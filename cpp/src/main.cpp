@@ -110,8 +110,8 @@ int main(int argc, char **argv) {
       lastPercent = percent;
       lastProgress = now;
     };
-    const auto result =
-        gachasimulate::simulate_fixed_runs(program, runs, seed, threads, report_progress);
+    const auto result = gachasimulate::simulate_fixed_runs(
+        program, {.total_runs = runs, .seed = seed, .threads = threads}, report_progress);
     stage("saving");
     gachasimulate::write_gsr_v2(output, program, result, seed);
     event("completed", {{"result_path", output},

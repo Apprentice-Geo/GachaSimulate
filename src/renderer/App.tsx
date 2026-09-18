@@ -7,6 +7,7 @@ import {
   Store,
 } from "lucide-react";
 import {
+  useCallback,
   useState,
   useEffect,
   useRef,
@@ -20,6 +21,7 @@ import type {
   RepositoryConfig,
 } from "../shared/installed_config";
 import type { DisplayFields, ResultEditorState } from "../shared/result_editor";
+import { ExportWorkflow } from "./ExportWorkflow";
 import {
   default_result_item,
   filter_result_items,
@@ -29,6 +31,7 @@ import VisualizeApp from "../visualize/App";
 import { ANIMATION_TOTAL_MS } from "../visualize/animation/timeline";
 import { build_animation_progress } from "../visualize/animation/progress";
 import { CDFChart } from "../visualize/components/CDFChart";
+import { ResultValue } from "../visualize/components/ResultValue";
 import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
 import { get_distribution_statistic_groups } from "../visualize/view/statistic_view_config";
 import {
@@ -339,8 +342,8 @@ function SimulationPage({ active }: { active: boolean }) {
                     onChange={() => set_result_item(item.id)}
                   />
                   <span>
-                    <code>{item.id}</code>
                     <strong>{item.name}</strong>
+                    <code>{item.id}</code>
                   </span>
                 </label>
               ))}
@@ -360,108 +363,110 @@ function SimulationPage({ active }: { active: boolean }) {
                 {status_labels[status]}
               </span>
             </div>
-            <div className="simulation-fields">
-              <label className="target-field">
-                固定次数
-                <input
-                  disabled={busy}
-                  max={MAX_TOTAL_RUNS}
-                  min="1"
-                  type="number"
-                  value={target_value}
-                  onChange={(event) => set_target_value(event.target.value)}
-                />
-              </label>
-              <label>
-                随机种子
-                <input
-                  disabled={busy}
-                  step="1"
-                  type="number"
-                  value={seed}
-                  onChange={(event) => set_seed(event.target.value)}
-                />
-              </label>
-              <label>
-                线程数 <span>1–{logical_cpu_count}</span>
-                <input
-                  disabled={busy}
-                  max={logical_cpu_count}
-                  min="1"
-                  step="1"
-                  type="number"
-                  value={threads}
-                  onChange={(event) => set_threads(event.target.value)}
-                />
-              </label>
-            </div>
-            <div className="output-item">
-              <span>当前输出物品</span>
-              <strong>{selected_item?.name ?? "未选择"}</strong>
-              <code>{selected_item?.id ?? "—"}</code>
-            </div>
-            <div className="simulation-actions">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void start()}
-              >
-                <Play size={16} aria-hidden="true" />
-                启动模拟
-              </button>
-              <button
-                type="button"
-                disabled={!busy || status === "cancelling"}
-                onClick={() => void cancel()}
-              >
-                取消
-              </button>
-            </div>
-            {operation_error && (
-              <div className="simulation-error" role="alert">
-                错误：{operation_error}
+            <div className="simulation-control-body">
+              <div className="simulation-fields">
+                <label className="target-field">
+                  固定次数
+                  <input
+                    disabled={busy}
+                    max={MAX_TOTAL_RUNS}
+                    min="1"
+                    type="number"
+                    value={target_value}
+                    onChange={(event) => set_target_value(event.target.value)}
+                  />
+                </label>
+                <label>
+                  随机种子
+                  <input
+                    disabled={busy}
+                    step="1"
+                    type="number"
+                    value={seed}
+                    onChange={(event) => set_seed(event.target.value)}
+                  />
+                </label>
+                <label>
+                  线程数 <span>1–{logical_cpu_count}</span>
+                  <input
+                    disabled={busy}
+                    max={logical_cpu_count}
+                    min="1"
+                    step="1"
+                    type="number"
+                    value={threads}
+                    onChange={(event) => set_threads(event.target.value)}
+                  />
+                </label>
               </div>
-            )}
-            <ol className="simulation-trace" aria-label="模拟任务轨迹">
-              {[
-                ["编译配置", "YAML → IR"],
-                [
-                  "运行模拟",
-                  progress
-                    ? `${progress.completed} / ${progress.total} runs`
-                    : "等待 core",
-                ],
-                [
-                  "保存 GSR",
-                  result_path ? result_path.split(/[\\/]/).pop() : "等待写入",
-                ],
-              ].map(([label, detail], index) => (
-                <li data-state={trace_state(index)} key={label}>
-                  <i aria-hidden="true" />
-                  <span>
-                    <strong>{label}</strong>
-                    <small title={index === 2 ? result_path : undefined}>
-                      {detail}
-                    </small>
-                  </span>
-                </li>
-              ))}
-            </ol>
-            {progress && (
-              <progress
-                aria-label="模拟进度"
-                max={progress.total}
-                value={progress.completed}
-              />
-            )}
-            <div className="simulation-status" role="status">
-              <span>状态 / {status_labels[status]}</span>
-              {result_path && (
-                <button type="button" onClick={() => void open_results()}>
-                  <FolderOpen size={16} aria-hidden="true" />
-                  打开结果目录
+              <div className="output-item">
+                <span>当前输出物品</span>
+                <strong>{selected_item?.name ?? "未选择"}</strong>
+                <code>{selected_item?.id ?? "—"}</code>
+              </div>
+              <div className="simulation-actions">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void start()}
+                >
+                  <Play size={16} aria-hidden="true" />
+                  启动模拟
                 </button>
+                <button
+                  type="button"
+                  disabled={!busy || status === "cancelling"}
+                  onClick={() => void cancel()}
+                >
+                  取消
+                </button>
+              </div>
+              {operation_error && (
+                <div className="simulation-error" role="alert">
+                  错误：{operation_error}
+                </div>
               )}
+              <ol className="simulation-trace" aria-label="模拟任务轨迹">
+                {[
+                  ["编译配置", "YAML → IR"],
+                  [
+                    "运行模拟",
+                    progress
+                      ? `${progress.completed} / ${progress.total} runs`
+                      : "等待 core",
+                  ],
+                  [
+                    "保存 GSR",
+                    result_path ? result_path.split(/[\\/]/).pop() : "等待写入",
+                  ],
+                ].map(([label, detail], index) => (
+                  <li data-state={trace_state(index)} key={label}>
+                    <i aria-hidden="true" />
+                    <span>
+                      <strong>{label}</strong>
+                      <small title={index === 2 ? result_path : undefined}>
+                        {detail}
+                      </small>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              {progress && (
+                <progress
+                  aria-label="模拟进度"
+                  max={progress.total}
+                  value={progress.completed}
+                />
+              )}
+              <div className="simulation-status" role="status">
+                <span>状态 / {status_labels[status]}</span>
+                {result_path && (
+                  <button type="button" onClick={() => void open_results()}>
+                    <FolderOpen size={16} aria-hidden="true" />
+                    打开结果目录
+                  </button>
+                )}
+              </div>
             </div>
           </section>
         </div>
@@ -477,6 +482,18 @@ function ResultEditorPage({
   state: ResultEditorState | null;
   on_state: (state: ResultEditorState) => void;
 }) {
+  const [visual_density, set_visual_density] = useState(1);
+  useEffect(() => {
+    const update = () =>
+      set_visual_density(
+        parseFloat(
+          getComputedStyle(document.querySelector(".renderer-shell")!).fontSize,
+        ) / 16,
+      );
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
   const [fields, set_fields] = useState<DisplayFields | null>(null);
   const [status, set_status] = useState("请选择 GSR 文件。");
   const [loading, set_loading] = useState(false);
@@ -537,7 +554,11 @@ function ResultEditorPage({
     set_status("正在保存…");
     save_queue.current = save_queue.current.then(async () => {
       try {
-        const next = await window.desktopApi.saveResultFields(snapshot);
+        if (!state) throw new Error("result session is unavailable");
+        const next = await window.desktopApi.saveResultFields({
+          session_id: state.session_id,
+          fields: snapshot,
+        });
         if (version === save_version.current) {
           if (fields_ref.current === snapshot) apply_state(next);
           set_status("已保存。");
@@ -616,7 +637,8 @@ function ResultEditorPage({
             <p className="panel-kicker">GSR WORKFLOW</p>
             <h2>载入模拟结果</h2>
             <p>
-              选择 GSR 文件并完成分析后，即可编辑标题、目标、说明、价格和单位。
+              选择 GSR
+              文件并完成分析后，即可编辑标题、目标、说明、副标题和统计物品展示单位。
             </p>
             <button
               type="button"
@@ -640,12 +662,19 @@ function ResultEditorPage({
                 </div>
                 <span>失焦自动保存</span>
               </div>
-              {field("title", "标题")}
-              {field("target", "目标")}
-              {field("result_item_name", "统计物品展示名称")}
-              {field("note", "说明", false, "result-note")}
-              {field("price", "价格", false, "result-price")}
-              {field("unit", "单位", false, "result-unit")}
+              <div className="result-editor-fields">
+                {field("title", "标题")}
+                {field("target", "目标")}
+                {field("result_item_name", "统计物品展示名称")}
+                {field("note", "说明", false, "result-note")}
+                {field("subtitle", "副标题", false, "result-subtitle")}
+                {field(
+                  "result_item_unit",
+                  "统计物品展示单位",
+                  false,
+                  "result-item-unit",
+                )}
+              </div>
             </div>
             <section
               className="instrument-panel result-preview"
@@ -677,7 +706,12 @@ function ResultEditorPage({
                       </div>
                       <div>
                         <span>累计{preview_data.result_item.name}</span>
-                        <strong>{preview_data.total_display}</strong>
+                        <strong>
+                          <ResultValue
+                            value={preview_data.total_result_display}
+                            unit={preview_data.result_item_unit}
+                          />
+                        </strong>
                       </div>
                     </div>
                   </div>
@@ -694,7 +728,12 @@ function ResultEditorPage({
                           }
                         >
                           <dt>{metric.key}</dt>
-                          <dd>{metric.display_value}</dd>
+                          <dd>
+                            <ResultValue
+                              value={metric.display_value}
+                              unit={preview_data.result_item_unit}
+                            />
+                          </dd>
                         </div>
                       ) : null;
                     })}
@@ -716,6 +755,7 @@ function ResultEditorPage({
             <div className="result-cdf-chart">
               <CDFChart
                 animation_progress={preview_animation}
+                visual_density={visual_density}
                 compact
                 data={preview_data}
               />
@@ -996,63 +1036,80 @@ export default function App() {
     null,
   );
 
-  const select_result = async (): Promise<boolean> => {
+  const select_result = useCallback(async (): Promise<boolean> => {
     const selected = await window.desktopApi.selectGsrResult();
     if (!selected) return false;
     set_result_state(selected);
     return true;
-  };
+  }, []);
+  const export_context = useMemo(
+    () =>
+      result_state
+        ? {
+            session_id: result_state.session_id,
+            default_base_name: result_state.filename.replace(/\.gsr$/i, ""),
+          }
+        : null,
+    [result_state],
+  );
+  const visualize_input = useMemo(
+    () =>
+      result_state
+        ? build_cdf_view_model(result_state.analysis, result_state.display)
+        : null,
+    [result_state?.analysis, result_state?.display],
+  );
 
   return (
-    <div className="renderer-shell">
-      <aside className="renderer-sidebar">
-        <div className="renderer-brand">
-          <span className="renderer-brand-mark" aria-hidden="true" />
+    <ExportWorkflow context={export_context}>
+      {({ active: export_active, open: open_export }) => (
+        <div className="renderer-shell">
+          <aside className="renderer-sidebar">
+            <div className="renderer-brand">
+              <span className="renderer-brand-mark" aria-hidden="true" />
+            </div>
+            <nav aria-label="主导航">
+              <p className="renderer-nav-label">工作台</p>
+              {pages.map((page) => (
+                <button
+                  key={page.id}
+                  className="renderer-nav-button"
+                  aria-current={active_page === page.id ? "page" : undefined}
+                  aria-label={page.label}
+                  type="button"
+                  onClick={() => set_active_page(page.id)}
+                >
+                  {page.icon}
+                  <span className="renderer-nav-copy">
+                    <strong>{page.label}</strong>
+                  </span>
+                </button>
+              ))}
+            </nav>
+          </aside>
+          <main className="renderer-main">
+            <div className="renderer-content">
+              <SimulationPage active={active_page === "simulation"} />
+              {active_page === "result-editor" ? (
+                <ResultEditorPage
+                  state={result_state}
+                  on_state={set_result_state}
+                />
+              ) : active_page === "result-visualize" ? (
+                <VisualizeApp
+                  input={visualize_input}
+                  on_select_result={select_result}
+                  export_active={export_active}
+                  export_available={result_state !== null}
+                  on_export={open_export}
+                />
+              ) : active_page === "config-repository" ? (
+                <ConfigRepositoryPage />
+              ) : null}
+            </div>
+          </main>
         </div>
-        <nav aria-label="主导航">
-          <p className="renderer-nav-label">工作台</p>
-          {pages.map((page) => (
-            <button
-              key={page.id}
-              className="renderer-nav-button"
-              aria-current={active_page === page.id ? "page" : undefined}
-              aria-label={page.label}
-              type="button"
-              onClick={() => set_active_page(page.id)}
-            >
-              {page.icon}
-              <span className="renderer-nav-copy">
-                <strong>{page.label}</strong>
-              </span>
-            </button>
-          ))}
-        </nav>
-      </aside>
-      <main className="renderer-main">
-        <div className="renderer-content">
-          <SimulationPage active={active_page === "simulation"} />
-          {active_page === "result-editor" ? (
-            <ResultEditorPage
-              state={result_state}
-              on_state={set_result_state}
-            />
-          ) : active_page === "result-visualize" ? (
-            <VisualizeApp
-              input={
-                result_state
-                  ? build_cdf_view_model(
-                      result_state.analysis,
-                      result_state.display,
-                    )
-                  : null
-              }
-              on_select_result={select_result}
-            />
-          ) : active_page === "config-repository" ? (
-            <ConfigRepositoryPage />
-          ) : null}
-        </div>
-      </main>
-    </div>
+      )}
+    </ExportWorkflow>
   );
 }

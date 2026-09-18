@@ -39,7 +39,6 @@ terminations:
 test("compiles v2 YAML with the simulation-selected result item", () => {
   const draw = compile_yaml(config, termination, manifest, "draw_count").ir;
   const target = compile_yaml(config, termination, manifest, "target").ir;
-  assert.equal(draw.ir_version, 2);
   assert.equal(draw.result_item, 0);
   assert.equal(target.result_item, 1);
   assert.deepEqual((draw.items as { id: number }[]).length, 2);

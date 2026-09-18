@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -15,7 +15,7 @@ import { result_fixture, simulation_fixture } from "./ui_fixtures";
 
 const PROJECT_ROOT = process.cwd();
 
-function repository_fixture(count = 32): ConfigRepositoryState {
+function repository_fixture(count = 80): ConfigRepositoryState {
   return {
     official: Array.from({ length: count }, (_, index) => ({
       id: `config_${index}`,
@@ -57,10 +57,19 @@ async function launch(width: number, height: number) {
         XDG_CONFIG_HOME: config_home,
       },
     });
-    await application.evaluate(({ ipcMain }, fixture) => {
-      ipcMain.removeHandler("list-configs");
-      ipcMain.handle("list-configs", () => fixture);
-    }, simulation_fixture());
+    await application.evaluate(
+      ({ ipcMain }, fixture) => {
+        ipcMain.removeHandler("list-configs");
+        ipcMain.handle("list-configs", () => fixture);
+      },
+      simulation_fixture().map((config) => ({
+        ...config,
+        items: Array.from({ length: 80 }, (_, index) => ({
+          id: `item_${index}`,
+          name: `统计物品 ${index}`,
+        })),
+      })),
+    );
     const page = await application.firstWindow();
     const automation_state = await application.evaluate(({ BrowserWindow }) => {
       const window = BrowserWindow.getAllWindows()[0];
@@ -126,12 +135,195 @@ function rects(page: Page, selectors: string[]) {
   );
 }
 
+async function assert_full_window_host_rects(page: Page) {
+  const host_rects = await rects(page, [
+    "#root",
+    ".export-background",
+    ".renderer-shell",
+  ]);
+  assert.ok(host_rects["#root"]);
+  assert.deepEqual(host_rects[".export-background"], host_rects["#root"]);
+  assert.deepEqual(host_rects[".renderer-shell"], host_rects["#root"]);
+  assert.deepEqual(
+    await page.evaluate(() => ({
+      body: document.body.scrollWidth <= document.body.clientWidth,
+      document:
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    })),
+    { body: true, document: true },
+  );
+}
+
+async function assert_contained(page: Page, parent: string, child: string) {
+  const [outer, inner] = await Promise.all([
+    page.locator(parent).boundingBox(),
+    page.locator(child).boundingBox(),
+  ]);
+  assert.ok(outer && inner);
+  assert.ok(
+    inner.x >= outer.x && inner.y >= outer.y,
+    `${child} starts inside ${parent}`,
+  );
+  assert.ok(
+    inner.x + inner.width <= outer.x + outer.width + 1,
+    `${child} fits ${parent} width`,
+  );
+  assert.ok(
+    inner.y + inner.height <= outer.y + outer.height + 1,
+    `${child} fits ${parent} height`,
+  );
+}
+
+async function assert_scroll_owner(page: Page, selector: string) {
+  const result = await page.locator(selector).evaluate((node) => {
+    const heading = node.parentElement?.querySelector(".panel-heading");
+    const heading_top = heading?.getBoundingClientRect().top;
+    node.scrollTop = node.scrollHeight;
+    const result = {
+      overflow: node.scrollHeight > node.clientHeight,
+      top: node.scrollTop,
+      heading_stable: heading?.getBoundingClientRect().top === heading_top,
+    };
+    node.scrollTop = 0;
+    return result;
+  });
+  if (result.overflow)
+    assert.ok(result.top > 0, `${selector} can scroll overflowing content`);
+  assert.ok(
+    result.heading_stable,
+    `${selector} leaves its panel heading stationary`,
+  );
+}
+
+async function assert_page_space(
+  page: Page,
+  selector: string,
+  workbench?: string,
+) {
+  await assert_full_window_host_rects(page);
+  await assert_contained(page, ".renderer-main", selector);
+  for (const container of [
+    "#root",
+    ".renderer-main",
+    ".renderer-content",
+    selector,
+  ]) {
+    assert.equal(
+      await page
+        .locator(container)
+        .evaluate(
+          (node) =>
+            node.scrollHeight <= node.clientHeight &&
+            node.scrollWidth <= node.clientWidth &&
+            node.scrollTop === 0,
+        ),
+      true,
+      `${container} has no outer overflow or scroll offset`,
+    );
+  }
+  if (workbench) {
+    const [heading, body] = await Promise.all([
+      vertical_geometry(page, `${selector} > .page-heading`),
+      vertical_geometry(page, workbench),
+    ]);
+    assert_pixel_equal(
+      body.top,
+      heading.bottom + heading.margin_bottom,
+      "workbench starts below page heading",
+    );
+  }
+}
+
+async function capture_layout(page: Page, name: string) {
+  if (!process.env.GACHASIMULATE_LAYOUT_CAPTURE) return;
+  const { width, height } = await page.evaluate(() => ({
+    width: innerWidth,
+    height: innerHeight,
+  }));
+  const directory = path.join(PROJECT_ROOT, "tmp", "ui-captures");
+  await mkdir(directory, { recursive: true });
+  await page.screenshot({
+    path: path.join(directory, `layout-${name}-${width}x${height}.png`),
+  });
+}
+
+// Compare rendered geometry without fixing padding or
+// panel heights. One physical pixel allows Chromium's subpixel rounding.
+async function vertical_geometry(page: Page, selector: string) {
+  return page.locator(selector).evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    const top_inset =
+      parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop);
+    const bottom_inset =
+      parseFloat(style.borderBottomWidth) + parseFloat(style.paddingBottom);
+    return {
+      top: rect.top,
+      bottom: rect.bottom,
+      content_top: rect.top + top_inset,
+      content_bottom: rect.bottom - bottom_inset,
+      content_height: rect.height - (top_inset + bottom_inset),
+      margin_bottom: parseFloat(style.marginBottom),
+    };
+  });
+}
+
+function assert_pixel_equal(actual: number, expected: number, message: string) {
+  assert.ok(
+    Math.abs(actual - expected) <= 1,
+    `${message}: expected ${expected}, got ${actual}`,
+  );
+}
+
+async function assert_vertical_fill(
+  page: Page,
+  parent: string,
+  first: string,
+  last = first,
+) {
+  const [outer, start, end] = await Promise.all([
+    vertical_geometry(page, parent),
+    vertical_geometry(page, first),
+    vertical_geometry(page, last),
+  ]);
+  assert_pixel_equal(
+    start.top,
+    outer.content_top,
+    `${first} fills ${parent} top`,
+  );
+  assert_pixel_equal(
+    end.bottom,
+    outer.content_bottom,
+    `${last} fills ${parent} bottom`,
+  );
+}
+
+async function assert_repository_space(page: Page) {
+  await assert_vertical_fill(page, ".renderer-main", ".repository-page");
+  await assert_vertical_fill(
+    page,
+    ".repository-page",
+    ".repository-header",
+    ".local-source",
+  );
+  const [official, local] = await Promise.all([
+    vertical_geometry(page, ".official-source"),
+    vertical_geometry(page, ".local-source"),
+  ]);
+  // flex 7:3 distributes content-box space, excluding padding and borders.
+  const available = official.content_height + local.content_height;
+  assert.ok(available > 0);
+  assert_pixel_equal(
+    official.content_height,
+    available * 0.7,
+    "official/local content space is 7:3",
+  );
+}
+
 async function fail_with_layout(page: Page, message: string): Promise<never> {
   const details = await page.evaluate(() => ({
     viewport: { width: innerWidth, height: innerHeight },
-    zoom: getComputedStyle(
-      document.querySelector(".renderer-shell") as HTMLElement,
-    ).zoom,
     scroll: Object.fromEntries(
       [
         ".renderer-main",
@@ -165,20 +357,53 @@ async function fail_with_layout(page: Page, message: string): Promise<never> {
   );
 }
 
-async function assert_layout(
-  application: ElectronApplication,
-  page: Page,
-  width: number,
-  height: number,
-) {
+async function assert_layout(application: ElectronApplication, page: Page) {
   await page.getByText("状态 / 待运行").waitFor();
-  const expected_zoom = width === 2560 && height === 1440 ? "1.25" : "1";
-  assert.equal(
-    await page
-      .locator(".renderer-shell")
-      .evaluate((node) => getComputedStyle(node).zoom),
-    expected_zoom,
-  );
+  await page.evaluate(() => document.fonts.ready);
+  const visual = await page.evaluate(() => {
+    return {
+      width: innerWidth,
+      font: parseFloat(
+        getComputedStyle(document.querySelector(".renderer-shell")!).fontSize,
+      ),
+      body: parseFloat(
+        getComputedStyle(document.querySelector(".config-description")!)
+          .fontSize,
+      ),
+      small: parseFloat(
+        getComputedStyle(document.querySelector(".panel-kicker")!).fontSize,
+      ),
+      sidebar: document
+        .querySelector(".renderer-sidebar")!
+        .getBoundingClientRect().width,
+      control: document
+        .querySelector(".simulation-control input")!
+        .getBoundingClientRect().height,
+      icon: document
+        .querySelector(".renderer-nav-button svg")!
+        .getBoundingClientRect().width,
+    };
+  });
+  const density =
+    Math.min(1.5, Math.max(1, (8 + visual.width * 0.00625) / 16)) * 1.15;
+  for (const [actual, expected] of [
+    [visual.font, Math.min(27, 9 + visual.width * 0.00703125)],
+    [visual.body, 15 * density],
+    [visual.small, 12 * density],
+    [visual.control, 40 * density],
+    [visual.icon, 18 * density],
+    [visual.sidebar, Math.min(176, Math.max(88, visual.width * 0.06875))],
+  ])
+    assert.ok(Math.abs(actual - expected) < 1, JSON.stringify(visual));
+  const space_failures: string[] = [];
+  const check_space = async (check: () => Promise<void>) => {
+    try {
+      await check();
+    } catch (error) {
+      if (!(error instanceof assert.AssertionError)) throw error;
+      space_failures.push(error.message);
+    }
+  };
   const simulation = page.locator('[data-testid="simulation-selection"]');
   const list = page.locator('[data-testid="simulation-item-list"]');
   const contained = await simulation.evaluate((parent) => {
@@ -196,6 +421,39 @@ async function assert_layout(
     );
   });
   assert.equal(contained, true);
+  await check_space(() =>
+    assert_vertical_fill(page, ".renderer-main", ".simulation-page"),
+  );
+  for (const panel of [".simulation-selection", ".simulation-control"]) {
+    await check_space(() =>
+      assert_vertical_fill(page, ".simulation-workbench", panel),
+    );
+  }
+  await check_space(async () => {
+    const [trace, status] = await Promise.all([
+      vertical_geometry(page, ".simulation-trace"),
+      vertical_geometry(page, ".simulation-status"),
+    ]);
+    assert_pixel_equal(
+      trace.bottom + trace.margin_bottom,
+      status.top,
+      "simulation trace fills remaining control space",
+    );
+    await assert_vertical_fill(
+      page,
+      ".simulation-trace",
+      ".simulation-trace li:first-child",
+      ".simulation-trace li:last-child",
+    );
+  });
+  await check_space(() =>
+    assert_vertical_fill(
+      page,
+      ".simulation-page",
+      ".simulation-page .page-heading",
+      ".simulation-workbench",
+    ),
+  );
   assert.equal(
     await page
       .locator(".renderer-main")
@@ -205,6 +463,39 @@ async function assert_layout(
   assert.equal(
     await list.evaluate((node) => node.scrollHeight > node.clientHeight),
     true,
+  );
+  await assert_scroll_owner(page, '[data-testid="simulation-item-list"]');
+  await assert_scroll_owner(page, ".simulation-control-body");
+  await assert_contained(
+    page,
+    ".simulation-control",
+    ".simulation-control-body",
+  );
+  await assert_page_space(page, ".simulation-page", ".simulation-workbench");
+  await capture_layout(page, "simulation");
+  const selection_before = await simulation.boundingBox();
+  const search = page.getByRole("searchbox", { name: "搜索统计物品" });
+  await search.fill("item_79");
+  await page.waitForFunction(
+    () => document.querySelectorAll(".simulation-item").length === 1,
+  );
+  assert.deepEqual(await simulation.boundingBox(), selection_before);
+  await assert_contained(
+    page,
+    ".simulation-selection",
+    ".simulation-item-panel",
+  );
+  await search.fill("");
+
+  await page.getByRole("button", { name: "结果可视化" }).click();
+  const unavailable_export = page.getByRole("button", { name: "导出素材" });
+  await unavailable_export.focus();
+  assert.equal(await unavailable_export.getAttribute("aria-disabled"), "true");
+  const reason_id = await unavailable_export.getAttribute("aria-describedby");
+  assert.ok(reason_id);
+  assert.equal(
+    await page.locator(`#${reason_id}`).textContent(),
+    "请先载入结果后再导出。",
   );
 
   await page.getByRole("button", { name: "结果编辑" }).click();
@@ -219,8 +510,52 @@ async function assert_layout(
   await page.getByText("未选择文件。", { exact: true }).waitFor();
   await select.click();
   await page.getByRole("button", { name: "更换 GSR" }).waitFor();
+  await page.getByLabel("副标题", { exact: true }).waitFor();
+  await page.getByLabel("统计物品展示单位", { exact: true }).waitFor();
+  await page.evaluate(() => document.fonts.ready);
+  await assert_vertical_fill(page, ".renderer-main", ".result-editor");
+  await assert_vertical_fill(
+    page,
+    ".result-editor",
+    ".result-editor-header",
+    ".result-save-status",
+  );
+  for (const panel of [".result-editor-left", ".result-cdf-preview"]) {
+    await assert_vertical_fill(page, ".result-editor-workbench", panel);
+  }
+  await check_space(() =>
+    assert_vertical_fill(
+      page,
+      ".result-editor-left",
+      ".result-editor-form",
+      ".result-preview",
+    ),
+  );
 
   const preview = page.locator('[data-testid="result-preview"]');
+  await assert_contained(page, ".result-editor-left", ".result-preview");
+  await assert_vertical_fill(
+    page,
+    ".result-preview",
+    ".result-preview .panel-heading",
+    ".result-preview-scroll",
+  );
+  await assert_scroll_owner(page, ".result-editor-fields");
+  await assert_scroll_owner(page, ".result-preview-scroll");
+  await assert_page_space(page, ".result-editor", ".result-editor-workbench");
+  const [workbench_end, save_status] = await Promise.all([
+    vertical_geometry(page, ".result-editor-workbench"),
+    page.locator(".result-save-status").evaluate((node) => ({
+      top: node.getBoundingClientRect().top,
+      margin: parseFloat(getComputedStyle(node).marginTop),
+    })),
+  ]);
+  assert_pixel_equal(
+    workbench_end.bottom,
+    save_status.top - save_status.margin,
+    "editor workbench fills space above save status",
+  );
+  await capture_layout(page, "editor");
   const scroll = page.locator('[data-testid="result-preview-scroll"]');
   const heading = preview.getByRole("heading", { name: "核心指标" });
   const before = await heading.boundingBox();
@@ -253,6 +588,23 @@ async function assert_layout(
   await page
     .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
     .waitFor({ timeout: 10_000 });
+  await assert_full_window_host_rects(page);
+  await page.evaluate(() => {
+    document.documentElement.dataset.animationRestartCount = "0";
+    new MutationObserver(() => {
+      if (document.documentElement.dataset.visualizeAnimation === "playing") {
+        const count = Number(
+          document.documentElement.dataset.animationRestartCount ?? "0",
+        );
+        document.documentElement.dataset.animationRestartCount = String(
+          count + 1,
+        );
+      }
+    }).observe(document.documentElement, {
+      attributeFilter: ["data-visualize-animation"],
+      attributes: true,
+    });
+  });
   assert.match(
     (await page.getByTestId("cdf-curve-path").getAttribute("d")) ?? "",
     /^M/,
@@ -260,7 +612,15 @@ async function assert_layout(
   assert.equal(await page.locator(".pk-segment").count(), 3);
   assert.equal(
     await page.getByTestId("stat-P50").locator(".metric-value").textContent(),
-    "39",
+    "39 抽",
+  );
+  const axis_tick_text = await page
+    .locator(".cdf-chart-shell .recharts-cartesian-axis-tick-value")
+    .allTextContents();
+  assert.ok(axis_tick_text.length > 0);
+  assert.equal(
+    axis_tick_text.some((text) => text.includes("抽")),
+    false,
   );
   const visualize_contract = await page.evaluate(() => {
     const viewport = document.querySelector(".visualize-viewport");
@@ -309,6 +669,302 @@ async function assert_layout(
   assert.ok(visualize_contract.regions_visible);
   assert.ok(Math.abs(visualize_contract.aspect_ratio - 16 / 9) < 0.00001);
 
+  await application.evaluate(({ BrowserWindow, ipcMain }) => {
+    let destination_calls = 0;
+    for (const channel of [
+      "prepare-export",
+      "select-export-destination",
+      "confirm-export-overwrite",
+      "cancel-export",
+      "retry-export-cleanup",
+      "open-export-directory",
+      "exit-after-export-cleanup",
+    ])
+      ipcMain.removeHandler(channel);
+    ipcMain.handle("prepare-export", () => {
+      setTimeout(
+        () =>
+          BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+            type: "preparation-ready",
+            reservation_id: "ui-reservation",
+          }),
+        0,
+      );
+      return { reservation_id: "ui-reservation" };
+    });
+    ipcMain.handle("select-export-destination", () => {
+      destination_calls += 1;
+      return destination_calls % 2 === 1
+        ? { status: "overwrite-required", files: ["example.mp4"] }
+        : { status: "started", task_id: "ui-task" };
+    });
+    ipcMain.handle("confirm-export-overwrite", () => ({
+      status: "started",
+      task_id: "ui-task",
+    }));
+    ipcMain.handle(
+      "cancel-export",
+      (_event, request: Record<string, string>) => {
+        if (request.reservation_id)
+          BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+            type: "preparation-cancelled",
+            reservation_id: request.reservation_id,
+            reason: request.reason,
+          });
+        else
+          BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+            type: "cancelled",
+            task_id: request.task_id,
+            saved: [],
+            failed: [],
+            cleanup_status: "clean",
+            residual_files: [],
+          });
+      },
+    );
+    ipcMain.handle("retry-export-cleanup", () => undefined);
+    ipcMain.handle("open-export-directory", () => undefined);
+    ipcMain.handle("exit-after-export-cleanup", () => undefined);
+  });
+
+  const chart_actions = page.locator(".chart-actions");
+  await page.locator(".chart-region").hover();
+  await page.waitForFunction(
+    () =>
+      getComputedStyle(document.querySelector(".chart-actions")!).opacity ===
+      "1",
+  );
+  const action_labels = await chart_actions
+    .getByRole("button")
+    .allTextContents();
+  assert.deepEqual(
+    action_labels.map((label) => label.trim()),
+    ["", "导出素材", "选择结果"],
+  );
+  const export_button = page.getByRole("button", { name: "导出素材" });
+  await export_button.focus();
+  assert.equal(
+    await chart_actions.evaluate((node) => getComputedStyle(node).opacity),
+    "1",
+  );
+  await export_button.click();
+  const dialog = page.getByRole("dialog", { name: "导出素材" });
+  await dialog.waitFor();
+  await capture_layout(page, "export");
+  await assert_full_window_host_rects(page);
+  await page.keyboard.press("Escape");
+  await dialog.waitFor({ state: "hidden" });
+  await export_button.click();
+  await page.getByRole("button", { name: "选择导出目录" }).click();
+  await page.getByRole("button", { name: "覆盖并导出" }).click();
+  await page.getByRole("dialog", { name: "正在导出素材" }).waitFor();
+  await application.evaluate(({ BrowserWindow }) => {
+    const target = BrowserWindow.getAllWindows()[0]?.webContents;
+    target?.send("export-event", {
+      type: "progress",
+      task_id: "ui-task",
+      stage: "rendering",
+      completed: 57,
+      total: 60,
+      png_written: true,
+    });
+  });
+  await page
+    .locator(".export-stage-copy")
+    .getByText("正在渲染第 57 / 60 帧", { exact: true })
+    .waitFor();
+  assert.equal(
+    await page
+      .getByRole("progressbar", { name: "导出帧进度" })
+      .getAttribute("value"),
+    "57",
+  );
+  await page.getByText("PNG：静帧已写入", { exact: true }).waitFor();
+  assert.equal(
+    await page.locator(".export-live").textContent(),
+    "正在渲染第 57 / 60 帧",
+  );
+  await application.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+      type: "failed",
+      task_id: "ui-task",
+      message: "PNG 提交失败",
+      saved: [{ format: "mp4", file_name: "example.mp4" }],
+      failed: ["png"],
+      cleanup_status: "clean",
+      residual_files: [],
+    });
+  });
+  const partial_notice = page.locator(".export-notice");
+  await partial_notice.getByText("已保存：MP4", { exact: true }).waitFor();
+  await partial_notice.getByText("失败：PNG", { exact: true }).waitFor();
+  await partial_notice
+    .getByRole("button", { name: "打开所在文件夹" })
+    .waitFor();
+
+  await export_button.click();
+  await page.getByRole("button", { name: "选择导出目录" }).click();
+  await page.getByRole("dialog", { name: "正在导出素材" }).waitFor();
+  await application.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+      type: "completed",
+      task_id: "ui-task",
+      saved: [
+        { format: "mp4", file_name: "example.mp4" },
+        { format: "png", file_name: "example.png" },
+      ],
+      failed: [],
+      cleanup_status: "blocked",
+      cleanup_message: "example.backup.png 正被占用",
+      residual_files: ["example.backup.png"],
+    });
+  });
+  const cleanup_dialog = page.getByRole("dialog", {
+    name: "导出资源清理失败",
+  });
+  await cleanup_dialog.waitFor();
+  await cleanup_dialog
+    .getByRole("list", { name: "残留文件" })
+    .getByText("example.backup.png", { exact: true })
+    .waitFor();
+  await page.keyboard.press("Escape");
+  await cleanup_dialog.waitFor();
+  assert.equal(
+    await page.locator(".export-background").getAttribute("inert"),
+    "",
+  );
+  await cleanup_dialog.getByRole("button", { name: "重试清理" }).click();
+  await cleanup_dialog.getByRole("button", { name: "正在清理…" }).waitFor();
+  await application.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.webContents.send("export-event", {
+      type: "cleanup-completed",
+      task_id: "ui-task",
+    });
+  });
+  await cleanup_dialog.waitFor({ state: "hidden" });
+  await page
+    .getByText("文件已保存，导出资源现已清理", { exact: true })
+    .waitFor();
+  await export_button.click();
+  await dialog.waitFor();
+  const name_input = page.getByLabel("文件名", { exact: true });
+  assert.equal(await name_input.inputValue(), "example");
+  assert.equal(
+    await name_input.evaluate((node) => node === document.activeElement),
+    true,
+  );
+  assert.equal(await page.getByLabel("MP4 动画").isChecked(), true);
+  assert.equal(await page.getByLabel("PNG 静帧").isChecked(), true);
+  await page.getByLabel("PNG 静帧").uncheck();
+  await page.getByLabel("PNG 静帧").check();
+  await name_input.fill("example-updated");
+  await name_input.fill("example");
+  assert.equal(
+    await page.locator(".export-background").getAttribute("inert"),
+    "",
+  );
+  await page.locator(".export-overlay").click({ position: { x: 4, y: 4 } });
+  await dialog.waitFor();
+  await page.getByRole("button", { name: "关闭导出" }).focus();
+  await page.keyboard.press("Shift+Tab");
+  assert.equal(
+    await page
+      .getByRole("button", { name: "选择导出目录" })
+      .evaluate((node) => node === document.activeElement),
+    true,
+  );
+  await page.keyboard.press("Escape");
+  await dialog.waitFor({ state: "hidden" });
+  assert.equal(
+    await export_button.evaluate((node) => node === document.activeElement),
+    true,
+  );
+
+  await export_button.click();
+  await page.getByRole("button", { name: "选择导出目录" }).click();
+  const overwrite = page.getByRole("dialog", { name: "覆盖现有文件？" });
+  await overwrite.waitFor();
+  await page.getByText("example.mp4", { exact: true }).waitFor();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "返回", exact: true })
+      .evaluate((node) => node === document.activeElement),
+    true,
+  );
+  await page.keyboard.press("Escape");
+  await dialog.waitFor();
+  assert.equal(await name_input.inputValue(), "example");
+  await page.waitForFunction(
+    () =>
+      document.activeElement?.getAttribute("data-action") ===
+      "choose-directory",
+  );
+  assert.equal(
+    await page
+      .getByRole("button", { name: "选择导出目录" })
+      .evaluate((node) => node === document.activeElement),
+    true,
+  );
+  await page.getByRole("button", { name: "选择导出目录" }).click();
+  await page.getByRole("dialog", { name: "正在导出素材" }).waitFor();
+  assert.equal(
+    await page.locator(".export-background").getAttribute("inert"),
+    "",
+  );
+  await page.getByRole("button", { name: "取消导出" }).click();
+  await page.getByRole("dialog", { name: "确定取消导出？" }).waitFor();
+  await page.getByRole("button", { name: "确定取消" }).click();
+  await page.getByText("已取消导出", { exact: true }).waitFor();
+  assert.equal(
+    await page.locator(".export-background").getAttribute("inert"),
+    null,
+  );
+  await assert_full_window_host_rects(page);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.dataset.animationRestartCount,
+    ),
+    "0",
+  );
+
+  await page.getByRole("button", { name: "重新绘制动画" }).click();
+  await page.waitForFunction(
+    () => document.documentElement.dataset.animationRestartCount === "1",
+    undefined,
+    { timeout: 10_000 },
+  );
+  await page
+    .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
+    .waitFor({ timeout: 10_000 });
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.dataset.animationRestartCount,
+    ),
+    "1",
+  );
+
+  await page.getByRole("button", { name: "选择结果" }).click();
+  await page.waitForFunction(
+    () => document.documentElement.dataset.animationRestartCount === "2",
+    undefined,
+    { timeout: 10_000 },
+  );
+  await page
+    .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
+    .waitFor({ timeout: 10_000 });
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.dataset.animationRestartCount,
+    ),
+    "2",
+  );
+
   await application.evaluate(({ ipcMain }, fixture) => {
     for (const channel of [
       "get-config-repository-state",
@@ -329,8 +985,9 @@ async function assert_layout(
     local.boundingBox(),
   ]);
   assert.ok(official_box && local_box);
-  assert.ok(official_box.height / local_box.height > 2);
-  assert.ok(official_box.height / local_box.height < 2.7);
+  await assert_repository_space(page);
+  await capture_layout(page, "repository");
+  await assert_page_space(page, ".repository-page");
   assert.equal(
     await repository.evaluate((node) => node.scrollHeight <= node.clientHeight),
     true,
@@ -388,20 +1045,26 @@ async function assert_layout(
   ]);
   assert.ok(list_box && card_box);
   assert.ok(card_box.height < list_box.height);
+  await assert_repository_space(page);
+  assert.deepEqual(await official.boundingBox(), official_box);
+  assert.deepEqual(await local.boundingBox(), local_box);
+  assert.equal(space_failures.length, 0, space_failures.join("\n"));
 }
 
-test("Electron renderer layout contracts hold at both supported sizes", async () => {
-  for (const [width, height] of [
-    [2560, 1440],
-    [1280, 720],
-  ] as const) {
+for (const [width, height] of [
+  [2560, 1440],
+  [1280, 720],
+  [1600, 900],
+  [2560, 900],
+] as const) {
+  test(`Electron renderer layout contracts hold at ${width}x${height}`, async () => {
     const { application, cdp, config_home, page } = await launch(width, height);
     try {
-      await assert_layout(application, page, width, height);
+      await assert_layout(application, page);
     } catch (error) {
       await fail_with_layout(
         page,
-        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? (error.stack ?? error.message) : String(error),
       );
     } finally {
       try {
@@ -414,5 +1077,5 @@ test("Electron renderer layout contracts hold at both supported sizes", async ()
         }
       }
     }
-  }
-});
+  });
+}

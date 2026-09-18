@@ -9,54 +9,78 @@ permissions:
   contents: read
 
 jobs:
-  cpp:
-    name: C++ build and quality
-    runs-on: ubuntu-24.04
+  native-windows:
+    name: C++ build and quality (Windows UCRT64)
+    runs-on: windows-latest
 
     steps:
+      - name: Preserve repository line endings
+        run: git config --global core.autocrlf input
+
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Install C++ tools
-        run: sudo apt-get update && sudo apt-get install -y clang clang-format clang-tidy ninja-build
+      - name: Set up UCRT64 C++ toolchain
+        id: toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-clang
+            mingw-w64-ucrt-x86_64-clang-tools-extra
+
+      - name: Expose UCRT64 tools to Windows
+        shell: pwsh
+        run: |
+          $ucrtBin = Join-Path '${{ steps.toolchain.outputs.msys2-location }}' 'ucrt64\bin'
+          $ucrtBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Record toolchain versions
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path build/native -Force | Out-Null
+          @(
+            & g++ --version | Select-Object -First 1
+            & cmake --version | Select-Object -First 1
+            & ninja --version
+            & clang-format --version
+            & clang-tidy --version | Where-Object { $_ }
+          ) | Set-Content build/native/windows-toolchain-versions.txt
+          Get-Content build/native/windows-toolchain-versions.txt
 
       - name: Check C++ formatting
-        run: find cpp/include cpp/src cpp/tests -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 | xargs -0 clang-format --dry-run --Werror
+        run: ./scripts/check_cpp_win.ps1 -Task Format
 
       - name: Build and test Debug
-        working-directory: cpp
-        run: |
-          cmake --preset linux-debug
-          cmake --build --preset linux-debug
-          ctest --preset linux-debug
+        run: ./scripts/check_cpp_win.ps1 -Task Debug
 
-      - name: Run clang-tidy
-        working-directory: cpp
-        run: find src tests -name '*.cpp' -print0 | xargs -0 clang-tidy -p ../build/cpp/linux-debug
+      - name: Run clang-tidy with the GCC compile database
+        run: ./scripts/check_cpp_win.ps1 -Task Tidy
 
-      - name: Build, test, and smoke Release
-        working-directory: cpp
-        run: |
-          cmake --preset linux-release
-          cmake --build --preset linux-release
-          ctest --preset linux-release
-          cmake --install ../build/cpp/linux-release --prefix ../build/native
-          smoke_dir="$(mktemp -d)"
-          ir="$(realpath tests/batch_fixture_ir.json)"
-          ../build/native/bin/gachasimulate-core --ir "$ir" --total-runs 10 --seed 0 --threads 1 --output "$smoke_dir/fixed.gsr"
-          ../build/native/bin/gachasimulate-analyze --input "$smoke_dir/fixed.gsr"
+      - name: Build, test, install, and smoke Release
+        run: ./scripts/check_cpp_win.ps1 -Task Release
 
-      - name: Upload native binaries
+      - name: Upload native binaries and toolchain record
         uses: actions/upload-artifact@v4
         with:
-          name: native-binaries
-          path: build/native/bin
+          name: native-windows-x64
+          path: |
+            build/native/bin
+            build/native/windows-toolchain-versions.txt
+          if-no-files-found: error
 
   node-quality:
-    name: Node.js static quality
-    runs-on: ubuntu-latest
+    name: Node.js static quality (Windows)
+    runs-on: windows-latest
 
     steps:
+      - name: Preserve repository line endings
+        run: git config --global core.autocrlf input
+
       - name: Check out repository
         uses: actions/checkout@v6
 
@@ -72,11 +96,17 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check application license materials
+        run: pnpm run test:application-licenses
+
       - name: Check Node.js formatting
         run: pnpm run format:check
 
       - name: Check repository hook
-        run: test -x .githooks/pre-commit && bash -n .githooks/pre-commit && .githooks/pre-commit --self-test
+        run: pnpm run test:pre-commit
+
+      - name: Check Markdown links
+        run: pnpm run test:markdown:links
 
       - name: Lint Node.js
         run: pnpm run lint
@@ -85,11 +115,14 @@ jobs:
         run: pnpm run typecheck
 
   node-build-test:
-    name: Node.js build and tests
-    runs-on: ubuntu-latest
-    needs: cpp
+    name: Node.js build and tests (Windows)
+    runs-on: windows-latest
+    needs: [node-quality, native-windows]
 
     steps:
+      - name: Preserve repository line endings
+        run: git config --global core.autocrlf input
+
       - name: Check out repository
         uses: actions/checkout@v6
 
@@ -108,11 +141,8 @@ jobs:
       - name: Download native binaries
         uses: actions/download-artifact@v4
         with:
-          name: native-binaries
-          path: build/native/bin
-
-      - name: Restore native binary permissions
-        run: chmod +x build/native/bin/*
+          name: native-windows-x64
+          path: build/native
 
       - name: Build frontend
         run: pnpm run build
@@ -126,45 +156,15 @@ jobs:
       - name: Build and test packages
         run: pnpm run test:packages
 
-      - name: Run CDF export smoke
-        run: |
-          mkdir -p tmp
-          smoke_dir="$(mktemp -d tmp/ci-export.XXXXXX)"
-          cleanup() {
-            rm -rf "$smoke_dir"
-            rm -f outputs/cdf-result.png outputs/cdf-animation.mp4 outputs/cdf-animation.webm
-          }
-          trap cleanup EXIT
-          gsr="$smoke_dir/smoke.gsr"
-          display="$smoke_dir/smoke.visualize.json"
-          build/native/bin/gachasimulate-core \
-            --ir "$(realpath cpp/tests/batch_fixture_ir.json)" \
-            --total-runs 10 \
-            --seed 0 \
-            --threads 1 \
-            --output "$PWD/$gsr"
-          node --input-type=module -e '
-            import { writeFileSync } from "node:fs";
-            writeFileSync(process.argv[1], JSON.stringify({
-              display_version: 1,
-              title: "CI export",
-              target: "test",
-              result_item_name: "draw_count",
-              note: "",
-              price: "",
-              unit: ""
-            }));
-          ' "$display"
-          pnpm run export:cdf -- --gsr "$gsr" --display "$display"
-          test -s outputs/cdf-result.png
-          test -s outputs/cdf-animation.mp4
-
   electron-layout:
-    name: Electron renderer layout
-    runs-on: ubuntu-24.04
-    needs: cpp
+    name: Electron renderer layout (Windows)
+    runs-on: windows-latest
+    needs: [node-quality, native-windows]
 
     steps:
+      - name: Preserve repository line endings
+        run: git config --global core.autocrlf input
+
       - name: Check out repository
         uses: actions/checkout@v6
 
@@ -183,14 +183,198 @@ jobs:
       - name: Download native binaries
         uses: actions/download-artifact@v4
         with:
-          name: native-binaries
-          path: build/native/bin
-
-      - name: Restore native binary permissions
-        run: chmod +x build/native/bin/*
-
-      - name: Install virtual display
-        run: sudo apt-get update && sudo apt-get install -y xvfb
+          name: native-windows-x64
+          path: build/native
 
       - name: Run Electron renderer layout tests
-        run: xvfb-run --auto-servernum --server-args="-screen 0 2560x1440x24" pnpm run test:electron-layout
+        run: pnpm run test:electron-layout
+
+  package-windows:
+    name: Windows installer
+    runs-on: windows-latest
+    needs: [node-quality, native-windows, ffmpeg-windows]
+
+    steps:
+      - name: Preserve repository line endings
+        run: git config --global core.autocrlf input
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download native binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: native-windows-x64
+          path: build/native
+
+      - name: Download FFmpeg
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-windows-x64
+          path: build/ffmpeg/win32-x64/bin
+
+      - name: Build Windows installer
+        run: pnpm run package:win
+
+      - name: Verify unpacked native resources and installer
+        run: pnpm run test:package:win
+
+      - name: Upload installer check artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-check
+          path: dist/GachaSimulate Setup *.exe
+          if-no-files-found: error
+          retention-days: 3
+
+  ffmpeg-windows:
+    name: Build FFmpeg from fixed sources (Windows UCRT64)
+    runs-on: windows-latest
+    needs: node-quality
+
+    steps:
+      - name: Preserve repository line endings
+        run: git config --global core.autocrlf input
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Set up FFmpeg toolchain
+        id: ffmpeg-toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            bash tar xz make git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-binutils
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-nasm
+
+      - name: Acquire fixed FFmpeg sources
+        shell: pwsh
+        run: ./scripts/acquire_ffmpeg_sources.ps1 -MsysRoot "${{ steps.ffmpeg-toolchain.outputs.msys2-location }}"
+
+      - name: Build FFmpeg and collect materials
+        shell: pwsh
+        run: |
+          $lock = Get-Content scripts/ffmpeg_windows_source_lock.json -Raw | ConvertFrom-Json
+          ./scripts/build_ffmpeg_win.ps1 -MsysRoot "${{ steps.ffmpeg-toolchain.outputs.msys2-location }}" `
+            -X264Source tmp/ffmpeg-build-inputs/x264 `
+            -FfmpegArchive "tmp/ffmpeg-build-inputs/$($lock.ffmpeg.archive_name)" `
+            -ZlibArchive "tmp/ffmpeg-build-inputs/$($lock.zlib.archive_name)"
+
+      - name: Check fixed-source build entry
+        run: pnpm run test:build:ffmpeg:win
+
+      - name: Package and verify FFmpeg materials
+        shell: pwsh
+        run: |
+          pnpm run package:ffmpeg:compliance
+          if ($LASTEXITCODE -ne 0) { throw 'FFmpeg material packaging failed.' }
+          pnpm run test:ffmpeg:compliance
+          if ($LASTEXITCODE -ne 0) { throw 'FFmpeg material checks failed.' }
+
+      - name: Upload self-built FFmpeg binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-windows-x64
+          path: build/ffmpeg/win32-x64/bin
+          if-no-files-found: error
+
+      - name: Upload FFmpeg build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-windows-x64-evidence
+          path: |
+            build/ffmpeg/win32-x64/materials
+            dist/*-ffmpeg-compliance.zip
+            dist/*-ffmpeg-compliance.zip.sha256
+          if-no-files-found: error
+
+  electron-export-windows:
+    name: Electron export host (Windows x64, self-built FFmpeg)
+    runs-on: windows-latest
+    needs: [node-quality, native-windows, ffmpeg-windows]
+
+    steps:
+      - name: Preserve repository line endings
+        run: git config --global core.autocrlf input
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download native binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: native-windows-x64
+          path: build/native
+
+      - name: Download self-built FFmpeg binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-windows-x64
+          path: build/ffmpeg/win32-x64/bin
+
+      - name: Run shared visualize tests
+        run: pnpm run test:visualize:cdf
+
+      - name: Run export host unit tests
+        run: pnpm run test:electron-export
+
+      - name: Build production Electron renderer
+        run: pnpm run build
+
+      - name: Verify production export renderer excludes the probe
+        shell: pwsh
+        run: |
+          $probeMatches = @(Get-ChildItem out/renderer -Recurse -File | Select-String -SimpleMatch 'data-export-frame-probe')
+          if ($probeMatches.Count -gt 0) {
+            throw 'Production renderer contains the test-only export frame probe.'
+          }
+
+      - name: Build probe-enabled export renderer
+        shell: pwsh
+        run: |
+          $env:GACHASIMULATE_EXPORT_FRAME_PROBE = '1'
+          pnpm run build
+
+      - name: Run ExportHost integration check
+        shell: pwsh
+        run: |
+          $env:GACHASIMULATE_REQUIRE_EXPORT_HOST_INTEGRATION = '1'
+          pnpm run test:electron-export:integration

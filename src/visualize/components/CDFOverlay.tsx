@@ -8,26 +8,38 @@ import {
   build_curve_path,
   build_marker_views,
 } from "../view/cdf_overlay_layout";
-import type { AnimationProgress } from "../animation/progress";
+import {
+  build_marker_line_order,
+  type AnimationProgress,
+} from "../animation/progress";
 
 interface CDFOverlayProps {
   data: CDFViewModel;
   animation_progress: AnimationProgress;
   compact?: boolean;
+  visual_density?: number;
 }
 
 export function CDFOverlay({
   data,
   animation_progress,
   compact = false,
+  visual_density = 1,
 }: CDFOverlayProps) {
   const plot_area = usePlotArea();
   const x_scale = useXAxisScale();
   const y_scale = useYAxisScale();
   const marker_views = useMemo(
     () =>
-      build_marker_views(data.markers, plot_area, x_scale, y_scale, compact),
-    [plot_area, x_scale, y_scale, data.markers, compact],
+      build_marker_views(
+        data.markers,
+        plot_area,
+        x_scale,
+        y_scale,
+        compact,
+        visual_density,
+      ),
+    [plot_area, x_scale, y_scale, data.markers, compact, visual_density],
   );
   const curve_path = useMemo(
     () => build_curve_path(data.chart_points, x_scale, y_scale),
@@ -35,8 +47,17 @@ export function CDFOverlay({
   );
   const mean_marker = marker_views.find((view) => view.marker.key === "MEAN");
   const mean_marker_visual = mean_marker
-    ? get_marker_visual(mean_marker.marker.weight, compact)
+    ? get_marker_visual(mean_marker.marker.weight, compact, visual_density)
     : null;
+  const marker_line_order = build_marker_line_order(
+    marker_views.map((view) => ({
+      key: view.marker.key,
+      position: view.x,
+    })),
+  );
+  const marker_line_index_by_key = new Map(
+    marker_line_order.map((key, index) => [key, index]),
+  );
 
   if (!plot_area) {
     return null;
@@ -77,9 +98,17 @@ export function CDFOverlay({
       )}
 
       {marker_views.map((view, index) => {
-        const marker_visual = get_marker_visual(view.marker.weight, compact);
-        const marker_line_progress = animation_progress.marker_line(index);
-        const marker_group_progress = animation_progress.marker_group(index);
+        const marker_visual = get_marker_visual(
+          view.marker.weight,
+          compact,
+          visual_density,
+        );
+        const marker_line_progress = animation_progress.marker_line(
+          marker_line_index_by_key.get(view.marker.key) ?? index,
+        );
+        const marker_group_progress = animation_progress.marker_group(
+          view.marker.key,
+        );
 
         return (
           <g

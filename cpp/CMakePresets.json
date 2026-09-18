@@ -2,33 +2,41 @@
   "version": 5,
   "configurePresets": [
     {
-      "name": "linux-debug",
-      "displayName": "Linux Clang Debug",
+      "name": "windows-debug",
+      "displayName": "Windows UCRT64 GCC Debug",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/../build/cpp/linux-debug",
+      "binaryDir": "${sourceDir}/../build/cpp/windows-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_COMPILER": "g++",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
     {
-      "name": "linux-release",
-      "displayName": "Linux Clang Release",
+      "name": "windows-release",
+      "displayName": "Windows UCRT64 GCC Release",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/../build/cpp/linux-release",
+      "binaryDir": "${sourceDir}/../build/cpp/windows-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_COMPILER": "clang++"
+        "CMAKE_CXX_COMPILER": "g++"
       }
     }
   ],
   "buildPresets": [
-    { "name": "linux-debug", "configurePreset": "linux-debug" },
-    { "name": "linux-release", "configurePreset": "linux-release" }
+    { "name": "windows-debug", "configurePreset": "windows-debug" },
+    { "name": "windows-release", "configurePreset": "windows-release" }
   ],
   "testPresets": [
-    { "name": "linux-debug", "configurePreset": "linux-debug", "output": { "outputOnFailure": true } },
-    { "name": "linux-release", "configurePreset": "linux-release", "output": { "outputOnFailure": true } }
+    {
+      "name": "windows-debug",
+      "configurePreset": "windows-debug",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "windows-release",
+      "configurePreset": "windows-release",
+      "output": { "outputOnFailure": true }
+    }
   ]
 }

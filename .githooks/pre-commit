@@ -11,6 +11,7 @@ reset_classification() {
   visualize_changed=0
   electron_build=0
   cpp_changed=0
+  docs_changed=0
   format_files=()
   lint_files=()
 }
@@ -44,17 +45,22 @@ classify_path() {
       ;;
   esac
   case "$path" in
-    src/visualize/*|src/export/*|docs/schemas/*|docs/VISUALIZE_FRONTEND_IMPLEMENTATION.md)
+    src/visualize/*|src/export-renderer/*|docs/schemas/*|docs/UI_DESIGN.md)
       visualize_changed=1
       ;;
   esac
   case "$path" in
-    src/main/*|src/preload/*|src/renderer/*|src/visualize/*|src/dev/electron_layout.test.ts|electron.vite.config.ts|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|tsconfig*.json)
+    src/main/*|src/preload/*|src/renderer/*|src/export-renderer/*|src/visualize/*|src/dev/electron_layout.test.ts|electron.vite.config.ts|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|tsconfig*.json)
       electron_build=1
       ;;
   esac
   case "$path" in
     cpp/*|.clang-format|.clang-tidy|docs/YAML_CONFIG_SYNTAX.md) cpp_changed=1 ;;
+  esac
+  case "$path" in
+  *.md|scripts/markdown_links.test.mjs)
+    docs_changed=1
+    ;;
   esac
 }
 
@@ -95,6 +101,13 @@ self_test() {
   classify_path packages/config-compiler/src/compiler.ts
   if ((!node_changed || !packages_changed)); then
     echo "[pre-commit] self-test failed: package classification" >&2
+    exit 1
+  fi
+
+  reset_classification
+  classify_path README.md
+  if ((!docs_changed)); then
+    echo "[pre-commit] self-test failed: documentation classification" >&2
     exit 1
   fi
 
@@ -184,6 +197,12 @@ for path in "${deleted_files[@]}"; do
   classify_path "$path" 0
 done
 
+if ((docs_changed)); then
+  require_command pnpm
+  echo "[pre-commit] checking Markdown links"
+  pnpm run test:markdown:links
+fi
+
 if ((node_changed)); then
   require_command pnpm
 
@@ -219,26 +238,17 @@ fi
 if ((cpp_changed)); then
   require_command clang-format
   require_command clang-tidy
-  require_command clang++
+  require_command g++
   require_command cmake
   require_command ninja
+  require_command pwsh
 
   echo "[pre-commit] checking C++ formatting"
-  find cpp/include cpp/src cpp/tests -type f \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
-    | xargs -0 clang-format --dry-run --Werror
+  pnpm run check:cpp:format
 
   echo "[pre-commit] building and testing C++ Debug"
-  (
-    cd cpp
-    cmake --preset linux-debug
-    cmake --build --preset linux-debug
-    ctest --preset linux-debug
-  )
+  pnpm run check:cpp:debug
 
   echo "[pre-commit] running clang-tidy"
-  (
-    cd cpp
-    find src tests -name '*.cpp' -print0 \
-      | xargs -0 clang-tidy -p ../build/cpp/linux-debug
-  )
+  pnpm run check:cpp:tidy
 fi

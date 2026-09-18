@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
     }
     if (input.empty())
       usage();
-    std::cout << gachasimulate::analyze_gsr_v2(input).dump() << '\n';
+    std::cout << gachasimulate::analyze_gsr_v2(input) << '\n';
     return 0;
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n';

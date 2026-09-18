@@ -65,3 +65,12 @@ if(BUILD_TESTING)
   list(APPEND first_party_targets gachasimulate_runtime_tests)
 endif()
 set_property(TARGET ${first_party_targets} PROPERTY COMPILE_WARNING_AS_ERROR ON)
+
+# Keep installed Windows executables independent from the developer MSYS2 PATH.
+if(MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  foreach(target IN LISTS first_party_targets)
+    target_link_options(${target} PRIVATE -static)
+  endforeach()
+  target_link_options(gachasimulate-core PRIVATE -municode)
+  target_link_options(gachasimulate-analyze PRIVATE -municode)
+endif()
