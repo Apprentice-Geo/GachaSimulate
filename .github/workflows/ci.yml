@@ -9,9 +9,28 @@ permissions:
   contents: read
 
 jobs:
+  actionlint:
+    name: GitHub Actions workflow quality
+    runs-on: ubuntu-latest
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install actionlint
+        shell: bash
+        run: bash <(curl --fail --silent --show-error --location https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) "$ACTIONLINT_VERSION"
+
+      - name: Check GitHub Actions workflows
+        shell: bash
+        run: ./actionlint -color
+
   native-windows:
     name: C++ build and quality (Windows UCRT64)
     runs-on: windows-latest
+    needs: actionlint
 
     steps:
       - name: Preserve repository line endings
@@ -76,6 +95,7 @@ jobs:
   node-quality:
     name: Node.js static quality (Windows)
     runs-on: windows-latest
+    needs: actionlint
 
     steps:
       - name: Preserve repository line endings
@@ -225,19 +245,37 @@ jobs:
           name: ffmpeg-windows-x64
           path: build/ffmpeg/win32-x64/bin
 
+      - name: Download FFmpeg build evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-windows-x64-evidence
+          path: build/ffmpeg/win32-x64/materials
+
       - name: Build Windows installer
         run: pnpm run package:win
 
       - name: Verify unpacked native resources and installer
         run: pnpm run test:package:win
 
-      - name: Upload installer check artifact
+      - name: Package FFmpeg compliance materials for the verified installer
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem 'dist/GachaSimulate Setup *.exe' | Select-Object -First 1
+          if (-not $installer) {
+            throw 'Verified Windows installer was not found.'
+          }
+          ./scripts/package_ffmpeg_compliance.ps1 -Installer $installer.FullName
+
+      - name: Upload verified Windows release assets
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installer-check
-          path: dist/GachaSimulate Setup *.exe
+          name: windows-release-assets
+          path: |
+            dist/GachaSimulate Setup *.exe
+            dist/*-ffmpeg-compliance.zip
+            dist/*-ffmpeg-compliance.zip.sha256
           if-no-files-found: error
-          retention-days: 3
 
   ffmpeg-windows:
     name: Build FFmpeg from fixed sources (Windows UCRT64)
@@ -308,10 +346,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-windows-x64-evidence
-          path: |
-            build/ffmpeg/win32-x64/materials
-            dist/*-ffmpeg-compliance.zip
-            dist/*-ffmpeg-compliance.zip.sha256
+          path: build/ffmpeg/win32-x64/materials
           if-no-files-found: error
 
   electron-export-windows:

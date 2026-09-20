@@ -2,6 +2,12 @@
 
 本文列出的标准检查命令和 CI 基准从 Windows x64 原生 PowerShell 7 执行。Node/pnpm 使用 Windows 原生安装；C++ 使用 MSYS2 UCRT64 GCC、CMake 和 Ninja，格式化与静态分析使用 UCRT64 clang-format 与 clang-tidy。MSYS2 工具链采用滚动版本，CI 记录每次实际版本；工具升级后须完整重跑 C++ 检查。
 
+GitHub Actions workflow 使用 `actionlint` 检查。CI 固定使用仓库工作流中声明的版本，并将该检查作为其它 CI job 的前置条件；本地安装后从仓库根目录执行：
+
+```powershell
+actionlint
+```
+
 ## 前置准备
 
 先在 MSYS2 UCRT64 shell 安装工具：
@@ -64,6 +70,8 @@ pnpm run test:package:win
 ```
 
 Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构建所需 package。
+
+`main` 分支的 CI 在 Windows 安装包及其内容检查通过后，生成与该安装包哈希绑定的 FFmpeg 合规包，并将安装包、合规包及校验文件作为同一个发布产物上传。版本标签的 CD 只下载该提交对应的成功 CI 产物并发布，不重新构建或重复执行检查；因此用于发布的标签必须指向仍保有该产物的 `main` 分支 CI 提交。
 
 ## 按影响范围选择
 
