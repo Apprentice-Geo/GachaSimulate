@@ -18,6 +18,12 @@
 | [application_licenses_policy.json](application_licenses_policy.json) | 应用许可证生成器允许的表达式、精确版本人工覆盖和静态材料映射。 |
 | [check_windows_package.ps1](check_windows_package.ps1)       | 检查当前版本 NSIS、unpacked 原生程序和许可证材料，并在隔离开发工具 PATH 后运行包内 core/analyzer。 |
 
+#### 发布流程
+
+Windows 安装包包含 core/analyzer 和项目固定源码版本构建的 FFmpeg。`main` 分支的 [CI](<../.github/workflows/ci.yml>) 构建并检查 NSIS 安装包，生成与安装包哈希绑定的 FFmpeg 合规包，将安装包、合规包及校验文件上传为 `windows-release-assets`。
+
+[Release workflow](<../.github/workflows/release.yml>) 由 `v*` tag 触发，要求 tag 与根目录 `package.json` 的版本一致，并验证该提交最近一次 push CI 已成功。它下载已有产物，创建 draft Release，上传完成后公开发布，不重新构建或重复检查；标签必须指向仍保有发布产物的成功 `main` CI 提交。
+
 ### FFmpeg 处理
 
 | 文件                                                         | 职责                                                         |

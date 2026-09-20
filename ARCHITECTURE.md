@@ -24,6 +24,12 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 - `test-fixtures/configs/`：主仓库测试与语义 fixture；`benchmark/cases/`：独立 benchmark 配置。
 - 正式配置由 `GachaSimulate-Configs` 维护，不纳入主仓库运行时目录。
 
+## 桌面配置与存储
+
+Electron main 在 `app.getPath("userData")` 下管理桌面数据：已安装配置位于 `configs/installed/`，模拟结果位于 `results/`。结果展示字段保存为 GSR 对应的独立 sidecar，格式与保存规则见 [DisplayConfig](<docs/DISPLAY_CONFIG.md>)。
+
+模拟表单的统计物品列表由 Compiler 从当前 `config.yaml` 的 `items` 读取。表单按大小写敏感的完整 ID 选择物品，默认优先选择 `draw_count`，否则选择第一项。
+
 ## 边界与不变量
 
 - Config Compiler 是 YAML 到 IR 的唯一权威；C++ 不解析 YAML。
@@ -65,17 +71,15 @@ Analysis 和 DisplayConfig 不能绕过各自校验直接进入视图模型。�
 
 ### 宿主与逐帧语义
 
-素材导出是长期保留能力。Electron 展示和素材导出复用同一套输入处理、视图模型、画面组件和动画进度；替换宿主不得复制或分叉画面逻辑。`src/export-renderer/` 负责固定尺寸导出页面与逐帧提交，`src/main/export_host.ts` 负责 CDP、FFmpeg 和输出提交，两者均位于可视化层之外。
+Electron 展示与素材导出复用同一套输入处理、视图模型、画面组件和动画进度。`src/export-renderer/` 负责导出页面与逐帧提交，`src/main/export_host.ts` 负责 CDP、FFmpeg 和输出提交；两者均位于平台无关的可视化层之外。
 
-桌面素材导出入口通过 `VisualizeShell` 的宿主回调接入。可视化层只呈现固定操作按钮、可用状态和辅助技术可读的禁用原因，不接收 session id、GSR 文件名、reservation、目录或任务路径。格式、目标选择、覆盖及任务交互由桌面 renderer 与 main 负责，流程状态与模态框不得进入 `src/visualize/`。
+桌面素材导出入口通过 `VisualizeShell` 的宿主回调接入。`src/visualize/` 不接收 session ID、GSR 文件名、reservation、目录或任务路径；格式、目标选择、覆盖和任务状态由桌面 renderer 与 main 管理。
 
-`VisualizeScene` 通过 `render_mode` 区分交互与导出。export 模式固定图表尺寸并强制隐藏操作栏，不调用页面缩放 hook、真实时钟动画或宿主缩放；画布规格与适配原则见 UI Design。
+`VisualizeScene` 使用 `render_mode` 区分交互与导出。导出模式不使用页面缩放、真实时钟动画或宿主缩放；画布及视觉表现由 [UI Design](<docs/UI_DESIGN.md#结果画布>) 维护。
 
-共享动画使用 60 FPS 帧制时间轴。交互页面以 elapsed time 调用共享进度入口，由入口换算为浮点帧进度；逐帧导出换算为同一时间输入，避免维护两套视觉行为。修改动画节奏集中在 `animation/`，继续遵循 UI Design 中的缓动与透明度约束。
+交互展示和逐帧导出调用同一动画进度入口。交互页面传入 elapsed time，逐帧导出把帧号转换为相同的时间输入；动画节奏集中在 `animation/` 维护。
 
-`resolve_export_frame_state` 是逐帧语义的唯一入口，只接受 0–59 的整数帧。动画在 `ANIMATION_COMPLETION_FRAME` 到达终态，当前值为第 57 帧；第 57–59 帧保持相同 idle 终态，静态 PNG 使用第 57 帧。从视频切换到 PNG 时不得出现布局或动画跳变。
-
-修改共享视觉 token 或画布规格时，同时检查交互展示、Electron 导出 renderer、导出结果和相关文档。检查命令见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)，FFmpeg 构建与分发限制见 [scripts README](scripts/README.md)。
+`resolve_export_frame_state` 是逐帧语义的唯一入口，只接受 0–59 的整数帧。动画在 `ANIMATION_COMPLETION_FRAME` 到达终态，当前值为第 57 帧；第 57–59 帧保持相同的 idle 终态，静态 PNG 使用第 57 帧。
 
 ## 契约索引
 

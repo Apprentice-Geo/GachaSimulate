@@ -104,4 +104,4 @@ CDF 曲线、坐标、marker 和统计指标组成同一套阅读层级。网格
 
 模块职责、共享场景和动画实现边界由 [Architecture](../ARCHITECTURE.md#可视化与导出) 维护。输入结构分别由 [Analysis JSON](ANALYSIS.md) 与 [DisplayConfig](DISPLAY_CONFIG.md) 维护，组件不自行解释或扩展契约。
 
-截图用于观察真实渲染的视觉层级，布局测试验证空间分配、滚动、边界对齐与固定画布适配等契约，不绑定 CSS 实现细节或桌面 zoom 倍率；实际导出验证共享画面。按影响范围选择检查，命令和人工验收要求统一见 [Development Checks](DEVELOPMENT_CHECKS.md)。
+截图用于观察真实渲染的视觉层级，布局测试验证空间分配、滚动、边界对齐与固定画布适配等契约，不绑定 CSS 实现细节或桌面 zoom 倍率；实际导出验证共享画面。按影响范围选择检查，命令与验证要求统一见 [Development Checks](DEVELOPMENT_CHECKS.md)。

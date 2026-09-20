@@ -1,14 +1,10 @@
 # Development Checks
 
-本文列出的标准检查命令和 CI 基准从 Windows x64 原生 PowerShell 7 执行。Node/pnpm 使用 Windows 原生安装；C++ 使用 MSYS2 UCRT64 GCC、CMake 和 Ninja，格式化与静态分析使用 UCRT64 clang-format 与 clang-tidy。MSYS2 工具链采用滚动版本，CI 记录每次实际版本；工具升级后须完整重跑 C++ 检查。
-
-GitHub Actions workflow 使用 `actionlint` 检查。CI 固定使用仓库工作流中声明的版本，并将该检查作为其它 CI job 的前置条件；本地安装后从仓库根目录执行：
-
-```powershell
-actionlint
-```
+本文面向 Agent 和贡献者，集中维护环境准备、检查命令与按改动范围选择验证的方法。所有 PowerShell 命令从仓库根目录使用 Windows x64 原生 PowerShell 7 执行；逐项确认退出码，失败后先修复再继续。
 
 ## 前置准备
+
+Node.js 24 与 pnpm 11.3.0 使用 Windows 原生安装；C++ 使用 MSYS2 UCRT64 GCC、CMake 和 Ninja，格式化与静态分析使用同一环境的 clang-format 与 clang-tidy。不要复用 WSL/Linux 的依赖或构建产物。MSYS2 采用滚动版本，CI 记录实际版本；工具升级后须完整重跑 C++ 检查。
 
 先在 MSYS2 UCRT64 shell 安装工具：
 
@@ -21,108 +17,161 @@ pacman -S --needed \
   mingw-w64-ucrt-x86_64-clang-tools-extra
 ```
 
-将 `C:\msys64\ucrt64\bin` 放在 Windows `PATH` 前部。在仓库根目录使用 Windows 原生 Node/pnpm 安装依赖：
+将 `C:\msys64\ucrt64\bin` 放在 Windows `PATH` 前部，再在 PowerShell 中准备项目：
 
 ```powershell
+# 安装锁定依赖与仓库 pre-commit hook
 pnpm install --frozen-lockfile
-```
+pnpm run hooks:install
 
-Electron 开发前必须完成 C++ Release install：
-
-```powershell
+# Electron 开发前：Release 构建、测试、安装与隔离 PATH 冒烟
 pnpm run check:cpp:release
+
+# 启动 Electron 桌面应用
+pnpm run dev
 ```
 
-Release 检查会安装 core/analyzer 到 `build/native/bin`，并清空开发工具 PATH 后执行模拟与分析冒烟，防止漏带运行时依赖。
+Release 检查将 core/analyzer 及运行时依赖安装到 `build/native/bin`。导出集成检查与 Windows 打包另需按 [scripts README](<../scripts/README.md#环境与运行顺序>) 准备固定源码构建的 FFmpeg 及材料。
 
-## C++ 完整检查
+## 标准检查命令
+
+### C++
 
 ```powershell
+# 全部 C++ 检查；下列分步入口用于单独定位失败
 pnpm run check:cpp
+
+pnpm run check:cpp:format   # clang-format
+pnpm run check:cpp:debug    # Debug 构建与 CTest
+pnpm run check:cpp:tidy     # clang-tidy，须先完成 Debug 检查
+pnpm run check:cpp:release  # Release 构建、CTest、安装与隔离 PATH 冒烟
 ```
 
-需要单独定位失败时可分步执行：
+`check:cpp:tidy` 消费 Windows Debug preset 生成的 GCC `compile_commands.json`。发布编译器始终是 GCC；clang-tidy 只做静态分析。
+
+### Node、Electron 与仓库质量
+
+本地需先安装 `actionlint`；CI 使用 workflow 声明的固定版本，并将 workflow 检查作为其它 job 的前置条件。
 
 ```powershell
-pnpm run check:cpp:format
-pnpm run check:cpp:debug
-pnpm run check:cpp:tidy
-pnpm run check:cpp:release
-```
+# GitHub Actions workflow、hook 自测与仓库内 Markdown 链接
+actionlint
+pnpm run test:pre-commit
+pnpm run test:markdown:links
 
-`check:cpp:tidy` 消费 Windows Debug preset 生成的 GCC `compile_commands.json`，因此须先完成 Debug 检查。发布编译器始终是 GCC；clang-tidy 只做静态分析。
-
-## Node/Electron 完整检查
-
-```powershell
+# 第三方许可证、格式、静态规则与类型
 pnpm run test:application-licenses
 pnpm run format:check
 pnpm run lint
 pnpm run typecheck
+
+# Compiler 与配置仓库协议
 pnpm run test:packages
+
+# 配置安装、模拟/分析进程、IPC、结果会话与 sidecar
 pnpm run test:simulation
+
+# 可视化输入契约、CDF 与导出宿主/任务行为
 pnpm run test:visualize:cdf
 pnpm run test:electron-export
+
+# 真实 Electron 布局与 DOM/SVG 几何
 pnpm run test:electron-layout
+
+# 普通 production build；不得启用导出像素探针
 pnpm run build
-pnpm run package:win
-pnpm run test:package:win
 ```
 
-Package 的 `dist/` 不提交；Electron 和相关测试入口会在使用前构建所需 package。
+Electron 和相关测试入口会在使用前构建所需 package；package 的 `dist/` 不提交。
 
-`main` 分支的 CI 在 Windows 安装包及其内容检查通过后，生成与该安装包哈希绑定的 FFmpeg 合规包，并将安装包、合规包及校验文件作为同一个发布产物上传。版本标签的 CD 只下载该提交对应的成功 CI 产物并发布，不重新构建或重复执行检查；因此用于发布的标签必须指向仍保有该产物的 `main` 分支 CI 提交。
+### Windows 打包与格式修复
+
+打包前须完成 C++ Release install 和固定 FFmpeg 构建及材料检查。发布流程统一见 [scripts README](<../scripts/README.md#发布流程>)。
+
+```powershell
+# 生成 NSIS 安装包并检查包内原生程序、许可证和隔离 PATH 运行
+pnpm run package:win
+pnpm run test:package:win
+
+# 仅在格式检查失败时执行，再重新运行 format:check
+pnpm run format
+```
 
 ## 按影响范围选择
 
-- YAML：`test:packages` 中的 Compiler 测试和 typecheck；若改变 IR，继续执行 IR 对应检查。
-- IR：`test:packages` 中的 Compiler 测试、`test:simulation` 中的 native pipeline、C++ Debug/Release CTest 和 typecheck。
-- 配置仓库 index、manifest 或包文件清单协议：`test:config-repository-contract`、`test:packages`、`test:simulation` 中的下载/安装行为测试和 typecheck。
-- C++ Runtime、GSR 或 Analysis：format/tidy、Debug/Release CTest、Release install 和冒烟。
+以下名称对应上述命令；专项检查和截图命令见后续章节。
+
+- YAML：`test:packages`、typecheck；若改变 IR，继续执行 IR 对应检查。
+- IR：`test:packages`、`test:simulation` 中的 native pipeline、C++ Debug/Release 检查和 typecheck。
+- 配置仓库 index、manifest 或包文件集合：`test:packages`、`test:simulation` 和 typecheck。
+- C++ Runtime、GSR 或 Analysis：C++ 完整检查，覆盖格式、静态分析、Debug/Release CTest、安装和冒烟。
 - Electron IPC、配置扫描、模拟/分析进程生命周期或 sidecar：`test:simulation`、typecheck、lint、build。
-- [Analysis](ANALYSIS.md) 或 [DisplayConfig](DISPLAY_CONFIG.md) 输入契约：同步核对 JSON Schema、semantic validator、TypeScript 类型和共享 fixture，并执行 `test:visualize:cdf`、`test:simulation`、typecheck 和 build。
-- CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑代表性实际 export。
-- Electron 桌面布局：`test:electron-layout`、`test:simulation`、`test:visualize:cdf`、typecheck、lint、format:check 和 build；查看大小窗口真实截图，确认空间利用率、文字与控件密度及内部滚动。固定画布的适配不应受桌面布局影响。
-- Electron 导出 renderer、逐帧协议、CDP、FFmpeg 或输出提交：`test:visualize:cdf`、`test:electron-export`、typecheck、lint 和 build；Windows x64 继续执行下述正式宿主集成检查。
-- npm 生产依赖、字体、原生第三方组件或 Electron 打包资源：`test:application-licenses`、`package:win` 和 `test:package:win`；执行 Windows 打包检查前，需要先按照 [scripts/README.md](../scripts/README.md) 构建项目固定版本的 FFmpeg，安装包检查会核对项目与静态第三方材料、npm 清单以及 Electron/Chromium 声明。
-- 桌面导出入口、格式/文件名、目标选择、覆盖、进度、终态或阻塞清理交互：在上一项基础上执行 `test:electron-layout`，并用 `capture:ui` 检查 format、overwrite、started、progress、partial-failure 和 cleanup-blocked 场景。系统原生目录选择器本身仍按人工验收项检查。
-- 文档：检查命令和完成状态，使用 `test:markdown:links` 检查仓库内链接；跨层状态文档仍按对应范围验证。
+- [Analysis](<ANALYSIS.md>) 或 [DisplayConfig](<DISPLAY_CONFIG.md>) 输入契约：同步核对 Schema、semantic validator、类型和 fixture，执行 `test:visualize:cdf`、`test:simulation`、typecheck 和 build。
+- CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑下述宿主集成检查。
+- Electron 桌面布局：`test:electron-layout`、`test:simulation`、`test:visualize:cdf`、typecheck、lint、format:check 和 build，并查看大小窗口截图。
+- Electron 导出 renderer、逐帧协议、CDP、FFmpeg 或输出提交：`test:visualize:cdf`、`test:electron-export`、typecheck、lint、build 和下述宿主集成检查。
+- 桌面导出入口、格式/文件名、目标选择、覆盖、进度、终态或阻塞清理交互：执行导出范围检查，追加 `test:electron-layout`，并查看下述导出状态截图。
+- npm 生产依赖、字体、原生第三方组件或 Electron 打包资源：`test:application-licenses`、`package:win` 和 `test:package:win`。
+- 文档：核对命令与完成状态，执行 `test:markdown:links`；跨层契约变更仍按对应范围验证。
 
 ## Windows x64 Electron 导出检查
 
-先按 [scripts README](../scripts/README.md#环境与运行顺序) 从固定源码构建 FFmpeg，并执行对应的材料检查。
+准备固定 FFmpeg 后，先验证普通构建，再生成仅供集成检查的像素探针构建。探针通过编码当前帧号验证 CDP 截图的逐帧连续性；集成检查在临时目录生成 PNG、MP4、harness 和故障注入产物，并使用同包 `ffprobe.exe` 检查视频规格。
 
-资产准备完成后，先验证共享契约、宿主单元测试和普通 production build，再生成只供集成检查使用的像素探针 build 并直接驱动 `ExportHost`：
+以下命令在未设置两个探针/集成环境变量的 PowerShell 会话中执行：
 
 ```powershell
+# 共享契约、宿主单元测试与普通 production build
 pnpm run test:visualize:cdf
 pnpm run test:electron-export
 pnpm run build
-$env:GACHASIMULATE_EXPORT_FRAME_PROBE = "1"
+
+try {
+  # 构建带逐帧像素探针的测试产物
+  $env:GACHASIMULATE_EXPORT_FRAME_PROBE = "1"
+  pnpm run build
+  if ($LASTEXITCODE -ne 0) { throw "导出探针构建失败" }
+
+  # 强制执行真实 ExportHost 集成检查
+  $env:GACHASIMULATE_REQUIRE_EXPORT_HOST_INTEGRATION = "1"
+  pnpm run test:electron-export:integration
+  if ($LASTEXITCODE -ne 0) { throw "导出宿主集成检查失败" }
+} finally {
+  # 即使检查失败，也清理测试环境变量
+  Remove-Item Env:GACHASIMULATE_EXPORT_FRAME_PROBE -ErrorAction SilentlyContinue
+  Remove-Item Env:GACHASIMULATE_REQUIRE_EXPORT_HOST_INTEGRATION -ErrorAction SilentlyContinue
+}
+
+# 后续运行或打包前，重新生成不带探针的普通产物
 pnpm run build
-$env:GACHASIMULATE_REQUIRE_EXPORT_HOST_INTEGRATION = "1"
-pnpm run test:electron-export:integration
 ```
-像素探针仅用于集成测试，通过在导出画面编码当前帧号验证 CDP 捕获的逐帧连续性；普通 production build 不包含该探针。
-正式 production build 不得设置 `GACHASIMULATE_EXPORT_FRAME_PROBE`。集成检查只在临时目录生成 PNG、MP4、harness 和故障注入产物，并使用同包 `ffprobe.exe` 检查视频规格。
 
-## Electron 人工验收
+正式 production build 不得设置 `GACHASIMULATE_EXPORT_FRAME_PROBE`；清理环境变量不会自动移除已有构建产物中的探针。
 
-视觉语言、布局与交互不变量以 [UI Design](UI_DESIGN.md) 为验收依据；共享场景与逐帧语义见 [Architecture](../ARCHITECTURE.md#可视化与导出)。修改设计规格时，同步更新相关布局断言与验收要求。
+## Electron 布局与截图检查
 
-UI 回归分工：`capture:ui` 只准备场景并输出截图；布局、滚动、固定结果画布适配和真实 DOM/SVG 几何由 `pnpm run test:electron-layout` 独立检查。桌面 UI 不使用全局 zoom；内部滚动区域必须有明确滚动所有者，panel 标题不能放入内容滚动容器。测试使用实际 CSS viewport 和 DOM 坐标，不做桌面 zoom 坐标换算。CDF compact/default 同时检查纯几何参数与最终 DOM。结果字段只在失焦时保存。
+布局契约以 [UI Design](<UI_DESIGN.md>) 为依据，共享画面与逐帧语义见 [Architecture](<../ARCHITECTURE.md#可视化与导出>)。`test:electron-layout` 覆盖四种窗口尺寸下的空间分配、滚动、文字缩放、固定画布适配与 DOM/SVG 几何；`capture:ui` 只生成截图，供 Agent 检查真实渲染的视觉层级、密度、裁切和遮挡，不能替代布局测试。
 
-布局测试分别在 2560×1440、1600×900、1280×720 和 2560×900 验证 Page 填满 Main、Workbench 与 Header 衔接及填满剩余空间、双栏边界对齐、Preview 填满父布局分配区域，以及模拟轨迹填满控制正文剩余高度。跨尺寸检查基础字号从 18px 到 27px 连续变化，其它字号、控件、图标和主要间距相对原有比例同步放大 15%，并检查侧边栏约 6.9% 占比。宽而矮的 2560×900 下检查字段、操作与导航可访问。低高度下正文可滚动，轨迹不被压扁或裁切。长列表 fixture 使用足够多的项目触发大窗口滚动；少量内容仍保留分区高度。配置仓库按扣除边框、内边距后的内容高度验证 7:3 分配；几何比较允许 1 个 CSS 像素的取整误差（测试 deviceScaleFactor 为 1）。新增断言暴露既有布局问题时，应报告或修复布局，不得放宽断言迁就越界或收缩行为。布局原则与各页滚动所有者以 [UI Design](UI_DESIGN.md#桌面工作空间) 为准。
+布局契约及其测试必须谨慎修改：不得为让测试通过而删除断言、放宽容差、缩减尺寸或 fixture 覆盖；只有明确改变设计规格时才同步调整对应断言，并保留未受影响的回归保护。断言暴露既有布局问题时，应修复或报告问题。
 
-需要同时留存布局测试四个尺寸的截图时，在 PowerShell 设置 `$env:GACHASIMULATE_LAYOUT_CAPTURE = "1"` 后执行 `pnpm run test:electron-layout`。截图写入 `tmp/ui-captures/layout-*.png`；完成后执行 `Remove-Item Env:GACHASIMULATE_LAYOUT_CAPTURE`。普通 `capture:ui` 继续提供原有场景截图。
+```powershell
+# 截取全部内置场景，输出到 tmp/ui-captures/
+pnpm run capture:ui
 
-- 固定次数能运行，threads 边界正确，任务互斥。
-- 取消、窗口关闭和应用退出后无残留 core/analyzer；失败任务不留下临时 IR 或半成品 GSR。
-- 完成后能打开结果目录并选择 GSR。
-- 启动前选择的任意合法 result item 都能分析；损坏/超限 GSR 和 analyzer 失败显示上下文错误。
-- 六个展示字段失焦后原子保存对应 DisplayConfig sidecar；重新打开只恢复展示配置，分析字段来自 GSR。
-- 非法 sidecar 不被自动覆盖；结果编辑和结果可视化页面可用键盘操作并共享 GSR 选择。
-- 素材导出系统目录选择器以主窗口为 parent；取消/返回、中文与空格目录、统一覆盖以及 MP4/PNG/双格式实际产物正确。使用屏幕阅读器复核导出入口禁用原因、模态标题与焦点播报。
-- 取消确认后保持阻塞直到唯一终态；部分成功列出已保存与失败格式。注入文件占用时清理壳不能通过 Esc、遮罩或导航绕过，重复重试与退出后的单次后台清理不留下可避免的 FFmpeg、窗口、partial 或 backup。
+# 按改动范围选择导出交互场景
+pnpm run capture:ui electron/result-export-format
+pnpm run capture:ui electron/result-export-overwrite
+pnpm run capture:ui electron/result-export-started
+pnpm run capture:ui electron/result-export-progress
+pnpm run capture:ui electron/result-export-partial-failure
+pnpm run capture:ui electron/result-export-cleanup-blocked
 
-格式失败时执行 `pnpm run format`；其它失败按首个具体错误修复。
+# 同时执行四种尺寸布局测试并保存 layout-*.png；在未设置该变量的会话中执行
+try {
+  $env:GACHASIMULATE_LAYOUT_CAPTURE = "1"
+  pnpm run test:electron-layout
+  if ($LASTEXITCODE -ne 0) { throw "Electron 布局检查失败" }
+} finally {
+  Remove-Item Env:GACHASIMULATE_LAYOUT_CAPTURE -ErrorAction SilentlyContinue
+}
+```

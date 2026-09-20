@@ -2,7 +2,7 @@
 
 ## 文档入口
 
-- 安装、运行和常用命令：[README](<README.md>)。
+- 面向用户的项目用途、亮点与快速启动：[README](<README.md>)。
 - 项目代码地图、模块边界和稳定不变量：[Architecture](<ARCHITECTURE.md>)。
 - YAML 配置语法与执行顺序：[YAML Config Syntax](<docs/YAML_CONFIG_SYNTAX.md>)。
 - Compiler 与 C++ Runtime 间的中间表示契约：[IR](<docs/IR.md>)。
