@@ -61,6 +61,7 @@ button:disabled {
   min-height: 0;
   min-width: 0;
   overflow: auto;
+  padding: clamp(12px, 1vw, 24px);
   width: 100%;
 }
 

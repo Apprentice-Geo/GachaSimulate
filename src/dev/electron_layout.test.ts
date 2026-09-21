@@ -392,7 +392,10 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     [visual.small, 12 * density],
     [visual.control, 40 * density],
     [visual.icon, 18 * density],
-    [visual.sidebar, Math.min(176, Math.max(88, visual.width * 0.06875))],
+    [
+      visual.sidebar,
+      Math.min(158.208, Math.max(79.104, visual.width * 0.0618)),
+    ],
   ])
     assert.ok(Math.abs(actual - expected) < 1, JSON.stringify(visual));
   const space_failures: string[] = [];
@@ -645,8 +648,36 @@ async function assert_layout(application: ElectronApplication, page: Page) {
       return null;
     const viewport_rect = viewport.getBoundingClientRect();
     const root_rect = root.getBoundingClientRect();
+    const viewport_style = getComputedStyle(viewport);
+    const inset = {
+      left: Number.parseFloat(viewport_style.paddingLeft),
+      right: Number.parseFloat(viewport_style.paddingRight),
+      top: Number.parseFloat(viewport_style.paddingTop),
+      bottom: Number.parseFloat(viewport_style.paddingBottom),
+    };
     return {
       aspect_ratio: root_rect.width / root_rect.height,
+      geometry: {
+        inset,
+        viewport: {
+          client_width: viewport.clientWidth,
+          client_height: viewport.clientHeight,
+          scroll_width: viewport.scrollWidth,
+          scroll_height: viewport.scrollHeight,
+          left: viewport_rect.left,
+          right: viewport_rect.right,
+          top: viewport_rect.top,
+          bottom: viewport_rect.bottom,
+        },
+        root: {
+          left: root_rect.left,
+          right: root_rect.right,
+          top: root_rect.top,
+          bottom: root_rect.bottom,
+          width: root_rect.width,
+          height: root_rect.height,
+        },
+      },
       fits:
         viewport.scrollWidth <= viewport.clientWidth &&
         viewport.scrollHeight <= viewport.clientHeight &&
@@ -654,6 +685,11 @@ async function assert_layout(application: ElectronApplication, page: Page) {
         root_rect.right <= viewport_rect.right &&
         root_rect.top >= viewport_rect.top &&
         root_rect.bottom <= viewport_rect.bottom,
+      gutter_preserved:
+        root_rect.left >= viewport_rect.left + inset.left &&
+        root_rect.right <= viewport_rect.right - inset.right &&
+        root_rect.top >= viewport_rect.top + inset.top &&
+        root_rect.bottom <= viewport_rect.bottom - inset.bottom,
       marker_aligned:
         Number(line.getAttribute("x1")) === Number(point.getAttribute("cx")) &&
         Number(line.getAttribute("y2")) === Number(point.getAttribute("cy")),
@@ -664,7 +700,14 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     };
   });
   assert.ok(visualize_contract);
-  assert.ok(visualize_contract.fits);
+  assert.ok(
+    visualize_contract.fits,
+    JSON.stringify(visualize_contract.geometry),
+  );
+  assert.ok(
+    visualize_contract.gutter_preserved,
+    JSON.stringify(visualize_contract.geometry),
+  );
   assert.ok(visualize_contract.marker_aligned);
   assert.ok(visualize_contract.regions_visible);
   assert.ok(Math.abs(visualize_contract.aspect_ratio - 16 / 9) < 0.00001);

@@ -333,7 +333,7 @@ button:focus-visible,
   font-size: var(--desktop-font);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
-  grid-template-columns: clamp(88px, 6.875vw, 176px) minmax(0, 1fr);
+  grid-template-columns: clamp(79.104px, 6.18vw, 158.208px) minmax(0, 1fr);
   height: 100%;
   min-width: 0;
   width: 100%;
