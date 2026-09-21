@@ -12,7 +12,6 @@ import {
   useEffect,
   useRef,
   useMemo,
-  type CSSProperties,
   type ReactNode,
 } from "react";
 import type {
@@ -33,7 +32,6 @@ import { build_animation_progress } from "../visualize/animation/progress";
 import { CDFChart } from "../visualize/components/CDFChart";
 import { ResultValue } from "../visualize/components/ResultValue";
 import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
-import { get_distribution_statistic_groups } from "../visualize/view/statistic_view_config";
 import {
   MAX_TOTAL_RUNS,
   validate_simulation_request,
@@ -85,10 +83,6 @@ const status_labels: Record<SimulationStatus, string> = {
   cancelling: "正在取消",
   cancelled: "已取消",
 };
-
-const result_statistic_keys = get_distribution_statistic_groups().flatMap(
-  ({ keys }) => keys,
-);
 
 function SimulationPage({ active }: { active: boolean }) {
   const [configs, set_configs] = useState<InstalledConfig[]>([]);
@@ -506,9 +500,6 @@ function ResultEditorPage({
     state && fields
       ? build_cdf_view_model(state.analysis, { ...state.display, ...fields })
       : null;
-  const preview_metrics = preview_data
-    ? new Map(preview_data.metrics.map((metric) => [metric.key, metric]))
-    : null;
   const preview_animation = useMemo(
     () => build_animation_progress(ANIMATION_TOTAL_MS),
     [],
@@ -653,94 +644,48 @@ function ResultEditorPage({
       )}
       {state && fields && preview_data && (
         <div className="result-editor-workbench">
-          <div className="result-editor-left">
-            <div className="instrument-panel result-editor-form">
-              <div className="panel-heading">
-                <div>
-                  <p className="panel-kicker">展示字段 / DISPLAY</p>
-                  <h2>可视化文案</h2>
-                </div>
-                <span>失焦自动保存</span>
+          <div className="instrument-panel result-editor-form">
+            <div className="panel-heading">
+              <div>
+                <p className="panel-kicker">展示字段 / DISPLAY</p>
+                <h2>可视化文案</h2>
               </div>
-              <div className="result-editor-fields">
-                {field("title", "标题")}
-                {field("target", "目标")}
-                {field("result_item_name", "统计物品展示名称")}
-                {field("note", "说明", false, "result-note")}
-                {field("subtitle", "副标题", false, "result-subtitle")}
-                {field(
-                  "result_item_unit",
-                  "统计物品展示单位",
-                  false,
-                  "result-item-unit",
-                )}
-              </div>
+              <span>失焦自动保存</span>
             </div>
-            <section
-              className="instrument-panel result-preview"
-              data-testid="result-preview"
-            >
-              <div className="panel-heading">
-                <div>
-                  <p className="panel-kicker">分析 / ANALYSIS</p>
-                  <h2>核心指标</h2>
-                </div>
+            <dl className="result-editor-summary">
+              <div>
+                <dt>结果指标</dt>
+                <dd>
+                  <code>{state.analysis.result_item.id}</code>
+                </dd>
               </div>
-              <div
-                className="result-preview-scroll"
-                data-testid="result-preview-scroll"
-              >
-                <div className="result-preview-body">
-                  <div className="result-preview-summary">
-                    <div className="result-metric-primary">
-                      <span>结果指标</span>
-                      <strong>{fields.result_item_name}</strong>
-                      <code>{state.analysis.result_item.id}</code>
-                    </div>
-                    <div className="result-totals">
-                      <div>
-                        <span>累计模拟次数</span>
-                        <strong>
-                          {preview_data.runs.toLocaleString("zh-CN")}
-                        </strong>
-                      </div>
-                      <div>
-                        <span>累计{preview_data.result_item.name}</span>
-                        <strong>
-                          <ResultValue
-                            value={preview_data.total_result_display}
-                            unit={preview_data.result_item_unit}
-                          />
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                  <dl className="quantile-preview">
-                    {result_statistic_keys.map((key) => {
-                      const metric = preview_metrics?.get(key);
-                      return metric ? (
-                        <div
-                          key={key}
-                          style={
-                            {
-                              "--metric-color": metric.color,
-                            } as CSSProperties
-                          }
-                        >
-                          <dt>{metric.key}</dt>
-                          <dd>
-                            <ResultValue
-                              value={metric.display_value}
-                              unit={preview_data.result_item_unit}
-                            />
-                          </dd>
-                        </div>
-                      ) : null;
-                    })}
-                  </dl>
-                </div>
+              <div>
+                <dt>累计模拟次数</dt>
+                <dd>{preview_data.runs.toLocaleString("zh-CN")}</dd>
               </div>
-            </section>
+              <div>
+                <dt>累计次数</dt>
+                <dd>
+                  <ResultValue
+                    value={preview_data.total_result_display}
+                    unit={preview_data.result_item_unit}
+                  />
+                </dd>
+              </div>
+            </dl>
+            <div className="result-editor-fields">
+              {field("title", "标题")}
+              {field("target", "目标")}
+              {field("result_item_name", "统计物品展示名称")}
+              {field("note", "说明", false, "result-note")}
+              {field("subtitle", "副标题", false, "result-subtitle")}
+              {field(
+                "result_item_unit",
+                "统计物品展示单位",
+                false,
+                "result-item-unit",
+              )}
+            </div>
           </div>
           <aside
             className="instrument-panel result-cdf-preview"

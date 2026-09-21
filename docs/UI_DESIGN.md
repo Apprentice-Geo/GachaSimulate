@@ -62,7 +62,7 @@ Electron 桌面不使用整体 `zoom` 填充大屏。Shell 的 Grid 分配 Sideb
 滚动所有者：
 
 - 运行模拟：物品列表 `.simulation-item-panel`；控制区标题下的 `.simulation-control-body`。轨迹均分剩余空间，每步保留可读的最小高度；高度不足时控制区正文滚动，操作、轨迹与状态均可访问。
-- 结果编辑：`.result-editor-fields` 滚动表单字段；Form 按内容占高，但最多使用 Left 的 65%，Preview 获得扣除 gap 后的剩余区域。`.result-preview-scroll` 滚动指标；`.result-cdf-chart` 承载必要的图表滚动，面板标题固定。
+- 结果编辑：左侧可视化文案与右侧可视化预览均填满工作区高度。文案面板标题与三列摘要（结果指标 ID、累计模拟次数、累计次数）固定，`.result-editor-fields` 独立滚动六个单列字段；摘要标签为静态文本。`.result-cdf-chart` 承载必要的图表滚动，面板标题固定。
 - 配置仓库：`.repository-list` 与 `.local-config-list` 分别滚动，分区标题与本地目录保持可见。
 - Main、Page 和 Workbench 不承担普通页面滚动，也不以裁切内容隐藏布局越界。可视化画布由独立宿主适配。
 

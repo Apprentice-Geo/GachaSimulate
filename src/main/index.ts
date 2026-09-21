@@ -93,6 +93,22 @@ function create_window(): void {
     },
   });
   main_window = window;
+  if (!app.isPackaged) {
+    window.webContents.on("before-input-event", (event, input) => {
+      if (
+        input.type === "keyDown" &&
+        !input.isAutoRepeat &&
+        input.control &&
+        input.shift &&
+        !input.alt &&
+        !input.meta &&
+        input.key.toLowerCase() === "i"
+      ) {
+        event.preventDefault();
+        window.webContents.toggleDevTools();
+      }
+    });
+  }
   window.once("closed", () => {
     if (main_window === window) main_window = null;
   });

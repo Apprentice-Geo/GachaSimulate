@@ -328,7 +328,7 @@ async function fail_with_layout(page: Page, message: string): Promise<never> {
       [
         ".renderer-main",
         '[data-testid="simulation-item-list"]',
-        '[data-testid="result-preview-scroll"]',
+        ".result-editor-fields",
         ".repository-page",
       ].map((selector) => {
         const element = document.querySelector(selector) as HTMLElement | null;
@@ -347,8 +347,8 @@ async function fail_with_layout(page: Page, message: string): Promise<never> {
     ".renderer-main",
     '[data-testid="simulation-selection"]',
     '[data-testid="simulation-item-list"]',
-    '[data-testid="result-preview"]',
-    '[data-testid="result-preview-scroll"]',
+    ".result-editor-form",
+    ".result-editor-fields",
     '[data-testid="result-cdf-preview"]',
     ".repository-page",
   ]);
@@ -523,28 +523,62 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     ".result-editor-header",
     ".result-save-status",
   );
-  for (const panel of [".result-editor-left", ".result-cdf-preview"]) {
+  for (const panel of [".result-editor-form", ".result-cdf-preview"]) {
     await assert_vertical_fill(page, ".result-editor-workbench", panel);
   }
-  await check_space(() =>
-    assert_vertical_fill(
-      page,
-      ".result-editor-left",
-      ".result-editor-form",
-      ".result-preview",
-    ),
-  );
-
-  const preview = page.locator('[data-testid="result-preview"]');
-  await assert_contained(page, ".result-editor-left", ".result-preview");
   await assert_vertical_fill(
     page,
-    ".result-preview",
-    ".result-preview .panel-heading",
-    ".result-preview-scroll",
+    ".result-editor-form",
+    ".result-editor-form .panel-heading",
+    ".result-editor-fields",
   );
   await assert_scroll_owner(page, ".result-editor-fields");
-  await assert_scroll_owner(page, ".result-preview-scroll");
+  assert.equal(
+    await page.getByRole("heading", { name: "核心指标" }).count(),
+    0,
+  );
+  assert.deepEqual(
+    await page.locator(".result-editor-summary dt").allTextContents(),
+    ["结果指标", "累计模拟次数", "累计次数"],
+  );
+  assert.equal(
+    await page.locator(".result-editor-summary code").textContent(),
+    result_fixture().analysis.result_item.id,
+  );
+  const summary_boxes = await page
+    .locator(".result-editor-summary > div")
+    .evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const r = node.getBoundingClientRect();
+        return { x: r.x, y: r.y, right: r.right };
+      }),
+    );
+  for (let i = 1; i < summary_boxes.length; i++) {
+    assert_pixel_equal(
+      summary_boxes[i].y,
+      summary_boxes[0].y,
+      "summary items share a row",
+    );
+    assert.ok(summary_boxes[i].x >= summary_boxes[i - 1].right);
+  }
+  const field_boxes = await page
+    .locator(".result-editor-fields input")
+    .evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const r = node.getBoundingClientRect();
+        return { x: r.x, y: r.y, width: r.width, bottom: r.bottom };
+      }),
+    );
+  assert.equal(field_boxes.length, 6);
+  for (let i = 1; i < field_boxes.length; i++) {
+    assert_pixel_equal(field_boxes[i].x, field_boxes[0].x, "fields align left");
+    assert_pixel_equal(
+      field_boxes[i].width,
+      field_boxes[0].width,
+      "fields share full width",
+    );
+    assert.ok(field_boxes[i].y >= field_boxes[i - 1].bottom);
+  }
   await assert_page_space(page, ".result-editor", ".result-editor-workbench");
   const [workbench_end, save_status] = await Promise.all([
     vertical_geometry(page, ".result-editor-workbench"),
@@ -559,8 +593,11 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     "editor workbench fills space above save status",
   );
   await capture_layout(page, "editor");
-  const scroll = page.locator('[data-testid="result-preview-scroll"]');
-  const heading = preview.getByRole("heading", { name: "核心指标" });
+  const scroll = page.locator(".result-editor-fields");
+  const heading = page.getByRole("heading", { name: "可视化文案" });
+  const summary_before = await page
+    .locator(".result-editor-summary")
+    .boundingBox();
   const before = await heading.boundingBox();
   assert.ok(before);
   assert.equal(
@@ -571,6 +608,10 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     node.scrollTop = node.scrollHeight;
   });
   assert.deepEqual(await heading.boundingBox(), before);
+  assert.deepEqual(
+    await page.locator(".result-editor-summary").boundingBox(),
+    summary_before,
+  );
   assert.equal(
     await page
       .locator('[data-testid="result-cdf-preview"]')

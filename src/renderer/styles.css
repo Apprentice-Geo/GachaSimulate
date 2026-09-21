@@ -309,9 +309,7 @@ button:focus-visible,
 }
 
 .renderer-placeholder code,
-.renderer-placeholder input[type="number"],
-.result-totals strong,
-.quantile-preview dd {
+.renderer-placeholder input[type="number"] {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
@@ -430,7 +428,6 @@ button:focus-visible,
   .simulation-item-panel,
   .simulation-control-body,
   .result-editor-fields,
-  .result-preview-scroll,
   .result-cdf-chart,
   .repository-list,
   .local-config-list
@@ -444,7 +441,6 @@ button:focus-visible,
   .simulation-item-panel,
   .simulation-control-body,
   .result-editor-fields,
-  .result-preview-scroll,
   .result-cdf-chart,
   .repository-list,
   .local-config-list
@@ -457,7 +453,6 @@ button:focus-visible,
   .simulation-item-panel,
   .simulation-control-body,
   .result-editor-fields,
-  .result-preview-scroll,
   .result-cdf-chart,
   .repository-list,
   .local-config-list
@@ -469,7 +464,6 @@ button:focus-visible,
   .simulation-item-panel,
   .simulation-control-body,
   .result-editor-fields,
-  .result-preview-scroll,
   .result-cdf-chart,
   .repository-list,
   .local-config-list
@@ -482,7 +476,6 @@ button:focus-visible,
     .simulation-item-panel,
     .simulation-control-body,
     .result-editor-fields,
-    .result-preview-scroll,
     .result-cdf-chart,
     .repository-list,
     .local-config-list
@@ -850,16 +843,13 @@ button:focus-visible,
   padding: calc(var(--desktop-unit) * 8) calc(var(--desktop-unit) * 11);
 }
 
-.output-item span,
-.result-metric-primary span,
-.result-totals span {
+.output-item span {
   color: var(--color-text-faint);
   font-size: calc(var(--desktop-unit) * 12);
   letter-spacing: 0.06em;
 }
 
-.output-item strong,
-.result-metric-primary strong {
+.output-item strong {
   color: var(--color-text-primary);
   font-size: calc(var(--desktop-unit) * 17);
 }
@@ -1294,14 +1284,6 @@ button:focus-visible,
   width: 100%;
 }
 
-.result-editor-left {
-  display: grid;
-  gap: calc(var(--desktop-unit) * 18);
-  grid-template-rows: minmax(0, 1.75fr) minmax(0, 1fr);
-  min-height: 0;
-  min-width: 0;
-}
-
 .result-editor-form {
   display: flex;
   flex-direction: column;
@@ -1310,47 +1292,66 @@ button:focus-visible,
 }
 
 .result-editor-fields {
+  align-content: start;
   display: grid;
+  flex: 1;
   min-height: 0;
   overflow-y: auto;
   gap: calc(var(--desktop-unit) * 14);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .result-editor-form .panel-heading {
   margin-bottom: calc(var(--desktop-unit) * 14);
 }
 
-.result-editor-fields > label:first-of-type,
-.result-editor-fields > label:nth-of-type(2),
-.result-editor-fields > label:nth-of-type(3),
-.result-editor-form .result-note {
-  grid-column: 1 / -1;
-}
-
-.result-preview {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.result-preview-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.result-preview-body {
+.result-editor-summary {
   display: grid;
-  gap: calc(var(--desktop-unit) * 20);
-  grid-template-columns: minmax(calc(var(--desktop-unit) * 150), 0.75fr) minmax(
-      0,
-      1.25fr
-    );
+  flex-shrink: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 0 calc(var(--desktop-unit) * 14);
+  padding-bottom: calc(var(--desktop-unit) * 14);
+  border-bottom: 1px solid var(--color-hairline);
 }
 
-.result-preview-summary {
+.result-editor-summary > div {
+  border-left: 2px solid var(--color-nvidia-green);
   min-width: 0;
+  padding-inline: calc(var(--desktop-unit) * 11);
+}
+
+.result-editor-summary > div:first-child {
+  border-left-color: var(--color-cyan);
+}
+
+.result-editor-summary > div:last-child {
+  padding-right: 0;
+}
+
+.result-editor-summary dt {
+  color: var(--color-text-muted);
+  font-size: calc(var(--desktop-unit) * 12);
+}
+
+.result-editor-summary dd {
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: calc(var(--desktop-unit) * 18);
+  font-weight: 600;
+  margin: calc(var(--desktop-unit) * 6) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.result-editor-summary code {
+  font-size: inherit;
+  font-weight: 400;
+}
+
+.result-editor-summary small {
+  color: var(--color-text-muted);
+  font-family: var(--font-ui);
+  font-size: 0.65em;
+  font-weight: 400;
 }
 
 .result-cdf-preview {
@@ -1366,78 +1367,10 @@ button:focus-visible,
   width: 100%;
 }
 
-.result-metric-primary,
-.result-totals > div {
-  border-left: 2px solid var(--color-cyan);
-  display: grid;
-  gap: calc(var(--desktop-unit) * 4);
-  padding: calc(var(--desktop-unit) * 7) calc(var(--desktop-unit) * 11);
-}
-
-.result-totals {
-  display: grid;
-  gap: calc(var(--desktop-unit) * 8);
-  grid-template-columns: 1fr;
-  margin-top: calc(var(--desktop-unit) * 16);
-}
-
-.result-totals > div {
-  border-left-color: var(--color-nvidia-green);
-}
-
-.result-totals strong {
-  font-weight: 600;
-  color: var(--color-text-primary);
-  font-size: calc(var(--desktop-unit) * 26);
-}
-
-.quantile-preview {
-  align-content: start;
-  display: grid;
-  gap: calc(var(--desktop-unit) * 7);
-  grid-auto-rows: minmax(calc(var(--desktop-unit) * 70), auto);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 0;
-  padding-top: 0;
-}
-
-.quantile-preview > div {
-  background: var(--color-panel-soft);
-  border-left: 2px solid var(--metric-color);
-  display: grid;
-  align-content: center;
-  padding: calc(var(--desktop-unit) * 9) calc(var(--desktop-unit) * 10);
-}
-
-.quantile-preview dt {
-  color: var(--color-text-faint);
-  font-size: calc(var(--desktop-unit) * 12);
-}
-
-.quantile-preview dd {
-  color: var(--color-text-primary);
-  font-size: calc(var(--desktop-unit) * 22);
-  margin: calc(var(--desktop-unit) * 5) 0 0;
-}
-
 .result-save-status {
   color: var(--color-text-muted);
   font-size: calc(var(--desktop-unit) * 13);
   margin: calc(var(--desktop-unit) * 12) 0 0;
-}
-
-.quantile-preview dd small,
-.result-totals strong small {
-  font-family: var(--font-ui);
-  color: var(--color-text-muted);
-  font-size: 0.65em;
-  font-weight: 400;
-}
-
-.result-totals strong span {
-  color: inherit;
-  font-size: inherit;
-  letter-spacing: normal;
 }
 
 @media (prefers-reduced-motion: reduce) {
