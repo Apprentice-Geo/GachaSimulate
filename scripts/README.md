@@ -16,7 +16,7 @@
 | [application_licenses.mjs](application_licenses.mjs)         | 从实际 npm 生产依赖生成确定性的应用许可证材料；按版本化策略拒绝未复核许可证、缺失正文和版本失配。 |
 | [application_licenses.test.mjs](application_licenses.test.mjs) | 使用固定 fixture 验证生成、排序、拒绝路径和版本覆盖，并检查当前真实生产依赖树。 |
 | [application_licenses_policy.json](application_licenses_policy.json) | 应用许可证生成器允许的表达式、精确版本人工覆盖和静态材料映射。 |
-| [check_windows_package.ps1](check_windows_package.ps1)       | 检查当前版本 NSIS、unpacked 原生程序和许可证材料，并在隔离开发工具 PATH 后运行包内 core/analyzer。 |
+| [check_windows_package.ps1](check_windows_package.ps1)       | 检查当前版本 NSIS、unpacked 原生程序和许可证材料，核对包内 FFmpeg 与自编译源文件的 SHA-256，并在隔离开发工具 PATH 后运行包内 FFmpeg 版本检查和 core/analyzer。 |
 
 #### 发布流程
 
@@ -43,7 +43,7 @@ Windows 安装包包含 core/analyzer 和项目固定源码版本构建的 FFmpe
 从仓库根目录使用 Windows 原生 PowerShell 7 和 Node/pnpm。MSYS2 默认为 `C:\msys64`，工具链采用滚动版本，不在项目内锁定；版本记录用于追溯，不保证以后重建相同二进制。维护者或 CI 在构建前从 UCRT64 shell 准备环境：
 
 ```bash
-pacman -S --needed bash tar xz make git \
+pacman -S --needed bash tar xz make git diffutils \
   mingw-w64-ucrt-x86_64-gcc \
   mingw-w64-ucrt-x86_64-binutils \
   mingw-w64-ucrt-x86_64-pkgconf \

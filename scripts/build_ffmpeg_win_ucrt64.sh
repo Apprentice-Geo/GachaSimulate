@@ -35,7 +35,8 @@ exec > >(tee "$materials/build.log") 2>&1
 printf 'Building pinned FFmpeg for Windows x64 in MSYS2 UCRT64.\n'
 printf 'x264 source: %s\nFFmpeg archive: %s\n' "$x264_source" "$ffmpeg_archive"
 
-required_tools=(ar gcc git ld make nasm objdump pkgconf ranlib sha256sum strip tar)
+# FFmpeg configure uses cmp in cp_if_changed when writing generated files.
+required_tools=(ar cmp gcc git ld make nasm objdump pkgconf ranlib sha256sum strip tar)
 for tool in "${required_tools[@]}"; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     printf 'Required UCRT64 build tool is missing from /ucrt64/bin or /usr/bin: %s\n' "$tool" >&2

@@ -11,7 +11,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $RequiredMsys2Packages = @(
-  "bash", "tar", "xz", "make", "git",
+  "bash", "tar", "xz", "make", "git", "diffutils",
   "mingw-w64-ucrt-x86_64-gcc", "mingw-w64-ucrt-x86_64-gcc-libs",
   "mingw-w64-ucrt-x86_64-binutils", "mingw-w64-ucrt-x86_64-crt",
   "mingw-w64-ucrt-x86_64-headers", "mingw-w64-ucrt-x86_64-libwinpthread",
@@ -163,7 +163,7 @@ $InstalledPackages = [ordered]@{}
 foreach ($PackageName in $RequiredMsys2Packages) {
   $InstalledVersion = $AllInstalledPackages[$PackageName]
   if (-not $InstalledVersion) {
-    throw "Required MSYS2 package '$PackageName' is missing. See scripts/README.md.md."
+    throw "Required MSYS2 package '$PackageName' is missing. See scripts/README.md."
   }
   $InstalledPackages[$PackageName] = $InstalledVersion
 }
