@@ -29,12 +29,12 @@ Windows 安装包包含 core/analyzer 和项目固定源码版本构建的 FFmpe
 | 文件                                                         | 职责                                                         |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | [acquire_ffmpeg_sources.ps1](acquire_ffmpeg_sources.ps1)     | 在线下载 FFmpeg/zlib 归档并校验哈希，克隆 x264 并切换到固定提交。已有归档和工作树只校验，不自动更新或重置。 |
-| [build_ffmpeg_win.ps1](build_ffmpeg_win.ps1)                 | 唯一对外构建入口。检查 Windows x64、MSYS2 包和源码身份，调用内部 Bash 构建，检查产物集合、PE 导入和隔离 PATH 运行，再替换安装目录；失败保护旧产物。 |
+| [build_ffmpeg_win.ps1](build_ffmpeg_win.ps1)                 | 唯一对外构建入口。检查 Windows x64 和源码身份，记录完整 MSYS2 包快照，调用内部 Bash 构建，检查产物集合、PE 导入和隔离 PATH 运行，再替换安装目录；失败保护旧产物。 |
 | [build_ffmpeg_win_ucrt64.sh](build_ffmpeg_win_ucrt64.sh)     | 内部编译实现，由 PowerShell 传入环境和路径。构建三个组件，收集源码、许可证、参数、日志、链接映射和能力清单，不直接供日常调用。 |
 | [package_ffmpeg_compliance.ps1](package_ffmpeg_compliance.ps1) | 校验材料与二进制的对应关系，生成版本化 ZIP、清单和校验文件；可记录本次安装包哈希。 |
 | [build_ffmpeg_win.test.mjs](build_ffmpeg_win.test.mjs)       | 静态检查构建入口，并检查源码锁，不含下载或安装命令。         |
 | [setup_ffmpeg_win.ps1](setup_ffmpeg_win.ps1)                 | 面向开发者的一键式下载和构建脚本，用于便捷构建 ffmpeg。      |
-| [package_ffmpeg_compliance.test.ps1](package_ffmpeg_compliance.test.ps1) | 使用已有构建的独立副本验证材料打包、错误输入拒绝、旧包保护、安装包哈希关联和许可证缺口披露。 |
+| [package_ffmpeg_compliance.test.ps1](package_ffmpeg_compliance.test.ps1) | 使用已有构建的独立副本验证材料打包、错误输入拒绝、旧包保护和安装包哈希关联。 |
 | [ffmpeg_windows_source_lock.json](ffmpeg_windows_source_lock.json) | 自编译源码版本、归档名、哈希和 x264 提交的唯一配置来源。     |
 | [ffmpeg_compliance_README.md](ffmpeg_compliance_README.md)   | 随合规包分发的英文说明模板，包含解包后的离线源码恢复和重建步骤。它面向材料接收者，保持自包含，不依赖仓库文档链接。 |
 
@@ -50,7 +50,7 @@ pacman -S --needed bash tar xz make git diffutils \
   mingw-w64-ucrt-x86_64-nasm
 ```
 
-所需 CRT、头文件和运行库由包依赖提供。完整包存在性检查以 PowerShell 构建入口为准；构建脚本不安装或升级环境，也不依赖 MSYS2 的 zlib/x264 包。
+所需 CRT、头文件和运行库由包依赖提供；以上包名仅用于环境准备，不约束传递依赖的拆包结构。构建按工具能力检查：编译、链接和检查工具必须来自 `/ucrt64/bin`，Bash/MSYS 辅助工具可来自 `/usr/bin`，`gcc -dumpmachine` 必须严格等于 `x86_64-w64-mingw32`。实际构建、链接映射、PE 导入和隔离 PATH 运行检查共同验证工具链可用性。MSYS2 包数据库仅用于记录完整环境快照。构建脚本不安装或升级环境，也不依赖 MSYS2 的 zlib/x264 包。
 
 C++ Runtime 使用同一 UCRT64 环境中的 GCC、CMake、Ninja、clang-format 和 clang-tidy；安装包名与日常命令集中在 [Development Checks](../docs/DEVELOPMENT_CHECKS.md)。FFmpeg 与 Runtime 共用 GCC 基线，但各自保持独立构建目录和脚本职责。
 
@@ -87,16 +87,15 @@ FFmpeg 从 `--disable-everything --disable-autodetect` 开始裁剪，启用 PNG
 每次构建的 `materials/` 保存：
 
 - **源码与重建输入**：原始 FFmpeg/zlib 归档、包含版本历史的 `x264.bundle`、源码锁与哈希、补丁清单、构建脚本副本及其 `GPL-3.0-or-later` 许可证、离线重建说明。
-- **环境与构建记录**：所需包版本、完整 MSYS2 包快照、实际工具版本、路径、三套 configure 参数、完整构建与 configure 日志。
+- **环境与构建记录**：完整 MSYS2 包快照、实际工具版本与 GCC 目标架构、路径、三套 configure 参数、完整构建与 configure 日志。
 - **产物证据**：版本/buildconf、能力清单、二进制 SHA-256、`*-link.map` 中的静态库成员和启动对象，以及 `*-pe-imports.txt` 中的 DLL 依赖。FFmpeg 没有 `-parsers` 命令行选项，parser 清单从本次生成注册表提取，并保留原始 `parser_list.c`。
-- **许可证**：三个组件的许可证，以及本次 MSYS2 安装中 `gcc-libs`、`crt`、`winpthreads`、`libwinpthread` 的完整声明目录。不按符号裁剪，也不进一步归档编译器源码或 MSYS2 构建配方；声明集合不表示其中每个库都参与了链接。
+- **许可证**：仅收集 FFmpeg、x264、zlib 三个组件的许可证；构建脚本另附其项目许可证。不归档编译器源码或 MSYS2 构建配方。
 
 打包流程检查：
 
-- 运行库声明目录时，构建写入 `license-gaps.txt`，若缺失则显示警告并在 manifest 中披露，允许继续。
 - 三个软件的源码、核心许可证、哈希或链接记录，若缺失则停止打包。
 - 校验归档和 bundle 的构建时哈希、二进制与构建记录一致，并拒绝不符合预期的 GPL/libx264 配置或 `--enable-nonfree`。
 
 输出为 `GachaSimulate-vX.Y.Z-windows-x64-ffmpeg-compliance.zip` 及 `.zip.sha256`，版本来自根目录 `package.json`。ZIP 包含完整材料、关联应用版本/提交/二进制哈希的 `manifest.json` 和内部 `SHA256SUMS`。重建说明模板在打包时更新；二进制构建脚本保留构建时副本。
 
-材料打包测试会在 `tmp/ffmpeg-verification/package-check-*/` 保留独立副本和检查结果，覆盖源码/bundle 或二进制被修改、必要材料缺失、nonfree 配置、失败时旧 ZIP 保留以及声明缺口披露。
+材料打包测试会在 `tmp/ffmpeg-verification/package-check-*/` 保留独立副本和检查结果，覆盖源码/bundle 或二进制被修改、必要材料缺失、nonfree 配置以及失败时旧 ZIP 保留。

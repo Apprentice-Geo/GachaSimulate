@@ -32,6 +32,36 @@ test("offline FFmpeg build scripts contain no acquisition or package mutation co
   );
 });
 
+test("rolling UCRT64 toolchain checks tools and target, recording packages only as a snapshot", async () => {
+  const powershell = await readFile(
+    join(root, "scripts", "build_ffmpeg_win.ps1"),
+    "utf8",
+  );
+  const bash = await readFile(
+    join(root, "scripts", "build_ffmpeg_win_ucrt64.sh"),
+    "utf8",
+  );
+
+  assert.doesNotMatch(
+    powershell,
+    /RequiredMsys2Packages|mingw-w64-ucrt-x86_64-/,
+  );
+  assert.match(powershell, /\$AllInstalledPackages \| ConvertTo-Json/);
+  assert.match(powershell, /msys2-package-snapshot\.json/);
+  assert.match(
+    bash,
+    /ucrt64_tools=\(ar gcc ld nasm objdump pkgconf ranlib strip\)/,
+  );
+  assert.match(bash, /"\$tool_path" != "\/ucrt64\/bin\/\$tool"/);
+  assert.match(bash, /msys_tools=\([^)]*\bcmp\b[^)]*\bmake\b[^)]*\btar\b/);
+  assert.match(bash, /gcc_target="\$\(gcc -dumpmachine\)"/);
+  assert.match(bash, /"\$gcc_target" != "x86_64-w64-mingw32"/);
+  assert.doesNotMatch(
+    `${powershell}\n${bash}`,
+    /installed-package-versions\.json|license-gaps\.txt|\/ucrt64\/share\/licenses/,
+  );
+});
+
 test("source lock pins only the requested source identities", async () => {
   const lock = JSON.parse(
     await readFile(

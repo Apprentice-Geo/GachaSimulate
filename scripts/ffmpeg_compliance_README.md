@@ -14,10 +14,15 @@ source modifications (empty lists mean none). No MSYS2 zlib package is used.
 
 ## Offline rebuild on Windows x64
 
-Prepare MSYS2 UCRT64 with bash, tar, xz, make, git, and UCRT64 gcc, binutils,
+Prepare MSYS2 UCRT64 with bash, tar, xz, make, git, diffutils, and UCRT64 gcc, binutils,
 pkgconf and nasm. Package dependencies supply the CRT, headers and runtime
-libraries. See `installed-package-versions.json`, `msys2-package-snapshot.json`
-and `tool-versions.tsv` for this build's actual environment. Preparing the
+libraries. The toolchain uses rolling versions; package names and transitive
+dependency splits are not build acceptance criteria. Compile, link and inspection
+tools must resolve from `/ucrt64/bin`; Bash/MSYS helpers may use `/usr/bin`.
+`gcc -dumpmachine` must be exactly `x86_64-w64-mingw32`. The actual build, link
+maps, PE imports and execution with an isolated PATH validate the toolchain.
+See `msys2-package-snapshot.json` and `tool-versions.tsv` for this build's actual
+environment; the package database is used only for the full snapshot. Preparing the
 toolchain can require network access; the build entry does not use the network.
 
 From this extracted archive in PowerShell 7, restore x264 using MSYS2 Git:
@@ -47,10 +52,8 @@ its hash is included; this alone does not assert that it contains FFmpeg.
 `SHA256SUMS` covers the files in this collection except itself.
 
 The two `*-link.map` files record static archive members/startup objects;
-`*-pe-imports.txt` records imported DLLs. The local runtime license collections
-are intentionally copied in full. Inclusion of a notice is not a claim that
-every library in that package was linked. `license-gaps.txt` reports any missing
-runtime collections; it is not a complete automated legal review.
+`*-pe-imports.txt` records imported DLLs. Component license materials cover only
+FFmpeg, x264 and zlib, alongside the project's build-script license.
 
 The Windows system DLLs are not included. GCC/build-tool source and MSYS2
 packaging recipes are not included. This material collection is not a legal

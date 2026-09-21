@@ -10,16 +10,6 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
-$RequiredMsys2Packages = @(
-  "bash", "tar", "xz", "make", "git", "diffutils",
-  "mingw-w64-ucrt-x86_64-gcc", "mingw-w64-ucrt-x86_64-gcc-libs",
-  "mingw-w64-ucrt-x86_64-binutils", "mingw-w64-ucrt-x86_64-crt",
-  "mingw-w64-ucrt-x86_64-headers", "mingw-w64-ucrt-x86_64-libwinpthread",
-  "mingw-w64-ucrt-x86_64-pkgconf", "mingw-w64-ucrt-x86_64-nasm",
-  "mingw-w64-ucrt-x86_64-windows-default-manifest",
-  "mingw-w64-ucrt-x86_64-winpthreads"
-)
-
 function Resolve-RequiredPath {
   param(
     [Parameter(Mandatory = $true)][string]$Path,
@@ -159,14 +149,6 @@ $Git = Resolve-RequiredPath -Path (Join-Path $ResolvedMsysRoot "usr\bin\git.exe"
 $PackageDatabase = Resolve-RequiredPath -Path (Join-Path $ResolvedMsysRoot "var\lib\pacman\local") -Kind Container -Description "MSYS2 local package database"
 
 $AllInstalledPackages = Read-Msys2PackageDatabase -DatabaseRoot $PackageDatabase
-$InstalledPackages = [ordered]@{}
-foreach ($PackageName in $RequiredMsys2Packages) {
-  $InstalledVersion = $AllInstalledPackages[$PackageName]
-  if (-not $InstalledVersion) {
-    throw "Required MSYS2 package '$PackageName' is missing. See scripts/README.md."
-  }
-  $InstalledPackages[$PackageName] = $InstalledVersion
-}
 
 $X264Head = Invoke-CheckedNative -Executable $Git -Arguments @("-C", $ResolvedX264Source, "rev-parse", "HEAD") -Description "x264 HEAD validation"
 if ($X264Head -ne $Lock.x264.commit) {
@@ -231,7 +213,6 @@ try {
   Assert-SystemPeImports -MaterialsPath $Materials -Programs @("ffmpeg", "ffprobe")
   Assert-IsolatedExecution -BinPath $StageBin
 
-  $InstalledPackages | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $Materials "installed-package-versions.json") -Encoding utf8
   $AllInstalledPackages | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $Materials "msys2-package-snapshot.json") -Encoding utf8
   [ordered]@{
     target = $Destination

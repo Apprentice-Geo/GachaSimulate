@@ -15,7 +15,7 @@ $Required = @(
   "README.md", "source-lock.json", "sources.json", "patches.json", "source-sha256.txt",
   "sources/x264.bundle", "x264-origin-master.txt", "binary-sha256.txt",
   "ffmpeg-link.map", "ffprobe-link.map", "ffmpeg-pe-imports.txt", "ffprobe-pe-imports.txt",
-  "ffmpeg-buildconf.txt", "license-gaps.txt", "installed-package-versions.json",
+  "ffmpeg-buildconf.txt",
   "msys2-package-snapshot.json", "tool-versions.tsv", "build.log",
   "licenses/zlib-LICENSE", "licenses/x264-COPYING", "licenses/ffmpeg-COPYING.GPLv2",
   "licenses/ffmpeg-COPYING.LGPLv2.1", "licenses/ffmpeg-LICENSE.md",
@@ -64,14 +64,13 @@ $Dirty = & git -C $ProjectRoot status --porcelain --untracked-files=normal
 if ($LASTEXITCODE -ne 0) { throw "Cannot inspect project worktree." }
 $Manifest = [ordered]@{
   schema_version = 1
-  scope = "FFmpeg, x264, zlib and runtime notices; not whole-application compliance"
+  scope = "FFmpeg, x264 and zlib; not whole-application compliance"
   application_version = $Version
   project_commit = $Commit.Trim()
   project_worktree_dirty = [bool]$Dirty
   platform = "windows-x64"
   source_lock = $Lock
   binaries_sha256 = $Binaries
-  runtime_notice_gaps = @(Get-Content (Join-Path $Materials "license-gaps.txt") | Where-Object { $_.Trim() })
 }
 if ($Installer) {
   $Manifest.installer = [ordered]@{
@@ -99,7 +98,6 @@ try {
   Move-Item -LiteralPath "$Stage.zip" -Destination $Archive -Force
   "$((Get-FileHash -LiteralPath $Archive -Algorithm SHA256).Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($Archive))" |
     Set-Content -LiteralPath "$Archive.sha256" -Encoding utf8
-  foreach ($Gap in $Manifest.runtime_notice_gaps) { Write-Warning $Gap }
   Write-Output $Archive
 }
 finally {

@@ -19,6 +19,31 @@ for variable in GS_PROJECT_ROOT GS_X264_SOURCE GS_FFMPEG_ARCHIVE GS_ZLIB_ARCHIVE
   fi
 done
 
+# Compile, link and inspect with the UCRT64 tools, never MSYS fallbacks.
+ucrt64_tools=(ar gcc ld nasm objdump pkgconf ranlib strip)
+for tool in "${ucrt64_tools[@]}"; do
+  tool_path="$(command -v "$tool" || true)"
+  if [[ "$tool_path" != "/ucrt64/bin/$tool" && "$tool_path" != "/ucrt64/bin/$tool.exe" ]]; then
+    printf 'Required build tool must come from /ucrt64/bin: %s (found: %s)\n' "$tool" "${tool_path:-<missing>}" >&2
+    exit 2
+  fi
+done
+
+# FFmpeg configure uses cmp in cp_if_changed when writing generated files.
+msys_tools=(bash basename cat cmp cp cygpath git grep make mkdir sed sha256sum tar tee tr xz)
+for tool in "${msys_tools[@]}"; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    printf 'Required build helper is missing from /ucrt64/bin or /usr/bin: %s\n' "$tool" >&2
+    exit 2
+  fi
+done
+
+gcc_target="$(gcc -dumpmachine)"
+if [[ "$gcc_target" != "x86_64-w64-mingw32" ]]; then
+  printf 'Expected GCC target x86_64-w64-mingw32, got %s.\n' "$gcc_target" >&2
+  exit 2
+fi
+
 project_root="$(cygpath -u "$GS_PROJECT_ROOT")"
 x264_source="$(cygpath -u "$GS_X264_SOURCE")"
 ffmpeg_archive="$(cygpath -u "$GS_FFMPEG_ARCHIVE")"
@@ -35,15 +60,6 @@ exec > >(tee "$materials/build.log") 2>&1
 printf 'Building pinned FFmpeg for Windows x64 in MSYS2 UCRT64.\n'
 printf 'x264 source: %s\nFFmpeg archive: %s\n' "$x264_source" "$ffmpeg_archive"
 
-# FFmpeg configure uses cmp in cp_if_changed when writing generated files.
-required_tools=(ar cmp gcc git ld make nasm objdump pkgconf ranlib sha256sum strip tar)
-for tool in "${required_tools[@]}"; do
-  if ! command -v "$tool" >/dev/null 2>&1; then
-    printf 'Required UCRT64 build tool is missing from /ucrt64/bin or /usr/bin: %s\n' "$tool" >&2
-    exit 2
-  fi
-done
-
 if [[ "$(git -C "$x264_source" rev-parse HEAD)" != "${GS_X264_COMMIT}" ]]; then
   printf 'x264 HEAD changed after PowerShell preflight. Expected %s.\n' "$GS_X264_COMMIT" >&2
   exit 2
@@ -55,6 +71,7 @@ fi
 
 {
   printf 'gcc\t'; gcc --version | sed -n '1p'
+  printf 'gcc-target\t%s\n' "$gcc_target"
   printf 'ld\t'; ld --version | sed -n '1p'
   printf 'make\t'; make --version | sed -n '1p'
   printf 'pkgconf\t'; pkgconf --version
@@ -255,16 +272,6 @@ done
 
 cp "$project_root/scripts/ffmpeg_windows_source_lock.json" "$materials/source-lock.json"
 cp "$x264_source/COPYING" "$materials/licenses/x264-COPYING"
-# Runtime notices are copied as package-level collections, not inferred legal
-# verdicts per symbol. Missing collections are reported without blocking builds.
-: > "$materials/license-gaps.txt"
-for package in gcc-libs crt winpthreads libwinpthread; do
-  if [[ -d "/ucrt64/share/licenses/$package" ]]; then
-    cp -R "/ucrt64/share/licenses/$package" "$materials/licenses/$package"
-  else
-    printf 'Missing local runtime notice directory: %s\n' "$package" >> "$materials/license-gaps.txt"
-  fi
-done
 for license in COPYING.GPLv2 COPYING.LGPLv2.1 LICENSE.md; do
   if [[ -f "$ffmpeg_source/$license" ]]; then
     cp "$ffmpeg_source/$license" "$materials/licenses/ffmpeg-$license"

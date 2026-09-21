@@ -39,16 +39,12 @@ try {
   }
   if (-not $rejected) { throw 'Accepted missing GPL license.' }
 } finally { Move-Item -LiteralPath "$license.saved" -Destination $license }
-# Authorized best-effort runtime notices remain visible in the released manifest.
-'Fixture: unavailable optional runtime notice' | Set-Content (Join-Path $copy 'materials/license-gaps.txt')
-& $script -BuildRoot $copy -OutputDirectory $output -Installer $installerFixture
 $extracted = Join-Path $testRoot 'extracted'
 Expand-Archive -LiteralPath $zip.FullName -DestinationPath $extracted
 $manifest = Get-Content (Join-Path $extracted 'manifest.json') -Raw | ConvertFrom-Json
-if ($manifest.runtime_notice_gaps.Count -ne 1) { throw 'Missing runtime gap disclosure.' }
 if ($manifest.installer.sha256 -ne (Get-FileHash $installerFixture).Hash.ToLowerInvariant()) { throw 'Incorrect installer association.' }
 foreach ($line in Get-Content (Join-Path $extracted 'SHA256SUMS')) {
   if ($line -notmatch '^([a-f0-9]{64})  (.+)$') { throw 'Invalid checksum format.' }
   if ((Get-FileHash -LiteralPath (Join-Path $extracted $Matches[2])).Hash.ToLowerInvariant() -ne $Matches[1]) { throw 'ZIP payload checksum mismatch.' }
 }
-Write-Output "PASS: valid ZIP and payload checksums; five rejection cases; previous ZIP preserved; runtime gaps disclosed. Evidence: $testRoot"
+Write-Output "PASS: valid ZIP and payload checksums; five rejection cases; previous ZIP preserved. Evidence: $testRoot"
