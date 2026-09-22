@@ -59,10 +59,7 @@ function clamp_label_x(
 
 export function resolve_marker_label_collisions(
   views: readonly MarkerView[],
-  compact = false,
-  visual_density = 1,
 ): MarkerView[] {
-  const spacing_scale = compact ? 0.45 * visual_density : 1;
   const adjusted_label_y_by_key = new Map<CDFMarker["key"], number>();
   const adjusted_sorted_views: MarkerView[] = [];
 
@@ -74,10 +71,10 @@ export function resolve_marker_label_collisions(
 
       if (previous_view) {
         const is_neighboring =
-          Math.abs(view.x - previous_view.x) < 152 * spacing_scale &&
-          Math.abs(label_y - previous_view.label_y) < 32 * spacing_scale;
+          Math.abs(view.x - previous_view.x) < 152 &&
+          Math.abs(label_y - previous_view.label_y) < 32;
         if (is_neighboring) {
-          label_y += index % 2 === 0 ? 24 * spacing_scale : -24 * spacing_scale;
+          label_y += index % 2 === 0 ? 24 : -24;
         }
       }
 
@@ -96,8 +93,6 @@ export function build_marker_views(
   plot_area: ChartPlotArea | undefined,
   x_scale: ScaleFunction | undefined,
   y_scale: ScaleFunction | undefined,
-  compact = false,
-  visual_density = 1,
 ): MarkerView[] {
   if (!plot_area || !x_scale || !y_scale) {
     return [];
@@ -114,7 +109,6 @@ export function build_marker_views(
   const p50 = markers.find((marker) => marker.key === "P50");
   const mean = markers.find((marker) => marker.key === "MEAN");
   const p50_is_greater_than_mean = (p50?.draw ?? 0) > (mean?.draw ?? 0);
-  const spacing_scale = compact ? 0.45 * visual_density : 1;
 
   const views = markers.flatMap((marker) => {
     const x = x_scale(marker.draw);
@@ -125,14 +119,14 @@ export function build_marker_views(
       return [];
     }
 
-    let label_x = x - 16 * spacing_scale;
-    let label_y = y - 20 * spacing_scale;
+    let label_x = x - 16;
+    let label_y = y - 20;
     let text_anchor: MarkerView["text_anchor"] = "end";
     let dominant_baseline: MarkerView["dominant_baseline"] = "auto";
     let label_text = marker.label;
 
     if (marker.key === "MEAN") {
-      label_x = x - 28 * spacing_scale;
+      label_x = x - 28;
       label_y = y;
       text_anchor = "end";
       dominant_baseline = p50_is_greater_than_mean
@@ -142,15 +136,15 @@ export function build_marker_views(
     }
 
     if (marker.key === "MAX") {
-      label_x = x - 24 * spacing_scale;
-      label_y = y - 20 * spacing_scale;
+      label_x = x - 24;
+      label_y = y - 20;
       text_anchor = "end";
       dominant_baseline = "text-after-edge";
       label_text = "MAX ";
     }
 
     if (marker.key === "P50") {
-      label_x = x - 28 * spacing_scale;
+      label_x = x - 28;
       label_y = y;
       text_anchor = "end";
       dominant_baseline = p50_is_greater_than_mean
@@ -171,18 +165,16 @@ export function build_marker_views(
     };
   });
 
-  return resolve_marker_label_collisions(views, compact, visual_density).map(
-    (view) => ({
-      ...view,
-      label_x: clamp_label_x(
-        view.label_x,
-        view.text_anchor,
-        view.label_text,
-        plot_box,
-      ),
-      label_y: clamp(view.label_y, 48, plot_box.bottom - 16),
-    }),
-  );
+  return resolve_marker_label_collisions(views).map((view) => ({
+    ...view,
+    label_x: clamp_label_x(
+      view.label_x,
+      view.text_anchor,
+      view.label_text,
+      plot_box,
+    ),
+    label_y: clamp(view.label_y, 48, plot_box.bottom - 16),
+  }));
 }
 
 export function build_curve_path(

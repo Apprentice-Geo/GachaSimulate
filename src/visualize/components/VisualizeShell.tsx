@@ -7,6 +7,7 @@ import { ReplayButton } from "./ReplayButton";
 import { StatisticPanel } from "./StatisticPanel";
 import { TerminationBar } from "./TerminationBar";
 import { TopBar } from "./TopBar";
+import { SCENE_LAYOUT_STYLE } from "../view/scene_layout";
 
 interface VisualizeShellProps {
   data: CDFViewModel | null;
@@ -45,7 +46,7 @@ export function VisualizeShell({
       data-testid="visualize-root"
       data-load-state={load_state}
       data-animation-state={animation_state}
-      style={style}
+      style={{ ...SCENE_LAYOUT_STYLE, ...style }}
     >
       <TopBar data={data} animation_progress={animation_progress} />
 

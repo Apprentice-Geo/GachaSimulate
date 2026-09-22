@@ -175,6 +175,100 @@ async function assert_contained(page: Page, parent: string, child: string) {
   );
 }
 
+// Compare normalized geometry so every part of the preview must scale together.
+async function chart_geometry(page: Page) {
+  return page.locator(".cdf-chart-shell").evaluate((node) => {
+    const frame = node.getBoundingClientRect();
+    const selectors = [
+      ".recharts-xAxis .recharts-cartesian-axis-line",
+      ".recharts-yAxis .recharts-cartesian-axis-line",
+      ".axis-title",
+      ".y-axis-title",
+      '[data-marker-key="P50"] .marker-point',
+      '[data-marker-key="P50"] .marker-label',
+    ];
+    return {
+      ratio: frame.width / frame.height,
+      path: node.querySelector(".cdf-curve-path")!.getAttribute("d"),
+      ticks: [
+        ...node.querySelectorAll(".recharts-cartesian-axis-tick-value"),
+      ].map((tick) => tick.textContent),
+      parts: selectors.map((selector) => {
+        const part = node.querySelector(selector)!;
+        // SVG glyph bounds include font hinting at the final pixel size. Check
+        // the text anchor and font scale instead of its rasterized glyph box.
+        if (part instanceof SVGTextElement) {
+          const matrix = part.getScreenCTM()!;
+          const anchor = new DOMPoint(
+            Number(part.getAttribute("x")),
+            Number(part.getAttribute("y")),
+          ).matrixTransform(matrix);
+          const font_size = parseFloat(getComputedStyle(part).fontSize);
+          return [
+            (anchor.x - frame.x) / frame.width,
+            (anchor.y - frame.y) / frame.height,
+            (font_size * Math.hypot(matrix.a, matrix.b)) / frame.width,
+            (font_size * Math.hypot(matrix.c, matrix.d)) / frame.height,
+          ];
+        }
+        const rect = part.getBoundingClientRect();
+        return [
+          (rect.x - frame.x) / frame.width,
+          (rect.y - frame.y) / frame.height,
+          rect.width / frame.width,
+          rect.height / frame.height,
+        ];
+      }),
+    };
+  });
+}
+
+async function assert_preview_width(page: Page) {
+  await page.waitForFunction(() => {
+    const host = document.querySelector(".chart-preview")!;
+    const chart = host.querySelector(".cdf-chart-shell")!;
+    return (
+      Math.abs(
+        host.getBoundingClientRect().width -
+          chart.getBoundingClientRect().width,
+      ) < 0.1
+    );
+  });
+  const geometry = await page.locator(".result-cdf-chart").evaluate((node) => {
+    const style = getComputedStyle(node);
+    const host = node.querySelector(".chart-preview")!.getBoundingClientRect();
+    const chart = node
+      .querySelector(".cdf-chart-shell")!
+      .getBoundingClientRect();
+    return {
+      available:
+        node.clientWidth -
+        parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight),
+      width: host.width,
+      height: host.height,
+      chart_height: chart.height,
+      no_horizontal_scroll: node.scrollWidth <= node.clientWidth,
+    };
+  });
+  assert_pixel_equal(
+    geometry.width,
+    geometry.available,
+    "preview uses the content width",
+  );
+  assert_pixel_equal(
+    geometry.height,
+    geometry.width / 2,
+    "preview reserves its scaled height",
+  );
+  assert_pixel_equal(
+    geometry.chart_height,
+    geometry.height,
+    "chart fits its preview slot",
+  );
+  assert.ok(geometry.no_horizontal_scroll);
+}
+
 async function assert_scroll_owner(page: Page, selector: string) {
   const result = await page.locator(selector).evaluate((node) => {
     const heading = node.parentElement?.querySelector(".panel-heading");
@@ -681,6 +775,83 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     await page.locator('[data-testid="result-cdf-preview"] circle').count(),
   );
 
+  await assert_vertical_fill(
+    page,
+    ".result-cdf-preview",
+    ".result-cdf-preview .panel-heading",
+    ".result-cdf-chart",
+  );
+  await assert_preview_width(page);
+  const preview_geometry = await chart_geometry(page);
+  assert.ok(Math.abs(preview_geometry.ratio - 2) < 0.00001);
+
+  // Container-only resizing must work without a window resize event.
+  await page.locator(".result-cdf-chart").evaluate((node) => {
+    (node as HTMLElement).style.width = "75%";
+  });
+  await assert_preview_width(page);
+  const narrowed_geometry = await chart_geometry(page);
+  assert.deepEqual(narrowed_geometry.ticks, preview_geometry.ticks);
+  assert.equal(narrowed_geometry.path, preview_geometry.path);
+  for (let i = 0; i < preview_geometry.parts.length; i++) {
+    for (let j = 0; j < 4; j++) {
+      assert.ok(
+        Math.abs(narrowed_geometry.parts[i][j] - preview_geometry.parts[i][j]) <
+          0.0001,
+        `part ${i} coordinate ${j}: ${JSON.stringify({ before: preview_geometry.parts[i], after: narrowed_geometry.parts[i] })}`,
+      );
+    }
+  }
+  await page.locator(".result-cdf-chart").evaluate((node) => {
+    (node as HTMLElement).style.removeProperty("width");
+  });
+  await assert_preview_width(page);
+
+  // Populate additional preview slots to exercise the stack and scroll owner.
+  await page.locator(".result-cdf-chart").evaluate((node) => {
+    const first = node.firstElementChild!;
+    for (let i = 0; i < 3; i++) node.append(first.cloneNode(true));
+  });
+  const slots = await page.locator(".chart-preview").evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const rect = node.getBoundingClientRect();
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+      };
+    }),
+  );
+  for (let i = 1; i < slots.length; i++) {
+    assert.ok(
+      slots[i].top > slots[i - 1].bottom,
+      "preview slots stack with a gap",
+    );
+    assert_pixel_equal(
+      slots[i].left,
+      slots[0].left,
+      "preview slots align left",
+    );
+    assert_pixel_equal(
+      slots[i].width,
+      slots[0].width,
+      "preview slots share available width",
+    );
+  }
+  assert.equal(
+    await page
+      .locator(".result-cdf-chart")
+      .evaluate((node) => node.scrollHeight > node.clientHeight),
+    true,
+  );
+  await assert_scroll_owner(page, ".result-cdf-chart");
+  await assert_preview_width(page);
+  await capture_layout(page, "editor-stacked-previews");
+  await page.locator(".result-cdf-chart").evaluate((node) => {
+    while (node.children.length > 1) node.lastElementChild!.remove();
+  });
+
   await page.getByRole("button", { name: "结果可视化" }).click();
   const visualization = page.locator('[data-testid="visualize-root"]');
   await visualization.waitFor();
@@ -721,6 +892,44 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     axis_tick_text.some((text) => text.includes("抽")),
     false,
   );
+  const scene_geometry = await chart_geometry(page);
+  assert.equal(scene_geometry.path, preview_geometry.path);
+  assert.deepEqual(scene_geometry.ticks, preview_geometry.ticks);
+  for (let i = 0; i < preview_geometry.parts.length; i++) {
+    for (let j = 0; j < 4; j++) {
+      assert.ok(
+        Math.abs(scene_geometry.parts[i][j] - preview_geometry.parts[i][j]) <
+          0.0001,
+        `preview part ${i} coordinate ${j} matches the formal chart: ${JSON.stringify({ preview: preview_geometry.parts[i], scene: scene_geometry.parts[i] })}`,
+      );
+    }
+  }
+  const design_regions = await page.evaluate(() => {
+    const selectors = [
+      ".chart-region",
+      ".cdf-chart-shell",
+      ".termination-region",
+      ".statistic-panel",
+    ];
+    return selectors.map((selector) => {
+      const node = document.querySelector(selector) as HTMLElement;
+      return {
+        width: node.offsetWidth,
+        height: node.offsetHeight,
+        left: node.getBoundingClientRect().left,
+      };
+    });
+  });
+  assert.deepEqual(
+    design_regions.map(({ width, height }) => [width, height]),
+    [
+      [2800, 1400],
+      [2800, 1400],
+      [2800, 280],
+      [716, 1720],
+    ],
+  );
+  assert.equal(design_regions[0].left, design_regions[2].left);
   const visualize_contract = await page.evaluate(() => {
     const viewport = document.querySelector(".visualize-viewport");
     const root = document.querySelector('[data-testid="visualize-root"]');

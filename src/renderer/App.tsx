@@ -29,6 +29,8 @@ import {
 import VisualizeApp from "../visualize/App";
 import { ANIMATION_TOTAL_MS } from "../visualize/animation/timeline";
 import { build_animation_progress } from "../visualize/animation/progress";
+import { ChartPreview } from "../visualize/components/ChartPreview";
+import { CDF_CHART_SIZE } from "../visualize/view/scene_layout";
 import { CDFChart } from "../visualize/components/CDFChart";
 import { ResultValue } from "../visualize/components/ResultValue";
 import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
@@ -476,18 +478,6 @@ function ResultEditorPage({
   state: ResultEditorState | null;
   on_state: (state: ResultEditorState) => void;
 }) {
-  const [visual_density, set_visual_density] = useState(1);
-  useEffect(() => {
-    const update = () =>
-      set_visual_density(
-        parseFloat(
-          getComputedStyle(document.querySelector(".renderer-shell")!).fontSize,
-        ) / 16,
-      );
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
   const [fields, set_fields] = useState<DisplayFields | null>(null);
   const [status, set_status] = useState("请选择 GSR 文件。");
   const [loading, set_loading] = useState(false);
@@ -686,12 +676,13 @@ function ResultEditorPage({
               </div>
             </div>
             <div className="result-cdf-chart">
-              <CDFChart
-                animation_progress={preview_animation}
-                visual_density={visual_density}
-                compact
-                data={preview_data}
-              />
+              <ChartPreview size={CDF_CHART_SIZE}>
+                <CDFChart
+                  size={CDF_CHART_SIZE}
+                  animation_progress={preview_animation}
+                  data={preview_data}
+                />
+              </ChartPreview>
             </div>
           </aside>
         </div>

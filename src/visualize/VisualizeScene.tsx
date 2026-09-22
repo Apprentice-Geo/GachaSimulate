@@ -4,11 +4,7 @@ import type { AnimationProgress } from "./animation/progress";
 import { CDFChart } from "./components/CDFChart";
 import { VisualizeShell } from "./components/VisualizeShell";
 import type { CDFViewModel } from "./types/cdf";
-
-const EXPORT_CHART_SIZE = {
-  width: 2816,
-  height: 1400,
-} as const;
+import { CDF_CHART_SIZE } from "./view/scene_layout";
 
 interface VisualizeSceneProps {
   data: CDFViewModel;
@@ -43,9 +39,9 @@ export function VisualizeScene({
       animation_state={animation_state}
       chart_slot={
         <CDFChart
+          size={CDF_CHART_SIZE}
           animation_progress={animation_progress}
           data={data}
-          fixed_size={is_export ? EXPORT_CHART_SIZE : undefined}
           style={fade_style(animation_progress.chart_shell)}
         />
       }

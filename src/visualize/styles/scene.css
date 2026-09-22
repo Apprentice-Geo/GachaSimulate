@@ -71,12 +71,12 @@
 }
 
 .visualize-page {
+  --canvas-border-width: 2px;
   background:
     linear-gradient(90deg, rgba(118, 185, 0, 0.045) 1px, transparent 1px),
     linear-gradient(180deg, rgba(247, 243, 255, 0.035) 1px, transparent 1px),
     var(--color-canvas);
   background-size: 96px 96px;
-  border: 2px solid var(--color-hairline);
   color: var(--color-text-primary);
   font-family: var(--font-ui);
   font-weight: 400;
@@ -84,7 +84,9 @@
   height: var(--canvas-height);
   flex-shrink: 0;
   overflow: visible;
-  padding: var(--page-top-margin) var(--page-margin) 56px;
+  padding: calc(var(--page-top-margin) + var(--canvas-border-width))
+    calc(var(--page-margin) + var(--canvas-border-width))
+    calc(56px + var(--canvas-border-width));
   position: relative;
   box-shadow: inset 0 2px 0 rgba(247, 243, 255, 0.04);
   width: var(--canvas-width);
@@ -103,6 +105,7 @@
 }
 
 .visualize-page::after {
+  border: var(--canvas-border-width) solid var(--color-hairline);
   background-image: radial-gradient(var(--color-stardust) 1px, transparent 1px);
   background-size: 96px 96px;
   content: "";
@@ -121,7 +124,7 @@
 
 .top-bar-inner {
   display: grid;
-  grid-template-columns: minmax(0, 80fr) minmax(0, 20fr);
+  grid-template-columns: var(--chart-width) minmax(0, 1fr);
   gap: 64px;
   align-items: stretch;
 }
@@ -215,8 +218,8 @@
   display: grid;
   gap: 64px;
   /* CDF区域宽度:核心统计量区域宽度 */
-  grid-template-columns: minmax(0, 80fr) minmax(0, 20fr);
-  height: calc(var(--main-height) + 40px + var(--footer-height) - 120px);
+  grid-template-columns: var(--chart-width) minmax(0, 1fr);
+  height: calc(var(--chart-height) + 40px + var(--footer-height));
   position: relative;
   z-index: 1;
 }
@@ -224,7 +227,7 @@
 .primary-region {
   display: grid;
   gap: 40px;
-  grid-template-rows: minmax(0, 1fr) var(--footer-height);
+  grid-template-rows: var(--chart-height) var(--footer-height);
   height: 100%;
   min-height: 0;
   min-width: 0;
@@ -276,45 +279,35 @@
 
 .cdf-chart-shell {
   animation: none;
+  border: none;
   height: 100%;
   overflow: hidden;
   position: relative;
 }
 
-.cdf-chart-shell-compact {
-  aspect-ratio: 16 / 10;
-  border-width: 1px;
-  height: auto;
-  min-height: calc(240px * var(--cdf-density, 1));
+/* Decorative borders must not change plot geometry when the host is scaled. */
+.cdf-chart-shell::after {
+  border: 2px solid var(--color-hairline);
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
 }
 
-.cdf-chart-shell-compact .y-axis-title,
-.cdf-chart-shell-compact .axis-title {
-  font-size: calc(14px * var(--cdf-density, 1));
+.chart-preview {
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
 }
 
-.cdf-chart-shell-compact .recharts-cartesian-axis-tick-value {
-  font-size: calc(12px * var(--cdf-density, 1)) !important;
-}
-
-.cdf-chart-shell-compact .marker-label {
-  font-size: var(--marker-label-font-size);
-  stroke-width: var(--marker-label-stroke-width);
-}
-
-.cdf-chart-shell-compact .cdf-curve-path {
-  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.32));
-  stroke-width: 2px;
-}
-
-.cdf-chart-shell-compact .marker-line,
-.cdf-chart-shell-compact .mean-horizontal-line {
-  stroke-dasharray: 4 6;
-}
-
-.cdf-chart-shell.cdf-chart-shell-compact::before {
-  height: 8px;
-  width: 8px;
+.chart-preview-content {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: top left;
 }
 
 .cdf-chart-shell::before {
@@ -351,22 +344,18 @@
   font-weight: 500;
 }
 
-.y-axis-title {
-  color: var(--color-text-muted);
-  fill: var(--color-text-muted);
-  left: 0px;
-  letter-spacing: 0.2px;
-  /* 脱离正常布局，相对于父元素定位 */
+.cdf-axis-titles {
+  inset: 0;
+  pointer-events: none;
   position: absolute;
-  /* 元素顶部移动到父元素高度的 50% 位置 */
-  top: 50%;
-  /* 向上移动自身高度的一半 旋转-90度 */
-  transform: translateY(-50%) rotate(-90deg);
-  transform-origin: center;
-  white-space: nowrap;
+  z-index: 2;
+}
+
+.y-axis-title {
+  fill: var(--color-text-muted);
+  letter-spacing: 0.2px;
   font-size: 40px;
   font-weight: 500;
-  z-index: 2;
 }
 
 .cdf-chart-shell .recharts-wrapper {

@@ -1384,6 +1384,9 @@ button:focus-visible {
 }
 
 .result-cdf-chart {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--desktop-unit) * 16);
   flex: 1;
   overflow-y: auto;
   min-height: 0;
