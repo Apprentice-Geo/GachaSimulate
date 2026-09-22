@@ -62,29 +62,22 @@ export function VisualizeShell({
                   on_replay={on_replay}
                 />
                 {on_export && (
-                  <>
-                    <button
-                      aria-describedby={
-                        export_disabled_reason
-                          ? "export-disabled-reason"
-                          : undefined
-                      }
-                      aria-disabled={Boolean(export_disabled_reason)}
-                      className="command-button"
-                      type="button"
-                      onClick={() => {
-                        if (!export_disabled_reason) on_export();
-                      }}
-                    >
-                      <Download aria-hidden="true" size={18} />
-                      <span>导出素材</span>
-                    </button>
-                    {export_disabled_reason && (
-                      <span className="sr-only" id="export-disabled-reason">
-                        {export_disabled_reason}
-                      </span>
-                    )}
-                  </>
+                  <button
+                    aria-label={
+                      export_disabled_reason
+                        ? `导出素材：${export_disabled_reason}`
+                        : undefined
+                    }
+                    aria-disabled={Boolean(export_disabled_reason)}
+                    className="command-button"
+                    type="button"
+                    onClick={() => {
+                      if (!export_disabled_reason) on_export();
+                    }}
+                  >
+                    <Download aria-hidden="true" size={18} />
+                    <span>导出素材</span>
+                  </button>
                 )}
                 {on_select_file && (
                   <button

@@ -319,7 +319,10 @@ export function SimulationPage({ active }: { active: boolean }) {
                   />
                 </Field>
                 <Field>
-                  随机种子
+                  <span className="field-heading">
+                    <span>随机种子</span>
+                    <span className="field-hint">整数</span>
+                  </span>
                   <input
                     className="field-control"
                     disabled={busy}
@@ -330,8 +333,10 @@ export function SimulationPage({ active }: { active: boolean }) {
                   />
                 </Field>
                 <Field>
-                  线程数{" "}
-                  <span className="field-hint">1–{logical_cpu_count}</span>
+                  <span className="field-heading">
+                    <span>线程数</span>
+                    <span className="field-hint">1–{logical_cpu_count}</span>
+                  </span>
                   <input
                     className="field-control"
                     disabled={busy}

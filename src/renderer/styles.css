@@ -796,6 +796,12 @@
     color: var(--workbench-text-faint);
   }
 
+  .field-heading {
+    align-items: baseline;
+    display: flex;
+    justify-content: space-between;
+  }
+
   .output-item {
     border-left: 2px solid var(--workbench-data);
     display: grid;
