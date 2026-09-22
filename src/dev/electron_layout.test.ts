@@ -479,6 +479,13 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   const selection_before = await simulation.boundingBox();
   const search = page.getByRole("searchbox", { name: "搜索统计物品" });
   await search.fill("item_79");
+  const search_focus = await search.evaluate((node) => ({
+    inner: getComputedStyle(node).outlineStyle,
+    outer: getComputedStyle(node.parentElement!).outlineStyle,
+  }));
+  assert.equal(search_focus.inner, "none", "search has no second focus ring");
+  assert.equal(search_focus.outer, "solid", "search wrapper indicates focus");
+  await capture_layout(page, "search-focus");
   await page.waitForFunction(
     () => document.querySelectorAll(".simulation-item").length === 1,
   );
@@ -562,7 +569,7 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     assert.ok(summary_boxes[i].x >= summary_boxes[i - 1].right);
   }
   const field_boxes = await page
-    .locator(".result-editor-fields input")
+    .locator(".result-editor-fields textarea")
     .evaluateAll((nodes) =>
       nodes.map((node) => {
         const r = node.getBoundingClientRect();
@@ -593,6 +600,54 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     "editor workbench fills space above save status",
   );
   await capture_layout(page, "editor");
+  const note = page.getByLabel("说明", { exact: true });
+  const original_note = await note.inputValue();
+  await note.focus();
+  const focus_geometry = await note.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return {
+      style: style.outlineStyle,
+      extent: parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset),
+      gap: parseFloat(
+        getComputedStyle(node.closest(".result-editor-fields")!)
+          .paddingInlineEnd,
+      ),
+    };
+  });
+  assert.equal(focus_geometry.style, "solid");
+  assert.ok(focus_geometry.extent <= 0, "field focus stays within its border");
+  assert.ok(focus_geometry.gap > 0, "fields leave space beside the scrollbar");
+  const short_height = (await note.boundingBox())!.height;
+  const long_note = "长说明文本用于验证自动换行与高度调整。".repeat(100);
+  await note.fill(long_note);
+  const long_geometry = await note.evaluate((node) => ({
+    height: node.getBoundingClientRect().height,
+    scrollHeight: node.scrollHeight,
+    clientHeight: node.clientHeight,
+    scrollWidth: node.scrollWidth,
+    clientWidth: node.clientWidth,
+  }));
+  assert.ok(long_geometry.height > short_height, "long text grows the field");
+  assert.ok(
+    long_geometry.scrollHeight > long_geometry.clientHeight,
+    "very long text scrolls within the bounded field",
+  );
+  assert.ok(
+    long_geometry.scrollWidth <= long_geometry.clientWidth,
+    "long text wraps without horizontal clipping",
+  );
+  assert.equal(
+    await note.inputValue(),
+    long_note,
+    "soft wrapping preserves text",
+  );
+  await capture_layout(page, "editor-long-text");
+  await note.fill(original_note);
+  assert_pixel_equal(
+    (await note.boundingBox())!.height,
+    short_height,
+    "field shrinks when long text is removed",
+  );
   const scroll = page.locator(".result-editor-fields");
   const heading = page.getByRole("heading", { name: "可视化文案" });
   const summary_before = await page

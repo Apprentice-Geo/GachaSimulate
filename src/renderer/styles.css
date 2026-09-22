@@ -292,10 +292,16 @@ body {
   font: inherit;
 }
 
-button:focus-visible,
-.renderer-placeholder :is(input, select, textarea):focus-visible {
+button:focus-visible {
   outline: 2px solid var(--color-cyan);
   outline-offset: 2px;
+}
+
+.renderer-placeholder :is(input, select, textarea):focus-visible,
+.export-name-field input:focus-visible {
+  border-color: var(--color-cyan);
+  outline: 2px solid var(--color-cyan);
+  outline-offset: -2px;
 }
 
 .renderer-sidebar button,
@@ -435,6 +441,7 @@ button:focus-visible,
   scrollbar-color: rgba(247, 243, 255, 0.2) transparent;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
+  padding-inline-end: calc(var(--desktop-unit) * 10);
 }
 
 :is(
@@ -707,6 +714,12 @@ button:focus-visible,
 
 .item-search:focus-within {
   border-color: var(--color-cyan);
+  outline: 2px solid var(--color-cyan);
+  outline-offset: -2px;
+}
+
+.renderer-placeholder .item-search input:focus-visible {
+  outline: none;
 }
 
 .item-search input {
@@ -1303,6 +1316,16 @@ button:focus-visible,
 
 .result-editor-form .panel-heading {
   margin-bottom: calc(var(--desktop-unit) * 14);
+}
+
+.result-editor-form textarea {
+  field-sizing: content;
+  max-height: calc(var(--desktop-unit) * 160);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  resize: none;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 
 .result-editor-summary {

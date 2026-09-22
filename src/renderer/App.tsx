@@ -572,29 +572,18 @@ function ResultEditorPage({
       return fields_ref.current;
     });
 
-  const field = (
-    key: keyof DisplayFields,
-    label: string,
-    multiline = false,
-    class_name = "",
-  ) => (
+  const field = (key: keyof DisplayFields, label: string, class_name = "") => (
     <label className={class_name}>
       {label}
-      {multiline ? (
-        <textarea
-          disabled={loading}
-          value={fields?.[key] ?? ""}
-          onBlur={save}
-          onChange={(event) => change_field(key, event.target.value)}
-        />
-      ) : (
-        <input
-          disabled={loading}
-          value={fields?.[key] ?? ""}
-          onBlur={save}
-          onChange={(event) => change_field(key, event.target.value)}
-        />
-      )}
+      <textarea
+        aria-label={label}
+        rows={1}
+        wrap="soft"
+        disabled={loading}
+        value={fields?.[key] ?? ""}
+        onBlur={save}
+        onChange={(event) => change_field(key, event.target.value)}
+      />
     </label>
   );
 
@@ -677,12 +666,11 @@ function ResultEditorPage({
               {field("title", "标题")}
               {field("target", "目标")}
               {field("result_item_name", "统计物品展示名称")}
-              {field("note", "说明", false, "result-note")}
-              {field("subtitle", "副标题", false, "result-subtitle")}
+              {field("note", "说明", "result-note")}
+              {field("subtitle", "副标题", "result-subtitle")}
               {field(
                 "result_item_unit",
                 "统计物品展示单位",
-                false,
                 "result-item-unit",
               )}
             </div>
