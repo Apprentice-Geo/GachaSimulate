@@ -12,6 +12,11 @@ import {
 import type { ConfigRepositoryState } from "../shared/installed_config";
 import { emulate_viewport } from "./electron_viewport";
 import { result_fixture, simulation_fixture } from "./ui_fixtures";
+import {
+  assert_style_boundaries,
+  chart_style,
+  assert_export_style,
+} from "./ui_style_contract";
 
 const PROJECT_ROOT = process.cwd();
 
@@ -783,6 +788,7 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   );
   await assert_preview_width(page);
   const preview_geometry = await chart_geometry(page);
+  const preview_style = await assert_style_boundaries(page);
   assert.ok(Math.abs(preview_geometry.ratio - 2) < 0.00001);
 
   // Container-only resizing must work without a window resize event.
@@ -893,6 +899,12 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     false,
   );
   const scene_geometry = await chart_geometry(page);
+  assert.equal(
+    await page.locator(".visualize-viewport.visualize-scope").count(),
+    1,
+  );
+  assert.deepEqual(await chart_style(page), preview_style);
+  await assert_export_style(application, preview_style);
   assert.equal(scene_geometry.path, preview_geometry.path);
   assert.deepEqual(scene_geometry.ticks, preview_geometry.ticks);
   for (let i = 0; i < preview_geometry.parts.length; i++) {

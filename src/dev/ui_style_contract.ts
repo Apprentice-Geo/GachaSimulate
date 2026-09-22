@@ -1,0 +1,206 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import type { ElectronApplication, Page } from "playwright";
+import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
+import { result_fixture } from "./ui_fixtures";
+import path from "node:path";
+
+/** Compare design-space paint and typography, independently of host scaling. */
+export async function chart_style(page: Page) {
+  return page.locator(".cdf-chart-shell").evaluate((chart) => {
+    const selectors = [
+      ":scope",
+      ".axis-title",
+      ".recharts-cartesian-axis-tick-value",
+      ".cdf-curve-path",
+      ".marker-label",
+      ".marker-line",
+      ".marker-point",
+    ];
+    const properties = [
+      "color",
+      "background-color",
+      "font-family",
+      "font-size",
+      "font-weight",
+      "line-height",
+      "letter-spacing",
+      "fill",
+      "stroke",
+      "stroke-width",
+      "stroke-dasharray",
+      "filter",
+    ];
+    return selectors.map((selector) => {
+      const nodes =
+        selector === ":scope" ? [chart] : [...chart.querySelectorAll(selector)];
+      if (!nodes.length) throw new Error(`Missing chart element: ${selector}`);
+      return nodes.map((node) => {
+        const style = getComputedStyle(node);
+        return properties.map((property) => style.getPropertyValue(property));
+      });
+    });
+  });
+}
+
+export async function assert_style_boundaries(page: Page) {
+  const names = ["tokens", "scene", "preview"];
+  const sources = await Promise.all(
+    names.map((name) => readFile(`src/visualize/styles/${name}.css`, "utf8")),
+  );
+  const violations = await page.evaluate((sources) => {
+    const failures: string[] = [];
+    for (const source of sources) {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(source);
+      const rules = [...sheet.cssRules];
+      for (const rule of rules) {
+        if (rule instanceof CSSKeyframesRule) continue;
+        if (rule instanceof CSSMediaRule) {
+          rules.push(...rule.cssRules);
+          continue;
+        }
+        if (
+          !(rule instanceof CSSStyleRule) ||
+          rule.selectorText
+            .split(",")
+            .some(
+              (selector) =>
+                !/^(?:\.visualize-scope|:where\(\.visualize-scope\))/.test(
+                  selector.trim(),
+                ),
+            )
+        )
+          failures.push(rule.cssText);
+      }
+    }
+    return failures;
+  }, sources);
+  assert.deepEqual(violations, [], "Visualization rules must be scoped");
+  const workbench = await readFile("src/renderer/styles.css", "utf8");
+  const tokens = await readFile("src/renderer/tokens.css", "utf8");
+  assert.doesNotMatch(
+    workbench + tokens,
+    /var\(--(?:color-|font-|radius-|canvas-)/,
+  );
+
+  assert.equal(await page.locator(".chart-preview.visualize-scope").count(), 1);
+  const before = await chart_style(page);
+  const navigation_style = () =>
+    page
+      .locator(".renderer-nav-button")
+      .first()
+      .evaluate((node) => {
+        const style = getComputedStyle(node);
+        return [style.color, style.fontFamily, style.backgroundColor];
+      });
+  const navigation_before = await navigation_style();
+  // Apply a visibly different Workbench theme. The embedded chart must not inherit it.
+  await page.locator(".workbench-host").evaluate((node) => {
+    (node as HTMLElement).style.setProperty("--workbench-font-ui", "serif");
+    (node as HTMLElement).style.setProperty(
+      "--workbench-text-muted",
+      "rgb(255, 0, 0)",
+    );
+    (node as HTMLElement).style.setProperty(
+      "--workbench-surface",
+      "rgb(0, 255, 0)",
+    );
+  });
+  try {
+    assert.notDeepEqual(await navigation_style(), navigation_before);
+    assert.deepEqual(await chart_style(page), before);
+  } finally {
+    await page.locator(".workbench-host").evaluate((node) => {
+      for (const token of ["font-ui", "text-muted", "surface"])
+        (node as HTMLElement).style.removeProperty(`--workbench-${token}`);
+    });
+  }
+  await page.locator(".chart-preview").evaluate((node) => {
+    (node as HTMLElement).style.setProperty(
+      "--color-text-muted",
+      "rgb(255, 0, 0)",
+    );
+    (node as HTMLElement).style.setProperty("--font-mono", "serif");
+  });
+  try {
+    assert.notDeepEqual(await chart_style(page), before);
+    assert.deepEqual(await navigation_style(), navigation_before);
+  } finally {
+    await page.locator(".chart-preview").evaluate((node) => {
+      (node as HTMLElement).style.removeProperty("--color-text-muted");
+      (node as HTMLElement).style.removeProperty("--font-mono");
+    });
+  }
+  // A class collision inside the island must not acquire Workbench panel borders.
+  const border = await page.locator(".chart-preview").evaluate((node) => {
+    const probe = document.createElement("div");
+    probe.className = "panel-heading";
+    node.append(probe);
+    const border = getComputedStyle(probe).borderBottomWidth;
+    probe.remove();
+    return border;
+  });
+  assert.equal(border, "0px");
+  return before;
+}
+
+export async function assert_export_style(
+  application: ElectronApplication,
+  expected: Awaited<ReturnType<typeof chart_style>>,
+) {
+  const fixture = result_fixture();
+  const view_model = build_cdf_view_model(fixture.analysis!, fixture.display!);
+  const window_id = await application.evaluate(
+    async ({ BrowserWindow }, input) => {
+      const window = new BrowserWindow({
+        show: false,
+        width: 3840,
+        height: 2160,
+        useContentSize: true,
+        webPreferences: {
+          preload: input.preload,
+          offscreen: true,
+          backgroundThrottling: false,
+        },
+      });
+      await window.loadFile(input.html);
+      window.webContents.send("export-renderer:initialize", {
+        job_id: "style-contract",
+        view_model: input.view_model,
+      });
+      return window.id;
+    },
+    {
+      preload: path.resolve("out/preload/export.js"),
+      html: path.resolve("out/renderer/export.html"),
+      view_model,
+    },
+  );
+  try {
+    const page = (await application.windows()).find((page) =>
+      page.url().endsWith("/export.html"),
+    );
+    assert.ok(page);
+    await page.locator(".cdf-chart-shell").waitFor();
+    await page.evaluate(() => document.fonts.ready);
+    assert.equal(await page.locator("body.visualize-scope > #root").count(), 1);
+    assert.deepEqual(await chart_style(page), expected);
+    assert.deepEqual(
+      await page.evaluate(() => [
+        document.body.clientWidth,
+        document.body.clientHeight,
+        document.body.scrollWidth,
+        document.body.scrollHeight,
+        document.documentElement.scrollWidth,
+        document.documentElement.scrollHeight,
+      ]),
+      [3840, 2160, 3840, 2160, 3840, 2160],
+    );
+  } finally {
+    await application.evaluate(
+      ({ BrowserWindow }, id) => BrowserWindow.fromId(id)?.destroy(),
+      window_id,
+    );
+  }
+}

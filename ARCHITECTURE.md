@@ -64,7 +64,7 @@ Analysis 和 DisplayConfig 不能绕过各自校验直接进入视图模型。�
 - `view/`：展示模型、统计配置和与画面有关的布局计算；CDF、marker、统计分组与布局计算不得散入组件。
 - `components/`：共享画面与交互组件，保持偏渲染。
 - `animation/`：交互展示和逐帧导出共用的时间轴与进度计算。
-- `styles/`：共享设计 token、画面样式和宿主外壳样式，设计原则见 [UI Design](docs/UI_DESIGN.md)。
+- `styles/`：受 `.visualize-scope` 限定的共享设计 token 与画面样式，`index.css` 为桌面与导出共用入口，`preview.css` 提供交互宿主适配。ResultEditor CDF Preview、正式页面和导出根宿主建立相同 scope；Workbench token 独立位于 `src/renderer/tokens.css`，样式匹配在 Visualization 边界停止。全局字体资源与 reset 位于 `src/styles/foundation.css`，设计原则见 [UI Design](docs/UI_DESIGN.md)。
 - `types/`：Analysis、DisplayConfig 和 CDF view model 的静态类型。
 
 定位实现时优先搜索 `Analysis`、`DisplayConfig`、`build_cdf_view_model` 和 `VisualizeScene`。Electron 接入只提供输入并承载共享画面，不复制输入校验、视图模型或导出逻辑。

@@ -26,7 +26,7 @@ function update_scale(viewport: HTMLElement) {
   // zoom, while always rounding inward so fractional hosts cannot overflow.
   const scale_steps = CANVAS_WIDTH * 4;
   const scale = Math.floor(available_scale * scale_steps) / scale_steps;
-  document.documentElement.style.setProperty("--page-scale", String(scale));
+  viewport.style.setProperty("--page-scale", String(scale));
 }
 
 export function use_page_scale(viewport_ref: RefObject<HTMLElement | null>) {

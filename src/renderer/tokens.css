@@ -1,0 +1,20 @@
+.workbench-host {
+  --workbench-bg: #171124;
+  --workbench-surface: #1b142b;
+  --workbench-surface-muted: #211936;
+  --workbench-border: #362d59;
+  --workbench-border-strong: #51436f;
+  --workbench-text: #f7f3ff;
+  --workbench-text-muted: rgba(247, 243, 255, 0.68);
+  --workbench-text-faint: rgba(247, 243, 255, 0.54);
+  --workbench-accent: #76b900;
+  --workbench-data: #22d3ee;
+  --workbench-on-accent: #120d1f;
+  --workbench-danger: #e52020;
+  --workbench-warning: #ef9100;
+  --workbench-font-ui: SourceHanSansSC, "Segoe UI", sans-serif;
+  --workbench-font-mono: "JetBrains Mono", SourceHanSansSC, monospace;
+  --workbench-radius-button: 2px;
+  --desktop-font: clamp(18px, calc(9px + 0.703125vw), 27px);
+  --desktop-unit: calc(clamp(16px, calc(8px + 0.625vw), 24px) / 16 * 1.15);
+}

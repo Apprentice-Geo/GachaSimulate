@@ -9,154 +9,31 @@
 * 为后续 Workbench 独立 redesign 建立稳定基础。
 * 保留当前 CDF、导出画面和布局行为。
 
-## 1. 分离全局 CSS
+## 已完成：阶段 1、2
 
-**问题**
+### 阶段 1：CSS 加载边界、双方 token 与三宿主 scope
 
-`src/renderer/main.tsx` 当前直接导入：
+- 新增 `src/styles/foundation.css`，集中字体资源、box-sizing、基础 reset 与控件字体继承。
+- 新增 `src/renderer/tokens.css`，Workbench 改用自身语义 token，保持当前色值与尺寸；原先隐式继承的面板标题样式归入 Workbench。
+- `src/visualize/styles/index.css` 为桌面和导出共用入口；共享 token 与画面规则限定在 `.visualize-scope`。交互 viewport 样式单独按宿主加载。
+- 正式页面 viewport、ResultEditor ChartPreview、导出 HTML body 均建立相同 scope；继续共享 CDFChart 与适用的 VisualizeScene。预览仅负责等比缩小，字体基线由 Visualization 自己提供。
+- Workbench 使用 `@scope (.workbench-host) to (.visualize-scope)` 阻止规则进入可视化子树。广泛 selector 和 `!important` 的进一步清理仍属于阶段 3。
+- 页面缩放变量改为由 viewport 持有；导出宿主继续独立负责 3840×2160 与无滚动，body 可直接读取自己的 Visualization token。
 
-* `visualize/styles/tokens.css`
-* `visualize/styles/preview.css`
-* `visualize/styles/scene.css`
+### 阶段 2：设计参考作用域
 
-其中 Visualization CSS 包含 `body`、`#root`、表单控件、`*` 等全局规则，Workbench 实际依赖 Visualization 样式。
+- 更新 `docs/UI_DESIGN.md`：NVIDIA/Sentry 仅约束 Visualization、CDF、Statistics、Termination、Export Frame，包括编辑器 CDF Preview。
+- Workbench 导航、表单、配置仓库与编辑器外壳可独立调整视觉；保留通用布局、scroll owner、可访问性、状态反馈、最小窗口与导出一致性约束。
+- 同步 `ARCHITECTURE.md` 的共享样式入口、foundation 和宿主边界。
 
-**修改**
+### 本轮验收
 
-* 新增 `src/styles/foundation.css`。
-* 将真正全局且与视觉风格无关的规则移动到其中：
-
-  * `@font-face`
-  * `box-sizing`
-  * 基础 margin/reset
-  * 必要的字体继承
-* 建立明确的 Visualization 样式入口，由桌面 Renderer 和 Export Renderer 按宿主需要加载。
-* 桌面 Renderer 同时承载 ResultEditor CDF Preview 和正式可视化页面，因此允许在入口加载带作用域的 Visualization CSS；隔离依赖明确的 style scope，不依赖 CSS import 位于哪个组件。
-* Export Renderer 继续加载同一套 Visualization token 和画面样式。
-
-**意图**
-
-让 Workbench 不依赖 Visualization CSS，后续修改任一侧不会污染另一侧。
-
----
-
-## 2. 拆分 Design Token
-
-**问题**
-
-Workbench 当前直接使用：
-
-* `--color-nvidia-green`
-* `--color-cyan`
-* `--color-panel`
-* `--color-canvas`
-* Visualization 字体、颜色和圆角 token
-
-导致视觉风格与 NVIDIA/Sentry 参考绑定。
-
-**修改**
-
-拆成三层：
-
-```text
-foundation.css
-renderer/tokens.css
-visualize/styles/tokens.css
-```
-
-Workbench 定义自己的语义 token，例如：
-
-```text
---workbench-bg
---workbench-surface
---workbench-surface-muted
---workbench-border
---workbench-text
---workbench-text-muted
---workbench-accent
---workbench-danger
-```
-
-本轮允许这些 token 暂时映射到现有颜色，避免视觉变化。
-
-Visualization token 由统一的 `.visualize-scope` 提供，ResultEditor CDF Preview、正式可视化页面和 Export Renderer 从同一作用域继承，不分别维护颜色、字体、线宽、marker 或画布规格。Export Renderer 的根宿主直接带有 Visualization scope；宿主尺寸和 overflow 规则不反向依赖 React 子树中的变量。
-
-**意图**
-
-以后更换 Workbench 风格只修改 Workbench token，不影响 CDF 和导出素材。
-
----
-
-## 3. 限定 NVIDIA / Sentry Design Reference 的作用域
-
-**问题**
-
-`UI_DESIGN.md` 当前仍规定：
-
-> 桌面与导出共享视觉语言
-
-两个 DESIGN 文档仍然被描述为整个项目的视觉参考。
-
-**修改**
-
-调整 `UI_DESIGN.md`：
-
-* NVIDIA/Sentry reference 仅适用于：
-
-  * Result Visualization
-  * CDF
-  * Statistics
-  * Termination
-  * Export Frame
-* Workbench 不受两个 DESIGN 文档视觉规则约束。
-* 明确 ResultEditor CDF Preview、Result Visualization 和 Export Frame 共用同一套 Visualization 视觉设计；Workbench 的导航、表单、配置仓库和编辑器外壳不受该视觉参考约束。
-* 保留现有通用规则：
-
-  * 布局
-  * scroll owner
-  * accessibility
-  * 状态反馈
-  * 最小窗口
-  * 导出一致性
-* 删除“桌面与导出共享视觉语言”等耦合表述。
-
-**意图**
-
-防止后续 Codex 根据文档再次把 Workbench 改回 Visualization 风格。
-
----
-
-## 4. 给 Visualization 建立明确 Style Scope
-
-**问题**
-
-Visualization CSS 中存在大量全局 selector。
-
-例如：
-
-```css
-body
-#root
-button
-input
-select
-textarea
-*
-```
-
-**修改**
-
-* Visualization token 和视觉规则统一约束在 `.visualize-scope` 下；`.visualize-page` 只表示完整结果画布，不作为所有共享 CDF 样式的唯一祖先。
-* `VisualizeApp`、ResultEditor 的 CDF Preview、Export Renderer 使用相同 Visualization scope、同一个 `CDFChart` 和同一份 CDF 视觉规则。
-* Preview 只负责按宿主可用空间等比例缩小共享 CDF 设计坐标，不提供独立的颜色、字体、刻度、marker 或 compact 样式。
-* 正式可视化页面与 Export Renderer 复用同一个 `VisualizeScene`；二者只在宿主缩放、固定尺寸、overflow 和交互控件上存在差异。
-* Export Renderer 的根节点直接建立 Visualization scope，并由 export host 负责 3840×2160 尺寸与无滚动约束，避免外层 `body` 读取只能从内层 scope 获得的 token。
-* 全局 CSS 只保留 foundation 中真正需要全局生效的内容。
-* Workbench CSS 同样不得通过裸元素或通用组件 selector 命中 Visualization 子树；除 foundation reset 外，Workbench 页面和 primitive 使用明确的 Workbench class。
-
-**意图**
-
-把 Visualization 变成可嵌入 Workbench 的独立 UI Island。
+- 保留原有四尺寸布局与交互断言，新增 CSS scope 结构检查、Workbench token 独立性、双向换色/换字体隔离、同名 class 隔离检查。
+- 比较 ResultEditor Preview、正式页面与真实 Export Renderer 的 CDF 字体、颜色、线宽、marker 样式；验证导出根 scope 与固定画布无滚动。原有测试继续覆盖预览/正式图表几何和 CSS/TS 画布规格一致。
+- 验收通过：`test:electron-layout` 四尺寸（1280×720、1600×900、2560×900、2560×1440）；`test:visualize:cdf` 20 项；`test:electron-export` 39 项；`test:simulation` 46 项；typecheck、lint、format:check、普通 build。
+- 真实 ExportHost 集成通过：PNG/MP4、逐帧连续性、终态一致性、取消、FFmpeg/renderer 故障与退出清理；已恢复无探针生产构建。
+- 已查看大小窗口编辑器与正式结果画面截图，产物位于 `tmp/ui-captures/`。Markdown 链接检查使用独立临时 Git 索引纳入新文件后通过，实际暂存区未改变。
+- 未删除、放宽或跳过既有测试，无保留失败项。阶段 3–8 的后续开发尚未执行。
 
 ---
 
@@ -422,8 +299,8 @@ desktop-unit * 14
 
 | 阶段 | 修改                                        |
 | -- | ----------------------------------------- |
-| 1  | `foundation.css`、CSS 加载边界、双方 token 分离与 Visualization scope；作为一个可验证步骤完成三宿主接入 |
-| 2  | 修改 `UI_DESIGN.md` 作用域与三宿主共享视觉约束                                                  |
+| 1（已完成） | `foundation.css`、CSS 加载边界、双方 token 分离与 Visualization scope；作为一个可验证步骤完成三宿主接入 |
+| 2（已完成） | 修改 `UI_DESIGN.md` 作用域与三宿主共享视觉约束                                                  |
 | 3  | 清理 Workbench `!important`、宽泛 selector 和对 Visualization 子树的反向污染                      |
 | 4  | 建立 Button / Field；按真实重复决定其它 primitive                                               |
 | 5  | 拆分 `App.tsx`                                                                                |

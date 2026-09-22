@@ -6,15 +6,15 @@
 
 ## 设计目标与审美原则
 
-UI 面向配置、运行模拟与分析结果，采用深色数据监控台方向。信息密度服务于比较和阅读：通过分区、对齐、文字层级和稳定的空间分配组织内容，避免把所有信息同时提升为视觉重点。
+UI 面向配置、运行模拟与分析结果。信息密度服务于比较和阅读：通过分区、对齐、文字层级和稳定的空间分配组织内容，避免把所有信息同时提升为视觉重点。Workbench 的导航、表单、配置仓库和编辑器外壳拥有独立视觉边界，当前保留原有外观，后续可独立调整。
 
-视觉语言强调精确、硬朗和克制。细边框、小圆角与小方形节点建立结构，低对比背景和纹理提供层次。装饰、网格与动效应让位于信息，不向营销页、游戏 HUD 或高装饰性画面发展。
+Visualization 采用深色数据监控台方向，强调精确、硬朗和克制。细边框、小圆角与小方形节点建立结构，低对比背景和纹理提供层次。装饰、网格与动效应让位于信息，不向营销页、游戏 HUD 或高装饰性画面发展。
 
-工作页面以任务操作和状态为中心；结果画面以 CDF 曲线为主视觉信号，统计指标和终止原因用于补充解释。桌面与导出共享视觉语言，布局分别服从工作空间和结果画布的用途。
+工作页面以任务操作和状态为中心；结果画面以 CDF 曲线为主视觉信号，统计指标和终止原因用于补充解释。ResultEditor CDF Preview、正式结果可视化与 Export Frame 共用同一套 Visualization 视觉设计，布局分别服从预览宿主和结果画布的用途。
 
 ## 设计参考与取舍
 
-项目保留两份第三方设计分析资料，作为视觉参考：
+项目保留两份第三方设计分析资料，仅作为 Result Visualization、CDF、Statistics、Termination 和 Export Frame 的视觉参考。ResultEditor 内嵌 CDF Preview 同样遵循这些参考；Workbench 的导航、表单、配置仓库和编辑器外壳不受其视觉规则约束：
 
 | 参考 | 本项目采用的方向 | 适用边界 |
 | --- | --- | --- |
@@ -25,11 +25,11 @@ UI 面向配置、运行模拟与分析结果，采用深色数据监控台方�
 
 参考资料来源与版权声明集中记录在 [Third-party notices](../THIRD_PARTY_NOTICES.md)，许可证正文见 [awesome-design-md MIT License](../third_party/licenses/awesome-design-md-MIT.txt)。字体授权同样由第三方声明索引，本文不重复维护许可证正文。
 
-## 视觉语言
+## Visualization 视觉语言
 
 ### 表面与颜色
 
-桌面与导出共享紫黑底色、细边框和小方形节点的仪器台视觉语言。面板通过表面色与边界区分层级，背景纹理保持低对比，不干扰正文和图表。
+三个 Visualization 宿主共享紫黑底色、细边框和小方形节点的仪器台视觉语言。面板通过表面色与边界区分层级，背景纹理保持低对比，不干扰正文和图表。
 
 颜色按职责使用：
 
@@ -39,11 +39,13 @@ UI 面向配置、运行模拟与分析结果，采用深色数据监控台方�
 - 分位 marker 的颜色和视觉权重表达分位位置及尾部风险。
 - 终止原因颜色只表示原因之间的对应关系，不表达好坏，不沿用分位 marker 的风险含义。
 
-共享颜色、字体和画布 token 由 [`tokens.css`](../src/visualize/styles/tokens.css) 管理。具体色值、间距和组件尺寸不在本文维护第二份清单。
+共享颜色、字体和画布 token 由 [Visualization tokens](../src/visualize/styles/tokens.css) 管理，统一限定在 `.visualize-scope`。三个宿主加载同一 [Visualization 样式入口](../src/visualize/styles/index.css)，Preview 仅按可用空间缩小共享 CDF 设计坐标，不独立维护颜色、字体、刻度、marker 或 compact 样式。正式页面与导出复用 `VisualizeScene`，仅宿主适配和交互控件不同。
+
+Workbench 使用独立的 [Workbench tokens](../src/renderer/tokens.css)，不引用 Visualization presentation token；[Workbench 样式](../src/renderer/styles.css) 的 scope 在 `.visualize-scope` 边界停止匹配。[foundation](../src/styles/foundation.css) 只提供字体资源、box-sizing、基础 reset 和控件字体继承。CSS import 的组件位置不提供隔离保证。Export HTML 的 body 直接建立 Visualization scope，导出宿主独立负责固定尺寸与无滚动约束，不从 React 子树反向读取变量。具体色值、间距和组件尺寸不在本文维护第二份清单。
 
 ### 字体与数值排版
 
-中文使用思源黑体 Regular、Medium、Bold，数字与标识符使用 JetBrains Mono Regular、SemiBold，关闭编程连字。数字字体由共享 token 管理，桌面与导出使用相同字体资源。
+Visualization 中文使用思源黑体 Regular、Medium、Bold，数字与标识符使用 JetBrains Mono Regular、SemiBold，关闭编程连字。数字字体由 Visualization token 管理，三个宿主使用相同字体资源。Workbench 当前复用这些字体资源，但由自己的 token 决定字体选择。
 
 单位继续使用思源黑体，并降低字号与字重，使数值保持主要阅读权重。正文、说明与统计数字的层级通过字号、字重和文字色共同建立，不以整段强调色替代层级。
 
@@ -104,7 +106,7 @@ CDF 曲线、坐标、marker 和统计指标组成同一套阅读层级。网格
 
 ## 维护与验证入口
 
-修改 UI 时，先确认影响的是全局视觉语言、桌面布局还是结果画布。修改共享 token、字体或画布规格时，同时检查桌面展示与导出结果；新增状态也应保持相同的信息层级与交互原则。
+修改 UI 时，先确认影响的是 foundation、Workbench 还是 Visualization。布局、滚动所有者、可访问性、状态反馈和最小窗口约束继续适用于桌面界面。修改 Visualization token、字体或画布规格时，同时检查编辑器预览、正式可视化与导出结果；新增状态也应保持相同的信息层级与交互原则。
 
 模块职责、共享场景和动画实现边界由 [Architecture](../ARCHITECTURE.md#可视化与导出) 维护。输入结构分别由 [Analysis JSON](ANALYSIS.md) 与 [DisplayConfig](DISPLAY_CONFIG.md) 维护，组件不自行解释或扩展契约。
 

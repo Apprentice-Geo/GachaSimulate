@@ -115,7 +115,7 @@ export default function App({
         : undefined;
 
   return (
-    <div className="visualize-viewport" ref={viewport_ref}>
+    <div className="visualize-scope visualize-viewport" ref={viewport_ref}>
       {load_state === "ready" && data ? (
         <VisualizeScene
           animation_progress={animation_progress}

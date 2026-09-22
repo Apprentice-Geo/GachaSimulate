@@ -13,7 +13,7 @@ export function ChartPreview({ size, children }: ChartPreviewProps) {
 
   return (
     <div
-      className="chart-preview"
+      className="visualize-scope chart-preview"
       ref={host_ref}
       style={{ height: size.height * scale }}
     >

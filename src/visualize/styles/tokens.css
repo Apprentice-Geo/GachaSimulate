@@ -1,4 +1,4 @@
-:root {
+.visualize-scope {
   --canvas-width: 3840px;
   --canvas-height: 2160px;
   --page-margin: 128px;
@@ -51,4 +51,30 @@
   --radius-card: 2px;
   --radius-button: 2px;
   --color-stardust: rgba(247, 243, 255, 0.025);
+}
+
+.visualize-scope {
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 400;
+  font-style: normal;
+  line-height: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  font-variant-ligatures: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.visualize-scope button {
+  cursor: pointer;
+}
+
+.visualize-scope button:disabled {
+  cursor: not-allowed;
+}
+
+.visualize-scope button:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 2px;
 }
