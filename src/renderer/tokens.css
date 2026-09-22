@@ -17,4 +17,17 @@
   --workbench-radius-button: 2px;
   --desktop-font: clamp(18px, calc(9px + 0.703125vw), 27px);
   --desktop-unit: calc(clamp(16px, calc(8px + 0.625vw), 24px) / 16 * 1.15);
+
+  /* Common Workbench spacing; specialized layout geometry stays local. */
+  --workbench-space-xs: calc(var(--desktop-unit) * 7);
+  --workbench-space-sm: calc(var(--desktop-unit) * 10);
+  --workbench-space-md: calc(var(--desktop-unit) * 14);
+  --workbench-space-lg: calc(var(--desktop-unit) * 24);
+  --workbench-control-height: calc(var(--desktop-unit) * 38);
+
+  --workbench-font-caption: calc(var(--desktop-unit) * 12);
+  --workbench-font-meta: calc(var(--desktop-unit) * 13);
+  --workbench-font-content: calc(var(--desktop-unit) * 15);
+  --workbench-font-body: var(--desktop-font);
+  --workbench-font-heading: calc(var(--desktop-unit) * 20);
 }

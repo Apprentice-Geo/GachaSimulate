@@ -83,50 +83,26 @@
 - 验收通过：`test:electron-layout` 四尺寸（1280×720、1600×900、2560×900、2560×1440）；`test:simulation` 46 项、`test:visualize:cdf` 20 项、`test:electron-export` 39 项；typecheck、lint、format:check、Markdown 链接与普通 production build。
 - 已查看大小窗口结果编辑器及模拟、仓库截图，产物位于 `tmp/ui-captures/`；没有保留失败项，未删除、放宽或跳过既有测试。
 - 本轮未改导出宿主、编码链路或共享场景，未重跑 PNG/MP4 的完整 ExportHost 集成；真实 Export Renderer 的样式一致性由布局测试继续验证。
-- 阶段 7、8 尚未执行；本轮按影响范围验收，不代表阶段 8 的全量开发验收。
+- 以上为阶段 5、6 的验收记录；阶段 7、8 的全量开发验收见下文。
 
 ---
 
-## 9. 补齐 Workbench 基础尺寸 Token
+## 已完成：阶段 7、8
 
-**问题**
+### 阶段 7（已完成）：补齐常用尺寸语义
 
-`styles.css` 中存在大量：
+- 在 Workbench 自有 token 中新增四档 spacing、控件高度与 caption / meta / content / body / heading 字号，继续沿用现有响应式单位和数值。
+- 仅迁移重复的间距、文字层级和按钮尺寸；保留特殊间距、Sidebar、图标和 CDF 等专用几何规格，没有机械统一全部尺寸。
+- 保持 Workbench 前缀和 Visualization scope 边界，未改变颜色、布局与 CDF 设计。
 
-```text
-desktop-unit * 7
-desktop-unit * 9
-desktop-unit * 13
-desktop-unit * 14
-...
-```
+### 阶段 8（已完成）：全量开发验收
 
-目前约 44 种不同尺寸值。
-
-**修改**
-
-本轮不机械替换全部尺寸。
-
-先建立常用语义：
-
-```text
---space-xs
---space-sm
---space-md
---space-lg
---control-height
---font-caption
---font-body
---font-heading
-```
-
-仅替换明显重复的规格。
-
-保留特殊布局尺寸，例如 CDF 画布、Sidebar 几何约束等。
-
-**意图**
-
-限制后续继续产生任意尺寸，不为了“统一”制造大规模无意义 diff。
+- 四尺寸 `test:electron-layout` 全部通过（1280×720、1600×900、2560×900、2560×1440），保留 scroll owner、外层无滚动、仓库 7:3、ResultEditor、预览几何、双向样式隔离、三宿主 CDF 一致性和导出交互检查。
+- 单测全部通过：`test:packages` 30 项、`test:simulation` 46 项、`test:visualize:cdf` 20 项、`test:electron-export` 39 项；typecheck、lint、format:check、Markdown 链接与普通 production build 通过。
+- 强制执行真实 ExportHost 集成并通过：PNG/MP4、逐帧连续性、终态一致性、取消、FFmpeg/renderer 故障与退出清理；已恢复无探针生产构建。
+- `capture:ui` 全部场景执行成功，已查看大小窗口模拟、编辑器、仓库及正式可视化和六种导出状态截图，产物位于 `tmp/ui-captures/`。
+- 首轮单测因沙箱禁止创建子进程而报 `spawn EPERM`，获准在沙箱外重跑后全部通过。没有保留失败项，未修改、删除、放宽或跳过既有测试。
+- 本轮验收范围为前端重构的布局、可视化、导出、Node 单测与构建；未改 C++ 或发布打包，未执行 C++ 全量检查及 NSIS 打包验收。
 
 ---
 
@@ -181,8 +157,8 @@ desktop-unit * 14
 | 4（已完成） | 建立 Button / Field；按真实重复决定其它 primitive                                               |
 | 5（已完成） | 拆分 `App.tsx`                                                                                |
 | 6（已完成） | 清理 ResultEditor 非预览内容的跨层依赖                                                            |
-| 7  | 补基础 spacing / typography token                                                              |
-| 8  | 全量布局、可视化、导出、单测和构建验证，并按测试与验收决策处理失败                                      |
+| 7（已完成） | 补基础 spacing / typography token                                                              |
+| 8（已完成） | 全量布局、可视化、导出、单测和构建验证，并按测试与验收决策处理失败                                      |
 
 ## 本轮明确不做
 
