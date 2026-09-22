@@ -18,7 +18,7 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 - `cpp/`：Runtime 执行 IR；同层还包含 GSR 编解码、统计、core、analyzer 和 benchmark。
 - `src/main/`：受信任的 Electron 宿主；`SimulationTask` 管理 core 与模拟产物，`ResultEditor` 管理 analyzer、带身份的结果会话与导出快照，`ExportTaskCoordinator` 管理导出 reservation、main-owned 目录选择、目标文件身份、最近任务目录授权和统一准入，内部 `ExportHost` 管理隐藏导出窗口、CDP 截图、FFmpeg、逐产物安全提交与可重试的残留资源清理。
 - `src/preload/`：main 与桌面 renderer、隐藏导出 renderer 之间相互隔离的固定 IPC 桥。
-- `src/renderer/`：桌面界面与任务状态，不直接访问 Node.js。
+- `src/renderer/`：桌面界面与任务状态，不直接访问 Node.js。`App.tsx` 管理顶层 Shell、页面切换、结果会话与 ExportWorkflow；`pages/` 分别承载模拟、结果编辑和配置仓库页面，保留各页业务状态与 IPC 调用。结果编辑的普通摘要由 Workbench 渲染，只有 CDF 预览使用 Visualization 画面组件。
 - `src/export-renderer/`：只消费 CDF view model 与逐帧消息的隐藏 Electron renderer；不访问桌面 preload API、文件系统或子进程。
 - `src/visualize/`：平台无关的 Analysis/DisplayConfig 校验、CDF 视图模型和共享场景。
 - `test-fixtures/configs/`：主仓库测试与语义 fixture；`benchmark/cases/`：独立 benchmark 配置。

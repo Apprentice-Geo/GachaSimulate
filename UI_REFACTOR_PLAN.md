@@ -60,86 +60,30 @@
 - 真实 ExportHost 集成通过：PNG/MP4、逐帧连续性、终态一致性、取消、FFmpeg/renderer 故障与退出清理；结束后已恢复无探针生产构建。
 - 已查看大小窗口模拟/编辑器/仓库及六种导出交互状态截图，产物保存在 `tmp/ui-captures/`。
 - 首轮发现的标题 class 迁移遗漏已修复；新增检查的浏览器回调序列化问题已修复。最终无保留失败项，未删除、放宽或跳过既有测试。
-- 阶段 5–8 尚未执行；本轮相关检查不代表已完成阶段 8 的全量开发验收。
+- 以上为阶段 3、4 的验收记录；后续阶段状态见下文。
 
 ---
 
-## 7. 拆分 `App.tsx`
+## 已完成：阶段 5、6
 
-**问题**
+### 阶段 5：拆分 App.tsx
 
-当前约 1040 行，同时包含：
+- 将 SimulationPage、ResultEditorPage、ConfigRepositoryPage 及各自状态和辅助常量迁入 `src/renderer/pages/`。
+- App 仅保留导航、顶层 Shell、Result Session、Visualization 接入和 ExportWorkflow；保持模拟页常驻、其它页面按导航挂载的原有生命周期，以及现有 IPC 与保存队列行为。
 
-* `SimulationPage`
-* `ResultEditorPage`
-* `ConfigRepositoryPage`
-* `App`
+### 阶段 6：收紧 ResultEditor → Visualization 依赖
 
-页面修改范围过大。
+- 普通结果摘要移除 Visualization 的 ResultValue，使用已校验视图模型中的数值进行本地化显示，并由 Workbench 自己渲染单位及管理样式。
+- CDF Preview 继续共享 ChartPreview、CDFChart、CDF view model 和动画终态，不改图表视觉与设计坐标。
+- 同步 Architecture 的页面职责和预览边界。
 
-**修改**
+### 本轮验收
 
-拆成：
-
-```text
-renderer/
-├── App.tsx
-├── pages/
-│   ├── SimulationPage.tsx
-│   ├── ResultEditorPage.tsx
-│   └── ConfigRepositoryPage.tsx
-```
-
-`App.tsx` 只负责：
-
-* 页面切换
-* Result Session
-* ExportWorkflow
-* 顶层 Shell
-
-不修改现有业务状态和 IPC 行为。
-
-**意图**
-
-降低页面间代码耦合和后续 AI 修改的上下文范围。
-
----
-
-## 8. 收紧 ResultEditor → Visualization 依赖
-
-**问题**
-
-两类依赖混在一起：
-
-合理：
-
-```text
-ResultEditor → ChartPreview → CDFChart
-```
-
-不必要：
-
-```text
-Workbench summary → ResultValue
-```
-
-普通 Workbench 内容因此依赖 Visualization DOM/CSS。
-
-**修改**
-
-保留：
-
-* `ChartPreview`
-* `CDFChart`
-* CDF view model
-
-移除普通 Workbench UI 对 Visualization presentation component 的依赖。
-
-例如 ResultEditor summary 自己格式化 value/unit，或抽取纯共享数据格式化函数。
-
-**意图**
-
-只让“可视化预览”跨越 Workbench / Visualization 边界。
+- 保留既有四尺寸布局、scroll owner、仓库 7:3、预览几何、双向主题隔离、三宿主 CDF 样式一致性与导出交互断言；新增结果摘要单位编辑、清空和恢复时的数值文本检查。
+- 验收通过：`test:electron-layout` 四尺寸（1280×720、1600×900、2560×900、2560×1440）；`test:simulation` 46 项、`test:visualize:cdf` 20 项、`test:electron-export` 39 项；typecheck、lint、format:check、Markdown 链接与普通 production build。
+- 已查看大小窗口结果编辑器及模拟、仓库截图，产物位于 `tmp/ui-captures/`；没有保留失败项，未删除、放宽或跳过既有测试。
+- 本轮未改导出宿主、编码链路或共享场景，未重跑 PNG/MP4 的完整 ExportHost 集成；真实 Export Renderer 的样式一致性由布局测试继续验证。
+- 阶段 7、8 尚未执行；本轮按影响范围验收，不代表阶段 8 的全量开发验收。
 
 ---
 
@@ -235,8 +179,8 @@ desktop-unit * 14
 | 2（已完成） | 修改 `UI_DESIGN.md` 作用域与三宿主共享视觉约束                                                  |
 | 3（已完成） | 清理 Workbench `!important`、宽泛 selector 和对 Visualization 子树的反向污染                      |
 | 4（已完成） | 建立 Button / Field；按真实重复决定其它 primitive                                               |
-| 5  | 拆分 `App.tsx`                                                                                |
-| 6  | 清理 ResultEditor 非预览内容的跨层依赖                                                            |
+| 5（已完成） | 拆分 `App.tsx`                                                                                |
+| 6（已完成） | 清理 ResultEditor 非预览内容的跨层依赖                                                            |
 | 7  | 补基础 spacing / typography token                                                              |
 | 8  | 全量布局、可视化、导出、单测和构建验证，并按测试与验收决策处理失败                                      |
 

@@ -1340,7 +1340,7 @@
     font-weight: 400;
   }
 
-  .result-editor-summary small {
+  .result-editor-summary-unit {
     color: var(--workbench-text-muted);
     font-family: var(--workbench-font-ui);
     font-size: 0.65em;

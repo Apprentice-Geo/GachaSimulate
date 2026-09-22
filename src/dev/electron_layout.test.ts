@@ -651,6 +651,20 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     await page.locator(".result-editor-summary code").textContent(),
     result_fixture().analysis.result_item.id,
   );
+  const total_summary = page.locator(".result-editor-summary dd").nth(2);
+  const total_number = Number(
+    result_fixture().analysis.totals.result,
+  ).toLocaleString("zh-CN");
+  const unit_input = page.getByLabel("统计物品展示单位", { exact: true });
+  const original_unit = await unit_input.inputValue();
+  for (const unit of ["", "份 / 次", original_unit]) {
+    await unit_input.fill(unit);
+    assert.equal(
+      await total_summary.textContent(),
+      total_number + (unit ? ` ${unit}` : ""),
+      "Workbench summary preserves the value and reflects unit edits",
+    );
+  }
   const summary_boxes = await page
     .locator(".result-editor-summary > div")
     .evaluateAll((nodes) =>
