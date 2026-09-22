@@ -1,7 +1,8 @@
-import { FilePenLine, FolderOpen } from "lucide-react";
+import { FilePenLine } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "../components/Button";
 import { Field } from "../components/Field";
+import { ResultLoadPanel } from "../components/ResultLoadPanel";
 import type {
   DisplayFields,
   ResultEditorState,
@@ -21,7 +22,7 @@ export function ResultEditorPage({
   on_state: (state: ResultEditorState) => void;
 }) {
   const [fields, set_fields] = useState<DisplayFields | null>(null);
-  const [status, set_status] = useState("请选择 GSR 文件。");
+  const [status, set_status] = useState<string | undefined>();
   const [loading, set_loading] = useState(false);
   const [saving, set_saving] = useState(false);
   const [error, set_error] = useState<string | null>(null);
@@ -121,21 +122,16 @@ export function ResultEditorPage({
   );
 
   return (
-    <section
-      className="renderer-placeholder result-editor"
-      aria-labelledby="result-title"
-    >
-      <header className="page-heading result-editor-header">
-        <div className="renderer-placeholder-mark" aria-hidden="true">
-          <FilePenLine size={20} />
-        </div>
-        <div>
-          <p className="renderer-eyebrow">GSR RESULT EDITOR</p>
-          <h1 className="page-title" id="result-title">
-            结果展示信息
-          </h1>
-        </div>
-        {state && (
+    <section className="renderer-placeholder result-editor">
+      {state && (
+        <header className="page-heading result-editor-header">
+          <div className="renderer-placeholder-mark" aria-hidden="true">
+            <FilePenLine size={20} />
+          </div>
+          <div>
+            <p className="renderer-eyebrow">GSR RESULT EDITOR</p>
+            <h1 className="page-title">结果展示信息</h1>
+          </div>
           <Button
             variant="secondary"
             type="button"
@@ -144,27 +140,16 @@ export function ResultEditorPage({
           >
             更换 GSR
           </Button>
-        )}
-      </header>
+        </header>
+      )}
       {!state && (
-        <div className="result-editor-empty">
-          <div className="instrument-panel result-editor-empty-panel">
-            <p className="panel-kicker">GSR WORKFLOW</p>
-            <h2>载入模拟结果</h2>
-            <p>
-              选择 GSR
-              文件并完成分析后，即可编辑标题、目标、说明、副标题和统计物品展示单位。
-            </p>
-            <Button
-              type="button"
-              disabled={loading || saving}
-              onClick={() => void select()}
-            >
-              <FolderOpen size={16} aria-hidden="true" />
-              选择 GSR
-            </Button>
-          </div>
-        </div>
+        <ResultLoadPanel
+          description="选择 GSR 文件并完成分析后，即可编辑标题、目标、说明、副标题和统计物品展示单位。"
+          loading={loading || saving}
+          error={error}
+          status={status}
+          on_select={() => void select()}
+        />
       )}
       {state && fields && preview_data && (
         <div className="result-editor-workbench">
@@ -234,10 +219,12 @@ export function ResultEditorPage({
           </aside>
         </div>
       )}
-      <p className="result-save-status" role="status">
-        {status}
-      </p>
-      {error && (
+      {state && (
+        <p className="result-save-status" role="status">
+          {status}
+        </p>
+      )}
+      {state && error && (
         <p className="simulation-error" role="alert">
           错误：{error}
         </p>

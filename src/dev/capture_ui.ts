@@ -23,6 +23,7 @@ const SCENARIOS = [
   "electron/config-repository",
   "electron/result-editor-empty",
   "electron/result-editor-loaded",
+  "electron/result-visualize-empty",
   "electron/result-visualize-loaded",
   "electron/result-export-format",
   "electron/result-export-overwrite",
@@ -223,6 +224,13 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
       scenario.startsWith("electron/result-"),
     );
     if (result_scenarios.length === 0) return;
+
+    if (scenarios.includes("electron/result-visualize-empty")) {
+      await page.getByRole("button", { name: "结果可视化" }).click();
+      await page.getByRole("button", { name: "选择 GSR" }).waitFor();
+      await screenshot(page, "electron/result-visualize-empty");
+      if (result_scenarios.length === 1) return;
+    }
 
     await page.getByRole("button", { name: "结果编辑" }).click();
     await page.locator("#simulation-title").waitFor({ state: "hidden" });

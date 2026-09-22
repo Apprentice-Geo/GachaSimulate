@@ -47,7 +47,6 @@ export function VisualizeScene({
       }
       data={data}
       is_animating={is_animating}
-      load_state="ready"
       on_select_file={on_select_file}
       on_replay={on_replay}
       on_export={on_export}

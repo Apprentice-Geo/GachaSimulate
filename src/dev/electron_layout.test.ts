@@ -597,18 +597,43 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   await search.fill("");
 
   await page.getByRole("button", { name: "结果可视化" }).click();
-  const unavailable_export = page.getByRole("button", { name: "导出素材" });
-  await unavailable_export.focus();
-  assert.equal(await unavailable_export.getAttribute("aria-disabled"), "true");
-  const reason_id = await unavailable_export.getAttribute("aria-describedby");
-  assert.ok(reason_id);
-  assert.equal(
-    await page.locator(`#${reason_id}`).textContent(),
-    "请先载入结果后再导出。",
-  );
+  await page.getByRole("button", { name: "选择 GSR" }).waitFor();
+  assert.equal(await page.getByRole("button", { name: "导出素材" }).count(), 0);
+  assert.equal(await page.getByRole("button", { name: "重放动画" }).count(), 0);
+  assert.equal(await page.locator(".main-region").count(), 0);
+  assert.equal(await page.locator(".visualize-scope").count(), 0);
+  assert.equal(await page.locator(".top-bar").count(), 0);
+  const visualize_load_style = await page
+    .locator(".result-load-panel")
+    .evaluate((node) => {
+      const style = getComputedStyle(node);
+      return [
+        style.backgroundColor,
+        style.borderTopColor,
+        style.color,
+        style.fontFamily,
+      ];
+    });
 
   await page.getByRole("button", { name: "结果编辑" }).click();
   await page.locator("#simulation-title").waitFor({ state: "hidden" });
+  assert.equal(
+    await page.getByRole("heading", { name: "结果展示信息" }).count(),
+    0,
+  );
+  assert.equal(await page.locator(".result-editor-header").count(), 0);
+  assert.deepEqual(
+    await page.locator(".result-load-panel").evaluate((node) => {
+      const style = getComputedStyle(node);
+      return [
+        style.backgroundColor,
+        style.borderTopColor,
+        style.color,
+        style.fontFamily,
+      ];
+    }),
+    visualize_load_style,
+  );
   await application.evaluate(({ ipcMain }, fixture) => {
     let calls = 0;
     ipcMain.removeHandler("select-gsr-result");
@@ -619,6 +644,7 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   await page.getByText("未选择文件。", { exact: true }).waitFor();
   await select.click();
   await page.getByRole("button", { name: "更换 GSR" }).waitFor();
+  await page.getByRole("heading", { name: "结果展示信息" }).waitFor();
   await page.getByLabel("副标题", { exact: true }).waitFor();
   await page.getByLabel("统计物品展示单位", { exact: true }).waitFor();
   await page.evaluate(() => document.fonts.ready);

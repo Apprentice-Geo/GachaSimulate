@@ -5,8 +5,8 @@ import { ExportWorkflow } from "./ExportWorkflow";
 import { SimulationPage } from "./pages/SimulationPage";
 import { ResultEditorPage } from "./pages/ResultEditorPage";
 import { ConfigRepositoryPage } from "./pages/ConfigRepositoryPage";
-import VisualizeApp from "../visualize/App";
 import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
+import { ResultVisualizePage } from "./pages/ResultVisualizePage";
 
 type Page =
   | "simulation"
@@ -107,11 +107,10 @@ export default function App() {
                   on_state={set_result_state}
                 />
               ) : active_page === "result-visualize" ? (
-                <VisualizeApp
+                <ResultVisualizePage
                   input={visualize_input}
                   on_select_result={select_result}
                   export_active={export_active}
-                  export_available={result_state !== null}
                   on_export={open_export}
                 />
               ) : active_page === "config-repository" ? (

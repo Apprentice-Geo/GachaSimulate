@@ -10,12 +10,11 @@ import { TopBar } from "./TopBar";
 import { SCENE_LAYOUT_STYLE } from "../view/scene_layout";
 
 interface VisualizeShellProps {
-  data: CDFViewModel | null;
-  animation_progress: AnimationProgress | null;
+  data: CDFViewModel;
+  animation_progress: AnimationProgress;
   animation_state: "playing" | "primed" | "idle";
   chart_slot: ReactNode;
   is_animating: boolean;
-  load_state: "idle" | "loading" | "error" | "ready";
   on_select_file?: () => void;
   on_replay?: () => void;
   on_export?: () => void;
@@ -30,7 +29,6 @@ export function VisualizeShell({
   animation_state,
   chart_slot,
   is_animating,
-  load_state,
   on_select_file,
   on_replay,
   on_export,
@@ -38,13 +36,11 @@ export function VisualizeShell({
   show_controls = true,
   style,
 }: VisualizeShellProps) {
-  const is_ready = load_state === "ready" && data !== null;
-
   return (
     <main
       className="visualize-page"
       data-testid="visualize-root"
-      data-load-state={load_state}
+      data-load-state="ready"
       data-animation-state={animation_state}
       style={{ ...SCENE_LAYOUT_STYLE, ...style }}
     >
@@ -57,7 +53,7 @@ export function VisualizeShell({
             {show_controls && on_replay && on_select_file && (
               <div className="chart-actions" aria-label="数据操作">
                 <ReplayButton
-                  disabled={!data}
+                  disabled={false}
                   is_animating={is_animating}
                   on_replay={on_replay}
                 />
@@ -79,29 +75,27 @@ export function VisualizeShell({
                     <span>导出素材</span>
                   </button>
                 )}
-                {on_select_file && (
-                  <button
-                    className="command-button"
-                    type="button"
-                    onClick={on_select_file}
-                  >
-                    <FolderOpen aria-hidden="true" size={18} />
-                    <span>选择结果</span>
-                  </button>
-                )}
+                <button
+                  className="command-button"
+                  type="button"
+                  onClick={on_select_file}
+                >
+                  <FolderOpen aria-hidden="true" size={18} />
+                  <span>选择结果</span>
+                </button>
               </div>
             )}
           </div>
           <TerminationBar
             animation_progress={animation_progress}
             data={data}
-            is_ready={is_ready}
+            is_ready
           />
         </div>
         <StatisticPanel
           animation_progress={animation_progress}
           data={data}
-          is_ready={is_ready}
+          is_ready
         />
       </section>
 
