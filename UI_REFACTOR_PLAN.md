@@ -17,7 +17,7 @@
 - 新增 `src/renderer/tokens.css`，Workbench 改用自身语义 token，保持当前色值与尺寸；原先隐式继承的面板标题样式归入 Workbench。
 - `src/visualize/styles/index.css` 为桌面和导出共用入口；共享 token 与画面规则限定在 `.visualize-scope`。交互 viewport 样式单独按宿主加载。
 - 正式页面 viewport、ResultEditor ChartPreview、导出 HTML body 均建立相同 scope；继续共享 CDFChart 与适用的 VisualizeScene。预览仅负责等比缩小，字体基线由 Visualization 自己提供。
-- Workbench 使用 `@scope (.workbench-host) to (.visualize-scope)` 阻止规则进入可视化子树。广泛 selector 和 `!important` 的进一步清理仍属于阶段 3。
+- Workbench 使用 `@scope (.workbench-host) to (.visualize-scope)` 阻止规则进入可视化子树。广泛 selector 和 `!important` 的进一步清理见已完成的阶段 3。
 - 页面缩放变量改为由 viewport 持有；导出宿主继续独立负责 3840×2160 与无滚动，body 可直接读取自己的 Visualization token。
 
 ### 阶段 2：设计参考作用域
@@ -33,102 +33,34 @@
 - 验收通过：`test:electron-layout` 四尺寸（1280×720、1600×900、2560×900、2560×1440）；`test:visualize:cdf` 20 项；`test:electron-export` 39 项；`test:simulation` 46 项；typecheck、lint、format:check、普通 build。
 - 真实 ExportHost 集成通过：PNG/MP4、逐帧连续性、终态一致性、取消、FFmpeg/renderer 故障与退出清理；已恢复无探针生产构建。
 - 已查看大小窗口编辑器与正式结果画面截图，产物位于 `tmp/ui-captures/`。Markdown 链接检查使用独立临时 Git 索引纳入新文件后通过，实际暂存区未改变。
-- 未删除、放宽或跳过既有测试，无保留失败项。阶段 3–8 的后续开发尚未执行。
+- 未删除、放宽或跳过既有测试，无保留失败项。以上为阶段 1、2 的验收记录；后续阶段状态见下文。
 
 ---
 
-## 5. 清理 Renderer 的 CSS Cascade 补丁
+## 已完成：阶段 3、4
 
-**问题**
+### 阶段 3：清理 Workbench CSS Cascade
 
-宽泛 selector 导致后续反向覆盖：
+- 普通表单、搜索框和物品选项分别使用明确 class，移除 label 布局的反向覆盖。
+- 页面标题、面板标题、面板状态、导出弹窗标题/操作区与进度文案改用语义 class；清理宽泛按钮 selector 和基于最后一个子节点的按钮配色。
+- Renderer 仅在 reduced-motion 规则中保留 `!important`；继续由 Workbench scope 阻断规则进入 Visualization 子树。
 
-```css
-.simulation-selection label { display: grid; }
-```
+### 阶段 4：最小 Workbench Primitive
 
-然后：
+- 新增 `src/renderer/components/Button.tsx` 与 `Field.tsx`；迁移模拟、结果编辑、配置仓库及桌面导出工作流中的重复按钮和字段。
+- Button 提供 primary / secondary / ghost / danger，显式区分默认、紧凑和行内尺寸，保留原生属性、ref、焦点与禁用行为；既有操作沿用原有配色。
+- Field 保留原生 label 与控件关联，控件通过明确 class 获取外观，保留失焦保存、数字输入及 textarea 自适应行为。
+- PageHeader / Panel / PanelHeader 保留语义 class；本轮没有足以支持额外组件化的重复行为，不扩展组件清单。
 
-```css
-.item-search { display: flex !important; }
-.simulation-item { display: block !important; }
-```
+### 本轮验收
 
-类似问题还存在于 `.panel-heading > span` 和 `.status-badge`。
-
-**修改**
-
-改为明确 class：
-
-```text
-.field
-.search-field
-.simulation-item
-.panel-status
-```
-
-避免通过 HTML 标签统一设置结构。
-
-删除非必要 `!important`。
-
-**验收目标**
-
-Renderer 中除 reduced-motion 等特殊规则外，不使用 `!important`。
-
-**意图**
-
-停止形成“规则 → 覆盖 → 再覆盖”的 CSS 补丁链。
-
----
-
-## 6. 建立最小 Workbench Primitive
-
-**问题**
-
-Button、Header、Panel 等样式由所在页面决定。
-
-例如：
-
-```css
-.simulation-actions button,
-.repository-header button,
-.repository-source-heading button,
-...
-```
-
-以及：
-
-```css
-.simulation-actions button:last-child
-```
-
-决定 secondary 样式。
-
-**修改**
-
-只建立当前有明确重复结构、样式或行为的 primitive。
-
-```text
-Button
-Field
-```
-
-Button 至少提供：
-
-```text
-primary
-secondary
-ghost
-danger
-```
-
-使用显式 variant/class，不通过父容器和 `:last-child` 判断。
-
-`PageHeader`、`Panel`、`PanelHeader` 先使用明确的语义 class；仅当迁移时能够消除真实重复 DOM、行为或可访问性实现，才抽取为 React 组件，不把完成组件清单作为本轮目标。
-
-**意图**
-
-组件外观由自身语义决定，而不是 DOM 位置决定。
+- 保留全部既有四尺寸布局、scroll owner、仓库 7:3、预览几何、双向主题隔离和三宿主 CDF 一致性检查。
+- 新增真实浏览器检查：除 reduced-motion 外无 important 声明；四种按钮 variant 不受页面祖先或兄弟顺序影响，禁用反馈与原生按钮类型保持有效，Field 保留 label 关联。
+- 验收通过：四尺寸 `test:electron-layout`（1280×720、1600×900、2560×900、2560×1440）、`test:simulation`、`test:visualize:cdf`、`test:electron-export`、typecheck、lint、format:check、Markdown 链接和普通 build。
+- 真实 ExportHost 集成通过：PNG/MP4、逐帧连续性、终态一致性、取消、FFmpeg/renderer 故障与退出清理；结束后已恢复无探针生产构建。
+- 已查看大小窗口模拟/编辑器/仓库及六种导出交互状态截图，产物保存在 `tmp/ui-captures/`。
+- 首轮发现的标题 class 迁移遗漏已修复；新增检查的浏览器回调序列化问题已修复。最终无保留失败项，未删除、放宽或跳过既有测试。
+- 阶段 5–8 尚未执行；本轮相关检查不代表已完成阶段 8 的全量开发验收。
 
 ---
 
@@ -301,8 +233,8 @@ desktop-unit * 14
 | -- | ----------------------------------------- |
 | 1（已完成） | `foundation.css`、CSS 加载边界、双方 token 分离与 Visualization scope；作为一个可验证步骤完成三宿主接入 |
 | 2（已完成） | 修改 `UI_DESIGN.md` 作用域与三宿主共享视觉约束                                                  |
-| 3  | 清理 Workbench `!important`、宽泛 selector 和对 Visualization 子树的反向污染                      |
-| 4  | 建立 Button / Field；按真实重复决定其它 primitive                                               |
+| 3（已完成） | 清理 Workbench `!important`、宽泛 selector 和对 Visualization 子树的反向污染                      |
+| 4（已完成） | 建立 Button / Field；按真实重复决定其它 primitive                                               |
 | 5  | 拆分 `App.tsx`                                                                                |
 | 6  | 清理 ResultEditor 非预览内容的跨层依赖                                                            |
 | 7  | 补基础 spacing / typography token                                                              |

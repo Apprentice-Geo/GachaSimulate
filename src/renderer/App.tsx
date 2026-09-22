@@ -1,3 +1,5 @@
+import { Button } from "./components/Button";
+import { Field } from "./components/Field";
 import {
   BarChart3,
   FilePenLine,
@@ -247,7 +249,9 @@ function SimulationPage({ active }: { active: boolean }) {
         </div>
         <div>
           <p className="renderer-eyebrow">SIMULATION CONSOLE</p>
-          <h1 id="simulation-title">运行模拟</h1>
+          <h1 className="page-title" id="simulation-title">
+            运行模拟
+          </h1>
         </div>
       </header>
       {loading ? (
@@ -265,14 +269,15 @@ function SimulationPage({ active }: { active: boolean }) {
             <div className="panel-heading">
               <div>
                 <p className="panel-kicker">输入 / INPUT</p>
-                <h2>配置与统计物品</h2>
+                <h2 className="panel-title">配置与统计物品</h2>
               </div>
-              <code>{selected?.id}</code>
+              <code className="panel-id">{selected?.id}</code>
             </div>
             <div className="simulation-config-fields">
-              <label>
+              <Field>
                 配置
                 <select
+                  className="field-control"
                   disabled={busy}
                   value={selected ? key(selected) : ""}
                   onChange={(event) => set_selected_key(event.target.value)}
@@ -284,10 +289,11 @@ function SimulationPage({ active }: { active: boolean }) {
                     </option>
                   ))}
                 </select>
-              </label>
-              <label>
+              </Field>
+              <Field>
                 终止条件
                 <select
+                  className="field-control"
                   disabled={busy}
                   value={termination}
                   onChange={(event) => set_termination(event.target.value)}
@@ -298,7 +304,7 @@ function SimulationPage({ active }: { active: boolean }) {
                     </option>
                   ))}
                 </select>
-              </label>
+              </Field>
             </div>
             <p className="config-description">{selected?.description}</p>
             <div className="item-list-heading">
@@ -353,17 +359,18 @@ function SimulationPage({ active }: { active: boolean }) {
             <div className="panel-heading">
               <div>
                 <p className="panel-kicker">执行 / EXECUTE</p>
-                <h2>运行控制</h2>
+                <h2 className="panel-title">运行控制</h2>
               </div>
-              <span className="status-badge" data-status={status}>
+              <span className="panel-status status-badge" data-status={status}>
                 {status_labels[status]}
               </span>
             </div>
             <div className="simulation-control-body">
               <div className="simulation-fields">
-                <label className="target-field">
+                <Field className="target-field">
                   固定次数
                   <input
+                    className="field-control"
                     disabled={busy}
                     max={MAX_TOTAL_RUNS}
                     min="1"
@@ -371,20 +378,23 @@ function SimulationPage({ active }: { active: boolean }) {
                     value={target_value}
                     onChange={(event) => set_target_value(event.target.value)}
                   />
-                </label>
-                <label>
+                </Field>
+                <Field>
                   随机种子
                   <input
+                    className="field-control"
                     disabled={busy}
                     step="1"
                     type="number"
                     value={seed}
                     onChange={(event) => set_seed(event.target.value)}
                   />
-                </label>
-                <label>
-                  线程数 <span>1–{logical_cpu_count}</span>
+                </Field>
+                <Field>
+                  线程数{" "}
+                  <span className="field-hint">1–{logical_cpu_count}</span>
                   <input
+                    className="field-control"
                     disabled={busy}
                     max={logical_cpu_count}
                     min="1"
@@ -393,7 +403,7 @@ function SimulationPage({ active }: { active: boolean }) {
                     value={threads}
                     onChange={(event) => set_threads(event.target.value)}
                   />
-                </label>
+                </Field>
               </div>
               <div className="output-item">
                 <span>当前输出物品</span>
@@ -401,21 +411,22 @@ function SimulationPage({ active }: { active: boolean }) {
                 <code>{selected_item?.id ?? "—"}</code>
               </div>
               <div className="simulation-actions">
-                <button
+                <Button
                   type="button"
                   disabled={busy}
                   onClick={() => void start()}
                 >
                   <Play size={16} aria-hidden="true" />
                   启动模拟
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="secondary"
                   disabled={!busy || status === "cancelling"}
                   onClick={() => void cancel()}
                 >
                   取消
-                </button>
+                </Button>
               </div>
               {operation_error && (
                 <div className="simulation-error" role="alert">
@@ -457,10 +468,15 @@ function SimulationPage({ active }: { active: boolean }) {
               <div className="simulation-status" role="status">
                 <span>状态 / {status_labels[status]}</span>
                 {result_path && (
-                  <button type="button" onClick={() => void open_results()}>
+                  <Button
+                    variant="ghost"
+                    size="inline"
+                    type="button"
+                    onClick={() => void open_results()}
+                  >
                     <FolderOpen size={16} aria-hidden="true" />
                     打开结果目录
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -563,9 +579,10 @@ function ResultEditorPage({
     });
 
   const field = (key: keyof DisplayFields, label: string, class_name = "") => (
-    <label className={class_name}>
+    <Field className={class_name}>
       {label}
       <textarea
+        className="field-control result-editor-textarea"
         aria-label={label}
         rows={1}
         wrap="soft"
@@ -574,7 +591,7 @@ function ResultEditorPage({
         onBlur={save}
         onChange={(event) => change_field(key, event.target.value)}
       />
-    </label>
+    </Field>
   );
 
   return (
@@ -588,17 +605,19 @@ function ResultEditorPage({
         </div>
         <div>
           <p className="renderer-eyebrow">GSR RESULT EDITOR</p>
-          <h1 id="result-title">结果展示信息</h1>
+          <h1 className="page-title" id="result-title">
+            结果展示信息
+          </h1>
         </div>
         {state && (
-          <button
-            className="secondary"
+          <Button
+            variant="secondary"
             type="button"
             disabled={loading || saving}
             onClick={() => void select()}
           >
             更换 GSR
-          </button>
+          </Button>
         )}
       </header>
       {!state && (
@@ -610,14 +629,14 @@ function ResultEditorPage({
               选择 GSR
               文件并完成分析后，即可编辑标题、目标、说明、副标题和统计物品展示单位。
             </p>
-            <button
+            <Button
               type="button"
               disabled={loading || saving}
               onClick={() => void select()}
             >
               <FolderOpen size={16} aria-hidden="true" />
               选择 GSR
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -627,9 +646,9 @@ function ResultEditorPage({
             <div className="panel-heading">
               <div>
                 <p className="panel-kicker">展示字段 / DISPLAY</p>
-                <h2>可视化文案</h2>
+                <h2 className="panel-title">可视化文案</h2>
               </div>
-              <span>失焦自动保存</span>
+              <span className="panel-status">失焦自动保存</span>
             </div>
             <dl className="result-editor-summary">
               <div>
@@ -672,7 +691,7 @@ function ResultEditorPage({
             <div className="panel-heading">
               <div>
                 <p className="panel-kicker">分布 / DISTRIBUTION</p>
-                <h2>可视化预览</h2>
+                <h2 className="panel-title">可视化预览</h2>
               </div>
             </div>
             <div className="result-cdf-chart">
@@ -799,9 +818,11 @@ function ConfigRepositoryPage() {
         </div>
         <div>
           <p className="renderer-eyebrow">CONFIGURATION CATALOG</p>
-          <h1 id="config-repository-title">配置仓库</h1>
+          <h1 className="page-title" id="config-repository-title">
+            配置仓库
+          </h1>
         </div>
-        <button
+        <Button
           type="button"
           disabled={busy_id !== null}
           onClick={() =>
@@ -811,7 +832,7 @@ function ConfigRepositoryPage() {
           }
         >
           刷新官方目录
-        </button>
+        </Button>
       </header>
 
       <div className="repository-overview">
@@ -870,7 +891,8 @@ function ConfigRepositoryPage() {
                   </div>
                   <div className="repository-card-actions">
                     {status.action && (
-                      <button
+                      <Button
+                        className="repository-action"
                         type="button"
                         disabled={busy_id !== null}
                         onClick={() => void action(config)}
@@ -878,11 +900,12 @@ function ConfigRepositoryPage() {
                         {busy_id === config.id
                           ? `${status.action}中…`
                           : status.action}
-                      </button>
+                      </Button>
                     )}
                     {config.status !== "available" && (
-                      <button
-                        className="secondary"
+                      <Button
+                        className="repository-action"
+                        variant="secondary"
                         type="button"
                         disabled={busy_id !== null}
                         onClick={() =>
@@ -894,7 +917,7 @@ function ConfigRepositoryPage() {
                         }
                       >
                         卸载
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </article>
@@ -915,7 +938,7 @@ function ConfigRepositoryPage() {
             <span className="source-badge source-local">本地配置</span>
             <h2 id="local-source-title">开发目录</h2>
           </div>
-          <button
+          <Button
             type="button"
             disabled={busy_id !== null}
             onClick={() =>
@@ -925,7 +948,7 @@ function ConfigRepositoryPage() {
             }
           >
             选择本地目录
-          </button>
+          </Button>
         </div>
         <p
           className="local-directory"

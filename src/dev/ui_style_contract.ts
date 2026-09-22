@@ -4,6 +4,114 @@ import type { ElectronApplication, Page } from "playwright";
 import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
 import { result_fixture } from "./ui_fixtures";
 import path from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { Button } from "../renderer/components/Button";
+import { Field } from "../renderer/components/Field";
+
+async function assert_workbench_primitives(page: Page, source: string) {
+  const markup = renderToStaticMarkup(
+    createElement(
+      "div",
+      null,
+      ...(["primary", "secondary", "ghost", "danger"] as const).map((variant) =>
+        createElement(Button, { variant, key: variant }, variant),
+      ),
+      createElement(Button, { disabled: true }, "disabled"),
+      createElement(
+        Field,
+        null,
+        "Primitive field",
+        createElement("input", { className: "field-control" }),
+      ),
+    ),
+  );
+  const result = await page.evaluate(
+    ({ source, markup }) => {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(source);
+      const important: string[] = [];
+      const rules = [...sheet.cssRules];
+      for (const rule of rules) {
+        if (
+          rule instanceof CSSMediaRule &&
+          rule.conditionText === "(prefers-reduced-motion: reduce)"
+        )
+          continue;
+        if (rule instanceof CSSStyleRule) {
+          for (const property of rule.style) {
+            if (rule.style.getPropertyPriority(property))
+              important.push(rule.cssText);
+          }
+        }
+        if ("cssRules" in rule)
+          rules.push(...(rule as CSSGroupingRule).cssRules);
+      }
+
+      const probe = document.createElement("div");
+      probe.style.cssText = "position:fixed;left:0;top:0;z-index:2000";
+      probe.innerHTML = markup;
+      document.querySelector(".renderer-shell")!.append(probe);
+      try {
+        const styles = {
+          read() {
+            return [...probe.querySelectorAll("button")].map((button) => {
+              const style = getComputedStyle(button);
+              return [
+                style.backgroundColor,
+                style.color,
+                style.borderColor,
+                style.padding,
+                style.minHeight,
+                style.opacity,
+                style.cursor,
+              ];
+            });
+          },
+        };
+        const before = styles.read();
+        // Neither page ancestry nor sibling position determines a variant.
+        probe.className = "simulation-actions repository-card-actions";
+        const buttons = [...probe.querySelectorAll("button")];
+        buttons
+          .reverse()
+          .forEach((button) => button.parentElement!.append(button));
+        const after = styles.read().reverse();
+        const input = probe.querySelector("input")!;
+        const label = probe.querySelector("label")!;
+        return {
+          important,
+          before,
+          after,
+          label_associated: input.labels?.[0] === label,
+          button_types: buttons.map((button) => button.type),
+        };
+      } finally {
+        probe.remove();
+      }
+    },
+    { source, markup },
+  );
+  assert.deepEqual(
+    result.important,
+    [],
+    "Only reduced-motion rules may use !important",
+  );
+  assert.deepEqual(
+    result.after,
+    result.before,
+    "Button appearance must not depend on its page or position",
+  );
+  assert.equal(
+    new Set(result.before.slice(0, 4).map((style) => JSON.stringify(style)))
+      .size,
+    4,
+  );
+  assert.equal(result.before[4][5], "0.45");
+  assert.equal(result.before[4][6], "not-allowed");
+  assert.ok(result.label_associated);
+  assert.deepEqual(result.button_types, Array(5).fill("button"));
+}
 
 /** Compare design-space paint and typography, independently of host scaling. */
 export async function chart_style(page: Page) {
@@ -78,6 +186,7 @@ export async function assert_style_boundaries(page: Page) {
   }, sources);
   assert.deepEqual(violations, [], "Visualization rules must be scoped");
   const workbench = await readFile("src/renderer/styles.css", "utf8");
+  await assert_workbench_primitives(page, workbench);
   const tokens = await readFile("src/renderer/tokens.css", "utf8");
   assert.doesNotMatch(
     workbench + tokens,
