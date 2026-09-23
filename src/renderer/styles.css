@@ -1000,10 +1000,19 @@
     gap: var(--workbench-space-md);
   }
 
-  .repository-header,
+  .repository-header {
+    grid-template-columns: calc(var(--desktop-unit) * 52) minmax(0, 1fr);
+    margin-bottom: calc(var(--desktop-unit) * 20);
+  }
+
   .result-editor-header {
     grid-template-columns: calc(var(--desktop-unit) * 52) minmax(0, 1fr) auto;
     margin-bottom: calc(var(--desktop-unit) * 20);
+  }
+
+  .repository-source-switch {
+    display: flex;
+    gap: var(--workbench-space-xs);
   }
 
   .repository-overview {
@@ -1012,7 +1021,7 @@
     border: 1px solid var(--workbench-border);
     display: grid;
     gap: var(--workbench-space-lg);
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) auto;
     padding: var(--workbench-space-sm) var(--workbench-space-md);
   }
 
@@ -1054,12 +1063,27 @@
     white-space: nowrap;
   }
 
+  .repository-overview-directory {
+    color: var(--workbench-text-muted);
+    font-family: var(--workbench-font-mono);
+    font-size: var(--workbench-font-meta);
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .repository-overview--local {
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+
   .repository-source {
     background: var(--workbench-surface);
     border: 1px solid var(--workbench-border);
     box-sizing: border-box;
     display: flex;
-    flex: 7 1 0;
+    flex: 1 1 0;
     flex-direction: column;
     gap: var(--workbench-space-sm);
     min-height: 0;
@@ -1084,8 +1108,7 @@
     gap: calc(var(--desktop-unit) * 12);
   }
 
-  .repository-source-heading > span,
-  .local-directory {
+  .repository-source-heading > span {
     color: var(--workbench-text-muted);
   }
 
@@ -1170,8 +1193,7 @@
   }
 
   .repository-card p,
-  .repository-empty,
-  .local-directory {
+  .repository-empty {
     margin: calc(var(--desktop-unit) * 6) 0 0;
   }
 
@@ -1190,22 +1212,6 @@
 
   .repository-action {
     min-width: calc(var(--desktop-unit) * 58);
-  }
-
-  .local-source {
-    flex: 3 1 0;
-    margin-top: calc(var(--desktop-unit) * 2);
-  }
-
-  .local-directory {
-    background: var(--workbench-surface-muted);
-    border-left: 2px solid var(--workbench-border-strong);
-    font-family: var(--workbench-font-mono);
-    font-size: var(--workbench-font-meta);
-    overflow: hidden;
-    padding: calc(var(--desktop-unit) * 8) calc(var(--desktop-unit) * 11);
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .local-config-list {

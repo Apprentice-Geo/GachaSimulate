@@ -398,26 +398,15 @@ async function assert_vertical_fill(
   );
 }
 
-async function assert_repository_space(page: Page) {
+async function assert_repository_space(page: Page, source: string) {
   await assert_vertical_fill(page, ".renderer-main", ".repository-page");
   await assert_vertical_fill(
     page,
     ".repository-page",
     ".repository-header",
-    ".local-source",
+    source,
   );
-  const [official, local] = await Promise.all([
-    vertical_geometry(page, ".official-source"),
-    vertical_geometry(page, ".local-source"),
-  ]);
-  // flex 7:3 distributes content-box space, excluding padding and borders.
-  const available = official.content_height + local.content_height;
-  assert.ok(available > 0);
-  assert_pixel_equal(
-    official.content_height,
-    available * 0.7,
-    "official/local content space is 7:3",
-  );
+  assert.ok((await vertical_geometry(page, source)).content_height > 0);
 }
 
 async function fail_with_layout(page: Page, message: string): Promise<never> {
@@ -1380,12 +1369,14 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   const repository = page.locator(".repository-page");
   const official = page.locator(".official-source");
   const local = page.locator(".local-source");
-  const [official_box, local_box] = await Promise.all([
-    official.boundingBox(),
-    local.boundingBox(),
-  ]);
-  assert.ok(official_box && local_box);
-  await assert_repository_space(page);
+  const official_box = await official.boundingBox();
+  assert.ok(official_box);
+  assert.equal(await local.count(), 0);
+  assert.deepEqual(
+    await repository.locator(".repository-overview dt").allTextContents(),
+    ["已安装", "可更新", "可安装"],
+  );
+  await assert_repository_space(page, ".official-source");
   await capture_layout(page, "repository");
   await assert_page_space(page, ".repository-page");
   assert.equal(
@@ -1396,15 +1387,10 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   const official_heading_before = await official
     .locator(".repository-source-heading")
     .boundingBox();
-  const local_heading_before = await local
-    .locator(".repository-source-heading")
-    .boundingBox();
-  assert.ok(official_heading_before && local_heading_before);
-  for (const list of [
-    official.locator(".repository-list"),
-    local.locator(".local-config-list"),
-  ]) {
-    const scroll = await list.evaluate((node) => {
+  assert.ok(official_heading_before);
+  const official_scroll = await official
+    .locator(".repository-list")
+    .evaluate((node) => {
       const element = node as HTMLElement;
       const result = {
         scrollHeight: element.scrollHeight,
@@ -1415,13 +1401,44 @@ async function assert_layout(application: ElectronApplication, page: Page) {
       result.scrollTop = element.scrollTop;
       return result;
     });
-    assert.ok(scroll.scrollHeight > scroll.clientHeight);
-    assert.ok(scroll.scrollTop > 0);
-  }
+  assert.ok(official_scroll.scrollHeight > official_scroll.clientHeight);
+  assert.ok(official_scroll.scrollTop > 0);
   assert.deepEqual(
     await official.locator(".repository-source-heading").boundingBox(),
     official_heading_before,
   );
+
+  await page.getByRole("button", { name: "本地目录", exact: true }).click();
+  await page.getByText("本地配置 0").waitFor();
+  assert.equal(await official.count(), 0);
+  assert.deepEqual(
+    await repository.locator(".repository-overview dt").allTextContents(),
+    ["配置数"],
+  );
+  await page.getByRole("button", { name: "选择本地目录" }).waitFor();
+  const local_box = await local.boundingBox();
+  assert.ok(local_box);
+  await assert_repository_space(page, ".local-source");
+  await capture_layout(page, "repository-local");
+  const local_heading_before = await local
+    .locator(".repository-source-heading")
+    .boundingBox();
+  assert.ok(local_heading_before);
+  const local_scroll = await local
+    .locator(".local-config-list")
+    .evaluate((node) => {
+      const element = node as HTMLElement;
+      const result = {
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+        scrollTop: 0,
+      };
+      element.scrollTop = element.scrollHeight;
+      result.scrollTop = element.scrollTop;
+      return result;
+    });
+  assert.ok(local_scroll.scrollHeight > local_scroll.clientHeight);
+  assert.ok(local_scroll.scrollTop > 0);
   assert.deepEqual(
     await local.locator(".repository-source-heading").boundingBox(),
     local_heading_before,
@@ -1445,9 +1462,9 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   ]);
   assert.ok(list_box && card_box);
   assert.ok(card_box.height < list_box.height);
-  await assert_repository_space(page);
+  await assert_repository_space(page, ".official-source");
   assert.deepEqual(await official.boundingBox(), official_box);
-  assert.deepEqual(await local.boundingBox(), local_box);
+  assert.equal(await local.count(), 0);
   assert.equal(space_failures.length, 0, space_failures.join("\n"));
 }
 
