@@ -295,6 +295,21 @@ async function assert_scroll_owner(page: Page, selector: string) {
   );
 }
 
+async function assert_grid_columns(
+  page: Page,
+  selector: string,
+  expected: number,
+) {
+  const columns = await page.locator(selector).evaluate((node) => {
+    const children = [...node.children];
+    const first_top = children[0].getBoundingClientRect().top;
+    return children.filter(
+      (child) => Math.abs(child.getBoundingClientRect().top - first_top) < 1,
+    ).length;
+  });
+  assert.equal(columns, expected, `${selector} uses ${expected} columns`);
+}
+
 async function assert_page_space(
   page: Page,
   selector: string,
@@ -464,6 +479,12 @@ async function assert_layout(application: ElectronApplication, page: Page) {
       sidebar: document
         .querySelector(".renderer-sidebar")!
         .getBoundingClientRect().width,
+      nav: (() => {
+        const rect = document
+          .querySelector('.renderer-nav-button[aria-current="page"]')!
+          .getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+      })(),
       control: document
         .querySelector(".simulation-control input")!
         .getBoundingClientRect().height,
@@ -472,20 +493,19 @@ async function assert_layout(application: ElectronApplication, page: Page) {
         .getBoundingClientRect().width,
     };
   });
-  const density =
-    Math.min(1.5, Math.max(1, (8 + visual.width * 0.00625) / 16)) * 1.15;
   for (const [actual, expected] of [
-    [visual.font, Math.min(27, 9 + visual.width * 0.00703125)],
-    [visual.body, 15 * density],
-    [visual.small, 12 * density],
-    [visual.control, 40 * density],
-    [visual.icon, 18 * density],
-    [
-      visual.sidebar,
-      Math.min(158.208, Math.max(79.104, visual.width * 0.0618)),
-    ],
+    [visual.font, 20],
+    [visual.body, 15 * 1.15],
+    [visual.small, 12 * 1.15],
+    [visual.control, 40 * 1.15],
+    [visual.icon, 18 * 1.15],
+    [visual.sidebar, 120],
   ])
     assert.ok(Math.abs(actual - expected) < 1, JSON.stringify(visual));
+  assert.ok(
+    Math.abs(visual.nav.width - visual.nav.height) < 1,
+    `selected navigation button is square: ${JSON.stringify(visual.nav)}`,
+  );
   const space_failures: string[] = [];
   const check_space = async (check: () => Promise<void>) => {
     try {
@@ -554,6 +574,11 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   assert.equal(
     await list.evaluate((node) => node.scrollHeight > node.clientHeight),
     true,
+  );
+  await assert_grid_columns(
+    page,
+    '[data-testid="simulation-item-list"]',
+    visual.width >= 1900 ? 2 : 1,
   );
   await assert_scroll_owner(page, '[data-testid="simulation-item-list"]');
   await assert_scroll_owner(page, ".simulation-control-body");
@@ -1400,6 +1425,11 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     ["已安装", "可更新", "可安装"],
   );
   await assert_repository_space(page, ".official-source");
+  await assert_grid_columns(
+    page,
+    ".repository-list",
+    visual.width >= 1900 ? 4 : 2,
+  );
   await capture_layout(page, "repository");
   await assert_page_space(page, ".repository-page");
   assert.equal(

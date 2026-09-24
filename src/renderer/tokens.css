@@ -15,8 +15,8 @@
   --workbench-font-ui: SourceHanSansSC, "Segoe UI", sans-serif;
   --workbench-font-mono: "JetBrains Mono", SourceHanSansSC, monospace;
   --workbench-radius-button: 2px;
-  --desktop-font: clamp(18px, calc(9px + 0.703125vw), 27px);
-  --desktop-unit: calc(clamp(16px, calc(8px + 0.625vw), 24px) / 16 * 1.15);
+  --desktop-font: 20px;
+  --desktop-unit: 1.15px;
 
   /* Common Workbench spacing; specialized layout geometry stays local. */
   --workbench-space-xs: calc(var(--desktop-unit) * 7);
