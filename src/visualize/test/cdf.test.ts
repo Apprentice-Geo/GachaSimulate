@@ -563,8 +563,6 @@ test("VisualizeScene shares chart layout between interactive and export modes", 
     animation_state: "idle" as const,
     data: {} as CDFViewModel,
     is_animating: false,
-    on_replay: () => undefined,
-    on_select_file: () => undefined,
   };
 
   const interactive_scene = VisualizeScene({
@@ -572,7 +570,7 @@ test("VisualizeScene shares chart layout between interactive and export modes", 
     render_mode: "interactive",
   });
   assert.equal(interactive_scene.type, VisualizeShell);
-  assert.equal(interactive_scene.props.show_controls, true);
+  assert.equal(interactive_scene.props.render_mode, "interactive");
   assert.equal(interactive_scene.props.chart_slot.type, CDFChart);
 
   const export_scene = VisualizeScene({
@@ -580,7 +578,7 @@ test("VisualizeScene shares chart layout between interactive and export modes", 
     render_mode: "export",
   });
   assert.equal(export_scene.type, VisualizeShell);
-  assert.equal(export_scene.props.show_controls, false);
+  assert.equal(export_scene.props.render_mode, "export");
   assert.equal(export_scene.props.chart_slot.type, CDFChart);
   assert.deepEqual(
     export_scene.props.chart_slot.props,

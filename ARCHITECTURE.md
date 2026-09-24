@@ -64,7 +64,7 @@ Analysis 和 DisplayConfig 不能绕过各自校验直接进入视图模型。�
 - `view/`：展示模型、统计配置和与画面有关的布局计算；CDF、marker、统计分组与布局计算不得散入组件。
 - `components/`：共享画面与交互组件，保持偏渲染。
 - `animation/`：交互展示和逐帧导出共用的时间轴与进度计算。
-- `styles/`：受 `.visualize-scope` 限定的共享设计 token 与画面样式，`index.css` 为桌面与导出共用入口，`preview.css` 提供交互宿主适配。ResultEditor CDF Preview、正式页面和导出根宿主建立相同 scope；Workbench token 独立位于 `src/renderer/tokens.css`，样式匹配在 Visualization 边界停止。全局字体资源与 reset 位于 `src/styles/foundation.css`，设计原则见 [UI Design](docs/UI_DESIGN.md)。
+- `styles/`：受 `.visualize-scope` 限定的共享设计 token 与画面样式，`index.css` 为桌面与导出共用入口，`preview.css` 提供交互宿主适配。ResultEditor CDF Preview、正式页面和导出根宿主建立相同 scope；Workbench token 独立位于 `src/renderer/tokens.css`，样式匹配在 Visualization 边界停止。全局字体资源与 reset 位于 `src/styles/foundation.css`，设计原则见 [Workbench Design](docs/WORKBENCH_DESIGN.md) 与 [Visualization Design](docs/VISUALIZATION_DESIGN.md)。
 - `types/`：Analysis、DisplayConfig 和 CDF view model 的静态类型。
 
 定位实现时优先搜索 `Analysis`、`DisplayConfig`、`build_cdf_view_model` 和 `VisualizeScene`。Electron 接入只提供输入并承载共享画面，不复制输入校验、视图模型或导出逻辑。
@@ -73,9 +73,9 @@ Analysis 和 DisplayConfig 不能绕过各自校验直接进入视图模型。�
 
 Electron 展示与素材导出复用同一套输入处理、视图模型、画面组件和动画进度。`src/export-renderer/` 负责导出页面与逐帧提交，`src/main/export_host.ts` 负责 CDP、FFmpeg 和输出提交；两者均位于平台无关的可视化层之外。
 
-桌面素材导出入口通过 `VisualizeShell` 的宿主回调接入。`src/visualize/` 不接收 session ID、GSR 文件名、reservation、目录或任务路径；格式、目标选择、覆盖和任务状态由桌面 renderer 与 main 管理。
+桌面素材导出入口由 Workbench 侧栏操作组接入 `ExportWorkflow`。`src/visualize/` 不接收 session ID、GSR 文件名、reservation、目录或任务路径；格式、目标选择、覆盖和任务状态由桌面 renderer 与 main 管理。
 
-`VisualizeScene` 使用 `render_mode` 区分交互与导出。导出模式不使用页面缩放、真实时钟动画或宿主缩放；画布及视觉表现由 [UI Design](<docs/UI_DESIGN.md#结果画布>) 维护。
+`VisualizeScene` 使用 `render_mode` 标记交互与导出宿主，二者共用纯画面，不承载操作按钮。Workbench 侧栏操作组通过 portal 挂载；结果页管理文件选择和导出入口，Visualization 交互宿主管理重播和动画状态。导出模式不使用页面缩放、真实时钟动画或宿主缩放；画布及视觉表现由 [Visualization Design](<docs/VISUALIZATION_DESIGN.md#结果画布>) 维护。
 
 交互展示和逐帧导出调用同一动画进度入口。交互页面传入 elapsed time，逐帧导出把帧号转换为相同的时间输入；动画节奏集中在 `animation/` 维护。
 
@@ -96,4 +96,4 @@ JSON 契约按约束范围划分权威：JSON Schema 定义字段、类型、必
 
 ## 专项文档
 
-配置语法见 `docs/YAML_CONFIG_SYNTAX.md`，IR 见 `docs/IR.md`，配置仓库协议见 `docs/CONFIG_REPOSITORY.md`，结果格式见 `docs/GSR.md`，分析格式见 `docs/ANALYSIS.md`，展示配置见 [DisplayConfig](docs/DISPLAY_CONFIG.md)，UI 设计原则与交互不变量见 [UI Design](docs/UI_DESIGN.md)，FFmpeg 开发与发布边界见 `scripts/README.md`，检查矩阵见 `docs/DEVELOPMENT_CHECKS.md`。
+配置语法见 `docs/YAML_CONFIG_SYNTAX.md`，IR 见 `docs/IR.md`，配置仓库协议见 `docs/CONFIG_REPOSITORY.md`，结果格式见 `docs/GSR.md`，分析格式见 `docs/ANALYSIS.md`，展示配置见 [DisplayConfig](docs/DISPLAY_CONFIG.md)，UI 设计原则与交互不变量见 [Workbench Design](docs/WORKBENCH_DESIGN.md) 与 [Visualization Design](docs/VISUALIZATION_DESIGN.md)，FFmpeg 开发与发布边界见 `scripts/README.md`，检查矩阵见 `docs/DEVELOPMENT_CHECKS.md`。

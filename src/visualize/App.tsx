@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { use_page_scale } from "./hooks/use_page_scale";
 import { ANIMATION_TOTAL_MS } from "./animation/timeline";
 import { build_animation_progress } from "./animation/progress";
@@ -7,16 +14,13 @@ import type { CDFViewModel } from "./types/cdf";
 
 export default function App({
   input,
-  on_select_result,
-  on_export,
-  export_active = false,
-  export_available = false,
+  render_controls,
 }: {
   input: CDFViewModel;
-  on_select_result: () => Promise<boolean>;
-  on_export?: () => void;
-  export_active?: boolean;
-  export_available?: boolean;
+  render_controls: (controls: {
+    replay: () => void;
+    is_animating: boolean;
+  }) => ReactNode;
 }) {
   const [animation_elapsed_ms, set_animation_elapsed_ms] =
     useState(ANIMATION_TOTAL_MS);
@@ -51,10 +55,6 @@ export default function App({
     animation_frame_ref.current = window.requestAnimationFrame(tick);
   }, []);
 
-  const handle_desktop_file_select = useCallback(async () => {
-    await on_select_result();
-  }, [on_select_result]);
-
   useEffect(() => {
     if (input) start_animation();
   }, [input, start_animation]);
@@ -79,25 +79,17 @@ export default function App({
     [animation_elapsed_ms],
   );
   const animation_state = is_animating ? "playing" : "idle";
-  const export_disabled_reason = export_active
-    ? "已有导出流程正在进行。"
-    : !export_available
-      ? "请先载入结果后再导出。"
-      : undefined;
-
   return (
-    <div className="visualize-scope visualize-viewport" ref={viewport_ref}>
-      <VisualizeScene
-        animation_progress={animation_progress}
-        animation_state={animation_state}
-        data={input}
-        is_animating={is_animating}
-        on_select_file={() => void handle_desktop_file_select()}
-        on_replay={start_animation}
-        on_export={on_export}
-        export_disabled_reason={export_disabled_reason}
-        render_mode="interactive"
-      />
-    </div>
+    <>
+      {render_controls({ replay: start_animation, is_animating })}
+      <div className="visualize-scope visualize-viewport" ref={viewport_ref}>
+        <VisualizeScene
+          animation_progress={animation_progress}
+          animation_state={animation_state}
+          data={input}
+          render_mode="interactive"
+        />
+      </div>
+    </>
   );
 }

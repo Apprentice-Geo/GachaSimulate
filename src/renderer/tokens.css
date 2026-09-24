@@ -1,20 +1,88 @@
+/* Default Light; explicit Dark is reserved for internal validation. */
 .workbench-host {
-  --workbench-bg: #171124;
-  --workbench-surface: #1b142b;
-  --workbench-surface-muted: #211936;
-  --workbench-border: #362d59;
-  --workbench-border-strong: #51436f;
-  --workbench-text: #f7f3ff;
-  --workbench-text-muted: rgba(247, 243, 255, 0.68);
-  --workbench-text-faint: rgba(247, 243, 255, 0.54);
-  --workbench-accent: #76b900;
-  --workbench-data: #22d3ee;
-  --workbench-on-accent: #120d1f;
-  --workbench-danger: #e52020;
-  --workbench-warning: #ef9100;
+  color-scheme: light;
+  --workbench-bg: #fafafa;
+  --workbench-surface: #ffffff;
+  --workbench-surface-muted: #f5f5f5;
+  --workbench-border: #e5e5e5;
+  --workbench-border-strong: #bdbdbd;
+  --workbench-text: #171717;
+  --workbench-text-muted: #525252;
+  --workbench-text-faint: #737373;
+  --workbench-primary: #171717;
+  --workbench-primary-hover: #383838;
+  --workbench-on-primary: #ffffff;
+  --workbench-hover: #eeeeee;
+  --workbench-selected-bg: #eaeaea;
+  --workbench-selected-border: #a3a3a3;
+  --workbench-selected-text: #171717;
+  --workbench-focus: #0070f3;
+  --workbench-link: #0068d9;
+  --workbench-info: #0068d9;
+  --workbench-success: #18733b;
+  --workbench-danger: #c62828;
+  --workbench-danger-hover: #a61c1c;
+  --workbench-on-danger: #ffffff;
+  --workbench-danger-surface: #fff1f1;
+  --workbench-danger-border: #e8aaaa;
+  --workbench-warning: #946000;
+  --workbench-disabled-bg: #ededed;
+  --workbench-disabled-text: #858585;
+  --workbench-disabled-border: #dedede;
+  --workbench-input-bg: #ffffff;
+  --workbench-overlay: rgba(0, 0, 0, 0.4);
+  --workbench-shadow-dialog: 0 16px 48px rgba(0, 0, 0, 0.16);
+  --workbench-scrollbar: #b5b5b5;
+  --workbench-scrollbar-hover: #858585;
+  --workbench-status-halo: rgba(0, 112, 243, 0.12);
+}
+
+.workbench-host[data-workbench-theme="dark"] {
+  color-scheme: dark;
+  --workbench-bg: #111111;
+  --workbench-surface: #191919;
+  --workbench-surface-muted: #222222;
+  --workbench-border: #333333;
+  --workbench-border-strong: #666666;
+  --workbench-text: #ededed;
+  --workbench-text-muted: #b5b5b5;
+  --workbench-text-faint: #999999;
+  --workbench-primary: #ededed;
+  --workbench-primary-hover: #cccccc;
+  --workbench-on-primary: #171717;
+  --workbench-hover: #2c2c2c;
+  --workbench-selected-bg: #303030;
+  --workbench-selected-border: #777777;
+  --workbench-selected-text: #ffffff;
+  --workbench-focus: #70adff;
+  --workbench-link: #70adff;
+  --workbench-info: #70adff;
+  --workbench-success: #6ecb8d;
+  --workbench-danger: #ff8585;
+  --workbench-danger-hover: #ffa0a0;
+  --workbench-on-danger: #171717;
+  --workbench-danger-surface: #351e1e;
+  --workbench-danger-border: #854444;
+  --workbench-warning: #e5b65c;
+  --workbench-disabled-bg: #292929;
+  --workbench-disabled-text: #858585;
+  --workbench-disabled-border: #393939;
+  --workbench-input-bg: #171717;
+  --workbench-overlay: rgba(0, 0, 0, 0.65);
+  --workbench-shadow-dialog: 0 16px 48px rgba(0, 0, 0, 0.4);
+  --workbench-scrollbar: #555555;
+  --workbench-scrollbar-hover: #888888;
+  --workbench-status-halo: rgba(112, 173, 255, 0.16);
+}
+
+.workbench-host {
   --workbench-font-ui: SourceHanSansSC, "Segoe UI", sans-serif;
   --workbench-font-mono: "JetBrains Mono", SourceHanSansSC, monospace;
-  --workbench-radius-button: 2px;
+  --workbench-radius-button: 6px;
+  --workbench-radius-panel: 8px;
+  --workbench-radius-scrollbar: 8px;
+  --workbench-selection-stripe: 4px;
+  --workbench-card-stripe-inset: 2px;
   --desktop-font: 20px;
   --desktop-unit: 1.15px;
 

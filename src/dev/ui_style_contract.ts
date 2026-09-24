@@ -107,7 +107,9 @@ async function assert_workbench_primitives(page: Page, source: string) {
       .size,
     4,
   );
-  assert.equal(result.before[4][5], "0.45");
+  assert.equal(result.before[4][5], "1", "Disabled text retains full opacity");
+  assert.notEqual(result.before[4][0], result.before[0][0]);
+  assert.notEqual(result.before[4][1], result.before[0][1]);
   assert.equal(result.before[4][6], "not-allowed");
   assert.ok(result.label_associated);
   assert.deepEqual(result.button_types, Array(5).fill("button"));
@@ -151,6 +153,74 @@ export async function chart_style(page: Page) {
   });
 }
 
+/** Workbench themes change paint, never chart presentation or desktop geometry. */
+export async function assert_workbench_themes(page: Page) {
+  const before = await chart_style(page);
+  const read = () =>
+    page.evaluate(() => {
+      const host = document.querySelector<HTMLElement>(".workbench-host")!;
+      const selectors = [
+        ".renderer-sidebar",
+        ".renderer-main",
+        ".renderer-nav-button",
+        ".cdf-chart-shell",
+      ];
+      return {
+        background: getComputedStyle(host).backgroundColor,
+        scheme: getComputedStyle(host).colorScheme,
+        chart_scheme: getComputedStyle(
+          document.querySelector(".visualize-scope")!,
+        ).colorScheme,
+        viewport_background: document.querySelector(".visualize-viewport")
+          ? getComputedStyle(document.querySelector(".visualize-viewport")!)
+              .backgroundColor
+          : null,
+        geometry: selectors.map((selector) => {
+          const node = document.querySelector(selector)!;
+          const rect = node.getBoundingClientRect();
+          const style = getComputedStyle(node);
+          return [
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height,
+            style.fontSize,
+            style.lineHeight,
+          ];
+        }),
+      };
+    });
+  const light = await read();
+  assert.equal(light.scheme, "light");
+  assert.equal(light.chart_scheme, "dark");
+  await page.locator(".workbench-host").evaluate((node) => {
+    (node as HTMLElement).dataset.workbenchTheme = "dark";
+  });
+  try {
+    const dark = await read();
+    assert.equal(dark.scheme, "dark");
+    assert.equal(dark.chart_scheme, "dark");
+    assert.notEqual(dark.background, light.background);
+    assert.equal(dark.viewport_background, light.viewport_background);
+    if (light.viewport_background) {
+      assert.notEqual(
+        light.viewport_background,
+        "rgba(0, 0, 0, 0)",
+        "Visualization backdrop is opaque and independent",
+      );
+    }
+    assert.deepEqual(dark.geometry, light.geometry);
+    assert.deepEqual(await chart_style(page), before);
+    const source = await readFile("src/renderer/styles.css", "utf8");
+    await assert_workbench_primitives(page, source);
+  } finally {
+    await page.locator(".workbench-host").evaluate((node) => {
+      delete (node as HTMLElement).dataset.workbenchTheme;
+    });
+  }
+  assert.deepEqual(await read(), light);
+}
+
 export async function assert_style_boundaries(page: Page) {
   const names = ["tokens", "scene", "preview"];
   const sources = await Promise.all(
@@ -188,6 +258,27 @@ export async function assert_style_boundaries(page: Page) {
   const workbench = await readFile("src/renderer/styles.css", "utf8");
   await assert_workbench_primitives(page, workbench);
   const tokens = await readFile("src/renderer/tokens.css", "utf8");
+  const theme_keys = await page.evaluate((source) => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(source);
+    return [...sheet.cssRules]
+      .slice(0, 2)
+      .map((rule) =>
+        [...(rule as CSSStyleRule).style]
+          .filter((key) => key.startsWith("--workbench-"))
+          .sort(),
+      );
+  }, tokens);
+  assert.deepEqual(
+    theme_keys[1],
+    theme_keys[0],
+    "Light and Dark define the same theme roles",
+  );
+  assert.doesNotMatch(
+    workbench,
+    /#[\da-f]{3,8}\b|rgba?\(|hsla?\(/i,
+    "Workbench colors belong in tokens",
+  );
   assert.doesNotMatch(
     workbench + tokens,
     /var\(--(?:color-|font-|radius-|canvas-)/,
@@ -251,6 +342,7 @@ export async function assert_style_boundaries(page: Page) {
     return border;
   });
   assert.equal(border, "0px");
+  await assert_workbench_themes(page);
   return before;
 }
 

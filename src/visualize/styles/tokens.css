@@ -1,4 +1,5 @@
 .visualize-scope {
+  color-scheme: dark;
   --canvas-width: 3840px;
   --canvas-height: 2160px;
   --page-margin: 128px;
@@ -15,7 +16,10 @@
   --color-nvidia-green-dark: #3f8500;
   --color-cyan: #22d3ee;
   --color-canvas: #120d1f;
-  --color-page-backdrop: #171124;
+  --color-page-backdrop: #303030;
+  --color-host-divider: #555555;
+  --color-preview-frame: #737373;
+  --preview-frame-width: 3px;
   --color-panel: #1b142b;
   --color-panel-soft: #211936;
   --color-hairline: #362d59;

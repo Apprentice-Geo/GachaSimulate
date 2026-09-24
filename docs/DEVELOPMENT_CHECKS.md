@@ -150,7 +150,7 @@ pnpm run build
 
 ## Electron 布局与截图检查
 
-布局契约以 [UI Design](<UI_DESIGN.md>) 为依据，共享画面与逐帧语义见 [Architecture](<../ARCHITECTURE.md#可视化与导出>)。`test:electron-layout` 覆盖四种窗口尺寸下的空间分配、滚动、文字缩放、固定画布适配与 DOM/SVG 几何；`capture:ui` 只生成截图，供 Agent 检查真实渲染的视觉层级、密度、裁切和遮挡，不能替代布局测试。
+布局契约以 [Workbench Design](<WORKBENCH_DESIGN.md>) 与 [Visualization Design](<VISUALIZATION_DESIGN.md>) 为依据，共享画面与逐帧语义见 [Architecture](<../ARCHITECTURE.md#可视化与导出>)。`test:electron-layout` 覆盖四种窗口尺寸下的空间分配、滚动、文字缩放、固定画布适配与 DOM/SVG 几何；`capture:ui` 只生成截图，供 Agent 检查真实渲染的视觉层级、密度、裁切和遮挡，不能替代布局测试。
 
 布局契约及其测试必须谨慎修改：不得为让测试通过而删除断言、放宽容差、缩减尺寸或 fixture 覆盖；只有明确改变设计规格时才同步调整对应断言，并保留未受影响的回归保护。断言暴露既有布局问题时，应修复或报告问题。
 

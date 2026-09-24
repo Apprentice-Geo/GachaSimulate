@@ -9,7 +9,7 @@
 - 配置仓库 index、manifest 与包协议：[Config Repository](<docs/CONFIG_REPOSITORY.md>)。
 - 持久化结果与分析输出格式：[GSR](<docs/GSR.md>)、[Analysis JSON](<docs/ANALYSIS.md>)。
 - 独立展示配置与保存契约：[DisplayConfig](<docs/DISPLAY_CONFIG.md>)。
-- UI 设计原则与交互不变量：[UI Design](<docs/UI_DESIGN.md>)。
+- UI 设计原则与交互不变量：[Workbench Design](<docs/WORKBENCH_DESIGN.md>)、[Visualization Design](<docs/VISUALIZATION_DESIGN.md>)。
 - 通过仓库的 pre-commit hook 检查，或在不创建提交时按影响范围执行检查：[Development Checks](<docs/DEVELOPMENT_CHECKS.md>)。
 - FFmpeg 源码准备、构建脚本职责与材料收集等项目维护脚本：[scripts README](<scripts/README.md>)。
 - 此处未列出的文档视作开发临时文档，不承诺长期存在和有效。
@@ -32,7 +32,7 @@
 - 修改单次模拟语义时，先对齐 `docs/YAML_CONFIG_SYNTAX.md` 中的执行顺序，再检查 C++ Runtime 和行为测试。
 - 修改 CLI 或保存结果时，确认启动请求选择 result item、Compiler 写入对应 IR 索引、GSR v2、Analysis 和独立 DisplayConfig `*.visualize.json` sidecar 契约，并验证 Electron 展示与素材导出仍能消费 `Analysis + DisplayConfig`。
 - 修改 Electron IPC、配置扫描或模拟任务生命周期时，保持 `ARCHITECTURE.md` 中的 main、preload、renderer 信任边界，并更新共享类型和 Electron 行为测试。
-- 修改 UI 视觉、布局或交互时，遵循 `docs/UI_DESIGN.md` 的设计原则与交互不变量；修改 CDF、marker、统计展示、动画或导出时，同时保持 `ARCHITECTURE.md` 中的可视化与导出边界。
+- 修改 UI 视觉、布局或交互时，遵循 `docs/WORKBENCH_DESIGN.md` 与 `docs/VISUALIZATION_DESIGN.md` 的设计原则与交互不变量；修改 CDF、marker、统计展示、动画或导出时，同时保持 `ARCHITECTURE.md` 中的可视化与导出边界。
 - 修改可视化输入时，按 `docs/ANALYSIS.md` 与 `docs/DISPLAY_CONFIG.md` 同步检查 Schema、校验、类型和相关测试。
 - 修改 benchmark 时，优先覆盖完整批量模拟路径；跨 case 对比性能时注意不同配置的 `total_result` 可能不同。
 

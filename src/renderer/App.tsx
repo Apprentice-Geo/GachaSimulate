@@ -42,6 +42,8 @@ const pages: Array<{
 ];
 
 export default function App() {
+  const [visualize_actions_host, set_visualize_actions_host] =
+    useState<HTMLDivElement | null>(null);
   const [active_page, set_active_page] = useState<Page>("simulation");
   const [result_state, set_result_state] = useState<ResultEditorState | null>(
     null,
@@ -96,6 +98,7 @@ export default function App() {
                   </span>
                 </button>
               ))}
+              <div ref={set_visualize_actions_host} />
             </nav>
           </aside>
           <main className="renderer-main">
@@ -108,6 +111,7 @@ export default function App() {
                 />
               ) : active_page === "result-visualize" ? (
                 <ResultVisualizePage
+                  actions_host={visualize_actions_host}
                   input={visualize_input}
                   on_select_result={select_result}
                   export_active={export_active}

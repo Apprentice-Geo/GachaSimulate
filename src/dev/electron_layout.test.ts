@@ -16,6 +16,7 @@ import {
   assert_style_boundaries,
   chart_style,
   assert_export_style,
+  assert_workbench_themes,
 } from "./ui_style_contract";
 
 const PROJECT_ROOT = process.cwd();
@@ -612,8 +613,12 @@ async function assert_layout(application: ElectronApplication, page: Page) {
 
   await page.getByRole("button", { name: "结果可视化" }).click();
   await page.getByRole("button", { name: "选择 GSR" }).waitFor();
+  assert.equal(
+    await page.getByRole("group", { name: "可视化操作" }).count(),
+    0,
+  );
   assert.equal(await page.getByRole("button", { name: "导出素材" }).count(), 0);
-  assert.equal(await page.getByRole("button", { name: "重放动画" }).count(), 0);
+  assert.equal(await page.getByRole("button", { name: "重播动画" }).count(), 0);
   assert.equal(await page.locator(".main-region").count(), 0);
   assert.equal(await page.locator(".visualize-scope").count(), 0);
   assert.equal(await page.locator(".top-bar").count(), 0);
@@ -843,6 +848,10 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   await assert_preview_width(page);
   const preview_geometry = await chart_geometry(page);
   const preview_style = await assert_style_boundaries(page);
+  assert.equal(
+    await page.getByRole("group", { name: "可视化操作" }).count(),
+    0,
+  );
   assert.ok(Math.abs(preview_geometry.ratio - 2) < 0.00001);
 
   // Container-only resizing must work without a window resize event.
@@ -958,6 +967,7 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     1,
   );
   assert.deepEqual(await chart_style(page), preview_style);
+  await assert_workbench_themes(page);
   await assert_export_style(application, preview_style);
   assert.equal(scene_geometry.path, preview_geometry.path);
   assert.deepEqual(scene_geometry.ticks, preview_geometry.ticks);
@@ -1141,25 +1151,27 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     ipcMain.handle("exit-after-export-cleanup", () => undefined);
   });
 
-  const chart_actions = page.locator(".chart-actions");
-  await page.locator(".chart-region").hover();
-  await page.waitForFunction(
-    () =>
-      getComputedStyle(document.querySelector(".chart-actions")!).opacity ===
-      "1",
-  );
-  const action_labels = await chart_actions
-    .getByRole("button")
-    .allTextContents();
+  assert.equal(await page.locator(".chart-actions").count(), 0);
+  const sidebar_actions = page.getByRole("group", { name: "可视化操作" });
   assert.deepEqual(
-    action_labels.map((label) => label.trim()),
-    ["", "导出素材", "选择结果"],
+    await sidebar_actions.getByRole("button").allTextContents(),
+    ["更换结果", "重播动画", "导出素材"],
+  );
+  const actions_box = await sidebar_actions.boundingBox();
+  const sidebar_box = await page.locator(".renderer-sidebar").boundingBox();
+  assert.ok(actions_box && sidebar_box);
+  assert.ok(
+    actions_box.y + actions_box.height <= sidebar_box.y + sidebar_box.height,
+  );
+  assert.ok(
+    actions_box.x >= sidebar_box.x &&
+      actions_box.x + actions_box.width <= sidebar_box.x + sidebar_box.width,
   );
   const export_button = page.getByRole("button", { name: "导出素材" });
   await export_button.focus();
   assert.equal(
-    await chart_actions.evaluate((node) => getComputedStyle(node).opacity),
-    "1",
+    await export_button.evaluate((node) => node === document.activeElement),
+    true,
   );
   await export_button.click();
   const dialog = page.getByRole("dialog", { name: "导出素材" });
@@ -1168,6 +1180,10 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   await assert_full_window_host_rects(page);
   await page.keyboard.press("Escape");
   await dialog.waitFor({ state: "hidden" });
+  assert.equal(
+    await export_button.evaluate((node) => node === document.activeElement),
+    true,
+  );
   await export_button.click();
   await page.getByRole("button", { name: "选择导出目录" }).click();
   await page.getByRole("button", { name: "覆盖并导出" }).click();
@@ -1347,7 +1363,7 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     "0",
   );
 
-  await page.getByRole("button", { name: "重新绘制动画" }).click();
+  await page.getByRole("button", { name: "重播动画" }).click();
   await page.waitForFunction(
     () => document.documentElement.dataset.animationRestartCount === "1",
     undefined,
@@ -1363,7 +1379,7 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     "1",
   );
 
-  await page.getByRole("button", { name: "选择结果" }).click();
+  await page.getByRole("button", { name: "更换结果" }).click();
   await page.waitForFunction(
     () => document.documentElement.dataset.animationRestartCount === "2",
     undefined,
@@ -1385,7 +1401,7 @@ async function assert_layout(application: ElectronApplication, page: Page) {
       throw new Error("无效的 GSR");
     });
   });
-  await page.getByRole("button", { name: "选择结果" }).click();
+  await page.getByRole("button", { name: "更换结果" }).click();
   const feedback = page.locator(".result-visualize-feedback");
   await feedback
     .getByRole("alert")
@@ -1398,7 +1414,7 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     ipcMain.removeHandler("select-gsr-result");
     ipcMain.handle("select-gsr-result", () => null);
   });
-  await page.getByRole("button", { name: "选择结果" }).click();
+  await page.getByRole("button", { name: "更换结果" }).click();
   await feedback.getByRole("status").getByText("未选择文件。").waitFor();
   assert.equal(await feedback.getByRole("alert").count(), 0);
 
@@ -1412,6 +1428,10 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     }
   }, repository_fixture());
   await page.getByRole("button", { name: "配置仓库" }).click();
+  assert.equal(
+    await page.getByRole("group", { name: "可视化操作" }).count(),
+    0,
+  );
   await page.getByText("测试配置 0").waitFor();
 
   const repository = page.locator(".repository-page");
@@ -1518,6 +1538,13 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   await assert_repository_space(page, ".official-source");
   assert.deepEqual(await official.boundingBox(), official_box);
   assert.equal(await local.count(), 0);
+  await page.getByRole("button", { name: "结果可视化" }).click();
+  await page.getByRole("group", { name: "可视化操作" }).waitFor();
+  await page.getByRole("button", { name: "结果编辑" }).click();
+  assert.equal(
+    await page.getByRole("group", { name: "可视化操作" }).count(),
+    0,
+  );
   assert.equal(space_failures.length, 0, space_failures.join("\n"));
 }
 

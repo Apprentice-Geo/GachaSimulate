@@ -10,6 +10,8 @@
 
 .visualize-scope.visualize-viewport {
   --page-scale: 1;
+  background: var(--color-page-backdrop);
+  box-shadow: inset 1px 0 var(--color-host-divider);
   align-items: flex-start;
   display: flex;
   height: 100%;
@@ -24,4 +26,16 @@
 .visualize-scope.visualize-viewport > .visualize-page {
   margin: auto;
   zoom: var(--page-scale);
+}
+
+/* Draw above the scaled chart without changing its measured content area. */
+.visualize-scope.chart-preview::after {
+  border: var(--preview-frame-width) solid var(--color-preview-frame);
+  content: "";
+  height: 100%;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  width: var(--preview-rendered-width);
 }

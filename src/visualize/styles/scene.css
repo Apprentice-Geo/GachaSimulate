@@ -115,42 +115,6 @@
   min-width: 0;
   text-align: left;
 }
-:where(.visualize-scope) .command-button,
-:where(.visualize-scope) .icon-button {
-  align-items: center;
-  background: var(--color-panel-soft);
-  border: 2px solid var(--color-hairline-strong);
-  border-radius: var(--radius-button);
-  color: var(--color-text-primary);
-  display: inline-flex;
-  font-size: 28px;
-  font-weight: 700;
-  gap: 16px;
-  height: 88px;
-  justify-content: center;
-  letter-spacing: 0.2px;
-  padding: 0 32px;
-  text-transform: uppercase;
-}
-:where(.visualize-scope) .icon-button {
-  background: var(--color-panel);
-  border-color: var(--color-hairline);
-  color: var(--color-text-primary);
-  padding: 0;
-  width: 88px;
-}
-:where(.visualize-scope) .command-button:disabled,
-:where(.visualize-scope) .icon-button:disabled {
-  background: var(--color-panel-soft);
-  border-color: var(--color-hairline);
-  color: var(--color-text-faint);
-}
-:where(.visualize-scope) .command-button[aria-disabled="true"] {
-  background: var(--color-panel-soft);
-  border-color: var(--color-hairline);
-  color: var(--color-text-faint);
-  cursor: not-allowed;
-}
 :where(.visualize-scope) .main-region {
   display: grid;
   gap: 64px;
@@ -173,32 +137,6 @@
   min-height: 0;
   min-width: 0;
   position: relative;
-}
-:where(.visualize-scope) .chart-actions {
-  align-items: center;
-  background: rgba(18, 13, 31, 0.72);
-  border: 2px solid var(--color-hairline);
-  border-radius: var(--radius-button);
-  bottom: 40px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
-  display: flex;
-  gap: 20px;
-  left: 50%;
-  opacity: 0;
-  padding: 14px;
-  pointer-events: none;
-  position: absolute;
-  transform: translate(-50%, 12px);
-  transition:
-    opacity 160ms ease,
-    transform 160ms ease;
-  z-index: 4;
-}
-:where(.visualize-scope) .chart-region:hover .chart-actions,
-:where(.visualize-scope) .chart-region:focus-within .chart-actions {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, 0);
 }
 :where(.visualize-scope) .cdf-chart-shell,
 :where(.visualize-scope) .panel-surface {
