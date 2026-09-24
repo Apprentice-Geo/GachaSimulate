@@ -37,13 +37,25 @@ export function ResultVisualizePage({
 
   if (input) {
     return (
-      <VisualizeApp
-        input={input}
-        on_select_result={select}
-        export_active={export_active}
-        export_available
-        on_export={on_export}
-      />
+      <section className="result-visualize-loaded">
+        <VisualizeApp
+          input={input}
+          on_select_result={select}
+          export_active={export_active}
+          export_available
+          on_export={on_export}
+        />
+        {(status || error) && (
+          <div className="result-visualize-feedback">
+            {status && <p role="status">{status}</p>}
+            {error && (
+              <p className="simulation-error" role="alert">
+                错误：{error}
+              </p>
+            )}
+          </div>
+        )}
+      </section>
     );
   }
 

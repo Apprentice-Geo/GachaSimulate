@@ -1354,6 +1354,29 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     "2",
   );
 
+  await application.evaluate(({ ipcMain }) => {
+    ipcMain.removeHandler("select-gsr-result");
+    ipcMain.handle("select-gsr-result", () => {
+      throw new Error("无效的 GSR");
+    });
+  });
+  await page.getByRole("button", { name: "选择结果" }).click();
+  const feedback = page.locator(".result-visualize-feedback");
+  await feedback
+    .getByRole("alert")
+    .getByText(/无效的 GSR/)
+    .waitFor();
+  assert.equal(await visualization.isVisible(), true);
+  assert.equal(await feedback.getByRole("status").textContent(), "分析失败。");
+
+  await application.evaluate(({ ipcMain }) => {
+    ipcMain.removeHandler("select-gsr-result");
+    ipcMain.handle("select-gsr-result", () => null);
+  });
+  await page.getByRole("button", { name: "选择结果" }).click();
+  await feedback.getByRole("status").getByText("未选择文件。").waitFor();
+  assert.equal(await feedback.getByRole("alert").count(), 0);
+
   await application.evaluate(({ ipcMain }, fixture) => {
     for (const channel of [
       "get-config-repository-state",

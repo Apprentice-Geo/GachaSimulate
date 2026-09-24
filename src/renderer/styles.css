@@ -457,6 +457,34 @@
     position: relative;
   }
 
+  .result-visualize-loaded {
+    height: 100%;
+    min-height: 0;
+    position: relative;
+    width: 100%;
+  }
+
+  .result-visualize-feedback {
+    background: var(--workbench-surface);
+    border: 1px solid var(--workbench-border-strong);
+    box-sizing: border-box;
+    max-width: min(420px, calc(100% - 32px));
+    overflow-wrap: anywhere;
+    padding: var(--workbench-space-sm);
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    z-index: 1;
+  }
+
+  .result-visualize-feedback p {
+    margin: 0;
+  }
+
+  .result-visualize-feedback p + p {
+    margin-top: var(--workbench-space-sm);
+  }
+
   .renderer-placeholder {
     box-sizing: border-box;
     display: flex;
