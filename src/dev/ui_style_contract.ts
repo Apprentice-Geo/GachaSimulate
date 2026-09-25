@@ -352,37 +352,37 @@ export async function assert_export_style(
 ) {
   const fixture = result_fixture();
   const view_model = build_cdf_view_model(fixture.analysis!, fixture.display!);
-  const window_id = await application.evaluate(
-    async ({ BrowserWindow }, input) => {
-      const window = new BrowserWindow({
-        show: false,
-        width: 3840,
-        height: 2160,
-        useContentSize: true,
-        webPreferences: {
-          preload: input.preload,
-          offscreen: true,
-          backgroundThrottling: false,
-        },
-      });
-      await window.loadFile(input.html);
-      window.webContents.send("export-renderer:initialize", {
-        job_id: "style-contract",
-        view_model: input.view_model,
-      });
-      return window.id;
-    },
-    {
-      preload: path.resolve("out/preload/export.js"),
-      html: path.resolve("out/renderer/export.html"),
-      view_model,
-    },
-  );
+  const [page, window_id] = await Promise.all([
+    application.waitForEvent("window"),
+    application.evaluate(
+      async ({ BrowserWindow }, input) => {
+        const window = new BrowserWindow({
+          show: false,
+          width: 3840,
+          height: 2160,
+          useContentSize: true,
+          webPreferences: {
+            preload: input.preload,
+            offscreen: true,
+            backgroundThrottling: false,
+          },
+        });
+        await window.loadFile(input.html);
+        window.webContents.send("export-renderer:initialize", {
+          job_id: "style-contract",
+          view_model: input.view_model,
+        });
+        return window.id;
+      },
+      {
+        preload: path.resolve("out/preload/export.js"),
+        html: path.resolve("out/renderer/export.html"),
+        view_model,
+      },
+    ),
+  ]);
   try {
-    const page = (await application.windows()).find((page) =>
-      page.url().endsWith("/export.html"),
-    );
-    assert.ok(page);
+    await page.waitForURL("**/export.html");
     await page.locator(".cdf-chart-shell").waitFor();
     await page.evaluate(() => document.fonts.ready);
     assert.equal(await page.locator("body.visualize-scope > #root").count(), 1);
