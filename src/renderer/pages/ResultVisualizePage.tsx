@@ -55,7 +55,6 @@ export function ResultVisualizePage({
                 <Button
                   variant="ghost"
                   disabled={loading || export_active}
-                  aria-description={loading ? "正在读取结果。" : undefined}
                   onClick={() => void select()}
                 >
                   更换结果
@@ -63,13 +62,6 @@ export function ResultVisualizePage({
                 <Button
                   variant="ghost"
                   disabled={is_animating || loading || export_active}
-                  aria-description={
-                    is_animating
-                      ? "动画正在播放。"
-                      : loading
-                        ? "正在读取结果。"
-                        : undefined
-                  }
                   onClick={replay}
                 >
                   重播动画
@@ -77,13 +69,6 @@ export function ResultVisualizePage({
                 <Button
                   variant="ghost"
                   disabled={loading || export_active}
-                  aria-label={
-                    export_active
-                      ? "导出素材：已有导出流程正在进行。"
-                      : loading
-                        ? "导出素材：正在读取结果。"
-                        : undefined
-                  }
                   onClick={on_export}
                 >
                   导出素材
