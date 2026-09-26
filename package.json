@@ -1,6 +1,6 @@
 {
   "name": "gachasimulate",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "packageManager": "pnpm@11.3.0",
   "description": "",
   "main": "out/main/index.js",
