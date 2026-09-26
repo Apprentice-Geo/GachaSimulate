@@ -1,10 +1,10 @@
-:root {
+.visualize-scope {
+  color-scheme: dark;
   --canvas-width: 3840px;
   --canvas-height: 2160px;
   --page-margin: 128px;
   --page-top-margin: 80px;
   --top-height: 240px;
-  --main-height: 1520px;
   --footer-height: 280px;
   --square-length: 20px;
 
@@ -16,7 +16,10 @@
   --color-nvidia-green-dark: #3f8500;
   --color-cyan: #22d3ee;
   --color-canvas: #120d1f;
-  --color-page-backdrop: #171124;
+  --color-page-backdrop: #303030;
+  --color-host-divider: #555555;
+  --color-preview-frame: #737373;
+  --preview-frame-width: 3px;
   --color-panel: #1b142b;
   --color-panel-soft: #211936;
   --color-hairline: #362d59;
@@ -52,4 +55,30 @@
   --radius-card: 2px;
   --radius-button: 2px;
   --color-stardust: rgba(247, 243, 255, 0.025);
+}
+
+.visualize-scope {
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 400;
+  font-style: normal;
+  line-height: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  font-variant-ligatures: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.visualize-scope button {
+  cursor: pointer;
+}
+
+.visualize-scope button:disabled {
+  cursor: not-allowed;
+}
+
+.visualize-scope button:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 2px;
 }

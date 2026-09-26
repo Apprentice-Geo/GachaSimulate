@@ -1,0 +1,59 @@
+@font-face {
+  font-family: SourceHanSansSC;
+  font-style: normal;
+  font-weight: 400;
+  src: url("../../fonts/SourceHanSansSC/OTF/SimplifiedChinese/SourceHanSansSC-Regular.otf")
+    format("opentype");
+}
+
+@font-face {
+  font-family: SourceHanSansSC;
+  font-style: normal;
+  font-weight: 500;
+  src: url("../../fonts/SourceHanSansSC/OTF/SimplifiedChinese/SourceHanSansSC-Medium.otf")
+    format("opentype");
+}
+
+@font-face {
+  font-family: SourceHanSansSC;
+  font-style: normal;
+  font-weight: 700;
+  src: url("../../fonts/SourceHanSansSC/OTF/SimplifiedChinese/SourceHanSansSC-Bold.otf")
+    format("opentype");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  src: url("../../fonts/JetBrainsMono/fonts/webfonts/JetBrainsMono-Regular.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 600;
+  src: url("../../fonts/JetBrainsMono/fonts/webfonts/JetBrainsMono-SemiBold.woff2")
+    format("woff2");
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}

@@ -1,8 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import ExportRendererApp from "./ExportRendererApp";
-import "../visualize/styles/tokens.css";
-import "../visualize/styles/scene.css";
+import "../styles/foundation.css";
+import "../visualize/styles/index.css";
 import "./styles.css";
 
 const root = document.getElementById("root");

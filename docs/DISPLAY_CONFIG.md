@@ -28,7 +28,7 @@ DisplayConfig v2 是 GSR 对应的独立展示配置，以 `<stem>.visualize.jso
 | `subtitle` | 字符串，主标题下的副标题；空字符串表示不展示副标题 |
 | `result_item_unit` | 字符串，累计结果和统计指标展示值的单位；空字符串表示不追加单位 |
 
-除 `result_item_name` 外，字符串字段允许为空。CDF 坐标轴标题与刻度保持无单位，具体展示原则见 [UI Design](UI_DESIGN.md#数据表达与文案)。
+除 `result_item_name` 外，字符串字段允许为空。CDF 坐标轴标题与刻度保持无单位，具体展示原则见 [Visualization Design](VISUALIZATION_DESIGN.md#数据表达与文案)。
 
 ## 数据来源与保存
 

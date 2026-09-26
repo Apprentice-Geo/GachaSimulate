@@ -4,8 +4,8 @@ import type { CDFViewModel } from "../types/cdf";
 import { ResultValue } from "./ResultValue";
 
 interface TopBarProps {
-  data: CDFViewModel | null;
-  animation_progress: AnimationProgress | null;
+  data: CDFViewModel;
+  animation_progress: AnimationProgress;
 }
 
 function format_statistic(value: number, unit: string): string {
@@ -16,46 +16,40 @@ function format_statistic(value: number, unit: string): string {
 }
 
 export function TopBar({ data, animation_progress }: TopBarProps) {
-  const metadata_items = data
-    ? [
-        { key: "target", content: `模拟目标：${data.target}` },
-        {
-          key: "runs",
-          content: (
-            <>
-              累计模拟次数：
-              <span className="metadata-number">
-                {format_statistic(data.runs, "")}
-              </span>{" "}
-              次
-            </>
-          ),
-        },
-        {
-          key: "result",
-          content: (
-            <>
-              累计{data.result_item.name}：
-              <span className="metadata-value">
-                <ResultValue
-                  value={data.total_result_display}
-                  unit={data.result_item_unit}
-                />
-              </span>
-            </>
-          ),
-        },
-      ]
-    : [{ key: "empty", content: "导入模拟器输出 JSON 后生成结果页面" }];
+  const metadata_items = [
+    { key: "target", content: `模拟目标：${data.target}` },
+    {
+      key: "runs",
+      content: (
+        <>
+          累计模拟次数：
+          <span className="metadata-number">
+            {format_statistic(data.runs, "")}
+          </span>{" "}
+          次
+        </>
+      ),
+    },
+    {
+      key: "result",
+      content: (
+        <>
+          累计{data.result_item.name}：
+          <span className="metadata-value">
+            <ResultValue
+              value={data.total_result_display}
+              unit={data.result_item_unit}
+            />
+          </span>
+        </>
+      ),
+    },
+  ];
   const title_style = (index: number) =>
-    animation_progress
-      ? metric_style(animation_progress.title_area(index))
-      : undefined;
+    metric_style(animation_progress.title_area(index));
 
   const metadata_style = (index: number) =>
-    animation_progress
-      ? metric_style(animation_progress.metadata(index))
-      : undefined;
+    metric_style(animation_progress.metadata(index));
   return (
     <header className="top-bar">
       <div className="top-bar-inner">
@@ -63,8 +57,8 @@ export function TopBar({ data, animation_progress }: TopBarProps) {
           <div className="section-kicker" style={title_style(0)}>
             GACHASIMULATE CDF ANALYSIS
           </div>
-          <h1 style={title_style(1)}>{data?.title ?? "抽卡模拟 CDF 分析"}</h1>
-          {data?.subtitle && (
+          <h1 style={title_style(1)}>{data.title}</h1>
+          {data.subtitle && (
             <p className="outline" style={title_style(2)}>
               {data.subtitle}
             </p>

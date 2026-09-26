@@ -21,8 +21,10 @@ const SCENARIOS = [
   "electron/simulation-idle",
   "electron/simulation-navigation",
   "electron/config-repository",
+  "electron/config-repository-local",
   "electron/result-editor-empty",
   "electron/result-editor-loaded",
+  "electron/result-visualize-empty",
   "electron/result-visualize-loaded",
   "electron/result-export-format",
   "electron/result-export-overwrite",
@@ -204,7 +206,10 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
       await screenshot(page, "electron/simulation-navigation");
     }
 
-    if (scenarios.includes("electron/config-repository")) {
+    if (
+      scenarios.includes("electron/config-repository") ||
+      scenarios.includes("electron/config-repository-local")
+    ) {
       await application.evaluate(({ ipcMain }, fixture) => {
         for (const channel of [
           "get-config-repository-state",
@@ -216,13 +221,28 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
       }, repository_fixture());
       await page.getByRole("button", { name: "配置仓库" }).click();
       await page.getByText("原神角色祈愿").waitFor();
-      await screenshot(page, "electron/config-repository");
+      if (scenarios.includes("electron/config-repository"))
+        await screenshot(page, "electron/config-repository");
+      if (scenarios.includes("electron/config-repository-local")) {
+        await page
+          .getByRole("button", { name: "本地目录", exact: true })
+          .click();
+        await page.getByText("开发测试池").waitFor();
+        await screenshot(page, "electron/config-repository-local");
+      }
     }
 
     const result_scenarios = scenarios.filter((scenario) =>
       scenario.startsWith("electron/result-"),
     );
     if (result_scenarios.length === 0) return;
+
+    if (scenarios.includes("electron/result-visualize-empty")) {
+      await page.getByRole("button", { name: "结果可视化" }).click();
+      await page.getByRole("button", { name: "选择 GSR" }).waitFor();
+      await screenshot(page, "electron/result-visualize-empty");
+      if (result_scenarios.length === 1) return;
+    }
 
     await page.getByRole("button", { name: "结果编辑" }).click();
     await page.locator("#simulation-title").waitFor({ state: "hidden" });

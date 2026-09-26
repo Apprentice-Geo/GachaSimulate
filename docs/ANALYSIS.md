@@ -37,4 +37,4 @@ analyzer 顺序读取 GSR 的 result 与 termination section：result value 只�
 
 紧凑 Analysis JSON 本体的 UTF-8 上限是 64 MiB，不包含 CLI 写出的末尾平台换行。聚合遇到新 result value 时，analyzer 使用该值的 canonical decimal 编码、两个数组的分隔符和 cumulative 必需编码维护饱和的保守大小下界，超过上限即提前拒绝；完整对象构造后只序列化一次，并按实际 byte 数再次执行精确上限检查。Electron 允许额外一个 `LF` 或 `CRLF` 帧，移除它后独立复核 JSON 本体的 64 MiB 上限。DisplayConfig sidecar 仍使用独立的 16 MiB 上限。
 
-view-model 构建会将 canonical integer 转换为 JavaScript safe integer，拒绝负数或超出范围的值，并在内存中合并经过独立校验的 [DisplayConfig](DISPLAY_CONFIG.md)；该过程不会写入 sidecar 或修改 GSR。共享数据流与组件边界见 [Architecture](../ARCHITECTURE.md#可视化与导出)，数据展示原则见 [UI Design](UI_DESIGN.md#数据表达与文案)。
+view-model 构建会将 canonical integer 转换为 JavaScript safe integer，拒绝负数或超出范围的值，并在内存中合并经过独立校验的 [DisplayConfig](DISPLAY_CONFIG.md)；该过程不会写入 sidecar 或修改 GSR。共享数据流与组件边界见 [Architecture](../ARCHITECTURE.md#可视化与导出)，数据展示原则见 [Visualization Design](VISUALIZATION_DESIGN.md#数据表达与文案)。

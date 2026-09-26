@@ -12,6 +12,12 @@ import {
 import type { ConfigRepositoryState } from "../shared/installed_config";
 import { emulate_viewport } from "./electron_viewport";
 import { result_fixture, simulation_fixture } from "./ui_fixtures";
+import {
+  assert_style_boundaries,
+  chart_style,
+  assert_export_style,
+  assert_workbench_themes,
+} from "./ui_style_contract";
 
 const PROJECT_ROOT = process.cwd();
 
@@ -175,6 +181,100 @@ async function assert_contained(page: Page, parent: string, child: string) {
   );
 }
 
+// Compare normalized geometry so every part of the preview must scale together.
+async function chart_geometry(page: Page) {
+  return page.locator(".cdf-chart-shell").evaluate((node) => {
+    const frame = node.getBoundingClientRect();
+    const selectors = [
+      ".recharts-xAxis .recharts-cartesian-axis-line",
+      ".recharts-yAxis .recharts-cartesian-axis-line",
+      ".axis-title",
+      ".y-axis-title",
+      '[data-marker-key="P50"] .marker-point',
+      '[data-marker-key="P50"] .marker-label',
+    ];
+    return {
+      ratio: frame.width / frame.height,
+      path: node.querySelector(".cdf-curve-path")!.getAttribute("d"),
+      ticks: [
+        ...node.querySelectorAll(".recharts-cartesian-axis-tick-value"),
+      ].map((tick) => tick.textContent),
+      parts: selectors.map((selector) => {
+        const part = node.querySelector(selector)!;
+        // SVG glyph bounds include font hinting at the final pixel size. Check
+        // the text anchor and font scale instead of its rasterized glyph box.
+        if (part instanceof SVGTextElement) {
+          const matrix = part.getScreenCTM()!;
+          const anchor = new DOMPoint(
+            Number(part.getAttribute("x")),
+            Number(part.getAttribute("y")),
+          ).matrixTransform(matrix);
+          const font_size = parseFloat(getComputedStyle(part).fontSize);
+          return [
+            (anchor.x - frame.x) / frame.width,
+            (anchor.y - frame.y) / frame.height,
+            (font_size * Math.hypot(matrix.a, matrix.b)) / frame.width,
+            (font_size * Math.hypot(matrix.c, matrix.d)) / frame.height,
+          ];
+        }
+        const rect = part.getBoundingClientRect();
+        return [
+          (rect.x - frame.x) / frame.width,
+          (rect.y - frame.y) / frame.height,
+          rect.width / frame.width,
+          rect.height / frame.height,
+        ];
+      }),
+    };
+  });
+}
+
+async function assert_preview_width(page: Page) {
+  await page.waitForFunction(() => {
+    const host = document.querySelector(".chart-preview")!;
+    const chart = host.querySelector(".cdf-chart-shell")!;
+    return (
+      Math.abs(
+        host.getBoundingClientRect().width -
+          chart.getBoundingClientRect().width,
+      ) < 0.1
+    );
+  });
+  const geometry = await page.locator(".result-cdf-chart").evaluate((node) => {
+    const style = getComputedStyle(node);
+    const host = node.querySelector(".chart-preview")!.getBoundingClientRect();
+    const chart = node
+      .querySelector(".cdf-chart-shell")!
+      .getBoundingClientRect();
+    return {
+      available:
+        node.clientWidth -
+        parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight),
+      width: host.width,
+      height: host.height,
+      chart_height: chart.height,
+      no_horizontal_scroll: node.scrollWidth <= node.clientWidth,
+    };
+  });
+  assert_pixel_equal(
+    geometry.width,
+    geometry.available,
+    "preview uses the content width",
+  );
+  assert_pixel_equal(
+    geometry.height,
+    geometry.width / 2,
+    "preview reserves its scaled height",
+  );
+  assert_pixel_equal(
+    geometry.chart_height,
+    geometry.height,
+    "chart fits its preview slot",
+  );
+  assert.ok(geometry.no_horizontal_scroll);
+}
+
 async function assert_scroll_owner(page: Page, selector: string) {
   const result = await page.locator(selector).evaluate((node) => {
     const heading = node.parentElement?.querySelector(".panel-heading");
@@ -194,6 +294,21 @@ async function assert_scroll_owner(page: Page, selector: string) {
     result.heading_stable,
     `${selector} leaves its panel heading stationary`,
   );
+}
+
+async function assert_grid_columns(
+  page: Page,
+  selector: string,
+  expected: number,
+) {
+  const columns = await page.locator(selector).evaluate((node) => {
+    const children = [...node.children];
+    const first_top = children[0].getBoundingClientRect().top;
+    return children.filter(
+      (child) => Math.abs(child.getBoundingClientRect().top - first_top) < 1,
+    ).length;
+  });
+  assert.equal(columns, expected, `${selector} uses ${expected} columns`);
 }
 
 async function assert_page_space(
@@ -299,26 +414,15 @@ async function assert_vertical_fill(
   );
 }
 
-async function assert_repository_space(page: Page) {
+async function assert_repository_space(page: Page, source: string) {
   await assert_vertical_fill(page, ".renderer-main", ".repository-page");
   await assert_vertical_fill(
     page,
     ".repository-page",
     ".repository-header",
-    ".local-source",
+    source,
   );
-  const [official, local] = await Promise.all([
-    vertical_geometry(page, ".official-source"),
-    vertical_geometry(page, ".local-source"),
-  ]);
-  // flex 7:3 distributes content-box space, excluding padding and borders.
-  const available = official.content_height + local.content_height;
-  assert.ok(available > 0);
-  assert_pixel_equal(
-    official.content_height,
-    available * 0.7,
-    "official/local content space is 7:3",
-  );
+  assert.ok((await vertical_geometry(page, source)).content_height > 0);
 }
 
 async function fail_with_layout(page: Page, message: string): Promise<never> {
@@ -328,7 +432,7 @@ async function fail_with_layout(page: Page, message: string): Promise<never> {
       [
         ".renderer-main",
         '[data-testid="simulation-item-list"]',
-        '[data-testid="result-preview-scroll"]',
+        ".result-editor-fields",
         ".repository-page",
       ].map((selector) => {
         const element = document.querySelector(selector) as HTMLElement | null;
@@ -347,8 +451,8 @@ async function fail_with_layout(page: Page, message: string): Promise<never> {
     ".renderer-main",
     '[data-testid="simulation-selection"]',
     '[data-testid="simulation-item-list"]',
-    '[data-testid="result-preview"]',
-    '[data-testid="result-preview-scroll"]',
+    ".result-editor-form",
+    ".result-editor-fields",
     '[data-testid="result-cdf-preview"]',
     ".repository-page",
   ]);
@@ -376,6 +480,12 @@ async function assert_layout(application: ElectronApplication, page: Page) {
       sidebar: document
         .querySelector(".renderer-sidebar")!
         .getBoundingClientRect().width,
+      nav: (() => {
+        const rect = document
+          .querySelector('.renderer-nav-button[aria-current="page"]')!
+          .getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+      })(),
       control: document
         .querySelector(".simulation-control input")!
         .getBoundingClientRect().height,
@@ -384,17 +494,19 @@ async function assert_layout(application: ElectronApplication, page: Page) {
         .getBoundingClientRect().width,
     };
   });
-  const density =
-    Math.min(1.5, Math.max(1, (8 + visual.width * 0.00625) / 16)) * 1.15;
   for (const [actual, expected] of [
-    [visual.font, Math.min(27, 9 + visual.width * 0.00703125)],
-    [visual.body, 15 * density],
-    [visual.small, 12 * density],
-    [visual.control, 40 * density],
-    [visual.icon, 18 * density],
-    [visual.sidebar, Math.min(176, Math.max(88, visual.width * 0.06875))],
+    [visual.font, 20],
+    [visual.body, 15 * 1.15],
+    [visual.small, 12 * 1.15],
+    [visual.control, 40 * 1.15],
+    [visual.icon, 18 * 1.15],
+    [visual.sidebar, 120],
   ])
     assert.ok(Math.abs(actual - expected) < 1, JSON.stringify(visual));
+  assert.ok(
+    Math.abs(visual.nav.width - visual.nav.height) < 1,
+    `selected navigation button is square: ${JSON.stringify(visual.nav)}`,
+  );
   const space_failures: string[] = [];
   const check_space = async (check: () => Promise<void>) => {
     try {
@@ -464,6 +576,11 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     await list.evaluate((node) => node.scrollHeight > node.clientHeight),
     true,
   );
+  await assert_grid_columns(
+    page,
+    '[data-testid="simulation-item-list"]',
+    visual.width >= 1900 ? 2 : 1,
+  );
   await assert_scroll_owner(page, '[data-testid="simulation-item-list"]');
   await assert_scroll_owner(page, ".simulation-control-body");
   await assert_contained(
@@ -476,6 +593,13 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   const selection_before = await simulation.boundingBox();
   const search = page.getByRole("searchbox", { name: "搜索统计物品" });
   await search.fill("item_79");
+  const search_focus = await search.evaluate((node) => ({
+    inner: getComputedStyle(node).outlineStyle,
+    outer: getComputedStyle(node.parentElement!).outlineStyle,
+  }));
+  assert.equal(search_focus.inner, "none", "search has no second focus ring");
+  assert.equal(search_focus.outer, "solid", "search wrapper indicates focus");
+  await capture_layout(page, "search-focus");
   await page.waitForFunction(
     () => document.querySelectorAll(".simulation-item").length === 1,
   );
@@ -488,18 +612,47 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   await search.fill("");
 
   await page.getByRole("button", { name: "结果可视化" }).click();
-  const unavailable_export = page.getByRole("button", { name: "导出素材" });
-  await unavailable_export.focus();
-  assert.equal(await unavailable_export.getAttribute("aria-disabled"), "true");
-  const reason_id = await unavailable_export.getAttribute("aria-describedby");
-  assert.ok(reason_id);
+  await page.getByRole("button", { name: "选择 GSR" }).waitFor();
   assert.equal(
-    await page.locator(`#${reason_id}`).textContent(),
-    "请先载入结果后再导出。",
+    await page.getByRole("group", { name: "可视化操作" }).count(),
+    0,
   );
+  assert.equal(await page.getByRole("button", { name: "导出素材" }).count(), 0);
+  assert.equal(await page.getByRole("button", { name: "重播动画" }).count(), 0);
+  assert.equal(await page.locator(".main-region").count(), 0);
+  assert.equal(await page.locator(".visualize-scope").count(), 0);
+  assert.equal(await page.locator(".top-bar").count(), 0);
+  const visualize_load_style = await page
+    .locator(".result-load-panel")
+    .evaluate((node) => {
+      const style = getComputedStyle(node);
+      return [
+        style.backgroundColor,
+        style.borderTopColor,
+        style.color,
+        style.fontFamily,
+      ];
+    });
 
   await page.getByRole("button", { name: "结果编辑" }).click();
   await page.locator("#simulation-title").waitFor({ state: "hidden" });
+  assert.equal(
+    await page.getByRole("heading", { name: "结果展示信息" }).count(),
+    0,
+  );
+  assert.equal(await page.locator(".result-editor-header").count(), 0);
+  assert.deepEqual(
+    await page.locator(".result-load-panel").evaluate((node) => {
+      const style = getComputedStyle(node);
+      return [
+        style.backgroundColor,
+        style.borderTopColor,
+        style.color,
+        style.fontFamily,
+      ];
+    }),
+    visualize_load_style,
+  );
   await application.evaluate(({ ipcMain }, fixture) => {
     let calls = 0;
     ipcMain.removeHandler("select-gsr-result");
@@ -510,6 +663,7 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   await page.getByText("未选择文件。", { exact: true }).waitFor();
   await select.click();
   await page.getByRole("button", { name: "更换 GSR" }).waitFor();
+  await page.getByRole("heading", { name: "结果展示信息" }).waitFor();
   await page.getByLabel("副标题", { exact: true }).waitFor();
   await page.getByLabel("统计物品展示单位", { exact: true }).waitFor();
   await page.evaluate(() => document.fonts.ready);
@@ -520,28 +674,76 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     ".result-editor-header",
     ".result-save-status",
   );
-  for (const panel of [".result-editor-left", ".result-cdf-preview"]) {
+  for (const panel of [".result-editor-form", ".result-cdf-preview"]) {
     await assert_vertical_fill(page, ".result-editor-workbench", panel);
   }
-  await check_space(() =>
-    assert_vertical_fill(
-      page,
-      ".result-editor-left",
-      ".result-editor-form",
-      ".result-preview",
-    ),
-  );
-
-  const preview = page.locator('[data-testid="result-preview"]');
-  await assert_contained(page, ".result-editor-left", ".result-preview");
   await assert_vertical_fill(
     page,
-    ".result-preview",
-    ".result-preview .panel-heading",
-    ".result-preview-scroll",
+    ".result-editor-form",
+    ".result-editor-form .panel-heading",
+    ".result-editor-fields",
   );
   await assert_scroll_owner(page, ".result-editor-fields");
-  await assert_scroll_owner(page, ".result-preview-scroll");
+  assert.equal(
+    await page.getByRole("heading", { name: "核心指标" }).count(),
+    0,
+  );
+  assert.deepEqual(
+    await page.locator(".result-editor-summary dt").allTextContents(),
+    ["结果指标", "累计模拟次数", "累计次数"],
+  );
+  assert.equal(
+    await page.locator(".result-editor-summary code").textContent(),
+    result_fixture().analysis.result_item.id,
+  );
+  const total_summary = page.locator(".result-editor-summary dd").nth(2);
+  const total_number = Number(
+    result_fixture().analysis.totals.result,
+  ).toLocaleString("zh-CN");
+  const unit_input = page.getByLabel("统计物品展示单位", { exact: true });
+  const original_unit = await unit_input.inputValue();
+  for (const unit of ["", "份 / 次", original_unit]) {
+    await unit_input.fill(unit);
+    assert.equal(
+      await total_summary.textContent(),
+      total_number + (unit ? ` ${unit}` : ""),
+      "Workbench summary preserves the value and reflects unit edits",
+    );
+  }
+  const summary_boxes = await page
+    .locator(".result-editor-summary > div")
+    .evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const r = node.getBoundingClientRect();
+        return { x: r.x, y: r.y, right: r.right };
+      }),
+    );
+  for (let i = 1; i < summary_boxes.length; i++) {
+    assert_pixel_equal(
+      summary_boxes[i].y,
+      summary_boxes[0].y,
+      "summary items share a row",
+    );
+    assert.ok(summary_boxes[i].x >= summary_boxes[i - 1].right);
+  }
+  const field_boxes = await page
+    .locator(".result-editor-fields textarea")
+    .evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const r = node.getBoundingClientRect();
+        return { x: r.x, y: r.y, width: r.width, bottom: r.bottom };
+      }),
+    );
+  assert.equal(field_boxes.length, 6);
+  for (let i = 1; i < field_boxes.length; i++) {
+    assert_pixel_equal(field_boxes[i].x, field_boxes[0].x, "fields align left");
+    assert_pixel_equal(
+      field_boxes[i].width,
+      field_boxes[0].width,
+      "fields share full width",
+    );
+    assert.ok(field_boxes[i].y >= field_boxes[i - 1].bottom);
+  }
   await assert_page_space(page, ".result-editor", ".result-editor-workbench");
   const [workbench_end, save_status] = await Promise.all([
     vertical_geometry(page, ".result-editor-workbench"),
@@ -556,8 +758,59 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     "editor workbench fills space above save status",
   );
   await capture_layout(page, "editor");
-  const scroll = page.locator('[data-testid="result-preview-scroll"]');
-  const heading = preview.getByRole("heading", { name: "核心指标" });
+  const note = page.getByLabel("说明", { exact: true });
+  const original_note = await note.inputValue();
+  await note.focus();
+  const focus_geometry = await note.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return {
+      style: style.outlineStyle,
+      extent: parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset),
+      gap: parseFloat(
+        getComputedStyle(node.closest(".result-editor-fields")!)
+          .paddingInlineEnd,
+      ),
+    };
+  });
+  assert.equal(focus_geometry.style, "solid");
+  assert.ok(focus_geometry.extent <= 0, "field focus stays within its border");
+  assert.ok(focus_geometry.gap > 0, "fields leave space beside the scrollbar");
+  const short_height = (await note.boundingBox())!.height;
+  const long_note = "长说明文本用于验证自动换行与高度调整。".repeat(100);
+  await note.fill(long_note);
+  const long_geometry = await note.evaluate((node) => ({
+    height: node.getBoundingClientRect().height,
+    scrollHeight: node.scrollHeight,
+    clientHeight: node.clientHeight,
+    scrollWidth: node.scrollWidth,
+    clientWidth: node.clientWidth,
+  }));
+  assert.ok(long_geometry.height > short_height, "long text grows the field");
+  assert.ok(
+    long_geometry.scrollHeight > long_geometry.clientHeight,
+    "very long text scrolls within the bounded field",
+  );
+  assert.ok(
+    long_geometry.scrollWidth <= long_geometry.clientWidth,
+    "long text wraps without horizontal clipping",
+  );
+  assert.equal(
+    await note.inputValue(),
+    long_note,
+    "soft wrapping preserves text",
+  );
+  await capture_layout(page, "editor-long-text");
+  await note.fill(original_note);
+  assert_pixel_equal(
+    (await note.boundingBox())!.height,
+    short_height,
+    "field shrinks when long text is removed",
+  );
+  const scroll = page.locator(".result-editor-fields");
+  const heading = page.getByRole("heading", { name: "可视化文案" });
+  const summary_before = await page
+    .locator(".result-editor-summary")
+    .boundingBox();
   const before = await heading.boundingBox();
   assert.ok(before);
   assert.equal(
@@ -568,6 +821,10 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     node.scrollTop = node.scrollHeight;
   });
   assert.deepEqual(await heading.boundingBox(), before);
+  assert.deepEqual(
+    await page.locator(".result-editor-summary").boundingBox(),
+    summary_before,
+  );
   assert.equal(
     await page
       .locator('[data-testid="result-cdf-preview"]')
@@ -581,6 +838,88 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   assert.ok(
     await page.locator('[data-testid="result-cdf-preview"] circle').count(),
   );
+
+  await assert_vertical_fill(
+    page,
+    ".result-cdf-preview",
+    ".result-cdf-preview .panel-heading",
+    ".result-cdf-chart",
+  );
+  await assert_preview_width(page);
+  const preview_geometry = await chart_geometry(page);
+  const preview_style = await assert_style_boundaries(page);
+  assert.equal(
+    await page.getByRole("group", { name: "可视化操作" }).count(),
+    0,
+  );
+  assert.ok(Math.abs(preview_geometry.ratio - 2) < 0.00001);
+
+  // Container-only resizing must work without a window resize event.
+  await page.locator(".result-cdf-chart").evaluate((node) => {
+    (node as HTMLElement).style.width = "75%";
+  });
+  await assert_preview_width(page);
+  const narrowed_geometry = await chart_geometry(page);
+  assert.deepEqual(narrowed_geometry.ticks, preview_geometry.ticks);
+  assert.equal(narrowed_geometry.path, preview_geometry.path);
+  for (let i = 0; i < preview_geometry.parts.length; i++) {
+    for (let j = 0; j < 4; j++) {
+      assert.ok(
+        Math.abs(narrowed_geometry.parts[i][j] - preview_geometry.parts[i][j]) <
+          0.0001,
+        `part ${i} coordinate ${j}: ${JSON.stringify({ before: preview_geometry.parts[i], after: narrowed_geometry.parts[i] })}`,
+      );
+    }
+  }
+  await page.locator(".result-cdf-chart").evaluate((node) => {
+    (node as HTMLElement).style.removeProperty("width");
+  });
+  await assert_preview_width(page);
+
+  // Populate additional preview slots to exercise the stack and scroll owner.
+  await page.locator(".result-cdf-chart").evaluate((node) => {
+    const first = node.firstElementChild!;
+    for (let i = 0; i < 3; i++) node.append(first.cloneNode(true));
+  });
+  const slots = await page.locator(".chart-preview").evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const rect = node.getBoundingClientRect();
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+      };
+    }),
+  );
+  for (let i = 1; i < slots.length; i++) {
+    assert.ok(
+      slots[i].top > slots[i - 1].bottom,
+      "preview slots stack with a gap",
+    );
+    assert_pixel_equal(
+      slots[i].left,
+      slots[0].left,
+      "preview slots align left",
+    );
+    assert_pixel_equal(
+      slots[i].width,
+      slots[0].width,
+      "preview slots share available width",
+    );
+  }
+  assert.equal(
+    await page
+      .locator(".result-cdf-chart")
+      .evaluate((node) => node.scrollHeight > node.clientHeight),
+    true,
+  );
+  await assert_scroll_owner(page, ".result-cdf-chart");
+  await assert_preview_width(page);
+  await capture_layout(page, "editor-stacked-previews");
+  await page.locator(".result-cdf-chart").evaluate((node) => {
+    while (node.children.length > 1) node.lastElementChild!.remove();
+  });
 
   await page.getByRole("button", { name: "结果可视化" }).click();
   const visualization = page.locator('[data-testid="visualize-root"]');
@@ -622,6 +961,51 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     axis_tick_text.some((text) => text.includes("抽")),
     false,
   );
+  const scene_geometry = await chart_geometry(page);
+  assert.equal(
+    await page.locator(".visualize-viewport.visualize-scope").count(),
+    1,
+  );
+  assert.deepEqual(await chart_style(page), preview_style);
+  await assert_workbench_themes(page);
+  await assert_export_style(application, preview_style);
+  assert.equal(scene_geometry.path, preview_geometry.path);
+  assert.deepEqual(scene_geometry.ticks, preview_geometry.ticks);
+  for (let i = 0; i < preview_geometry.parts.length; i++) {
+    for (let j = 0; j < 4; j++) {
+      assert.ok(
+        Math.abs(scene_geometry.parts[i][j] - preview_geometry.parts[i][j]) <
+          0.0001,
+        `preview part ${i} coordinate ${j} matches the formal chart: ${JSON.stringify({ preview: preview_geometry.parts[i], scene: scene_geometry.parts[i] })}`,
+      );
+    }
+  }
+  const design_regions = await page.evaluate(() => {
+    const selectors = [
+      ".chart-region",
+      ".cdf-chart-shell",
+      ".termination-region",
+      ".statistic-panel",
+    ];
+    return selectors.map((selector) => {
+      const node = document.querySelector(selector) as HTMLElement;
+      return {
+        width: node.offsetWidth,
+        height: node.offsetHeight,
+        left: node.getBoundingClientRect().left,
+      };
+    });
+  });
+  assert.deepEqual(
+    design_regions.map(({ width, height }) => [width, height]),
+    [
+      [2800, 1400],
+      [2800, 1400],
+      [2800, 280],
+      [716, 1720],
+    ],
+  );
+  assert.equal(design_regions[0].left, design_regions[2].left);
   const visualize_contract = await page.evaluate(() => {
     const viewport = document.querySelector(".visualize-viewport");
     const root = document.querySelector('[data-testid="visualize-root"]');
@@ -645,8 +1029,36 @@ async function assert_layout(application: ElectronApplication, page: Page) {
       return null;
     const viewport_rect = viewport.getBoundingClientRect();
     const root_rect = root.getBoundingClientRect();
+    const viewport_style = getComputedStyle(viewport);
+    const inset = {
+      left: Number.parseFloat(viewport_style.paddingLeft),
+      right: Number.parseFloat(viewport_style.paddingRight),
+      top: Number.parseFloat(viewport_style.paddingTop),
+      bottom: Number.parseFloat(viewport_style.paddingBottom),
+    };
     return {
       aspect_ratio: root_rect.width / root_rect.height,
+      geometry: {
+        inset,
+        viewport: {
+          client_width: viewport.clientWidth,
+          client_height: viewport.clientHeight,
+          scroll_width: viewport.scrollWidth,
+          scroll_height: viewport.scrollHeight,
+          left: viewport_rect.left,
+          right: viewport_rect.right,
+          top: viewport_rect.top,
+          bottom: viewport_rect.bottom,
+        },
+        root: {
+          left: root_rect.left,
+          right: root_rect.right,
+          top: root_rect.top,
+          bottom: root_rect.bottom,
+          width: root_rect.width,
+          height: root_rect.height,
+        },
+      },
       fits:
         viewport.scrollWidth <= viewport.clientWidth &&
         viewport.scrollHeight <= viewport.clientHeight &&
@@ -654,6 +1066,11 @@ async function assert_layout(application: ElectronApplication, page: Page) {
         root_rect.right <= viewport_rect.right &&
         root_rect.top >= viewport_rect.top &&
         root_rect.bottom <= viewport_rect.bottom,
+      gutter_preserved:
+        root_rect.left >= viewport_rect.left + inset.left &&
+        root_rect.right <= viewport_rect.right - inset.right &&
+        root_rect.top >= viewport_rect.top + inset.top &&
+        root_rect.bottom <= viewport_rect.bottom - inset.bottom,
       marker_aligned:
         Number(line.getAttribute("x1")) === Number(point.getAttribute("cx")) &&
         Number(line.getAttribute("y2")) === Number(point.getAttribute("cy")),
@@ -664,7 +1081,14 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     };
   });
   assert.ok(visualize_contract);
-  assert.ok(visualize_contract.fits);
+  assert.ok(
+    visualize_contract.fits,
+    JSON.stringify(visualize_contract.geometry),
+  );
+  assert.ok(
+    visualize_contract.gutter_preserved,
+    JSON.stringify(visualize_contract.geometry),
+  );
   assert.ok(visualize_contract.marker_aligned);
   assert.ok(visualize_contract.regions_visible);
   assert.ok(Math.abs(visualize_contract.aspect_ratio - 16 / 9) < 0.00001);
@@ -727,25 +1151,27 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     ipcMain.handle("exit-after-export-cleanup", () => undefined);
   });
 
-  const chart_actions = page.locator(".chart-actions");
-  await page.locator(".chart-region").hover();
-  await page.waitForFunction(
-    () =>
-      getComputedStyle(document.querySelector(".chart-actions")!).opacity ===
-      "1",
-  );
-  const action_labels = await chart_actions
-    .getByRole("button")
-    .allTextContents();
+  assert.equal(await page.locator(".chart-actions").count(), 0);
+  const sidebar_actions = page.getByRole("group", { name: "可视化操作" });
   assert.deepEqual(
-    action_labels.map((label) => label.trim()),
-    ["", "导出素材", "选择结果"],
+    await sidebar_actions.getByRole("button").allTextContents(),
+    ["更换结果", "重播动画", "导出素材"],
+  );
+  const actions_box = await sidebar_actions.boundingBox();
+  const sidebar_box = await page.locator(".renderer-sidebar").boundingBox();
+  assert.ok(actions_box && sidebar_box);
+  assert.ok(
+    actions_box.y + actions_box.height <= sidebar_box.y + sidebar_box.height,
+  );
+  assert.ok(
+    actions_box.x >= sidebar_box.x &&
+      actions_box.x + actions_box.width <= sidebar_box.x + sidebar_box.width,
   );
   const export_button = page.getByRole("button", { name: "导出素材" });
   await export_button.focus();
   assert.equal(
-    await chart_actions.evaluate((node) => getComputedStyle(node).opacity),
-    "1",
+    await export_button.evaluate((node) => node === document.activeElement),
+    true,
   );
   await export_button.click();
   const dialog = page.getByRole("dialog", { name: "导出素材" });
@@ -754,6 +1180,10 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   await assert_full_window_host_rects(page);
   await page.keyboard.press("Escape");
   await dialog.waitFor({ state: "hidden" });
+  assert.equal(
+    await export_button.evaluate((node) => node === document.activeElement),
+    true,
+  );
   await export_button.click();
   await page.getByRole("button", { name: "选择导出目录" }).click();
   await page.getByRole("button", { name: "覆盖并导出" }).click();
@@ -933,7 +1363,7 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     "0",
   );
 
-  await page.getByRole("button", { name: "重新绘制动画" }).click();
+  await page.getByRole("button", { name: "重播动画" }).click();
   await page.waitForFunction(
     () => document.documentElement.dataset.animationRestartCount === "1",
     undefined,
@@ -949,7 +1379,7 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     "1",
   );
 
-  await page.getByRole("button", { name: "选择结果" }).click();
+  await page.getByRole("button", { name: "更换结果" }).click();
   await page.waitForFunction(
     () => document.documentElement.dataset.animationRestartCount === "2",
     undefined,
@@ -965,6 +1395,29 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     "2",
   );
 
+  await application.evaluate(({ ipcMain }) => {
+    ipcMain.removeHandler("select-gsr-result");
+    ipcMain.handle("select-gsr-result", () => {
+      throw new Error("无效的 GSR");
+    });
+  });
+  await page.getByRole("button", { name: "更换结果" }).click();
+  const feedback = page.locator(".result-visualize-feedback");
+  await feedback
+    .getByRole("alert")
+    .getByText(/无效的 GSR/)
+    .waitFor();
+  assert.equal(await visualization.isVisible(), true);
+  assert.equal(await feedback.getByRole("status").textContent(), "分析失败。");
+
+  await application.evaluate(({ ipcMain }) => {
+    ipcMain.removeHandler("select-gsr-result");
+    ipcMain.handle("select-gsr-result", () => null);
+  });
+  await page.getByRole("button", { name: "更换结果" }).click();
+  await feedback.getByRole("status").getByText("未选择文件。").waitFor();
+  assert.equal(await feedback.getByRole("alert").count(), 0);
+
   await application.evaluate(({ ipcMain }, fixture) => {
     for (const channel of [
       "get-config-repository-state",
@@ -975,17 +1428,28 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     }
   }, repository_fixture());
   await page.getByRole("button", { name: "配置仓库" }).click();
+  assert.equal(
+    await page.getByRole("group", { name: "可视化操作" }).count(),
+    0,
+  );
   await page.getByText("测试配置 0").waitFor();
 
   const repository = page.locator(".repository-page");
   const official = page.locator(".official-source");
   const local = page.locator(".local-source");
-  const [official_box, local_box] = await Promise.all([
-    official.boundingBox(),
-    local.boundingBox(),
-  ]);
-  assert.ok(official_box && local_box);
-  await assert_repository_space(page);
+  const official_box = await official.boundingBox();
+  assert.ok(official_box);
+  assert.equal(await local.count(), 0);
+  assert.deepEqual(
+    await repository.locator(".repository-overview dt").allTextContents(),
+    ["已安装", "可更新", "可安装"],
+  );
+  await assert_repository_space(page, ".official-source");
+  await assert_grid_columns(
+    page,
+    ".repository-list",
+    visual.width >= 1900 ? 4 : 2,
+  );
   await capture_layout(page, "repository");
   await assert_page_space(page, ".repository-page");
   assert.equal(
@@ -996,15 +1460,10 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   const official_heading_before = await official
     .locator(".repository-source-heading")
     .boundingBox();
-  const local_heading_before = await local
-    .locator(".repository-source-heading")
-    .boundingBox();
-  assert.ok(official_heading_before && local_heading_before);
-  for (const list of [
-    official.locator(".repository-list"),
-    local.locator(".local-config-list"),
-  ]) {
-    const scroll = await list.evaluate((node) => {
+  assert.ok(official_heading_before);
+  const official_scroll = await official
+    .locator(".repository-list")
+    .evaluate((node) => {
       const element = node as HTMLElement;
       const result = {
         scrollHeight: element.scrollHeight,
@@ -1015,13 +1474,44 @@ async function assert_layout(application: ElectronApplication, page: Page) {
       result.scrollTop = element.scrollTop;
       return result;
     });
-    assert.ok(scroll.scrollHeight > scroll.clientHeight);
-    assert.ok(scroll.scrollTop > 0);
-  }
+  assert.ok(official_scroll.scrollHeight > official_scroll.clientHeight);
+  assert.ok(official_scroll.scrollTop > 0);
   assert.deepEqual(
     await official.locator(".repository-source-heading").boundingBox(),
     official_heading_before,
   );
+
+  await page.getByRole("button", { name: "本地目录", exact: true }).click();
+  await page.getByText("本地配置 0").waitFor();
+  assert.equal(await official.count(), 0);
+  assert.deepEqual(
+    await repository.locator(".repository-overview dt").allTextContents(),
+    ["配置数"],
+  );
+  await page.getByRole("button", { name: "选择本地目录" }).waitFor();
+  const local_box = await local.boundingBox();
+  assert.ok(local_box);
+  await assert_repository_space(page, ".local-source");
+  await capture_layout(page, "repository-local");
+  const local_heading_before = await local
+    .locator(".repository-source-heading")
+    .boundingBox();
+  assert.ok(local_heading_before);
+  const local_scroll = await local
+    .locator(".local-config-list")
+    .evaluate((node) => {
+      const element = node as HTMLElement;
+      const result = {
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+        scrollTop: 0,
+      };
+      element.scrollTop = element.scrollHeight;
+      result.scrollTop = element.scrollTop;
+      return result;
+    });
+  assert.ok(local_scroll.scrollHeight > local_scroll.clientHeight);
+  assert.ok(local_scroll.scrollTop > 0);
   assert.deepEqual(
     await local.locator(".repository-source-heading").boundingBox(),
     local_heading_before,
@@ -1045,9 +1535,16 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   ]);
   assert.ok(list_box && card_box);
   assert.ok(card_box.height < list_box.height);
-  await assert_repository_space(page);
+  await assert_repository_space(page, ".official-source");
   assert.deepEqual(await official.boundingBox(), official_box);
-  assert.deepEqual(await local.boundingBox(), local_box);
+  assert.equal(await local.count(), 0);
+  await page.getByRole("button", { name: "结果可视化" }).click();
+  await page.getByRole("group", { name: "可视化操作" }).waitFor();
+  await page.getByRole("button", { name: "结果编辑" }).click();
+  assert.equal(
+    await page.getByRole("group", { name: "可视化操作" }).count(),
+    0,
+  );
   assert.equal(space_failures.length, 0, space_failures.join("\n"));
 }
 

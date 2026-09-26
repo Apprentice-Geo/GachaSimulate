@@ -1,0 +1,101 @@
+/* Default Light; explicit Dark is reserved for internal validation. */
+.workbench-host {
+  color-scheme: light;
+  --workbench-bg: #fafafa;
+  --workbench-surface: #ffffff;
+  --workbench-surface-muted: #f5f5f5;
+  --workbench-border: #e5e5e5;
+  --workbench-border-strong: #bdbdbd;
+  --workbench-text: #171717;
+  --workbench-text-muted: #525252;
+  --workbench-text-faint: #737373;
+  --workbench-primary: #171717;
+  --workbench-primary-hover: #383838;
+  --workbench-on-primary: #ffffff;
+  --workbench-hover: #eeeeee;
+  --workbench-selected-bg: #eaeaea;
+  --workbench-selected-border: #a3a3a3;
+  --workbench-selected-text: #171717;
+  --workbench-focus: #0070f3;
+  --workbench-link: #0068d9;
+  --workbench-info: #0068d9;
+  --workbench-success: #18733b;
+  --workbench-danger: #c62828;
+  --workbench-danger-hover: #a61c1c;
+  --workbench-on-danger: #ffffff;
+  --workbench-danger-surface: #fff1f1;
+  --workbench-danger-border: #e8aaaa;
+  --workbench-warning: #946000;
+  --workbench-disabled-bg: #ededed;
+  --workbench-disabled-text: #858585;
+  --workbench-disabled-border: #dedede;
+  --workbench-input-bg: #ffffff;
+  --workbench-overlay: rgba(0, 0, 0, 0.4);
+  --workbench-shadow-dialog: 0 16px 48px rgba(0, 0, 0, 0.16);
+  --workbench-scrollbar: #b5b5b5;
+  --workbench-scrollbar-hover: #858585;
+  --workbench-status-halo: rgba(0, 112, 243, 0.12);
+}
+
+.workbench-host[data-workbench-theme="dark"] {
+  color-scheme: dark;
+  --workbench-bg: #111111;
+  --workbench-surface: #191919;
+  --workbench-surface-muted: #222222;
+  --workbench-border: #333333;
+  --workbench-border-strong: #666666;
+  --workbench-text: #ededed;
+  --workbench-text-muted: #b5b5b5;
+  --workbench-text-faint: #999999;
+  --workbench-primary: #ededed;
+  --workbench-primary-hover: #cccccc;
+  --workbench-on-primary: #171717;
+  --workbench-hover: #2c2c2c;
+  --workbench-selected-bg: #303030;
+  --workbench-selected-border: #777777;
+  --workbench-selected-text: #ffffff;
+  --workbench-focus: #70adff;
+  --workbench-link: #70adff;
+  --workbench-info: #70adff;
+  --workbench-success: #6ecb8d;
+  --workbench-danger: #ff8585;
+  --workbench-danger-hover: #ffa0a0;
+  --workbench-on-danger: #171717;
+  --workbench-danger-surface: #351e1e;
+  --workbench-danger-border: #854444;
+  --workbench-warning: #e5b65c;
+  --workbench-disabled-bg: #292929;
+  --workbench-disabled-text: #858585;
+  --workbench-disabled-border: #393939;
+  --workbench-input-bg: #171717;
+  --workbench-overlay: rgba(0, 0, 0, 0.65);
+  --workbench-shadow-dialog: 0 16px 48px rgba(0, 0, 0, 0.4);
+  --workbench-scrollbar: #555555;
+  --workbench-scrollbar-hover: #888888;
+  --workbench-status-halo: rgba(112, 173, 255, 0.16);
+}
+
+.workbench-host {
+  --workbench-font-ui: SourceHanSansSC, "Segoe UI", sans-serif;
+  --workbench-font-mono: "JetBrains Mono", SourceHanSansSC, monospace;
+  --workbench-radius-button: 6px;
+  --workbench-radius-panel: 8px;
+  --workbench-radius-scrollbar: 8px;
+  --workbench-selection-stripe: 4px;
+  --workbench-card-stripe-inset: 2px;
+  --desktop-font: 20px;
+  --desktop-unit: 1.15px;
+
+  /* Common Workbench spacing; specialized layout geometry stays local. */
+  --workbench-space-xs: calc(var(--desktop-unit) * 7);
+  --workbench-space-sm: calc(var(--desktop-unit) * 10);
+  --workbench-space-md: calc(var(--desktop-unit) * 14);
+  --workbench-space-lg: calc(var(--desktop-unit) * 24);
+  --workbench-control-height: calc(var(--desktop-unit) * 38);
+
+  --workbench-font-caption: calc(var(--desktop-unit) * 12);
+  --workbench-font-meta: calc(var(--desktop-unit) * 13);
+  --workbench-font-content: calc(var(--desktop-unit) * 15);
+  --workbench-font-body: var(--desktop-font);
+  --workbench-font-heading: calc(var(--desktop-unit) * 20);
+}

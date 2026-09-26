@@ -45,7 +45,7 @@ classify_path() {
       ;;
   esac
   case "$path" in
-    src/visualize/*|src/export-renderer/*|docs/schemas/*|docs/UI_DESIGN.md)
+    src/visualize/*|src/export-renderer/*|docs/schemas/*|docs/WORKBENCH_DESIGN.md|docs/VISUALIZATION_DESIGN.md)
       visualize_changed=1
       ;;
   esac

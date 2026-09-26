@@ -116,7 +116,6 @@ export default function ExportRendererApp() {
         animation_progress={build_animation_progress(frame_state.elapsed_ms)}
         animation_state={frame_state.animation_state}
         data={initialization.view_model}
-        is_animating={frame_state.is_animating}
         render_mode="export"
       />
       {__GACHASIMULATE_EXPORT_FRAME_PROBE__ && (

@@ -1,3 +1,5 @@
+import { Button } from "./components/Button";
+import { Field } from "./components/Field";
 import { FileImage, Film, X } from "lucide-react";
 import {
   useEffect,
@@ -453,20 +455,23 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
           <div>
             <strong>{notice.message}</strong>
             {Boolean(notice.saved?.length) && (
-              <span>
+              <span className="export-notice-detail">
                 已保存：
                 {notice.saved!.map((value) => value.toUpperCase()).join("、")}
               </span>
             )}
             {Boolean(notice.failed?.length) && (
-              <span>
+              <span className="export-notice-detail">
                 失败：
                 {notice.failed!.map((value) => value.toUpperCase()).join("、")}
               </span>
             )}
           </div>
           {notice.task_id && Boolean(notice.saved?.length) && (
-            <button
+            <Button
+              className="export-notice-action"
+              variant="ghost"
+              size="compact"
               type="button"
               onClick={() => {
                 void window.desktopApi
@@ -481,15 +486,18 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
               }}
             >
               打开所在文件夹
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            className="export-notice-action"
+            variant="ghost"
+            size="compact"
             type="button"
             aria-label="关闭通知"
             onClick={() => set_notice(null)}
           >
             <X aria-hidden="true" size={16} />
-          </button>
+          </Button>
         </div>
       )}
       {active && (
@@ -503,49 +511,54 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
           >
             {phase === "editing" ? (
               <>
-                <header>
+                <header className="export-heading">
                   <div>
-                    <p>EXPORT MATERIALS</p>
-                    <h2 id="export-dialog-title">导出素材</h2>
+                    <p className="export-eyebrow">EXPORT MATERIALS</p>
+                    <h2 className="export-title" id="export-dialog-title">
+                      导出素材
+                    </h2>
                   </div>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="compact"
                     type="button"
                     aria-label="关闭导出"
                     onClick={cancel_or_return}
                   >
                     <X aria-hidden="true" size={18} />
-                  </button>
+                  </Button>
                 </header>
                 <fieldset className="export-format-options">
                   <legend>选择格式</legend>
-                  <label>
+                  <label className="export-format-option">
                     <input
                       checked={formats.includes("mp4")}
                       type="checkbox"
                       onChange={() => toggle_format("mp4")}
                     />
                     <Film aria-hidden="true" size={20} />
-                    <span>
+                    <span className="export-format-copy">
                       <strong>MP4 动画</strong>
                       <small>60 FPS · H.264</small>
                     </span>
                   </label>
-                  <label>
+                  <label className="export-format-option">
                     <input
                       checked={formats.includes("png")}
                       type="checkbox"
                       onChange={() => toggle_format("png")}
                     />
                     <FileImage aria-hidden="true" size={20} />
-                    <span>
+                    <span className="export-format-copy">
                       <strong>PNG 静帧</strong>
                       <small>动画完成画面</small>
                     </span>
                   </label>
                 </fieldset>
-                <label className="export-name-field">
+                <Field className="export-name-field">
                   文件名
                   <input
+                    className="export-name-input"
                     data-autofocus={editing_focus === "name" || undefined}
                     value={base_name}
                     onChange={(event) => {
@@ -558,7 +571,7 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                       }
                     }}
                   />
-                </label>
+                </Field>
                 <div className="export-preview" aria-label="文件名预览">
                   {formats
                     .map((format) => `${base_name || "—"}.${format}`)
@@ -569,15 +582,15 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                     {validation_error}
                   </p>
                 )}
-                <footer>
-                  <button
+                <footer className="export-actions">
+                  <Button
                     type="button"
-                    className="secondary"
+                    variant="secondary"
                     onClick={cancel_or_return}
                   >
                     取消
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     data-action="choose-directory"
                     data-autofocus={editing_focus === "directory" || undefined}
                     type="button"
@@ -585,23 +598,27 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                     onClick={() => void start_preparation()}
                   >
                     选择导出目录
-                  </button>
+                  </Button>
                 </footer>
               </>
             ) : phase === "confirming_overwrite" ? (
               <>
-                <header>
+                <header className="export-heading">
                   <div>
-                    <p>OVERWRITE CHECK</p>
-                    <h2 id="export-dialog-title">覆盖现有文件？</h2>
+                    <p className="export-eyebrow">OVERWRITE CHECK</p>
+                    <h2 className="export-title" id="export-dialog-title">
+                      覆盖现有文件？
+                    </h2>
                   </div>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="compact"
                     type="button"
                     aria-label="返回格式选择"
                     onClick={cancel_or_return}
                   >
                     <X aria-hidden="true" size={18} />
-                  </button>
+                  </Button>
                 </header>
                 <p className="export-copy">
                   以下文件已存在。继续后会在提交每个产物前再次确认文件未被其他程序改动。
@@ -611,54 +628,58 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                     <li key={file}>{file}</li>
                   ))}
                 </ul>
-                <footer>
-                  <button
+                <footer className="export-actions">
+                  <Button
                     data-autofocus
                     type="button"
-                    className="secondary"
+                    variant="secondary"
                     onClick={cancel_or_return}
                   >
                     返回
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     onClick={() => void confirm_overwrite()}
                   >
                     覆盖并导出
-                  </button>
+                  </Button>
                 </footer>
               </>
             ) : phase === "cancel_confirm" ? (
               <>
-                <header>
+                <header className="export-heading">
                   <div>
-                    <p>CANCEL EXPORT</p>
-                    <h2 id="export-dialog-title">确定取消导出？</h2>
+                    <p className="export-eyebrow">CANCEL EXPORT</p>
+                    <h2 className="export-title" id="export-dialog-title">
+                      确定取消导出？
+                    </h2>
                   </div>
                 </header>
                 <p className="export-copy">
                   已经提交完成的文件会保留；尚未提交的产物将停止处理。
                 </p>
-                <footer>
-                  <button
+                <footer className="export-actions">
+                  <Button
                     data-autofocus
                     type="button"
-                    className="secondary"
+                    variant="secondary"
                     onClick={cancel_or_return}
                   >
                     继续导出
-                  </button>
-                  <button type="button" onClick={confirm_cancel}>
+                  </Button>
+                  <Button type="button" onClick={confirm_cancel}>
                     确定取消
-                  </button>
+                  </Button>
                 </footer>
               </>
             ) : phase === "cleanup_blocked" || phase === "cleanup_retrying" ? (
               <>
-                <header>
+                <header className="export-heading">
                   <div>
-                    <p>EXPORT CLEANUP</p>
-                    <h2 id="export-dialog-title">导出资源清理失败</h2>
+                    <p className="export-eyebrow">EXPORT CLEANUP</p>
+                    <h2 className="export-title" id="export-dialog-title">
+                      导出资源清理失败
+                    </h2>
                   </div>
                 </header>
                 {terminal && (
@@ -671,7 +692,7 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                           : "导出失败"}
                     </strong>
                     {terminal.saved.length > 0 && (
-                      <span>
+                      <span className="export-summary-meta">
                         已保存：
                         {terminal.saved
                           .map(({ format }) => format.toUpperCase())
@@ -688,10 +709,10 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                     ))}
                   </ul>
                 )}
-                <footer>
-                  <button
+                <footer className="export-actions">
+                  <Button
                     type="button"
-                    className="secondary"
+                    variant="secondary"
                     disabled={phase === "cleanup_retrying"}
                     onClick={() =>
                       task_id &&
@@ -699,27 +720,27 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                     }
                   >
                     退出应用
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     data-autofocus
                     type="button"
                     disabled={phase === "cleanup_retrying"}
                     onClick={retry_cleanup}
                   >
                     {phase === "cleanup_retrying" ? "正在清理…" : "重试清理"}
-                  </button>
+                  </Button>
                 </footer>
               </>
             ) : (
               <>
-                <header>
+                <header className="export-heading">
                   <div>
-                    <p>
+                    <p className="export-eyebrow">
                       {phase === "started" || phase === "cancelling"
                         ? "EXPORT TASK"
                         : "PREPARING EXPORT"}
                     </p>
-                    <h2 id="export-dialog-title">
+                    <h2 className="export-title" id="export-dialog-title">
                       {phase === "started"
                         ? "正在导出素材"
                         : phase === "cancelling"
@@ -732,10 +753,10 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                 </header>
                 <div className="export-task-summary">
                   <strong>{base_name}</strong>
-                  <span>
+                  <span className="export-summary-meta">
                     {formats.map((format) => format.toUpperCase()).join(" + ")}
                   </span>
-                  <p>
+                  <p className="export-copy">
                     {phase === "choosing_destination"
                       ? "请在系统窗口中选择目录。"
                       : "导出期间应用暂时不可操作。"}
@@ -779,15 +800,15 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                     </>
                   )}
                 </div>
-                <footer>
-                  <button
+                <footer className="export-actions">
+                  <Button
                     type="button"
-                    className="secondary"
+                    variant="secondary"
                     disabled={phase === "handing_off" || phase === "cancelling"}
                     onClick={cancel_or_return}
                   >
                     {phase === "cancelling" ? "正在取消…" : "取消导出"}
-                  </button>
+                  </Button>
                 </footer>
               </>
             )}

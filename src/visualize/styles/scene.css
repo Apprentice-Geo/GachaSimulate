@@ -1,82 +1,33 @@
-@font-face {
-  font-family: SourceHanSansSC;
-  font-style: normal;
-  font-weight: 400;
-  src: url("../../../fonts/SourceHanSansSC/OTF/SimplifiedChinese/SourceHanSansSC-Regular.otf")
-    format("opentype");
-}
-
-@font-face {
-  font-family: SourceHanSansSC;
-  font-style: normal;
-  font-weight: 500;
-  src: url("../../../fonts/SourceHanSansSC/OTF/SimplifiedChinese/SourceHanSansSC-Medium.otf")
-    format("opentype");
-}
-
-@font-face {
-  font-family: SourceHanSansSC;
-  font-style: normal;
-  font-weight: 700;
-  src: url("../../../fonts/SourceHanSansSC/OTF/SimplifiedChinese/SourceHanSansSC-Bold.otf")
-    format("opentype");
-}
-
-* {
-  box-sizing: border-box;
-}
-
-@font-face {
-  font-family: "JetBrains Mono";
-  font-style: normal;
-  font-weight: 400;
-  src: url("../../../fonts/JetBrainsMono/fonts/webfonts/JetBrainsMono-Regular.woff2")
-    format("woff2");
-}
-
-@font-face {
-  font-family: "JetBrains Mono";
-  font-style: normal;
-  font-weight: 600;
-  src: url("../../../fonts/JetBrainsMono/fonts/webfonts/JetBrainsMono-SemiBold.woff2")
-    format("woff2");
-}
-
-.result-number,
-.metadata-number,
-.metric-label,
-.marker-label,
-.reason-item strong,
-.cdf-chart-shell .recharts-cartesian-axis-tick-value {
+:where(.visualize-scope) .result-number,
+:where(.visualize-scope) .metadata-number,
+:where(.visualize-scope) .metric-label,
+:where(.visualize-scope) .marker-label,
+:where(.visualize-scope) .reason-item strong,
+:where(.visualize-scope) .cdf-chart-shell .recharts-cartesian-axis-tick-value {
   font-family: var(--font-mono);
   font-variant-ligatures: none;
   font-variant-numeric: tabular-nums;
 }
-
-.result-number,
-.reason-item strong {
+:where(.visualize-scope) .result-number,
+:where(.visualize-scope) .reason-item strong {
   font-weight: 600;
 }
-
-.metric-value small {
+:where(.visualize-scope) .metric-value small {
   font-family: var(--font-ui);
 }
-
-.metadata-value .result-number {
+:where(.visualize-scope) .metadata-value .result-number {
   font-weight: 400;
 }
-
-.metadata-value small {
+:where(.visualize-scope) .metadata-value small {
   font-size: inherit;
 }
-
-.visualize-page {
+:where(.visualize-scope) .visualize-page {
+  --canvas-border-width: 2px;
   background:
     linear-gradient(90deg, rgba(118, 185, 0, 0.045) 1px, transparent 1px),
     linear-gradient(180deg, rgba(247, 243, 255, 0.035) 1px, transparent 1px),
     var(--color-canvas);
   background-size: 96px 96px;
-  border: 2px solid var(--color-hairline);
   color: var(--color-text-primary);
   font-family: var(--font-ui);
   font-weight: 400;
@@ -84,13 +35,14 @@
   height: var(--canvas-height);
   flex-shrink: 0;
   overflow: visible;
-  padding: var(--page-top-margin) var(--page-margin) 56px;
+  padding: calc(var(--page-top-margin) + var(--canvas-border-width))
+    calc(var(--page-margin) + var(--canvas-border-width))
+    calc(56px + var(--canvas-border-width));
   position: relative;
   box-shadow: inset 0 2px 0 rgba(247, 243, 255, 0.04);
   width: var(--canvas-width);
 }
-
-.visualize-page::before {
+:where(.visualize-scope) .visualize-page::before {
   background: var(--color-nvidia-green);
   content: "";
   left: var(--page-margin);
@@ -101,8 +53,8 @@
   width: var(--square-length);
   z-index: 1;
 }
-
-.visualize-page::after {
+:where(.visualize-scope) .visualize-page::after {
+  border: var(--canvas-border-width) solid var(--color-hairline);
   background-image: radial-gradient(var(--color-stardust) 1px, transparent 1px);
   background-size: 96px 96px;
   content: "";
@@ -111,29 +63,25 @@
   position: absolute;
   z-index: 0;
 }
-
-.top-bar {
+:where(.visualize-scope) .top-bar {
   animation: none;
   height: var(--top-height);
   position: relative;
   z-index: 1;
 }
-
-.top-bar-inner {
+:where(.visualize-scope) .top-bar-inner {
   display: grid;
-  grid-template-columns: minmax(0, 80fr) minmax(0, 20fr);
+  grid-template-columns: var(--chart-width) minmax(0, 1fr);
   gap: 64px;
   align-items: stretch;
 }
-
-.title-stack {
+:where(.visualize-scope) .title-stack {
   padding-left: 56px;
   display: grid;
   gap: 10px;
   justify-items: start;
 }
-
-.section-kicker {
+:where(.visualize-scope) .section-kicker {
   color: var(--color-nvidia-green);
   font-size: 28px;
   font-weight: 500;
@@ -142,8 +90,7 @@
   margin: 0;
   text-transform: uppercase;
 }
-
-.title-stack h1 {
+:where(.visualize-scope) .title-stack h1 {
   color: var(--color-text-primary);
   font-size: 80px;
   font-weight: 700;
@@ -151,15 +98,13 @@
   line-height: 1.2;
   margin: 0;
 }
-
-.title-stack p {
+:where(.visualize-scope) .title-stack p {
   color: var(--color-text-muted);
   font-size: 40px;
   line-height: 1.2;
   margin: 0;
 }
-
-.top-meta {
+:where(.visualize-scope) .top-meta {
   color: var(--color-text-muted);
   display: grid;
   font-size: 42px;
@@ -170,154 +115,66 @@
   min-width: 0;
   text-align: left;
 }
-
-.command-button,
-.icon-button {
-  align-items: center;
-  background: var(--color-panel-soft);
-  border: 2px solid var(--color-hairline-strong);
-  border-radius: var(--radius-button);
-  color: var(--color-text-primary);
-  display: inline-flex;
-  font-size: 28px;
-  font-weight: 700;
-  gap: 16px;
-  height: 88px;
-  justify-content: center;
-  letter-spacing: 0.2px;
-  padding: 0 32px;
-  text-transform: uppercase;
-}
-
-.icon-button {
-  background: var(--color-panel);
-  border-color: var(--color-hairline);
-  color: var(--color-text-primary);
-  padding: 0;
-  width: 88px;
-}
-
-.command-button:disabled,
-.icon-button:disabled {
-  background: var(--color-panel-soft);
-  border-color: var(--color-hairline);
-  color: var(--color-text-faint);
-}
-
-.command-button[aria-disabled="true"] {
-  background: var(--color-panel-soft);
-  border-color: var(--color-hairline);
-  color: var(--color-text-faint);
-  cursor: not-allowed;
-}
-
-.main-region {
+:where(.visualize-scope) .main-region {
   display: grid;
   gap: 64px;
   /* CDF区域宽度:核心统计量区域宽度 */
-  grid-template-columns: minmax(0, 80fr) minmax(0, 20fr);
-  height: calc(var(--main-height) + 40px + var(--footer-height) - 120px);
+  grid-template-columns: var(--chart-width) minmax(0, 1fr);
+  height: calc(var(--chart-height) + 40px + var(--footer-height));
   position: relative;
   z-index: 1;
 }
-
-.primary-region {
+:where(.visualize-scope) .primary-region {
   display: grid;
   gap: 40px;
-  grid-template-rows: minmax(0, 1fr) var(--footer-height);
+  grid-template-rows: var(--chart-height) var(--footer-height);
   height: 100%;
   min-height: 0;
   min-width: 0;
 }
-
-.chart-region {
+:where(.visualize-scope) .chart-region {
   height: 100%;
   min-height: 0;
   min-width: 0;
   position: relative;
 }
-
-.chart-actions {
-  align-items: center;
-  background: rgba(18, 13, 31, 0.72);
-  border: 2px solid var(--color-hairline);
-  border-radius: var(--radius-button);
-  bottom: 40px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
-  display: flex;
-  gap: 20px;
-  left: 50%;
-  opacity: 0;
-  padding: 14px;
-  pointer-events: none;
-  position: absolute;
-  transform: translate(-50%, 12px);
-  transition:
-    opacity 160ms ease,
-    transform 160ms ease;
-  z-index: 4;
-}
-
-.chart-region:hover .chart-actions,
-.chart-region:focus-within .chart-actions {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, 0);
-}
-
-.cdf-chart-shell,
-.state-panel,
-.panel-surface {
+:where(.visualize-scope) .cdf-chart-shell,
+:where(.visualize-scope) .panel-surface {
   background: var(--color-panel);
   border: 2px solid var(--color-hairline);
   border-radius: var(--radius-card);
   box-shadow: inset 0 2px 0 rgba(247, 243, 255, 0.035);
 }
-
-.cdf-chart-shell {
+:where(.visualize-scope) .cdf-chart-shell {
   animation: none;
+  border: none;
   height: 100%;
   overflow: hidden;
   position: relative;
 }
-
-.cdf-chart-shell-compact {
-  aspect-ratio: 16 / 10;
-  border-width: 1px;
-  height: auto;
-  min-height: calc(240px * var(--cdf-density, 1));
+/* Decorative borders must not change plot geometry when the host is scaled. */
+:where(.visualize-scope) .cdf-chart-shell::after {
+  border: 4px solid var(--color-hairline-strong);
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
 }
-
-.cdf-chart-shell-compact .y-axis-title,
-.cdf-chart-shell-compact .axis-title {
-  font-size: calc(14px * var(--cdf-density, 1));
+.visualize-scope.chart-preview {
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
 }
-
-.cdf-chart-shell-compact .recharts-cartesian-axis-tick-value {
-  font-size: calc(12px * var(--cdf-density, 1)) !important;
+:where(.visualize-scope) .chart-preview-content {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: top left;
 }
-
-.cdf-chart-shell-compact .marker-label {
-  font-size: var(--marker-label-font-size);
-  stroke-width: var(--marker-label-stroke-width);
-}
-
-.cdf-chart-shell-compact .cdf-curve-path {
-  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.32));
-  stroke-width: 2px;
-}
-
-.cdf-chart-shell-compact .marker-line,
-.cdf-chart-shell-compact .mean-horizontal-line {
-  stroke-dasharray: 4 6;
-}
-
-.cdf-chart-shell.cdf-chart-shell-compact::before {
-  height: 8px;
-  width: 8px;
-}
-
-.cdf-chart-shell::before {
+:where(.visualize-scope) .cdf-chart-shell::before {
   background: var(--color-nvidia-green);
   content: "";
   position: absolute;
@@ -327,8 +184,7 @@
   width: var(--square-length);
   z-index: 2;
 }
-
-.chart-frame-label {
+:where(.visualize-scope) .chart-frame-label {
   align-items: center;
   color: var(--color-text-faint);
   display: flex;
@@ -342,88 +198,69 @@
   top: 48px;
   z-index: 2;
 }
-
 /* 轴标题样式 */
-.axis-title {
+:where(.visualize-scope) .axis-title {
   color: var(--color-text-muted);
   fill: var(--color-text-muted);
   font-size: 40px;
   font-weight: 500;
 }
-
-.y-axis-title {
-  color: var(--color-text-muted);
-  fill: var(--color-text-muted);
-  left: 0px;
-  letter-spacing: 0.2px;
-  /* 脱离正常布局，相对于父元素定位 */
+:where(.visualize-scope) .cdf-axis-titles {
+  inset: 0;
+  pointer-events: none;
   position: absolute;
-  /* 元素顶部移动到父元素高度的 50% 位置 */
-  top: 50%;
-  /* 向上移动自身高度的一半 旋转-90度 */
-  transform: translateY(-50%) rotate(-90deg);
-  transform-origin: center;
-  white-space: nowrap;
-  font-size: 40px;
-  font-weight: 500;
   z-index: 2;
 }
-
-.cdf-chart-shell .recharts-wrapper {
+:where(.visualize-scope) .y-axis-title {
+  fill: var(--color-text-muted);
+  letter-spacing: 0.2px;
+  font-size: 40px;
+  font-weight: 500;
+}
+:where(.visualize-scope) .cdf-chart-shell .recharts-wrapper {
   animation: none;
 }
-
-.cdf-chart-shell .recharts-cartesian-axis-tick-value {
+:where(.visualize-scope) .cdf-chart-shell .recharts-cartesian-axis-tick-value {
   fill: var(--color-text-muted) !important;
 }
-
-.cdf-chart-shell .recharts-cartesian-axis-line,
-.cdf-chart-shell .recharts-cartesian-axis-tick-line {
+:where(.visualize-scope) .cdf-chart-shell .recharts-cartesian-axis-line,
+:where(.visualize-scope) .cdf-chart-shell .recharts-cartesian-axis-tick-line {
   stroke: var(--color-hairline-strong);
 }
-
-.cdf-chart-shell .recharts-cartesian-grid line {
+:where(.visualize-scope) .cdf-chart-shell .recharts-cartesian-grid line {
   stroke: rgba(247, 243, 255, 0.12);
 }
-
-.cdf-curve-path {
+:where(.visualize-scope) .cdf-curve-path {
   filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.36));
   stroke-dasharray: 1;
   stroke-dashoffset: 0;
 }
-
-.marker-overlay {
+:where(.visualize-scope) .marker-overlay {
   pointer-events: none;
 }
-
-.marker-group {
+:where(.visualize-scope) .marker-group {
   opacity: var(--marker-opacity);
 }
-
-.marker-line,
-.mean-horizontal-line {
+:where(.visualize-scope) .marker-line,
+:where(.visualize-scope) .mean-horizontal-line {
   stroke-dasharray: 14 18;
 }
-
-.marker-line {
+:where(.visualize-scope) .marker-line {
   animation: none;
   transform-box: fill-box;
   transform-origin: bottom center;
 }
-
-.mean-horizontal-line {
+:where(.visualize-scope) .mean-horizontal-line {
   opacity: 0.85;
   transform-box: fill-box;
   transform-origin: left center;
 }
-
-.marker-point,
-.marker-label,
-.marker-group {
+:where(.visualize-scope) .marker-point,
+:where(.visualize-scope) .marker-label,
+:where(.visualize-scope) .marker-group {
   animation: none;
 }
-
-.marker-label {
+:where(.visualize-scope) .marker-label {
   font-size: var(--marker-label-font-size);
   font-weight: var(--marker-label-font-weight);
   letter-spacing: 0.2px;
@@ -431,8 +268,7 @@
   stroke: rgba(10, 12, 16, 0.72);
   stroke-width: var(--marker-label-stroke-width);
 }
-
-.statistic-panel {
+:where(.visualize-scope) .statistic-panel {
   animation: none;
   display: flex;
   flex-direction: column;
@@ -443,15 +279,13 @@
   padding: 46px 42px;
   position: relative;
 }
-
-.panel-surface {
+:where(.visualize-scope) .panel-surface {
   inset: 0;
   position: absolute;
   z-index: 0;
 }
-
-.statistic-panel-surface::before,
-.termination-region-surface::before {
+:where(.visualize-scope) .statistic-panel-surface::before,
+:where(.visualize-scope) .termination-region-surface::before {
   background: var(--color-nvidia-green);
   content: "";
   position: absolute;
@@ -460,14 +294,12 @@
   height: var(--square-length);
   width: var(--square-length);
 }
-
-.metric-list,
-.metric-placeholder {
+:where(.visualize-scope) .metric-list,
+:where(.visualize-scope) .metric-placeholder {
   position: relative;
   z-index: 1;
 }
-
-.panel-heading {
+:where(.visualize-scope) .panel-heading {
   align-items: center;
   color: var(--color-text-muted);
   display: flex;
@@ -478,20 +310,17 @@
   margin-bottom: 28px;
   text-transform: uppercase;
 }
-
-.metric-list {
+:where(.visualize-scope) .metric-list {
   display: grid;
   /* 核心统计量卡片的垂直间距 */
   gap: 24px;
 }
-
-.metric-group {
+:where(.visualize-scope) .metric-group {
   display: grid;
   gap: 14px;
   min-width: 0;
 }
-
-.metric-group-heading {
+:where(.visualize-scope) .metric-group-heading {
   align-items: baseline;
   animation: none;
   display: flex;
@@ -500,16 +329,14 @@
   justify-content: space-between;
   min-width: 0;
 }
-
-.metric-group-heading h2 {
+:where(.visualize-scope) .metric-group-heading h2 {
   color: var(--color-text-primary);
   font-size: 40px;
   font-weight: 500;
   line-height: 1;
   margin: 0;
 }
-
-.metric-group-heading span {
+:where(.visualize-scope) .metric-group-heading span {
   color: var(--color-text-faint);
   font-size: 22px;
   font-weight: 700;
@@ -518,8 +345,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.metric-row {
+:where(.visualize-scope) .metric-row {
   align-items: center;
   animation: none;
   background: var(--color-panel-soft);
@@ -533,8 +359,7 @@
   min-width: 0;
   padding: 0 20px;
 }
-
-.metric-label {
+:where(.visualize-scope) .metric-label {
   color: var(--color-text-muted);
   /* 核心统计量名称的字体大小和粗细 */
   font-size: 56px;
@@ -544,12 +369,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.metric-copy {
+:where(.visualize-scope) .metric-copy {
   min-width: 0;
 }
-
-.metric-description {
+:where(.visualize-scope) .metric-description {
   color: var(--color-text-faint);
   /* 核心统计量说明的字体大小和粗细 */
   font-size: 32px;
@@ -557,8 +380,7 @@
   line-height: 1;
   margin-top: 12px;
 }
-
-.metric-value {
+:where(.visualize-scope) .metric-value {
   align-items: baseline;
   color: var(--color-text-primary);
   display: flex;
@@ -566,107 +388,36 @@
   gap: 8px;
   margin-left: 12px;
 }
-
-.metric-value span {
+:where(.visualize-scope) .metric-value span {
   /* 核心统计量数值的字体大小和粗细 */
   font-size: 88px;
   font-weight: 600;
   line-height: 1;
 }
-
-.metric-value small {
+:where(.visualize-scope) .metric-value small {
   color: var(--color-text-muted);
   font-size: 36px;
   font-weight: 400;
 }
-
-.metric-placeholder {
+:where(.visualize-scope) .metric-placeholder {
   display: grid;
   gap: 24px;
 }
-
-.metric-placeholder-group {
+:where(.visualize-scope) .metric-placeholder-group {
   display: grid;
   gap: 14px;
   min-width: 0;
 }
-
-.placeholder-heading {
+:where(.visualize-scope) .placeholder-heading {
   height: 40px;
 }
-
-.placeholder-line {
+:where(.visualize-scope) .placeholder-line {
   background: var(--color-panel-soft);
   border: 2px solid var(--color-hairline);
   border-radius: 2px;
   height: 168px;
 }
-
-.state-panel {
-  align-items: center;
-  color: var(--color-text-primary);
-  display: flex;
-  gap: 44px;
-  height: 100%;
-  justify-content: center;
-  padding: 96px;
-}
-
-.state-panel svg {
-  color: var(--color-nvidia-green);
-  flex: 0 0 auto;
-}
-
-.state-panel h2 {
-  font-size: 56px;
-  line-height: 1.2;
-  margin: 0 0 20px;
-}
-
-.state-panel p {
-  color: var(--color-text-muted);
-  font-size: 32px;
-  line-height: 1.55;
-  margin: 0;
-  max-width: 1120px;
-}
-
-.error-panel {
-  align-items: flex-start;
-  justify-content: flex-start;
-}
-
-.error-panel svg {
-  color: var(--color-danger);
-  margin-top: 8px;
-}
-
-.error-panel pre {
-  background: rgba(229, 32, 32, 0.1);
-  border: 2px solid rgba(229, 32, 32, 0.34);
-  border-radius: 2px;
-  color: var(--color-text-primary);
-  font-family: var(--font-mono);
-  font-size: 26px;
-  line-height: 1.5;
-  margin: 28px 0 40px;
-  max-height: 720px;
-  overflow: auto;
-  padding: 28px;
-  white-space: pre-wrap;
-  width: 1520px;
-}
-
-.loading-mark {
-  border: 4px solid rgba(118, 185, 0, 0.16);
-  border-left-color: var(--color-nvidia-green);
-  border-radius: 50%;
-  height: 68px;
-  width: 68px;
-  animation: spin 800ms linear infinite;
-}
-
-.termination-region {
+:where(.visualize-scope) .termination-region {
   align-items: center;
   animation: none;
   display: grid;
@@ -678,38 +429,32 @@
   padding: 50px 58px;
   position: relative;
 }
-
-.termination-copy h2 {
+:where(.visualize-scope) .termination-copy h2 {
   color: var(--color-text-primary);
   font-size: 48px;
   line-height: 1.18;
   margin: 0;
 }
-
-.termination-copy p {
+:where(.visualize-scope) .termination-copy p {
   color: var(--color-text-muted);
   font-size: 30px;
   font-weight: 400;
   line-height: 1.45;
 }
-
-.termination-copy p {
+:where(.visualize-scope) .termination-copy p {
   margin: 16px 0 0;
 }
-
-.termination-bars {
+:where(.visualize-scope) .termination-bars {
   grid-column: 1 / -1;
   min-width: 0;
   width: 100%;
   position: relative;
   z-index: 1;
 }
-
-.termination-heading {
+:where(.visualize-scope) .termination-heading {
   margin-bottom: 20px;
 }
-
-.pk-bar {
+:where(.visualize-scope) .pk-bar {
   --pk-bar-height: 68px;
   --pk-seam-width: var(--pk-bar-height);
   animation: none;
@@ -721,43 +466,35 @@
   position: relative;
   width: 100%;
 }
-
-.pk-segments {
+:where(.visualize-scope) .pk-segments {
   height: 100%;
   position: relative;
   transform-origin: left center;
   width: 100%;
 }
-
-.pk-segment {
+:where(.visualize-scope) .pk-segment {
   background: var(--segment-color);
   bottom: 0;
   position: absolute;
   top: 0;
 }
-
-.pk-segment-start {
+:where(.visualize-scope) .pk-segment-start {
   border-radius: 2px 0 0 2px;
 }
-
-.pk-segment-middle,
-.pk-segment-end {
+:where(.visualize-scope) .pk-segment-middle,
+:where(.visualize-scope) .pk-segment-end {
   clip-path: polygon(var(--pk-seam-width) 0, 100% 0, 100% 100%, 0 100%);
 }
-
-.pk-segment-end {
+:where(.visualize-scope) .pk-segment-end {
   border-radius: 0 2px 2px 0;
 }
-
-.pk-segment-single {
+:where(.visualize-scope) .pk-segment-single {
   border-radius: 2px;
 }
-
-.pk-bar-empty {
+:where(.visualize-scope) .pk-bar-empty {
   background: var(--color-panel-soft);
 }
-
-.reason-list {
+:where(.visualize-scope) .reason-list {
   align-items: center;
   animation: none;
   display: flex;
@@ -765,28 +502,24 @@
   gap: 36px;
   margin-top: 24px;
 }
-
-.reason-item {
+:where(.visualize-scope) .reason-item {
   align-items: center;
   color: var(--color-text-muted);
   display: inline-flex;
   font-size: 40px;
   gap: 16px;
 }
-
-.reason-item strong {
+:where(.visualize-scope) .reason-item strong {
   color: var(--color-text-primary);
   font-size: 40px;
 }
-
-.reason-swatch {
+:where(.visualize-scope) .reason-swatch {
   border-radius: 4px;
   display: inline-block;
   height: 30px;
   width: 30px;
 }
-
-.page-note {
+:where(.visualize-scope) .page-note {
   margin: 28px auto 0;
   max-width: 3840px;
   position: relative;
@@ -796,10 +529,4 @@
   font-size: 36px;
   font-weight: 400;
   line-height: 1.45;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }

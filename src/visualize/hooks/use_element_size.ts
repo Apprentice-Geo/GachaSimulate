@@ -16,10 +16,18 @@ export function use_element_size<T extends HTMLElement>() {
     }
 
     const update_size = () => {
-      const rect = element.getBoundingClientRect();
+      // Measure the untransformed content box, just like ResizeObserver.
+      // BoundingClientRect includes preview transforms and desktop canvas zoom.
+      const style = getComputedStyle(element);
       set_size({
-        width: rect.width,
-        height: rect.height,
+        width:
+          element.clientWidth -
+          parseFloat(style.paddingLeft) -
+          parseFloat(style.paddingRight),
+        height:
+          element.clientHeight -
+          parseFloat(style.paddingTop) -
+          parseFloat(style.paddingBottom),
       });
     };
 

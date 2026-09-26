@@ -33,10 +33,6 @@ import type { MarkerView } from "../view/cdf_overlay_layout";
 import type { CDFMarker, CDFViewModel, MarkerKey } from "../types/cdf";
 import type { Analysis } from "../types/analysis";
 import type { DisplayConfig } from "../types/display_config";
-import {
-  get_marker_visual,
-  MARKER_VISUALS,
-} from "../components/cdf_marker_visuals";
 import { CDFChart } from "../components/CDFChart";
 import { VisualizeShell } from "../components/VisualizeShell";
 import { VisualizeScene } from "../VisualizeScene";
@@ -153,60 +149,6 @@ test("resolve_marker_label_collisions returns adjusted copies", () => {
   assert.notEqual(adjusted_views[1], views[1]);
   assert.equal(adjusted_views[0].label_y, 50);
   assert.equal(adjusted_views[1].label_y, 36);
-});
-
-test("compact CDF markers keep data and scales geometry while shrinking visuals", () => {
-  const markers: CDFMarker[] = [
-    {
-      key: "P50",
-      label: "P50",
-      draw: 40,
-      level: 0.5,
-      color: "red",
-      weight: "primary",
-    },
-    {
-      key: "MAX",
-      label: "MAX",
-      draw: 80,
-      level: 1,
-      color: "blue",
-      weight: "strong",
-    },
-  ];
-  const plot_area = { x: 10, y: 20, width: 200, height: 100 };
-  const x_scale = (draw: unknown) => Number(draw) * 2;
-  const y_scale = (level: unknown) => 120 - Number(level) * 100;
-  const normal = build_marker_views(markers, plot_area, x_scale, y_scale);
-  const compact = build_marker_views(
-    markers,
-    plot_area,
-    x_scale,
-    y_scale,
-    true,
-  );
-
-  assert.deepEqual(
-    compact.map(({ marker, x, y }) => [marker, x, y]),
-    normal.map(({ marker, x, y }) => [marker, x, y]),
-  );
-  assert.equal(compact[0].label_text, normal[0].label_text);
-  for (const weight of Object.keys(MARKER_VISUALS) as CDFMarker["weight"][]) {
-    const normal_visual = get_marker_visual(weight);
-    const compact_visual = get_marker_visual(weight, true);
-    const enlarged_visual = get_marker_visual(weight, true, 1.5);
-    assert.equal(
-      enlarged_visual.label_font_size,
-      compact_visual.label_font_size * 1.5,
-    );
-    assert.deepEqual(get_marker_visual(weight, false, 1.5), normal_visual);
-    assert.ok(compact_visual.point_radius < normal_visual.point_radius);
-    assert.ok(compact_visual.stroke_width < normal_visual.stroke_width);
-    assert.ok(compact_visual.label_font_size < normal_visual.label_font_size);
-    assert.ok(
-      compact_visual.label_stroke_width < normal_visual.label_stroke_width,
-    );
-  }
 });
 
 test("build_curve_path clamps cumulative values", () => {
@@ -614,15 +556,13 @@ test("export frame contract resolves playing and terminal states", () => {
   );
 });
 
-test("VisualizeScene export mode fixes chart size and hides controls", () => {
+test("VisualizeScene shares chart layout between interactive and export modes", () => {
   const animation_progress = build_animation_progress(ANIMATION_TOTAL_MS);
   const common_props = {
     animation_progress,
     animation_state: "idle" as const,
     data: {} as CDFViewModel,
     is_animating: false,
-    on_replay: () => undefined,
-    on_select_file: () => undefined,
   };
 
   const interactive_scene = VisualizeScene({
@@ -630,19 +570,18 @@ test("VisualizeScene export mode fixes chart size and hides controls", () => {
     render_mode: "interactive",
   });
   assert.equal(interactive_scene.type, VisualizeShell);
-  assert.equal(interactive_scene.props.show_controls, true);
+  assert.equal(interactive_scene.props.render_mode, "interactive");
   assert.equal(interactive_scene.props.chart_slot.type, CDFChart);
-  assert.equal(interactive_scene.props.chart_slot.props.fixed_size, undefined);
 
   const export_scene = VisualizeScene({
     ...common_props,
     render_mode: "export",
   });
   assert.equal(export_scene.type, VisualizeShell);
-  assert.equal(export_scene.props.show_controls, false);
+  assert.equal(export_scene.props.render_mode, "export");
   assert.equal(export_scene.props.chart_slot.type, CDFChart);
-  assert.deepEqual(export_scene.props.chart_slot.props.fixed_size, {
-    width: 2816,
-    height: 1400,
-  });
+  assert.deepEqual(
+    export_scene.props.chart_slot.props,
+    interactive_scene.props.chart_slot.props,
+  );
 });

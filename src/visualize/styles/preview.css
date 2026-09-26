@@ -1,45 +1,4 @@
-html,
-body,
-#root {
-  min-height: 100%;
-  margin: 0;
-}
-
-body {
-  background:
-    linear-gradient(90deg, rgba(247, 243, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(118, 185, 0, 0.025) 1px, transparent 1px),
-    var(--color-page-backdrop);
-  background-size: 64px 64px;
-  color: var(--color-text-primary);
-  font-family: var(--font-ui);
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-button {
-  cursor: pointer;
-}
-
-button:disabled {
-  cursor: not-allowed;
-}
-
-#root {
-  align-items: flex-start;
-  display: flex;
-  height: 100vh;
-  justify-content: flex-start;
-  overflow: auto;
-  width: 100vw;
-}
-
-.visually-hidden {
+.visualize-scope .visually-hidden {
   clip: rect(0 0 0 0);
   clip-path: inset(50%);
   height: 1px;
@@ -49,11 +8,10 @@ button:disabled {
   width: 1px;
 }
 
-:root {
+.visualize-scope.visualize-viewport {
   --page-scale: 1;
-}
-
-.visualize-viewport {
+  background: var(--color-page-backdrop);
+  box-shadow: inset 1px 0 var(--color-host-divider);
   align-items: flex-start;
   display: flex;
   height: 100%;
@@ -61,10 +19,23 @@ button:disabled {
   min-height: 0;
   min-width: 0;
   overflow: auto;
+  padding: clamp(12px, 1vw, 24px);
   width: 100%;
 }
 
-.visualize-viewport > .visualize-page {
+.visualize-scope.visualize-viewport > .visualize-page {
   margin: auto;
   zoom: var(--page-scale);
+}
+
+/* Draw above the scaled chart without changing its measured content area. */
+.visualize-scope.chart-preview::after {
+  border: var(--preview-frame-width) solid var(--color-preview-frame);
+  content: "";
+  height: 100%;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  width: var(--preview-rendered-width);
 }
