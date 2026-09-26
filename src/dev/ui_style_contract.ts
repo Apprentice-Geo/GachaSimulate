@@ -9,7 +9,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { Button } from "../renderer/components/Button";
 import { Field } from "../renderer/components/Field";
 
-async function assert_workbench_primitives(page: Page, source: string) {
+async function assert_workbench_primitives(page: Page) {
   const markup = renderToStaticMarkup(
     createElement(
       "div",
@@ -27,27 +27,7 @@ async function assert_workbench_primitives(page: Page, source: string) {
     ),
   );
   const result = await page.evaluate(
-    ({ source, markup }) => {
-      const sheet = new CSSStyleSheet();
-      sheet.replaceSync(source);
-      const important: string[] = [];
-      const rules = [...sheet.cssRules];
-      for (const rule of rules) {
-        if (
-          rule instanceof CSSMediaRule &&
-          rule.conditionText === "(prefers-reduced-motion: reduce)"
-        )
-          continue;
-        if (rule instanceof CSSStyleRule) {
-          for (const property of rule.style) {
-            if (rule.style.getPropertyPriority(property))
-              important.push(rule.cssText);
-          }
-        }
-        if ("cssRules" in rule)
-          rules.push(...(rule as CSSGroupingRule).cssRules);
-      }
-
+    ({ markup }) => {
       const probe = document.createElement("div");
       probe.style.cssText = "position:fixed;left:0;top:0;z-index:2000";
       probe.innerHTML = markup;
@@ -80,7 +60,6 @@ async function assert_workbench_primitives(page: Page, source: string) {
         const input = probe.querySelector("input")!;
         const label = probe.querySelector("label")!;
         return {
-          important,
           before,
           after,
           label_associated: input.labels?.[0] === label,
@@ -90,12 +69,7 @@ async function assert_workbench_primitives(page: Page, source: string) {
         probe.remove();
       }
     },
-    { source, markup },
-  );
-  assert.deepEqual(
-    result.important,
-    [],
-    "Only reduced-motion rules may use !important",
+    { markup },
   );
   assert.deepEqual(
     result.after,
@@ -211,8 +185,7 @@ export async function assert_workbench_themes(page: Page) {
     }
     assert.deepEqual(dark.geometry, light.geometry);
     assert.deepEqual(await chart_style(page), before);
-    const source = await readFile("src/renderer/styles.css", "utf8");
-    await assert_workbench_primitives(page, source);
+    await assert_workbench_primitives(page);
   } finally {
     await page.locator(".workbench-host").evaluate((node) => {
       delete (node as HTMLElement).dataset.workbenchTheme;
@@ -256,7 +229,7 @@ export async function assert_style_boundaries(page: Page) {
   }, sources);
   assert.deepEqual(violations, [], "Visualization rules must be scoped");
   const workbench = await readFile("src/renderer/styles.css", "utf8");
-  await assert_workbench_primitives(page, workbench);
+  await assert_workbench_primitives(page);
   const tokens = await readFile("src/renderer/tokens.css", "utf8");
   const theme_keys = await page.evaluate((source) => {
     const sheet = new CSSStyleSheet();

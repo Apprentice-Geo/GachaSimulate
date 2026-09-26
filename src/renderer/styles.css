@@ -1425,15 +1425,6 @@
     margin: calc(var(--desktop-unit) * 12) 0 0;
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      scroll-behavior: auto !important;
-      transition-duration: 0.01ms !important;
-    }
-  }
-
   /* Lucide sizes retain their existing hierarchy in desktop controls. */
   :is(.renderer-sidebar, .renderer-placeholder, .export-dialog, .export-notice)
     svg[width="15"] {
