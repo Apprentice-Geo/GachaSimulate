@@ -606,7 +606,7 @@
     overflow-y: auto;
   }
 
-  .simulation-control-body > :not(.simulation-trace) {
+  .simulation-control-body > :not(.simulation-orbit) {
     flex-shrink: 0;
   }
 
@@ -882,89 +882,6 @@
     font-size: var(--workbench-font-content);
     overflow-wrap: anywhere;
     padding: var(--workbench-space-sm) calc(var(--desktop-unit) * 12);
-  }
-
-  .simulation-trace {
-    display: grid;
-    flex: 1 0 auto;
-    gap: 0;
-    grid-template-rows: repeat(3, minmax(calc(var(--desktop-unit) * 64), 1fr));
-    list-style: none;
-    margin: calc(var(--desktop-unit) * 2) 0 calc(var(--desktop-unit) * 12);
-    padding: 0;
-  }
-
-  .simulation-trace li {
-    align-items: center;
-    display: grid;
-    gap: var(--workbench-space-sm);
-    grid-template-columns: calc(var(--desktop-unit) * 11) minmax(0, 1fr);
-    min-height: calc(var(--desktop-unit) * 45);
-    position: relative;
-  }
-
-  .simulation-trace li:not(:last-child)::after {
-    background: var(--workbench-border-strong);
-    content: "";
-    height: 100%;
-    left: calc(var(--desktop-unit) * 5);
-    position: absolute;
-    top: 50%;
-    width: 1px;
-  }
-
-  .simulation-trace i {
-    background: var(--workbench-surface-muted);
-    border: 1px solid var(--workbench-border-strong);
-    height: calc(var(--desktop-unit) * 9);
-    margin-top: 0;
-    position: relative;
-    width: calc(var(--desktop-unit) * 9);
-    z-index: 1;
-  }
-
-  .simulation-trace li[data-state="active"] i {
-    background: var(--workbench-info);
-    border-color: var(--workbench-info);
-    box-shadow: 0 0 0 4px var(--workbench-status-halo);
-  }
-
-  .simulation-trace li[data-state="done"] i {
-    background: var(--workbench-success);
-    border-color: var(--workbench-success);
-  }
-
-  .simulation-trace li[data-state="failed"] i {
-    background: var(--workbench-danger);
-    border-color: var(--workbench-danger);
-  }
-
-  .simulation-trace span {
-    display: grid;
-    gap: calc(var(--desktop-unit) * 2);
-    min-width: 0;
-  }
-
-  .simulation-trace strong {
-    color: var(--workbench-text);
-    font-size: var(--workbench-font-content);
-    font-weight: 500;
-  }
-
-  .simulation-trace small {
-    color: var(--workbench-text-faint);
-    font-family: var(--workbench-font-mono);
-    font-size: var(--workbench-font-meta);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .simulation-control progress {
-    accent-color: var(--workbench-info);
-    height: calc(var(--desktop-unit) * 4);
-    margin-bottom: calc(var(--desktop-unit) * 12);
-    width: 100%;
   }
 
   .simulation-status {
@@ -1521,4 +1438,9 @@
     border-color: transparent;
     white-space: nowrap;
   }
+}
+
+.simulation-result-path {
+  display: block;
+  overflow-wrap: anywhere;
 }

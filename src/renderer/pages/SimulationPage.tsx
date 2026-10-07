@@ -1,3 +1,4 @@
+import { SimulationOrbit } from "../components/SimulationOrbit";
 import { FolderOpen, Play, Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "../components/Button";
@@ -88,10 +89,22 @@ export function SimulationPage({ active }: { active: boolean }) {
     return window.desktopApi.onSimulationEvent(
       ({ status: next_status, event, message }) => {
         set_status(next_status);
-        if (event?.type === "started") set_stage("loading_config");
+        if (event?.type === "started") {
+          set_stage("loading_config");
+          set_progress(null);
+          set_result_path("");
+          set_operation_error(null);
+        }
         if (event?.type === "stage") set_stage(event.stage);
         if (event?.type === "progress") set_progress(event);
-        if (event?.type === "completed") set_result_path(event.result_path);
+        if (event?.type === "completed") {
+          set_result_path(event.result_path);
+          set_progress({
+            completed: event.total_runs,
+            total: event.total_runs,
+            unit: "runs",
+          });
+        }
         if (message) set_operation_error(message);
       },
     );
@@ -133,6 +146,7 @@ export function SimulationPage({ active }: { active: boolean }) {
     };
     try {
       validate_simulation_request(request, logical_cpu_count);
+      set_status("starting");
       await window.desktopApi.startSimulation(request);
     } catch (reason) {
       set_status("failed");
@@ -161,19 +175,6 @@ export function SimulationPage({ active }: { active: boolean }) {
         reason instanceof Error ? reason.message : String(reason),
       );
     }
-  };
-
-  const stage_index = {
-    loading_config: 0,
-    simulating: 1,
-    saving: 2,
-  }[stage ?? "loading_config"];
-  const trace_state = (index: number) => {
-    if (status === "completed") return "done";
-    if (["failed", "cancelled"].includes(status) && index === stage_index)
-      return "failed";
-    if (status === "idle" || index > stage_index) return "pending";
-    return index < stage_index ? "done" : "active";
   };
 
   return (
@@ -377,40 +378,21 @@ export function SimulationPage({ active }: { active: boolean }) {
                   错误：{operation_error}
                 </div>
               )}
-              <ol className="simulation-trace" aria-label="模拟任务轨迹">
-                {[
-                  ["编译配置", "YAML → IR"],
-                  [
-                    "运行模拟",
-                    progress
-                      ? `${progress.completed} / ${progress.total} runs`
-                      : "等待 core",
-                  ],
-                  [
-                    "保存 GSR",
-                    result_path ? result_path.split(/[\\/]/).pop() : "等待写入",
-                  ],
-                ].map(([label, detail], index) => (
-                  <li data-state={trace_state(index)} key={label}>
-                    <i aria-hidden="true" />
-                    <span>
-                      <strong>{label}</strong>
-                      <small title={index === 2 ? result_path : undefined}>
-                        {detail}
-                      </small>
-                    </span>
-                  </li>
-                ))}
-              </ol>
-              {progress && (
-                <progress
-                  aria-label="模拟进度"
-                  max={progress.total}
-                  value={progress.completed}
-                />
-              )}
+              <SimulationOrbit
+                status={status}
+                stage={stage}
+                progress={progress}
+                active={active}
+              />
               <div className="simulation-status" role="status">
-                <span>状态 / {status_labels[status]}</span>
+                <span title={result_path || undefined}>
+                  状态 / {status_labels[status]}
+                  {result_path && (
+                    <span className="simulation-result-path">
+                      {result_path}
+                    </span>
+                  )}
+                </span>
                 {result_path && (
                   <Button
                     variant="ghost"

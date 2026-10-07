@@ -1,0 +1,106 @@
+.simulation-orbit {
+  flex: 1 0 350px;
+  min-height: 350px;
+  position: relative;
+  margin: 2px 0 14px;
+}
+.simulation-orbit svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+.simulation-orbit text {
+  text-anchor: middle;
+  fill: var(--workbench-text);
+}
+.orbit-ring-track,
+.orbit-ring-progress {
+  fill: none;
+  stroke-width: 6;
+}
+.orbit-ring-track {
+  stroke: var(--workbench-selected-bg);
+}
+.orbit-ring-progress {
+  stroke: var(--workbench-primary);
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.3s linear;
+}
+.orbit-node circle {
+  fill: var(--workbench-surface);
+  stroke: var(--workbench-border-strong);
+  stroke-width: 2;
+}
+.orbit-node[data-state="active"] circle {
+  stroke: var(--workbench-primary);
+  stroke-width: 3;
+  animation: orbit-glow 1.6s ease-in-out infinite alternate;
+}
+.orbit-node[data-state="done"] circle {
+  stroke: var(--workbench-primary);
+  fill: var(--workbench-selected-bg);
+}
+.orbit-node[data-state="failed"] circle {
+  stroke: var(--workbench-danger);
+}
+.orbit-node-number {
+  font-size: 17px;
+}
+.orbit-node-label,
+.orbit-status {
+  font-size: 18px;
+  font-weight: 500;
+}
+.orbit-count {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.orbit-percent {
+  font-size: 25px;
+  font-weight: 600;
+}
+.orbit-cards {
+  animation: orbit-float 3s ease-in-out infinite alternate;
+}
+.orbit-card-enter {
+  transform-origin: 220px 263px;
+  animation: orbit-open 0.6s ease-out;
+}
+.orbit-particle {
+  transform-origin: 0 0;
+  animation: orbit-travel 3s linear infinite;
+}
+.simulation-orbit[data-motion="paused"] * {
+  animation-play-state: paused;
+}
+.simulation-orbit[data-status="idle"] .orbit-ring-progress,
+.simulation-orbit[data-status="starting"] .orbit-ring-progress,
+.simulation-orbit[data-motion="paused"] .orbit-ring-progress {
+  transition: none;
+}
+@keyframes orbit-float {
+  to {
+    transform: translateY(-4px);
+  }
+}
+@keyframes orbit-open {
+  from {
+    transform: scaleX(0.75) translateY(8px);
+  }
+}
+@keyframes orbit-travel {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes orbit-glow {
+  to {
+    stroke: var(--orbit-blue);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .simulation-orbit * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

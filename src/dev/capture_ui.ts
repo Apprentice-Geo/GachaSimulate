@@ -19,6 +19,7 @@ const PROJECT_ROOT = process.cwd();
 const OUTPUT_DIR = path.join(PROJECT_ROOT, "tmp", "ui-captures");
 const SCENARIOS = [
   "electron/simulation-idle",
+  "electron/simulation-running",
   "electron/simulation-navigation",
   "electron/config-repository",
   "electron/config-repository-local",
@@ -186,6 +187,27 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
       await screenshot(page, "electron/simulation-idle");
     }
 
+    if (scenarios.includes("electron/simulation-running")) {
+      await application.evaluate(({ BrowserWindow }) => {
+        const contents = BrowserWindow.getAllWindows()[0]!.webContents;
+        contents.send("simulation-event", {
+          status: "running",
+          event: { type: "stage", stage: "simulating" },
+        });
+        contents.send("simulation-event", {
+          status: "running",
+          event: {
+            type: "progress",
+            completed: 420000,
+            total: 1000000,
+            unit: "runs",
+          },
+        });
+      });
+      await page.locator('[role="progressbar"][aria-valuenow="42"]').waitFor();
+      await screenshot(page, "electron/simulation-running");
+    }
+
     if (scenarios.includes("electron/simulation-navigation")) {
       await page.getByRole("button", { name: "结果编辑" }).click();
       await application.evaluate(({ BrowserWindow }) => {
@@ -201,7 +223,7 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
       });
       await page.getByRole("button", { name: "运行模拟" }).click();
       await page
-        .getByText("completed-while-away.gsr", { exact: true })
+        .getByText("/tmp/completed-while-away.gsr", { exact: true })
         .waitFor();
       await screenshot(page, "electron/simulation-navigation");
     }

@@ -543,7 +543,7 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   }
   await check_space(async () => {
     const [trace, status] = await Promise.all([
-      vertical_geometry(page, ".simulation-trace"),
+      vertical_geometry(page, ".simulation-orbit"),
       vertical_geometry(page, ".simulation-status"),
     ]);
     assert_pixel_equal(
@@ -551,11 +551,14 @@ async function assert_layout(application: ElectronApplication, page: Page) {
       status.top,
       "simulation trace fills remaining control space",
     );
-    await assert_vertical_fill(
-      page,
-      ".simulation-trace",
-      ".simulation-trace li:first-child",
-      ".simulation-trace li:last-child",
+    const svg = await page.locator(".simulation-orbit svg").boundingBox();
+    assert.ok(
+      svg && svg.width > 300 && svg.height >= 350,
+      "orbit stays readable",
+    );
+    assert.equal(
+      await page.locator(".simulation-orbit svg").getAttribute("viewBox"),
+      "0 0 440 420",
     );
   });
   await check_space(() =>
@@ -590,6 +593,115 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   );
   await assert_page_space(page, ".simulation-page", ".simulation-workbench");
   await capture_layout(page, "simulation");
+  const send = async (status: string, event?: object) => {
+    await application.evaluate(
+      ({ BrowserWindow }, value) =>
+        BrowserWindow.getAllWindows()[0]!.webContents.send(
+          "simulation-event",
+          value,
+        ),
+      { status, event },
+    );
+    await page.waitForFunction(
+      (status) =>
+        document
+          .querySelector(".simulation-orbit")
+          ?.getAttribute("data-status") === status,
+      status,
+    );
+  };
+  for (const [status, stage, label] of [
+    ["starting", "loading_config", "编译配置"],
+    ["running", "simulating", "运行模拟"],
+    ["saving", "saving", "正在保存 GSR"],
+    ["completed", "saving", "已完成"],
+    ["failed", "simulating", "运行失败"],
+    ["cancelling", "simulating", "正在取消"],
+    ["cancelled", "simulating", "已取消"],
+  ]) {
+    await send(status!, { type: "stage", stage });
+    assert.equal(await page.locator(".orbit-status").textContent(), label);
+    if (["completed", "failed", "cancelling", "cancelled"].includes(status!))
+      assert.equal(
+        await page.locator(".simulation-orbit").getAttribute("data-motion"),
+        "paused",
+      );
+  }
+  await send("starting", { type: "started" });
+  assert.equal(
+    await page.getByRole("progressbar").getAttribute("aria-valuenow"),
+    "0",
+  );
+  await send("running", { type: "stage", stage: "simulating" });
+  await send("running", {
+    type: "progress",
+    completed: 42,
+    total: 100,
+    unit: "runs",
+  });
+  assert.equal(
+    await page.getByRole("progressbar").getAttribute("aria-valuenow"),
+    "42",
+  );
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      value: true,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector(".simulation-orbit")
+        ?.getAttribute("data-motion") === "paused",
+  );
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      value: false,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector(".simulation-orbit")
+        ?.getAttribute("data-motion") === "running",
+  );
+  await page.evaluate(() => {
+    Reflect.deleteProperty(document, "hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.locator(".simulation-orbit").scrollIntoViewIfNeeded();
+  await capture_layout(page, "simulation-running");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  assert.equal(
+    await page
+      .locator(".orbit-cards")
+      .evaluate((node) => getComputedStyle(node).animationName),
+    "none",
+  );
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.getByRole("button", { name: "结果编辑", exact: true }).click();
+  assert.equal(
+    await page.locator(".simulation-orbit").getAttribute("data-motion"),
+    "paused",
+  );
+  await send("running", {
+    type: "progress",
+    completed: 100,
+    total: 100,
+    unit: "runs",
+  });
+  await page.getByRole("button", { name: "运行模拟", exact: true }).click();
+  assert.equal(
+    await page.locator(".orbit-status").textContent(),
+    "正在保存 GSR",
+  );
+  await page.locator(".simulation-status").scrollIntoViewIfNeeded();
+  await send("idle", { type: "started" });
+  await page.locator(".simulation-actions").scrollIntoViewIfNeeded();
   const selection_before = await simulation.boundingBox();
   const search = page.getByRole("searchbox", { name: "搜索统计物品" });
   await search.fill("item_79");
