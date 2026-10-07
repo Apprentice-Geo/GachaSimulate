@@ -6,6 +6,7 @@ import "../visualize/styles/index.css";
 import "../visualize/styles/preview.css";
 import "./tokens.css";
 import "./styles.css";
+import "./starfield.css";
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>

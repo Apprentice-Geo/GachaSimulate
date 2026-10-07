@@ -16,10 +16,7 @@
   --color-nvidia-green-dark: #3f8500;
   --color-cyan: #22d3ee;
   --color-canvas: #120d1f;
-  --color-page-backdrop: #303030;
   --color-host-divider: #555555;
-  --color-preview-frame: #737373;
-  --preview-frame-width: 3px;
   --color-panel: #1b142b;
   --color-panel-soft: #211936;
   --color-hairline: #362d59;
@@ -53,6 +50,7 @@
   --font-ui: SourceHanSansSC, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", SourceHanSansSC, monospace;
   --radius-card: 2px;
+  --result-card-border-width: 4px;
   --radius-button: 2px;
   --color-stardust: rgba(247, 243, 255, 0.025);
 }

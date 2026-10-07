@@ -146,6 +146,8 @@ try {
 pnpm run build
 ```
 
+需要人工检查导出画面时，可在集成检查期间设置 `GACHASIMULATE_EXPORT_CAPTURE=1`，将验证后的 PNG 和 MP4 复制到 `tmp/export-captures/`；检查后清理该环境变量，产物不提交。
+
 正式 production build 不得设置 `GACHASIMULATE_EXPORT_FRAME_PROBE`；清理环境变量不会自动移除已有构建产物中的探针。
 
 ## Electron 布局与截图检查

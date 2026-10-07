@@ -91,6 +91,32 @@ async function assert_workbench_primitives(page: Page) {
 
 /** Compare design-space paint and typography, independently of host scaling. */
 export async function chart_style(page: Page) {
+  const borders = await page
+    .locator(".cdf-chart-shell, .panel-surface")
+    .evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const style = getComputedStyle(
+          node,
+          node.matches(".cdf-chart-shell") ? "::after" : null,
+        );
+        const scene = node.closest(".visualize-page");
+        const zoom = scene ? Number(getComputedStyle(scene).zoom) : 1;
+        return {
+          width: parseFloat(style.borderTopWidth),
+          color: style.borderTopColor,
+          zoom,
+        };
+      }),
+    );
+  for (const border of borders) {
+    // Chromium snaps CSS borders to device pixels before undoing CSS zoom.
+    assert.ok(
+      Math.abs(
+        border.width * border.zoom - Math.max(1, Math.floor(4 * border.zoom)),
+      ) < 0.001,
+    );
+    assert.equal(border.color, "rgb(34, 211, 238)");
+  }
   return page.locator(".cdf-chart-shell").evaluate((chart) => {
     const selectors = [
       ":scope",
@@ -258,6 +284,25 @@ export async function assert_style_boundaries(page: Page) {
   );
 
   assert.equal(await page.locator(".chart-preview.visualize-scope").count(), 1);
+  const background = await page
+    .locator(".result-cdf-chart")
+    .evaluate((node) => {
+      const style = getComputedStyle(node);
+      return [
+        style.backgroundColor,
+        style.backgroundImage,
+        style.backgroundSize,
+      ];
+    });
+  assert.equal(background[0], "rgb(0, 0, 0)");
+  assert.match(background[1]!, /starfield/);
+  assert.equal(background[2], "960px 720px");
+  assert.equal(
+    await page
+      .locator(".chart-preview")
+      .evaluate((node) => getComputedStyle(node, "::after").content),
+    "none",
+  );
   const before = await chart_style(page);
   const navigation_style = () =>
     page
@@ -360,6 +405,16 @@ export async function assert_export_style(
     await page.evaluate(() => document.fonts.ready);
     assert.equal(await page.locator("body.visualize-scope > #root").count(), 1);
     assert.deepEqual(await chart_style(page), expected);
+    assert.equal(
+      await page.locator(".visualize-viewport, .result-cdf-chart").count(),
+      0,
+    );
+    assert.equal(
+      await page
+        .locator("body")
+        .evaluate((node) => getComputedStyle(node).backgroundImage),
+      "none",
+    );
     assert.deepEqual(
       await page.evaluate(() => [
         document.body.clientWidth,
