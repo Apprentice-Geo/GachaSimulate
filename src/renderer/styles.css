@@ -326,7 +326,9 @@
   }
 
   .renderer-brand-mark {
-    background: var(--workbench-primary);
+    background: var(--workbench-gold);
+    box-shadow: 0 0 0 5px var(--workbench-gold-surface);
+    transform: rotate(45deg);
     height: calc(var(--desktop-unit) * 8);
     width: calc(var(--desktop-unit) * 8);
   }
@@ -340,6 +342,11 @@
     line-height: 1.4;
     margin: 0;
     text-transform: uppercase;
+  }
+
+  .renderer-eyebrow,
+  .export-eyebrow {
+    color: var(--workbench-gold);
   }
 
   .renderer-nav-label {
@@ -507,7 +514,8 @@
   }
 
   .renderer-placeholder-mark {
-    border: 1px solid var(--workbench-border-strong);
+    background: var(--workbench-gold-surface);
+    border: 1px solid var(--workbench-gold-line);
     height: calc(var(--desktop-unit) * 52);
     position: relative;
     width: calc(var(--desktop-unit) * 52);
@@ -535,6 +543,11 @@
   }
 
   .panel-heading {
+    background: linear-gradient(
+        var(--workbench-gold-line),
+        var(--workbench-gold-line)
+      )
+      left bottom / 36px 2px no-repeat;
     color: var(--workbench-text-muted);
     font-size: var(--workbench-font-body);
     letter-spacing: 0.2px;
@@ -1327,6 +1340,7 @@
   }
 
   .result-cdf-chart {
+    background: var(--workbench-surface);
     display: flex;
     flex-direction: column;
     gap: calc(var(--desktop-unit) * 16);
@@ -1375,6 +1389,7 @@
   }
 
   .instrument-panel,
+  .repository-card,
   .repository-source,
   .export-dialog,
   .export-notice,
@@ -1384,7 +1399,6 @@
   .item-search,
   .simulation-item-panel,
   .simulation-item,
-  .repository-card,
   .local-config-list > span,
   .export-format-option,
   .export-name-input,

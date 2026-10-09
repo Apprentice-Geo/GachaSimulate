@@ -9,6 +9,9 @@
   --workbench-text: #171717;
   --workbench-text-muted: #525252;
   --workbench-text-faint: #737373;
+  --workbench-gold: #a47b2c;
+  --workbench-gold-line: #d9bd7e;
+  --workbench-gold-surface: #fbf7ed;
   --workbench-primary: #1766d4;
   --workbench-primary-hover: #1052b0;
   --workbench-on-primary: #ffffff;
@@ -47,6 +50,9 @@
   --workbench-text: #ededed;
   --workbench-text-muted: #b5b5b5;
   --workbench-text-faint: #999999;
+  --workbench-gold: #d8b86d;
+  --workbench-gold-line: #78633b;
+  --workbench-gold-surface: #2a251c;
   --workbench-primary: #347de0;
   --workbench-primary-hover: #4890ef;
   --workbench-on-primary: #ffffff;
@@ -79,7 +85,7 @@
   --workbench-font-ui: SourceHanSansSC, "Segoe UI", sans-serif;
   --workbench-font-mono: "JetBrains Mono", SourceHanSansSC, monospace;
   --workbench-radius-button: 6px;
-  --workbench-radius-panel: 8px;
+  --workbench-radius-panel: 0px;
   --workbench-radius-scrollbar: 8px;
   --workbench-selection-stripe: 4px;
   --workbench-card-stripe-inset: 2px;

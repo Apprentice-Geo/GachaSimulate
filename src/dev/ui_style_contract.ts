@@ -102,6 +102,7 @@ export async function chart_style(page: Page) {
         const scene = node.closest(".visualize-page");
         const zoom = scene ? Number(getComputedStyle(scene).zoom) : 1;
         return {
+          primary: node.matches(".cdf-chart-shell"),
           width: parseFloat(style.borderTopWidth),
           color: style.borderTopColor,
           zoom,
@@ -112,10 +113,14 @@ export async function chart_style(page: Page) {
     // Chromium snaps CSS borders to device pixels before undoing CSS zoom.
     assert.ok(
       Math.abs(
-        border.width * border.zoom - Math.max(1, Math.floor(4 * border.zoom)),
+        border.width * border.zoom -
+          Math.max(1, Math.floor((border.primary ? 4 : 2) * border.zoom)),
       ) < 0.001,
     );
-    assert.equal(border.color, "rgb(34, 211, 238)");
+    assert.equal(
+      border.color,
+      border.primary ? "rgb(34, 211, 238)" : "rgb(81, 67, 111)",
+    );
   }
   return page.locator(".cdf-chart-shell").evaluate((chart) => {
     const selectors = [
@@ -294,9 +299,8 @@ export async function assert_style_boundaries(page: Page) {
         style.backgroundSize,
       ];
     });
-  assert.equal(background[0], "rgb(0, 0, 0)");
-  assert.match(background[1]!, /starfield/);
-  assert.equal(background[2], "960px 720px");
+  assert.equal(background[0], "rgb(255, 255, 255)");
+  assert.equal(background[1], "none");
   assert.equal(
     await page
       .locator(".chart-preview")

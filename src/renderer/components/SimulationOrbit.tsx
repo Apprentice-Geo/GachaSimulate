@@ -46,20 +46,6 @@ export function SimulationOrbit({
     : status === "running" && current === 0
       ? labels.starting
       : labels[status];
-  const nodeState = (index: number) =>
-    status === "completed"
-      ? "done"
-      : status === "idle"
-        ? "pending"
-        : index < current
-          ? "done"
-          : index > current
-            ? "pending"
-            : status === "failed"
-              ? "failed"
-              : status === "cancelling" || status === "cancelled"
-                ? "stopped"
-                : "active";
   const star = "M0 -24 Q5 -5 22 0 Q5 5 0 26 Q-5 5 -22 0 Q-5 -5 0 -24Z";
   const orbit = (front: boolean) => (
     <g clipPath={`url(#${id}-${front ? "front" : "back"})`}>
@@ -164,34 +150,6 @@ export function SimulationOrbit({
           ))}
         </g>
         {orbit(true)}
-        {[
-          [220, 52, "编译配置"],
-          [92, 274, "运行模拟"],
-          [348, 274, "保存 GSR"],
-        ].map(([x, y, label], index) => (
-          <g
-            key={label}
-            className="orbit-node"
-            data-state={nodeState(index)}
-            transform={`translate(${x} ${y})`}
-          >
-            <circle r="20" />
-            <text className="orbit-node-number" y="6">
-              {nodeState(index) === "done" ? "✓" : index + 1}
-            </text>
-            <rect
-              x="-55"
-              y={index === 0 ? -48 : 26}
-              width="110"
-              height="24"
-              rx="8"
-              fill="var(--workbench-surface)"
-            />
-            <text className="orbit-node-label" y={index === 0 ? -29 : 43}>
-              {label}
-            </text>
-          </g>
-        ))}
         <text className="orbit-percent" x="220" y="309">
           {percent.toFixed(0)}%
         </text>

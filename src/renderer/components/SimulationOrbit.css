@@ -26,27 +26,6 @@
   stroke-linecap: round;
   transition: stroke-dasharray 0.3s linear;
 }
-.orbit-node circle {
-  fill: var(--workbench-surface);
-  stroke: var(--workbench-border-strong);
-  stroke-width: 2;
-}
-.orbit-node[data-state="active"] circle {
-  stroke: var(--workbench-primary);
-  stroke-width: 3;
-  animation: orbit-glow 1.6s ease-in-out infinite alternate;
-}
-.orbit-node[data-state="done"] circle {
-  stroke: var(--workbench-primary);
-  fill: var(--workbench-selected-bg);
-}
-.orbit-node[data-state="failed"] circle {
-  stroke: var(--workbench-danger);
-}
-.orbit-node-number {
-  font-size: 17px;
-}
-.orbit-node-label,
 .orbit-status {
   font-size: 18px;
   font-weight: 500;
@@ -91,11 +70,6 @@
 @keyframes orbit-travel {
   to {
     transform: rotate(360deg);
-  }
-}
-@keyframes orbit-glow {
-  to {
-    stroke: var(--orbit-blue);
   }
 }
 @media (prefers-reduced-motion: reduce) {
