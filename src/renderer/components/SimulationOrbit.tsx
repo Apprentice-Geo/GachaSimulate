@@ -16,6 +16,12 @@ const labels: Record<SimulationStatus, string> = {
   cancelled: "已取消",
 };
 
+const cards = [
+  { color: "blue", angle: -24 },
+  { color: "purple", angle: 0 },
+  { color: "gold", angle: 24 },
+] as const;
+
 export function SimulationOrbit({
   status,
   stage,
@@ -82,10 +88,17 @@ export function SimulationOrbit({
       />
       <svg viewBox="0 0 440 420" aria-hidden="true" focusable="false">
         <defs>
-          <linearGradient id={`${id}-face`} x2="1" y2="1">
-            <stop stopColor="var(--workbench-surface)" />
-            <stop offset="1" stopColor="var(--orbit-pale)" />
-          </linearGradient>
+          {cards.map(({ color }) => (
+            <linearGradient
+              key={color}
+              id={`${id}-${color}-face`}
+              x2="1"
+              y2="1"
+            >
+              <stop stopColor="var(--workbench-surface)" />
+              <stop offset="1" stopColor={`var(--orbit-${color}-surface)`} />
+            </linearGradient>
+          ))}
           <linearGradient id={`${id}-edge`}>
             <stop stopColor="var(--orbit-gold)" />
             <stop offset=".48" stopColor="var(--orbit-pale)" />
@@ -113,8 +126,8 @@ export function SimulationOrbit({
           className="orbit-cards"
           key={status === "starting" ? "starting" : "rest"}
         >
-          {[-24, 24, 0].map((angle, index) => (
-            <g key={angle} transform={`rotate(${angle} 220 263)`}>
+          {cards.map(({ color, angle }) => (
+            <g key={color} transform={`rotate(${angle} 220 264)`}>
               <g
                 className={
                   status === "starting" ? "orbit-card-enter" : undefined
@@ -126,8 +139,8 @@ export function SimulationOrbit({
                   width="86"
                   height="139"
                   rx="12"
-                  fill={`url(#${id}-face)`}
-                  stroke={`url(#${id}-edge)`}
+                  fill={`url(#${id}-${color}-face)`}
+                  stroke={`var(--orbit-${color})`}
                   strokeWidth="3"
                 />
                 <rect
@@ -137,13 +150,13 @@ export function SimulationOrbit({
                   height="127"
                   rx="8"
                   fill="none"
-                  stroke="var(--orbit-blue)"
+                  stroke={`var(--orbit-${color})`}
                   strokeWidth="1"
                 />
                 <path
                   d={star}
                   transform="translate(220 194)"
-                  fill={index === 2 ? `url(#${id}-edge)` : "var(--orbit-blue)"}
+                  fill={`var(--orbit-${color})`}
                 />
               </g>
             </g>

@@ -44,7 +44,7 @@
   animation: orbit-float 3s ease-in-out infinite alternate;
 }
 .orbit-card-enter {
-  transform-origin: 220px 263px;
+  transform-origin: 220px 264px;
   animation: orbit-open 0.6s ease-out;
 }
 .orbit-particle {
@@ -66,7 +66,7 @@
 }
 @keyframes orbit-open {
   from {
-    transform: scaleX(0.75) translateY(8px);
+    transform: scaleX(0.75);
   }
 }
 @keyframes orbit-travel {

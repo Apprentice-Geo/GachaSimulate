@@ -40,6 +40,10 @@
   --workbench-status-halo: rgba(0, 112, 243, 0.12);
   --orbit-gold: #dcae48;
   --orbit-blue: #7ea9e8;
+  --orbit-purple: #a274d4;
+  --orbit-blue-surface: #c7ddfa;
+  --orbit-purple-surface: #dec6f5;
+  --orbit-gold-surface: #f4dfa1;
   --orbit-pale: #e6f0ff;
 }
 
@@ -84,6 +88,10 @@
   --workbench-status-halo: rgba(112, 173, 255, 0.16);
   --orbit-gold: #d8b86d;
   --orbit-blue: #659ce4;
+  --orbit-purple: #b78ae4;
+  --orbit-blue-surface: #243c5b;
+  --orbit-purple-surface: #433052;
+  --orbit-gold-surface: #514329;
   --orbit-pale: #203956;
 }
 

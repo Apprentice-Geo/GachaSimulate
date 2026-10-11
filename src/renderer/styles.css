@@ -599,11 +599,6 @@
   }
 
   .simulation-control {
-    background: linear-gradient(
-      180deg,
-      var(--workbench-surface),
-      var(--workbench-gold-surface)
-    );
     display: flex;
     flex-direction: column;
     min-height: 0;
