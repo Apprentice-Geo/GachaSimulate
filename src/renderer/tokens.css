@@ -9,9 +9,14 @@
   --workbench-text: #182737;
   --workbench-text-muted: #526477;
   --workbench-text-faint: #687b8e;
-  --workbench-gold: #a47b2c;
-  --workbench-gold-line: #d9bd7e;
-  --workbench-gold-surface: #fbf7ed;
+  /* Card quality and brand accents; separate from action and status roles. */
+  --workbench-card-blue: #4583d6;
+  --workbench-card-purple: #965fca;
+  --workbench-card-gold: #c99732;
+  --workbench-card-blue-surface: #c7ddfa;
+  --workbench-card-purple-surface: #dec6f5;
+  --workbench-card-gold-surface: #f4dfa1;
+  --workbench-card-highlight: #e6f0ff;
   --workbench-primary: #1766d4;
   --workbench-primary-hover: #1052b0;
   --workbench-on-primary: #ffffff;
@@ -19,9 +24,9 @@
   --workbench-selected-bg: #e8f1ff;
   --workbench-selected-border: #a6c5ed;
   --workbench-selected-text: #1758b0;
-  --workbench-focus: #0070f3;
-  --workbench-link: #0068d9;
-  --workbench-info: #0068d9;
+  --workbench-focus: var(--workbench-primary);
+  --workbench-link: var(--workbench-primary);
+  --workbench-info: var(--workbench-primary);
   --workbench-success: #18733b;
   --workbench-danger: #c62828;
   --workbench-danger-hover: #a61c1c;
@@ -38,13 +43,6 @@
   --workbench-scrollbar: #b5b5b5;
   --workbench-scrollbar-hover: #858585;
   --workbench-status-halo: rgba(0, 112, 243, 0.12);
-  --orbit-gold: #dcae48;
-  --orbit-blue: #7ea9e8;
-  --orbit-purple: #a274d4;
-  --orbit-blue-surface: #c7ddfa;
-  --orbit-purple-surface: #dec6f5;
-  --orbit-gold-surface: #f4dfa1;
-  --orbit-pale: #e6f0ff;
 }
 
 .workbench-host[data-workbench-theme="dark"] {
@@ -57,9 +55,13 @@
   --workbench-text: #e7edf4;
   --workbench-text-muted: #b5b5b5;
   --workbench-text-faint: #999999;
-  --workbench-gold: #d8b86d;
-  --workbench-gold-line: #78633b;
-  --workbench-gold-surface: #2a251c;
+  --workbench-card-blue: #659ce4;
+  --workbench-card-purple: #b78ae4;
+  --workbench-card-gold: #d8b86d;
+  --workbench-card-blue-surface: #243c5b;
+  --workbench-card-purple-surface: #433052;
+  --workbench-card-gold-surface: #514329;
+  --workbench-card-highlight: #203956;
   --workbench-primary: #347de0;
   --workbench-primary-hover: #4890ef;
   --workbench-on-primary: #ffffff;
@@ -86,13 +88,6 @@
   --workbench-scrollbar: #555555;
   --workbench-scrollbar-hover: #888888;
   --workbench-status-halo: rgba(112, 173, 255, 0.16);
-  --orbit-gold: #d8b86d;
-  --orbit-blue: #659ce4;
-  --orbit-purple: #b78ae4;
-  --orbit-blue-surface: #243c5b;
-  --orbit-purple-surface: #433052;
-  --orbit-gold-surface: #514329;
-  --orbit-pale: #203956;
 }
 
 .workbench-host {

@@ -66,7 +66,7 @@ export function SimulationOrbit({
       />
       <g transform="translate(220 211) scale(107 31)">
         <g className="orbit-particle">
-          <circle cx="1" cy="0" r=".045" fill="var(--orbit-gold)" />
+          <circle cx="1" cy="0" r=".045" fill="var(--workbench-card-gold)" />
         </g>
       </g>
     </g>
@@ -96,13 +96,16 @@ export function SimulationOrbit({
               y2="1"
             >
               <stop stopColor="var(--workbench-surface)" />
-              <stop offset="1" stopColor={`var(--orbit-${color}-surface)`} />
+              <stop
+                offset="1"
+                stopColor={`var(--workbench-card-${color}-surface)`}
+              />
             </linearGradient>
           ))}
           <linearGradient id={`${id}-edge`}>
-            <stop stopColor="var(--orbit-gold)" />
-            <stop offset=".48" stopColor="var(--orbit-pale)" />
-            <stop offset="1" stopColor="var(--workbench-primary)" />
+            <stop stopColor="var(--workbench-card-gold)" />
+            <stop offset=".48" stopColor="var(--workbench-card-highlight)" />
+            <stop offset="1" stopColor="var(--workbench-card-blue)" />
           </linearGradient>
           <clipPath id={`${id}-back`}>
             <rect width="440" height="211" />
@@ -140,7 +143,7 @@ export function SimulationOrbit({
                   height="139"
                   rx="12"
                   fill={`url(#${id}-${color}-face)`}
-                  stroke={`var(--orbit-${color})`}
+                  stroke={`var(--workbench-card-${color})`}
                   strokeWidth="3"
                 />
                 <rect
@@ -150,13 +153,13 @@ export function SimulationOrbit({
                   height="127"
                   rx="8"
                   fill="none"
-                  stroke={`var(--orbit-${color})`}
+                  stroke={`var(--workbench-card-${color})`}
                   strokeWidth="1"
                 />
                 <path
                   d={star}
                   transform="translate(220 194)"
-                  fill={`var(--orbit-${color})`}
+                  fill={`var(--workbench-card-${color})`}
                 />
               </g>
             </g>
