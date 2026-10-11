@@ -117,19 +117,33 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
                 transform: `scaleY(${marker_line_progress.scale})`,
               }}
             />
-            <circle
-              className="marker-point"
-              cx={view.x}
-              cy={view.y}
-              fill={view.marker.color}
-              r={marker_visual.point_radius}
-              style={{
-                fontSize: `${marker_visual.label_font_size}px`,
-                opacity: marker_group_progress.opacity,
-                strokeWidth: `${marker_visual.label_stroke_width}px`,
-                transform: `translateY(${marker_group_progress.translate_y}px)`,
-              }}
-            />
+            {view.marker.key === "MEAN" ? (
+              <path
+                className="marker-point"
+                d={`M ${view.x} ${view.y - marker_visual.point_radius} l ${marker_visual.point_radius} ${marker_visual.point_radius} l ${-marker_visual.point_radius} ${marker_visual.point_radius} l ${-marker_visual.point_radius} ${-marker_visual.point_radius} Z`}
+                fill="var(--color-panel)"
+                stroke={view.marker.color}
+                strokeWidth={3}
+                style={{
+                  opacity: marker_group_progress.opacity,
+                  transform: `translateY(${marker_group_progress.translate_y}px)`,
+                }}
+              />
+            ) : (
+              <circle
+                className="marker-point"
+                cx={view.x}
+                cy={view.y}
+                fill={view.marker.color}
+                r={marker_visual.point_radius}
+                style={{
+                  fontSize: `${marker_visual.label_font_size}px`,
+                  opacity: marker_group_progress.opacity,
+                  strokeWidth: `${marker_visual.label_stroke_width}px`,
+                  transform: `translateY(${marker_group_progress.translate_y}px)`,
+                }}
+              />
+            )}
             <text
               className="marker-label"
               dominantBaseline={view.dominant_baseline}

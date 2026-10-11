@@ -78,8 +78,39 @@ export default function App() {
       {({ active: export_active, open: open_export }) => (
         <div className="renderer-shell">
           <aside className="renderer-sidebar">
-            <div className="renderer-brand">
-              <span className="renderer-brand-mark" aria-hidden="true" />
+            <div className="renderer-brand" aria-label="GachaSimulate">
+              <svg
+                className="renderer-brand-mark"
+                viewBox="0 0 48 48"
+                aria-hidden="true"
+              >
+                <rect
+                  x="9"
+                  y="9"
+                  width="27"
+                  height="33"
+                  rx="5"
+                  transform="rotate(-18 24 24)"
+                  fill="var(--workbench-gold-surface)"
+                  stroke="var(--workbench-gold)"
+                  strokeWidth="2"
+                />
+                <rect
+                  x="15"
+                  y="5"
+                  width="27"
+                  height="34"
+                  rx="5"
+                  transform="rotate(12 24 24)"
+                  fill="var(--workbench-surface)"
+                  stroke="var(--workbench-primary)"
+                  strokeWidth="2"
+                />
+                <path
+                  d="M28 13 Q30 21 37 23 Q30 25 28 33 Q26 25 19 23 Q26 21 28 13Z"
+                  fill="var(--workbench-gold)"
+                />
+              </svg>
             </div>
             <nav aria-label="主导航">
               <p className="renderer-nav-label">工作台</p>

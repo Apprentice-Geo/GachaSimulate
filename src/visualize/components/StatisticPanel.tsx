@@ -61,6 +61,9 @@ function MetricRow({
   return (
     <div
       className="metric-row"
+      data-emphasis={
+        metric.key === "P50" || metric.key === "P95" ? "primary" : "secondary"
+      }
       data-testid={`stat-${metric.key}`}
       key={metric.key}
       style={

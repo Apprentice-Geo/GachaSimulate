@@ -43,7 +43,7 @@
   width: var(--canvas-width);
 }
 :where(.visualize-scope) .visualize-page::before {
-  background: var(--color-nvidia-green);
+  background: var(--color-brand);
   content: "";
   left: var(--page-margin);
   position: absolute;
@@ -82,7 +82,7 @@
   justify-items: start;
 }
 :where(.visualize-scope) .section-kicker {
-  color: var(--color-nvidia-green);
+  color: var(--color-brand);
   font-size: 28px;
   font-weight: 500;
   letter-spacing: 0.2px;
@@ -154,7 +154,25 @@
 }
 /* Decorative borders must not change plot geometry when the host is scaled. */
 :where(.visualize-scope) .cdf-chart-shell::after {
-  border: var(--result-card-border-width) solid var(--color-cdf-line);
+  border: 2px solid var(--color-hairline-strong);
+  background:
+    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) left top /
+      64px 4px,
+    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) left top /
+      4px 64px,
+    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) right top /
+      64px 4px,
+    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) right top /
+      4px 64px,
+    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) left
+      bottom / 64px 4px,
+    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) left
+      bottom / 4px 64px,
+    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) right
+      bottom / 64px 4px,
+    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) right
+      bottom / 4px 64px;
+  background-repeat: no-repeat;
   border-radius: inherit;
   content: "";
   inset: 0;
@@ -328,8 +346,9 @@
 :where(.visualize-scope) .metric-row {
   align-items: center;
   animation: none;
-  background: var(--color-panel-soft);
-  border: 2px solid var(--color-hairline);
+  background: transparent;
+  border: 2px solid transparent;
+  border-bottom-color: var(--color-hairline);
   border-left: 4px solid var(--metric-color);
   border-radius: 2px;
   display: flex;
@@ -348,6 +367,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+:where(.visualize-scope) .metric-row[data-emphasis="primary"] {
+  background: var(--color-panel-soft);
+  border-top-color: var(--color-hairline);
+  border-right-color: var(--color-hairline);
+}
+:where(.visualize-scope) .metric-row[data-emphasis="primary"] .metric-label {
+  color: var(--metric-color);
 }
 :where(.visualize-scope) .metric-copy {
   min-width: 0;

@@ -31,11 +31,13 @@
   font-weight: 500;
 }
 .orbit-count {
-  font-size: 15px;
+  font-family: var(--workbench-font-mono);
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 .orbit-percent {
-  font-size: 25px;
+  font-family: var(--workbench-font-mono);
+  font-size: 32px;
   font-weight: 600;
 }
 .orbit-cards {

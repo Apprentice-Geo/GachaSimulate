@@ -51,7 +51,7 @@ export const CDF_MARKER_VIEW_CONFIG: Record<MarkerKey, CDFMarkerViewConfig> = {
   MAX: {
     label: "MAX",
     color: "var(--color-cdf-marker-max)",
-    weight: "strong",
+    weight: "faint",
   },
 };
 

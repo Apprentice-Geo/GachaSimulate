@@ -8,12 +8,8 @@
   --footer-height: 280px;
   --square-length: 20px;
 
-  --color-sentry-primary: #150f23;
-  --color-sentry-ink: #1f1633;
-  --color-sentry-muted: #6b6578;
-  --color-sentry-pink: #fa7faa;
-  --color-nvidia-green: #76b900;
-  --color-nvidia-green-dark: #3f8500;
+  --color-brand: #76b900;
+  --color-cdf-frame: #507181;
   --color-cyan: #22d3ee;
   --color-canvas: #120d1f;
   --color-host-divider: #555555;
@@ -24,12 +20,12 @@
   --color-text-primary: #f7f3ff;
   --color-text-muted: rgba(247, 243, 255, 0.68);
   --color-text-faint: rgba(247, 243, 255, 0.54);
-  --color-pk-a: #6a5fc1;
-  --color-pk-b: #fa7faa;
+  --color-pk-a: #7f9fc9;
+  --color-pk-b: #c6a577;
   --color-pk-c: #22d3ee;
-  --color-pk-d: #76b900;
-  --color-pk-e: #f2c94c;
-  --color-pk-f: #ef9100;
+  --color-pk-d: #75b4a5;
+  --color-pk-e: #b1a0cd;
+  --color-pk-f: #c78e9e;
   --color-pk-g: #4d8dff;
   --color-pk-h: #e85d75;
   --color-danger: #e52020;
@@ -38,19 +34,18 @@
   --color-cdf-axis: #4c4658;
   --color-cdf-axis-muted: #b8bcc6;
   --color-cdf-axis-tick: #c9cbd2;
-  --color-cdf-marker-min: var(--color-nvidia-green-dark);
-  --color-cdf-marker-p5: var(--color-nvidia-green-dark);
-  --color-cdf-marker-p25: var(--color-nvidia-green);
-  --color-cdf-marker-p50: #bff230;
-  --color-cdf-marker-mean: #952fc6;
-  --color-cdf-marker-p75: #ef9100;
-  --color-cdf-marker-p95: #df6500;
-  --color-cdf-marker-max: var(--color-danger);
+  --color-cdf-marker-min: #91a1b2;
+  --color-cdf-marker-p5: #91a1b2;
+  --color-cdf-marker-p25: #a9bfcc;
+  --color-cdf-marker-p50: #e2c27c;
+  --color-cdf-marker-mean: #b4acd7;
+  --color-cdf-marker-p75: #a9bfcc;
+  --color-cdf-marker-p95: #90c9ed;
+  --color-cdf-marker-max: #91a1b2;
 
   --font-ui: SourceHanSansSC, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", SourceHanSansSC, monospace;
   --radius-card: 0px;
-  --result-card-border-width: 4px;
   --radius-button: 2px;
   --color-stardust: rgba(247, 243, 255, 0.025);
 }

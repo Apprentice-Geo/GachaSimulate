@@ -105,6 +105,7 @@ export async function chart_style(page: Page) {
           primary: node.matches(".cdf-chart-shell"),
           width: parseFloat(style.borderTopWidth),
           color: style.borderTopColor,
+          corners: style.backgroundImage,
           zoom,
         };
       }),
@@ -113,14 +114,13 @@ export async function chart_style(page: Page) {
     // Chromium snaps CSS borders to device pixels before undoing CSS zoom.
     assert.ok(
       Math.abs(
-        border.width * border.zoom -
-          Math.max(1, Math.floor((border.primary ? 4 : 2) * border.zoom)),
+        border.width * border.zoom - Math.max(1, Math.floor(2 * border.zoom)),
       ) < 0.001,
     );
-    assert.equal(
-      border.color,
-      border.primary ? "rgb(34, 211, 238)" : "rgb(81, 67, 111)",
-    );
+    assert.equal(border.color, "rgb(81, 67, 111)");
+    if (border.primary) {
+      assert.equal((border.corners.match(/linear-gradient/g) ?? []).length, 8);
+    }
   }
   return page.locator(".cdf-chart-shell").evaluate((chart) => {
     const selectors = [
@@ -146,15 +146,27 @@ export async function chart_style(page: Page) {
       "stroke-dasharray",
       "filter",
     ];
-    return selectors.map((selector) => {
-      const nodes =
-        selector === ":scope" ? [chart] : [...chart.querySelectorAll(selector)];
-      if (!nodes.length) throw new Error(`Missing chart element: ${selector}`);
-      return nodes.map((node) => {
-        const style = getComputedStyle(node);
-        return properties.map((property) => style.getPropertyValue(property));
-      });
-    });
+    const frame = getComputedStyle(chart, "::after");
+    return [
+      [
+        frame.borderColor,
+        // Width is checked above with Chromium's device-pixel snapping.
+        frame.backgroundImage,
+        frame.backgroundSize,
+      ],
+      ...selectors.map((selector) => {
+        const nodes =
+          selector === ":scope"
+            ? [chart]
+            : [...chart.querySelectorAll(selector)];
+        if (!nodes.length)
+          throw new Error(`Missing chart element: ${selector}`);
+        return nodes.map((node) => {
+          const style = getComputedStyle(node);
+          return properties.map((property) => style.getPropertyValue(property));
+        });
+      }),
+    ];
   });
 }
 
