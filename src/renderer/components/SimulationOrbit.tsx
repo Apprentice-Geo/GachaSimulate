@@ -61,13 +61,11 @@ export function SimulationOrbit({
         rx="107"
         ry="31"
         fill="none"
-        stroke={`url(#${id}-edge)`}
+        stroke="var(--workbench-orbit-track)"
         strokeWidth="3"
       />
-      <g transform="translate(220 211) scale(107 31)">
-        <g className="orbit-particle">
-          <circle cx="1" cy="0" r=".045" fill="var(--workbench-card-gold)" />
-        </g>
+      <g className="orbit-particle">
+        <circle r="6" fill={`url(#${id}-sphere)`} />
       </g>
     </g>
   );
@@ -102,11 +100,11 @@ export function SimulationOrbit({
               />
             </linearGradient>
           ))}
-          <linearGradient id={`${id}-edge`}>
-            <stop stopColor="var(--workbench-card-gold)" />
-            <stop offset=".48" stopColor="var(--workbench-card-highlight)" />
-            <stop offset="1" stopColor="var(--workbench-card-blue)" />
-          </linearGradient>
+          <radialGradient id={`${id}-sphere`} cx="30%" cy="25%" r="75%">
+            <stop stopColor="var(--workbench-card-gold-highlight)" />
+            <stop offset=".35" stopColor="var(--workbench-card-gold)" />
+            <stop offset="1" stopColor="var(--workbench-card-gold-shadow)" />
+          </radialGradient>
           <clipPath id={`${id}-back`}>
             <rect width="440" height="211" />
           </clipPath>

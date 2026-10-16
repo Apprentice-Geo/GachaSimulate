@@ -21,6 +21,8 @@ const SCENARIOS = [
   "electron/simulation-idle",
   "electron/simulation-running",
   "electron/simulation-navigation",
+  "electron/settings-light",
+  "electron/settings-dark",
   "electron/config-repository",
   "electron/config-repository-local",
   "electron/result-editor-empty",
@@ -226,6 +228,24 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
         .getByText("/tmp/completed-while-away.gsr", { exact: true })
         .waitFor();
       await screenshot(page, "electron/simulation-navigation");
+    }
+
+    for (const theme of ["light", "dark"] as const) {
+      const scenario = `electron/settings-${theme}` as const;
+      if (!scenarios.includes(scenario)) continue;
+      await page.getByRole("button", { name: "设置", exact: true }).click();
+      await page
+        .getByRole("radio", {
+          name: theme === "light" ? "浅色" : "深色",
+          exact: true,
+        })
+        .check();
+      await screenshot(page, scenario);
+    }
+    if (
+      scenarios.some((scenario) => scenario.startsWith("electron/settings-"))
+    ) {
+      await page.getByRole("radio", { name: "浅色", exact: true }).check();
     }
 
     if (

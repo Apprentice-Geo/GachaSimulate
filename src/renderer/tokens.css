@@ -1,4 +1,4 @@
-/* Default Light; explicit Dark is reserved for internal validation. */
+/* Default Light; settings selects an explicit Workbench theme. */
 .workbench-host {
   color-scheme: light;
   --workbench-bg: #edf1f5;
@@ -13,10 +13,12 @@
   --workbench-card-blue: #4583d6;
   --workbench-card-purple: #965fca;
   --workbench-card-gold: #c99732;
+  --workbench-card-gold-highlight: #fff6d8;
+  --workbench-card-gold-shadow: #72501d;
   --workbench-card-blue-surface: #c7ddfa;
   --workbench-card-purple-surface: #dec6f5;
   --workbench-card-gold-surface: #f4dfa1;
-  --workbench-card-highlight: #e6f0ff;
+  --workbench-orbit-track: #9aafc5;
   --workbench-primary: #1766d4;
   --workbench-primary-hover: #1052b0;
   --workbench-on-primary: #ffffff;
@@ -58,10 +60,12 @@
   --workbench-card-blue: #659ce4;
   --workbench-card-purple: #b78ae4;
   --workbench-card-gold: #d8b86d;
+  --workbench-card-gold-highlight: #fff2c9;
+  --workbench-card-gold-shadow: #715526;
   --workbench-card-blue-surface: #243c5b;
   --workbench-card-purple-surface: #433052;
   --workbench-card-gold-surface: #514329;
-  --workbench-card-highlight: #203956;
+  --workbench-orbit-track: #596d84;
   --workbench-primary: #347de0;
   --workbench-primary-hover: #4890ef;
   --workbench-on-primary: #ffffff;

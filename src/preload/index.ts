@@ -5,6 +5,8 @@ import type {
 } from "../shared/simulation";
 
 contextBridge.exposeInMainWorld("desktopApi", {
+  openAppLink: (link: import("../shared/app_info").AppLink) =>
+    ipcRenderer.invoke("open-app-link", link),
   listConfigs: () => ipcRenderer.invoke("list-configs"),
   getConfigRepositoryState: () =>
     ipcRenderer.invoke("get-config-repository-state"),

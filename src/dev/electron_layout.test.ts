@@ -12,6 +12,8 @@ import {
 import type { ConfigRepositoryState } from "../shared/installed_config";
 import { emulate_viewport } from "./electron_viewport";
 import { result_fixture, simulation_fixture } from "./ui_fixtures";
+import { app_info, app_links } from "../shared/app_info";
+import { theme_storage_key } from "../renderer/theme";
 import {
   assert_style_boundaries,
   chart_style,
@@ -44,10 +46,9 @@ function repository_fixture(count = 80): ConfigRepositoryState {
   };
 }
 
-async function launch(width: number, height: number) {
-  const config_home = await mkdtemp(
-    path.join(tmpdir(), "gachasimulate-layout-"),
-  );
+async function launch(width: number, height: number, profile?: string) {
+  const config_home =
+    profile ?? (await mkdtemp(path.join(tmpdir(), "gachasimulate-layout-")));
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([, value]) => value !== undefined),
   ) as Record<string, string>;
@@ -508,7 +509,135 @@ async function assert_visualize_metadata(page: Page) {
   );
 }
 
+async function assert_settings(application: ElectronApplication, page: Page) {
+  const theme = () =>
+    page.locator(".workbench-host").getAttribute("data-workbench-theme");
+  assert.equal(await theme(), "light");
+  const settings = page.getByRole("button", { name: "设置", exact: true });
+  const navigation_before = await page
+    .getByRole("navigation", { name: "主导航", exact: true })
+    .boundingBox();
+  await settings.click();
+  assert.equal(await settings.getAttribute("aria-current"), "page");
+  assert.equal(
+    await page.getByTestId("app-version").textContent(),
+    app_info.version,
+  );
+  await assert_contained(page, ".renderer-sidebar", ".renderer-settings-nav");
+  await assert_contained(page, ".settings-page", ".settings-body");
+  await capture_layout(page, "settings-light");
+  const light = page.getByRole("radio", { name: "浅色", exact: true });
+  const dark = page.getByRole("radio", { name: "深色", exact: true });
+  assert.equal(await light.isChecked(), true);
+  await light.focus();
+  await page.keyboard.press("ArrowRight");
+  assert.equal(await dark.isChecked(), true);
+  assert.equal(await theme(), "dark");
+  await capture_layout(page, "settings-dark");
+  assert.deepEqual(
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+      .boundingBox(),
+    navigation_before,
+  );
+  await page.getByRole("button", { name: "运行模拟", exact: true }).click();
+  assert.equal(await theme(), "dark");
+  await settings.click();
+  assert.equal(await dark.isChecked(), true);
+
+  await application.evaluate(({ shell }) => {
+    const opened: string[] = [];
+    (
+      globalThis as typeof globalThis & { opened_app_links: string[] }
+    ).opened_app_links = opened;
+    shell.openExternal = async (url) => {
+      opened.push(url);
+    };
+  });
+  for (const label of ["项目主页", "问题反馈", "开源许可证", "第三方声明"]) {
+    await page.getByRole("button", { name: label, exact: true }).click();
+  }
+  assert.deepEqual(
+    await application.evaluate(
+      () =>
+        (globalThis as typeof globalThis & { opened_app_links: string[] })
+          .opened_app_links,
+    ),
+    Object.values(app_links),
+  );
+  for (const invalid of [
+    "https://example.com",
+    "__proto__",
+    "constructor",
+    null,
+  ]) {
+    await assert.rejects(
+      page.evaluate(
+        (value) => window.desktopApi.openAppLink(value as never),
+        invalid,
+      ),
+      /unknown application link/,
+    );
+  }
+  await application.evaluate(({ shell }) => {
+    shell.openExternal = async () => {
+      throw new Error("browser unavailable");
+    };
+  });
+  await page.getByRole("button", { name: "项目主页", exact: true }).click();
+  await page.getByRole("alert").filter({ hasText: "无法打开链接" }).waitFor();
+
+  await page.addInitScript(() => {
+    const observer = new MutationObserver(() => {
+      if (document.querySelector(".renderer-shell")) {
+        document.documentElement.dataset.firstRenderedTheme =
+          document.body.dataset.workbenchTheme;
+        observer.disconnect();
+      }
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await settings.waitFor();
+  assert.equal(await theme(), "dark");
+  assert.equal(
+    await page.locator("html").getAttribute("data-first-rendered-theme"),
+    "dark",
+  );
+  await settings.click();
+  assert.equal(await dark.isChecked(), true);
+  await light.check();
+  await page.evaluate(() => {
+    Storage.prototype.setItem = () => {
+      throw new DOMException("storage unavailable");
+    };
+  });
+  await dark.check();
+  assert.equal(await theme(), "dark");
+  await page.getByRole("alert").filter({ hasText: "无法保存偏好" }).waitFor();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await settings.waitFor();
+  assert.equal(
+    await theme(),
+    "light",
+    "failed save keeps the last persisted preference",
+  );
+  await page.evaluate(
+    (key) => localStorage.setItem(key, "unsupported"),
+    theme_storage_key,
+  );
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await settings.waitFor();
+  assert.equal(
+    await theme(),
+    "light",
+    "invalid stored theme falls back to Light",
+  );
+  await page.evaluate((key) => localStorage.removeItem(key), theme_storage_key);
+}
+
 async function assert_layout(application: ElectronApplication, page: Page) {
+  await assert_settings(application, page);
   await page.getByText("状态 / 待运行").waitFor();
   await page.evaluate(() => document.fonts.ready);
   const visual = await page.evaluate(() => {
@@ -1396,6 +1525,18 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     actions_box.x >= sidebar_box.x &&
       actions_box.x + actions_box.width <= sidebar_box.x + sidebar_box.width,
   );
+  const settings_box = await page
+    .getByRole("navigation", { name: "应用设置", exact: true })
+    .boundingBox();
+  assert.ok(settings_box);
+  assert.ok(
+    actions_box.y + actions_box.height <= settings_box.y,
+    "visualization actions do not overlap Settings",
+  );
+  assert.ok(
+    settings_box.y + settings_box.height <= sidebar_box.y + sidebar_box.height,
+    "Settings remains fully visible with visualization actions",
+  );
   const export_button = page.getByRole("button", { name: "导出素材" });
   await export_button.focus();
   assert.equal(
@@ -1863,3 +2004,71 @@ for (const [width, height] of [
     }
   });
 }
+
+test("Settings restores the theme after restarting Electron and rejects links from other renderers", async () => {
+  let session = await launch(1280, 720);
+  const profile = session.config_home;
+  try {
+    await session.page
+      .getByRole("button", { name: "设置", exact: true })
+      .click();
+    await session.page
+      .getByRole("radio", { name: "深色", exact: true })
+      .check();
+    await session.cdp.detach();
+    await session.application.close();
+    session = await launch(1280, 720, profile);
+    await session.page
+      .getByRole("button", { name: "设置", exact: true })
+      .click();
+    assert.equal(
+      await session.page
+        .getByRole("radio", { name: "深色", exact: true })
+        .isChecked(),
+      true,
+    );
+    assert.equal(
+      await session.page
+        .locator(".workbench-host")
+        .getAttribute("data-workbench-theme"),
+      "dark",
+    );
+    await assert.rejects(
+      session.application.evaluate(
+        async ({ BrowserWindow }, files) => {
+          const other = new BrowserWindow({
+            show: false,
+            webPreferences: {
+              contextIsolation: true,
+              nodeIntegration: false,
+              preload: files.preload,
+            },
+          });
+          try {
+            await other.loadFile(files.html);
+            await other.webContents.executeJavaScript(
+              "window.desktopApi.openAppLink('project')",
+            );
+          } finally {
+            other.destroy();
+          }
+        },
+        {
+          preload: path.join(PROJECT_ROOT, "out/preload/index.js"),
+          html: path.join(PROJECT_ROOT, "out/renderer/index.html"),
+        },
+      ),
+      /untrusted renderer/,
+    );
+  } finally {
+    try {
+      await session.cdp.detach();
+    } finally {
+      try {
+        await session.application.close();
+      } finally {
+        await rm(profile, { force: true, recursive: true });
+      }
+    }
+  }
+});

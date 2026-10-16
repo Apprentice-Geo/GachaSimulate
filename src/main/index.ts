@@ -21,6 +21,7 @@ import type { SaveResultFieldsRequest } from "../shared/result_editor";
 import { UserRequestAdmission } from "./request_admission";
 import { ExportTaskCoordinator } from "./export_task";
 import { validate_export_task_request } from "../shared/export_task";
+import { app_links, type AppLink } from "../shared/app_info";
 
 let simulation: SimulationTask;
 let result_editor: ResultEditor;
@@ -30,6 +31,9 @@ let main_window: BrowserWindow | null = null;
 const admission = new UserRequestAdmission();
 let quitting = false;
 const electron_offscreen = process.env.GACHASIMULATE_ELECTRON_OFFSCREEN === "1";
+// Automation already supplies a temporary profile; isolate persisted UI settings too.
+if (electron_offscreen && process.env.XDG_CONFIG_HOME)
+  app.setPath("userData", process.env.XDG_CONFIG_HOME);
 
 if (process.platform === "win32")
   // Windows 的字体缩放会影响设计好的 UI
@@ -201,6 +205,15 @@ app.whenReady().then(() => {
     },
   );
   ipcMain.handle("list-configs", () => config_manager.list_configs());
+  ipcMain.handle("open-app-link", (event, link: unknown) => {
+    if (!main_window || event.sender !== main_window.webContents)
+      throw new Error(
+        "application link request came from an untrusted renderer",
+      );
+    if (typeof link !== "string" || !Object.hasOwn(app_links, link))
+      throw new Error("unknown application link");
+    return shell.openExternal(app_links[link as AppLink]);
+  });
   ipcMain.handle("get-config-repository-state", () => config_manager.state());
   ipcMain.handle("refresh-config-repository", (_event, force: boolean) => {
     admission.admit("config-refresh");
