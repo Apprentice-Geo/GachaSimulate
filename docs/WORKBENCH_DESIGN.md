@@ -10,13 +10,24 @@ Workbench 以任务操作、清晰反馈和稳定空间分配为中心。背景�
 
 ## 主题与单一信息源
 
-[Workbench tokens](../src/renderer/tokens.css) 是主题颜色、共享 spacing、radius 和排版 token 的权威来源；本文记录语义与不变量，不复制数值表。已有专用布局几何由对应布局源码维护，不另建文档数值表。组件使用语义 token，不硬编码主题色。
+[共享字号](../src/styles/typography.css) 是 Workbench 与 Visualization 字号层级的唯一来源；[Workbench tokens](../src/renderer/tokens.css) 维护主题颜色、共享 spacing、radius 和工作台排版角色映射；本文记录语义与不变量，不复制数值表。已有专用布局几何由对应布局源码维护，不另建文档数值表。组件使用语义 token，不硬编码主题色。
+
+两种界面共用字体资源、字号层级、文字权重与几何排版原则。工作台侧重任务操作，可视化侧重数据阅读；其场景职责如下：
+
+| 设计维度 | 共同规则 | 场景职责 |
+| --- | --- | --- |
+| 排版 | 中文使用思源黑体，数字与标识符使用 JetBrains Mono；按语义角色选择共享字号 | 工作台直接使用桌面字号，可视化按固定倍率换算到设计画布坐标 |
+| 颜色 | 区分主要、次要与弱提示文字；品质色与任务状态色分开 | 工作台维护浅色与深色主题，可视化固定深色 |
+| 形状 | 面板以直角、细边界与弱表面差异组织内容；装饰不改变内容几何 | 工作台控件保留圆角，可视化通过刻线、短色条与图表定位标记划分层次 |
+| 布局 | 主要分区稳定、边界对齐、滚动区域明确 | 工作台随窗口分配内容空间，可视化保持固定画布并整体等比适配 |
+
+工作台的题签与辅助标签使用 `caption`，次要元信息使用 `meta`，列表正文使用 `content`，卡片标题、普通摘要与导出任务摘要使用 `body`，分区标题与仓库概览数字使用 `heading`，页面标题与导出对话框标题使用 `title`。模拟流程 SVG 的状态、次数与百分比分别使用 `content`、`caption` 和 `title`，随 SVG 画面等比适配。样式通过 Workbench 角色映射引用共享层级，不再用 `desktop-unit` 推导字号，也不在页面新增独立像素字号；`font` 简写同样遵守此规则。单位相对所属数值缩小，沿用相对字号，不建立新的基础档位。间距和控件几何继续由工作台布局 token 管理。可视化的读数层级、画布和导出约束见 [Visualization Design](VISUALIZATION_DESIGN.md)。
 
 默认 Light，不跟随系统主题。Dark 提供相同名称的完整主题值，可通过 Workbench 宿主的 `data-workbench-theme="dark"` 做内部验证；本阶段没有用户切换入口和偏好持久化。颜色方案只作用于 Workbench，`.visualize-scope` 始终使用自己的暗色与原生控件方案。
 
 语义区分背景、面板、弱表面、普通和较强边界、主要和次要文字、主要操作及其前景、hover、selected、focus、链接、信息、成功、警告、错误、disabled、遮罩与阴影。卡牌品质与品牌使用独立的共享蓝紫金 token，不依赖操作或状态 token。数值和普通标识符沿用文字层级，不因是数据而使用强调色。蓝色用于主要操作、导航与列表选中、链接、焦点和信息状态；亮色主题的链接、焦点与信息状态沿用主要操作的蓝色，深色主题使用适合暗背景的明亮蓝色。成功、警告和错误独立表达，不与品牌或选中态混用。
 
-[Workbench 样式](../src/renderer/styles.css) 在 Visualization 边界停止匹配。[foundation](../src/styles/foundation.css) 只维护字体资源、box-sizing、reset 与控件字体继承。中文沿用思源黑体，数字使用 JetBrains Mono；标题使用正常字距。主题切换不改变字号、行高与几何。字体授权见 [Third-party notices](../THIRD_PARTY_NOTICES.md)。
+[Workbench 样式](../src/renderer/styles.css) 在 Visualization 边界停止匹配。[foundation](../src/styles/foundation.css) 加载共享字号，并维护字体资源、box-sizing、reset 与控件字体继承。中文沿用思源黑体，数字使用 JetBrains Mono；标题使用正常字距。主题切换不改变字号、行高与几何。字体授权见 [Third-party notices](../THIRD_PARTY_NOTICES.md)。
 
 ## 组件与状态
 

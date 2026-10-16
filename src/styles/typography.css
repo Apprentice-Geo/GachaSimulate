@@ -1,0 +1,13 @@
+:root {
+  /* Shared type scale in desktop pixels; fixed canvases convert coordinates. */
+  --font-size-caption: 13.8px;
+  --font-size-meta: 14.95px;
+  --font-size-content: 17.25px;
+  --font-size-body: 20px;
+  --font-size-heading: 23px;
+  --font-size-title: 32px;
+  --font-size-value: 36px;
+  --font-size-display: 48px;
+  --font-size-reading: 64px;
+  --font-size-hero: 72px;
+}

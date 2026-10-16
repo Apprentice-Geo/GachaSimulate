@@ -82,13 +82,6 @@ export function get_distribution_statistic_groups(): {
   }));
 }
 
-export function get_statistic_insight(key: StatisticKey): string | undefined {
-  if (key === "P50") return "至少 50% 的模拟结果不超过此值";
-  if (key === "P95") return "至少 95% 的模拟结果不超过此值";
-  if (key === "MEAN") return "所有模拟结果的算术平均值";
-  return undefined;
-}
-
 export const TERMINATION_REASON_VIEW_CONFIG = {
   segment_colors: [
     "var(--color-pk-a)",

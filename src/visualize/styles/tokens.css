@@ -48,6 +48,38 @@
 
   --font-ui: SourceHanSansSC, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", SourceHanSansSC, monospace;
+  /* Convert the shared desktop scale to the fixed 3840 x 2160 design canvas. */
+  --visualize-type-scale: 2;
+  --visualize-font-caption: calc(
+    var(--font-size-caption) * var(--visualize-type-scale)
+  );
+  --visualize-font-meta: calc(
+    var(--font-size-meta) * var(--visualize-type-scale)
+  );
+  --visualize-font-content: calc(
+    var(--font-size-content) * var(--visualize-type-scale)
+  );
+  --visualize-font-body: calc(
+    var(--font-size-body) * var(--visualize-type-scale)
+  );
+  --visualize-font-heading: calc(
+    var(--font-size-heading) * var(--visualize-type-scale)
+  );
+  --visualize-font-title: calc(
+    var(--font-size-title) * var(--visualize-type-scale)
+  );
+  --visualize-font-value: calc(
+    var(--font-size-value) * var(--visualize-type-scale)
+  );
+  --visualize-font-display: calc(
+    var(--font-size-display) * var(--visualize-type-scale)
+  );
+  --visualize-font-reading: calc(
+    var(--font-size-reading) * var(--visualize-type-scale)
+  );
+  --visualize-font-hero: calc(
+    var(--font-size-hero) * var(--visualize-type-scale)
+  );
   --radius-card: 0px;
   --radius-button: 2px;
 }
@@ -55,7 +87,7 @@
 .visualize-scope {
   color: var(--color-text-primary);
   font-family: var(--font-ui);
-  font-size: 16px;
+  font-size: var(--visualize-font-body);
   font-weight: 400;
   font-style: normal;
   line-height: normal;

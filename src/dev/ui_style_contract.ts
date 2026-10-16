@@ -205,6 +205,12 @@ export async function assert_workbench_themes(page: Page) {
             style.lineHeight,
           ];
         }),
+        statistics: [
+          ...document.querySelectorAll(".metric-row, .metric-row *"),
+        ].map((node) => {
+          const style = getComputedStyle(node);
+          return [style.color, style.fontSize, style.lineHeight];
+        }),
       };
     });
   const light = await read();
@@ -227,6 +233,7 @@ export async function assert_workbench_themes(page: Page) {
       );
     }
     assert.deepEqual(dark.geometry, light.geometry);
+    assert.deepEqual(dark.statistics, light.statistics);
     assert.deepEqual(await chart_style(page), before);
     await assert_workbench_primitives(page);
   } finally {
@@ -272,6 +279,10 @@ export async function assert_style_boundaries(page: Page) {
   }, sources);
   assert.deepEqual(violations, [], "Visualization rules must be scoped");
   const workbench = await readFile("src/renderer/styles.css", "utf8");
+  const orbit = await readFile(
+    "src/renderer/components/SimulationOrbit.css",
+    "utf8",
+  );
   await assert_workbench_primitives(page);
   const tokens = await readFile("src/renderer/tokens.css", "utf8");
   const theme_keys = await page.evaluate((source) => {
@@ -296,8 +307,13 @@ export async function assert_style_boundaries(page: Page) {
     "Workbench colors belong in tokens",
   );
   assert.doesNotMatch(
+    workbench + orbit,
+    /(?:font-size|font):\s*(?:calc\(|[\d.]+px\b)/,
+    "Workbench font sizes use the shared type scale rather than layout units or local pixel sizes",
+  );
+  assert.doesNotMatch(
     workbench + tokens,
-    /var\(--(?:color-|font-|radius-|canvas-)/,
+    /var\(--(?:color-|font-(?!size-)|radius-|canvas-)/,
   );
 
   assert.equal(await page.locator(".chart-preview.visualize-scope").count(), 1);
@@ -378,6 +394,34 @@ export async function assert_style_boundaries(page: Page) {
   assert.equal(border, "0px");
   await assert_workbench_themes(page);
   return before;
+}
+
+/** Both surfaces use one type scale while keeping their own coordinate spaces. */
+export async function assert_shared_typography(page: Page) {
+  const result = await page.evaluate(() => {
+    const root = document.documentElement;
+    const shell = document.querySelector(".renderer-shell")!;
+    const label = document.querySelector(".metric-label")!;
+    const styles = {
+      read() {
+        return [shell, label].map((node) =>
+          parseFloat(getComputedStyle(node).fontSize),
+        );
+      },
+    };
+    const before = styles.read();
+    const previous = root.style.getPropertyValue("--font-size-body");
+    try {
+      root.style.setProperty("--font-size-body", `${before[0] + 1}px`);
+      return { before, after: styles.read() };
+    } finally {
+      if (previous) root.style.setProperty("--font-size-body", previous);
+      else root.style.removeProperty("--font-size-body");
+    }
+  });
+  assert.equal(result.before[1], result.before[0] * 2);
+  assert.equal(result.after[0], result.before[0] + 1);
+  assert.equal(result.after[1], result.before[1] + 2);
 }
 
 export async function assert_export_style(

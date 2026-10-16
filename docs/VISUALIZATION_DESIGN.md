@@ -23,11 +23,11 @@ Visualization 以独立暗色画布承载图表、刻线与读数，以来自抽
 
 共享颜色、字体和画布 token 由 [Visualization tokens](../src/visualize/styles/tokens.css) 管理，统一限定在 `.visualize-scope`。三个宿主加载同一 [Visualization 样式入口](../src/visualize/styles/index.css)，Preview 仅按可用空间缩小共享 CDF 设计坐标，不独立维护颜色、字体、刻度、marker 或 compact 样式。正式页面与导出复用 `VisualizeScene`，仅宿主适配和动画驱动不同。
 
-Workbench 主题与组件规范见 [Workbench Design](WORKBENCH_DESIGN.md)；[Workbench 样式](../src/renderer/styles.css) 的 scope 在 `.visualize-scope` 边界停止匹配。[foundation](../src/styles/foundation.css) 只提供字体资源、box-sizing、基础 reset 和控件字体继承。CSS import 的组件位置不提供隔离保证。Export HTML 的 body 直接建立 Visualization scope，导出宿主独立负责固定尺寸与无滚动约束，不从 React 子树反向读取变量。具体色值、间距和组件尺寸不在本文维护第二份清单。
+Workbench 主题与组件规范见 [Workbench Design](WORKBENCH_DESIGN.md)；[Workbench 样式](../src/renderer/styles.css) 的 scope 在 `.visualize-scope` 边界停止匹配。[foundation](../src/styles/foundation.css) 加载共享字号，并提供字体资源、box-sizing、基础 reset 和控件字体继承。CSS import 的组件位置不提供隔离保证。Export HTML 的 body 直接建立 Visualization scope，导出宿主独立负责固定尺寸与无滚动约束，不从 React 子树反向读取变量。具体色值、间距和组件尺寸不在本文维护第二份清单。
 
 ### 字体与数值排版
 
-Visualization 中文使用思源黑体 Regular、Medium、Bold，数字与标识符使用 JetBrains Mono Regular、SemiBold，关闭编程连字。数字字体由 Visualization token 管理，三个宿主使用相同字体资源。Workbench 当前复用这些字体资源，但由自己的 token 决定字体选择。
+Visualization 中文使用思源黑体 Regular、Medium、Bold，数字与标识符使用 JetBrains Mono Regular、SemiBold，关闭编程连字。数字字体由 Visualization token 管理，三个宿主使用相同字体资源。Workbench 与 Visualization 共用[字号层级](../src/styles/typography.css)，Visualization token 只将共享字号按固定倍率转换到原始画布坐标，不另建字号表；该倍率不随窗口或工作台主题变化。标题、正文、说明、坐标刻度与 marker 均引用共享层级，大数字使用同一体系中的 `value`、`reading` 和 `hero` 角色。颜色继续固定为深色，不随 Workbench 主题变化。共同设计语言与 Workbench 角色映射见 [Workbench Design](WORKBENCH_DESIGN.md#主题与单一信息源)。
 
 单位继续使用思源黑体，并降低字号与字重，使数值保持主要阅读权重。正文、说明与统计数字的层级通过字号、字重和文字色共同建立，不以整段强调色替代层级。
 
@@ -39,9 +39,9 @@ CDF 使用弱边框和四角定位标记，统计栏和达成路径使用顶部�
 
 结果画布保持固定设计坐标，由 [Visualization tokens](../src/visualize/styles/tokens.css) 与 [scene layout](../src/visualize/view/scene_layout.ts) 维护尺寸。Electron 按宿主可用区域等比缩小并双向居中，窗口变化时重新适配，不放大超过原始尺寸，不提供手动缩放。宿主间距以 [preview styles](../src/visualize/styles/preview.css) 为准。该规则不用于整个桌面工作空间。
 
-CDF 与下方达成路径分布共用左列，右侧统计量面板顶部与 CDF 对齐、底部与达成路径分布对齐。页头沿用主体列划分，右上角元信息与关键指标区域共用左边界。具体尺寸和间距由上述源码维护，不在本文复制。
+CDF 与下方达成路径分布共用左列，右侧统计量面板顶部与 CDF 对齐、底部与达成路径分布对齐。该对齐由共享 Grid 和固定区域尺寸保证，统计内容只在已分配区域内排布，字号、文案与内部间距不得改变外部边界。页头沿用主体列划分，右上角元信息与关键指标区域共用左边界。具体尺寸和间距由上述源码维护，不在本文复制。
 
-页头左侧以“模拟概率图谱”题签、用户标题和副标题建立层级。右侧元信息各行标签沿共同左边界对齐，值紧随该行标签和冒号自然排列，起点随标签实际宽度变化，不设置固定标签列或统一的数值起点；长内容在自身区域内换行。统计栏先在“关键指标”中展示 P50、MEAN、P95，分别保留累计占比或算术平均值解释，再按 MIN、P5、P25、P75、MAX 展示索引。重点数值扩大字号，长数值随可用宽度收小，单位保持较低权重。路径条、图例与用户备注沿左边界排版，备注按原文展示。
+页头左侧以“模拟概率图谱”题签、用户标题和副标题建立层级。右侧元信息各行标签沿共同左边界对齐，值紧随该行标签和冒号自然排列，起点随标签实际宽度变化，不设置固定标签列或统一的数值起点；长内容在自身区域内换行。统计栏先在“关键指标”中展示 P50、MEAN、P95，保留百分位或平均结果标签，不在指标旁重复解释性句子，统计含义由底部注释说明，再按 MIN、P5、P25、P75、MAX 展示索引。关键指标的名称与中文标签并排靠左，下方展示大数字；分布索引保留左侧上下两行标签与说明、右侧数值的结构，保持原有行高下限，整体提高字号。统计列表填满已分配高度，以内部 Grid 分配两个分组与各行空间。重点数值扩大字号，沿用已有长数值收小行为，单位保持较低权重。路径条、图例与用户备注沿左边界排版，备注按原文展示。
 
 素材导出使用原始画布尺寸，不经过交互宿主缩放。图表读取共享布局实际分配的区域尺寸，导出不单独指定图表尺寸。展示适配不能改变导出画面的布局和数据表达。画面内不放置工作台操作栏；更换结果、重播与导出入口由 Workbench 侧栏提供。
 

@@ -94,7 +94,7 @@ export function CDFChart({
             stroke={CDF_CHART_VIEW_CONFIG.axis_color}
             tick={{
               fill: CDF_CHART_VIEW_CONFIG.x_tick_color,
-              fontSize: 32,
+              fontSize: "var(--visualize-font-content)",
             }}
             tickFormatter={format_draw}
             height={X_AXIS_HEIGHT}
@@ -113,7 +113,7 @@ export function CDFChart({
             stroke={CDF_CHART_VIEW_CONFIG.axis_color}
             tick={{
               fill: CDF_CHART_VIEW_CONFIG.y_tick_color,
-              fontSize: 28,
+              fontSize: "var(--visualize-font-meta)",
             }}
             tickFormatter={format_percent}
             ticks={Y_CDF_AXIS_TICKS}

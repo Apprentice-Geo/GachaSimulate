@@ -17,6 +17,7 @@ import {
   chart_style,
   assert_export_style,
   assert_workbench_themes,
+  assert_shared_typography,
 } from "./ui_style_contract";
 
 const PROJECT_ROOT = process.cwd();
@@ -1151,6 +1152,8 @@ async function assert_layout(application: ElectronApplication, page: Page) {
         width: node.offsetWidth,
         height: node.offsetHeight,
         left: node.getBoundingClientRect().left,
+        top: node.getBoundingClientRect().top,
+        bottom: node.getBoundingClientRect().bottom,
       };
     });
   });
@@ -1164,6 +1167,17 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     ],
   );
   assert.equal(design_regions[0].left, design_regions[2].left);
+  assert_pixel_equal(
+    design_regions[3].top,
+    design_regions[0].top,
+    "Statistics and CDF share the top edge",
+  );
+  assert_pixel_equal(
+    design_regions[3].bottom,
+    design_regions[2].bottom,
+    "Statistics and termination paths share the bottom edge",
+  );
+  await assert_shared_typography(page);
   await assert_visualize_metadata(page);
   await capture_layout(page, "visualize");
   const metric_layout = await page
@@ -1181,7 +1195,8 @@ async function assert_layout(application: ElectronApplication, page: Page) {
           return (
             rect.top >= panel_rect.top &&
             rect.bottom <= panel_rect.bottom + 1 &&
-            row.scrollWidth <= row.clientWidth
+            row.scrollWidth <= row.clientWidth &&
+            row.scrollHeight <= row.clientHeight
           );
         }),
         aligned: rows.every((row) => {
@@ -1191,6 +1206,9 @@ async function assert_layout(application: ElectronApplication, page: Page) {
             Math.abs(rect.right - panel_rect.right) < 1
           );
         }),
+        index_rows_have_space: rows
+          .filter((row) => row.dataset.emphasis === "secondary")
+          .every((row) => row.offsetHeight >= 132),
       };
     });
   assert.deepEqual(metric_layout.keys, [
@@ -1212,6 +1230,10 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   assert.ok(
     metric_layout.aligned,
     "Focus readings and the index share both column edges",
+  );
+  assert.ok(
+    metric_layout.index_rows_have_space,
+    "Larger index typography retains at least the original row height",
   );
   const visualize_contract = await page.evaluate(() => {
     const viewport = document.querySelector(".visualize-viewport");

@@ -78,13 +78,13 @@
 
   .export-eyebrow {
     color: var(--workbench-text);
-    font-size: calc(var(--desktop-unit) * 11);
+    font-size: var(--workbench-font-caption);
     letter-spacing: 0.16em;
     margin: 0 0 calc(var(--desktop-unit) * 5);
   }
 
   .export-title {
-    font-size: calc(var(--desktop-unit) * 25);
+    font-size: var(--workbench-font-title);
     font-weight: 500;
     margin: 0;
   }
@@ -185,7 +185,7 @@
   }
 
   .export-task-summary strong {
-    font: calc(var(--desktop-unit) * 18) var(--workbench-font-mono);
+    font: var(--workbench-font-body) var(--workbench-font-mono);
   }
 
   .export-summary-meta {
@@ -514,7 +514,7 @@
 
   .page-title {
     color: var(--workbench-text);
-    font-size: calc(var(--desktop-unit) * 29.44);
+    font-size: var(--workbench-font-title);
     font-weight: 500;
     letter-spacing: 0;
     line-height: 1.05;
@@ -835,7 +835,7 @@
 
   .output-item strong {
     color: var(--workbench-text);
-    font-size: calc(var(--desktop-unit) * 17);
+    font-size: var(--workbench-font-body);
   }
 
   .output-item code,
@@ -986,7 +986,7 @@
   .repository-overview dd {
     color: var(--workbench-text);
     font-family: var(--workbench-font-mono);
-    font-size: calc(var(--desktop-unit) * 22);
+    font-size: var(--workbench-font-heading);
     margin: 0;
   }
 
@@ -1120,7 +1120,7 @@
 
   .repository-card h3 {
     color: var(--workbench-text);
-    font-size: calc(var(--desktop-unit) * 17);
+    font-size: var(--workbench-font-body);
     font-weight: 500;
     margin: 0;
   }
@@ -1299,7 +1299,7 @@
   .result-editor-summary dd {
     color: var(--workbench-text);
     font-family: var(--workbench-font-mono);
-    font-size: calc(var(--desktop-unit) * 18);
+    font-size: var(--workbench-font-body);
     font-weight: 600;
     margin: calc(var(--desktop-unit) * 6) 0 0;
     overflow-wrap: anywhere;

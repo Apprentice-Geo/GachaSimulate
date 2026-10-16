@@ -117,7 +117,7 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
             style={
               {
                 "--marker-index": index,
-                "--marker-label-font-size": `${marker_visual.label_font_size}px`,
+                "--marker-label-font-size": marker_visual.label_font_size,
                 "--marker-label-font-weight": marker_visual.label_font_weight,
                 "--marker-label-stroke-width": `${marker_visual.label_stroke_width}px`,
                 "--marker-opacity": marker_visual.opacity,
@@ -173,7 +173,7 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
                 fill={view.marker.color}
                 r={marker_visual.point_radius}
                 style={{
-                  fontSize: `${marker_visual.label_font_size}px`,
+                  fontSize: marker_visual.label_font_size,
                   opacity: marker_group_progress.opacity,
                   strokeWidth: `${marker_visual.label_stroke_width}px`,
                   transform: `translateY(${marker_group_progress.translate_y}px)`,

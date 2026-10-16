@@ -27,17 +27,17 @@
   transition: stroke-dasharray 0.3s linear;
 }
 .orbit-status {
-  font-size: 18px;
+  font-size: var(--workbench-font-content);
   font-weight: 500;
 }
 .orbit-count {
   font-family: var(--workbench-font-mono);
-  font-size: 13px;
+  font-size: var(--workbench-font-caption);
   font-variant-numeric: tabular-nums;
 }
 .orbit-percent {
   font-family: var(--workbench-font-mono);
-  font-size: 32px;
+  font-size: var(--workbench-font-title);
   font-weight: 600;
 }
 .orbit-cards {

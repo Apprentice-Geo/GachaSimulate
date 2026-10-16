@@ -98,7 +98,7 @@
   --workbench-radius-scrollbar: 8px;
   --workbench-selection-stripe: 4px;
   --workbench-card-stripe-inset: 2px;
-  --desktop-font: 20px;
+  --desktop-font: var(--font-size-body);
   --desktop-unit: 1.15px;
 
   /* Common Workbench spacing; specialized layout geometry stays local. */
@@ -108,9 +108,10 @@
   --workbench-space-lg: calc(var(--desktop-unit) * 24);
   --workbench-control-height: calc(var(--desktop-unit) * 38);
 
-  --workbench-font-caption: calc(var(--desktop-unit) * 12);
-  --workbench-font-meta: calc(var(--desktop-unit) * 13);
-  --workbench-font-content: calc(var(--desktop-unit) * 15);
-  --workbench-font-body: var(--desktop-font);
-  --workbench-font-heading: calc(var(--desktop-unit) * 20);
+  --workbench-font-caption: var(--font-size-caption);
+  --workbench-font-meta: var(--font-size-meta);
+  --workbench-font-content: var(--font-size-content);
+  --workbench-font-body: var(--font-size-body);
+  --workbench-font-heading: var(--font-size-heading);
+  --workbench-font-title: var(--font-size-title);
 }

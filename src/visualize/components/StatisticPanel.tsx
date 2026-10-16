@@ -5,7 +5,6 @@ import type { CDFViewModel, StatisticMetric } from "../types/cdf";
 import {
   get_distribution_statistic_groups,
   get_statistic_description,
-  get_statistic_insight,
 } from "../view/statistic_view_config";
 import type { DistributionStatisticKey } from "../view/statistic_view_config";
 import { ResultValue } from "./ResultValue";
@@ -58,11 +57,6 @@ function MetricRow({
       <div className="metric-value">
         <ResultValue value={metric.display_value} unit={unit} />
       </div>
-      {get_statistic_insight(metric.key) && (
-        <div className="metric-insight">
-          {get_statistic_insight(metric.key)}
-        </div>
-      )}
     </div>
   );
 }
