@@ -6,6 +6,7 @@ import type { CDFViewModel } from "../types/cdf";
 import { CDF_CHART_VIEW_CONFIG } from "../view/cdf_view_config";
 import {
   build_curve_path,
+  build_curve_area_path,
   build_marker_views,
 } from "../view/cdf_overlay_layout";
 import {
@@ -30,6 +31,18 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
     () => build_curve_path(data.chart_points, x_scale, y_scale),
     [data.chart_points, x_scale, y_scale],
   );
+  const area_path = useMemo(
+    () =>
+      plot_area
+        ? build_curve_area_path(
+            data.chart_points,
+            x_scale,
+            y_scale,
+            plot_area.y + plot_area.height,
+          )
+        : "",
+    [data.chart_points, x_scale, y_scale, plot_area],
+  );
   const mean_marker = marker_views.find((view) => view.marker.key === "MEAN");
   const mean_marker_visual = mean_marker
     ? get_marker_visual(mean_marker.marker.weight)
@@ -50,6 +63,14 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
 
   return (
     <g aria-hidden="true" className="marker-overlay">
+      <path
+        className="cdf-area-path"
+        d={area_path}
+        fill={CDF_CHART_VIEW_CONFIG.curve_color}
+        style={{
+          opacity: animation_progress.curve_area * 0.055,
+        }}
+      />
       <path
         className="cdf-curve-path"
         d={curve_path}
@@ -103,6 +124,21 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
               } as CSSProperties
             }
           >
+            {(view.marker.key === "P50" || view.marker.key === "P95") && (
+              <line
+                className="quantile-horizontal-line"
+                stroke={view.marker.color}
+                strokeWidth={1.5}
+                x1={plot_area.x}
+                x2={view.x}
+                y1={view.y}
+                y2={view.y}
+                style={{
+                  opacity: marker_line_progress.opacity * 0.45,
+                  transform: `scaleX(${marker_line_progress.scale})`,
+                }}
+              />
+            )}
             <line
               className="marker-line"
               stroke={view.marker.color}

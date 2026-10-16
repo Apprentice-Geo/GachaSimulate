@@ -28,6 +28,7 @@ export interface AnimationProgress {
   chart_shell: FadeProgress;
   chart_surface: FadeProgress;
   curve: number;
+  curve_area: number;
   mean_line: ScaleProgress;
   termination_surface: FadeProgress;
   termination_title: FadeProgress;
@@ -211,6 +212,12 @@ export function build_animation_progress(
       ANIMATION_TIMELINE.CURVE.start_frame,
       ANIMATION_TIMELINE.CURVE.completion_frame,
       linear,
+    ),
+    curve_area: segment_progress(
+      frame_progress,
+      ANIMATION_TIMELINE.CURVE_AREA.start_frame,
+      ANIMATION_TIMELINE.CURVE_AREA.completion_frame,
+      ease_out_quad,
     ),
     mean_line: scale_progress(
       frame_progress,

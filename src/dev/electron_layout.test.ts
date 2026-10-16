@@ -461,6 +461,52 @@ async function fail_with_layout(page: Page, message: string): Promise<never> {
   );
 }
 
+async function assert_visualize_metadata(page: Page) {
+  const metadata = await page.locator(".top-meta").evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    const header = document.querySelector(".top-bar")!.getBoundingClientRect();
+    const statistics = document
+      .querySelector(".statistic-panel")!
+      .getBoundingClientRect();
+    return {
+      aligned_with_statistics: Math.abs(rect.left - statistics.left) < 1,
+      fits:
+        rect.top >= header.top - 1 &&
+        rect.bottom <= header.bottom + 1 &&
+        node.scrollWidth <= node.clientWidth,
+      rows: [...node.children].map((row) => {
+        const label_element = row.querySelector("dt")!;
+        const label_lines = [...label_element.getClientRects()];
+        const label_start = label_lines[0];
+        const label_end = label_lines[label_lines.length - 1];
+        const value_element = row.querySelector("dd")!;
+        const value = value_element.getBoundingClientRect();
+        const first_line = value_element.getClientRects()[0];
+        return {
+          aligned: Math.abs(label_start.left - rect.left) < 1,
+          follows_label: Math.abs(first_line.left - label_end.right) < 1,
+          fits: value.right <= rect.right + 1,
+          value_left: first_line.left,
+        };
+      }),
+    };
+  });
+  assert.ok(
+    metadata.aligned_with_statistics,
+    "Metadata and key indicators share the same left edge",
+  );
+  assert.ok(metadata.fits, "Metadata fits within the header");
+  assert.equal(metadata.rows.length, 3);
+  assert.ok(
+    metadata.rows.every((row) => row.aligned && row.follows_label && row.fits),
+    `Each metadata value follows its left-aligned label without a fixed label column: ${JSON.stringify(metadata.rows)}`,
+  );
+  assert.ok(
+    metadata.rows[1].value_left > metadata.rows[0].value_left,
+    "Longer labels move the following value to the right",
+  );
+}
+
 async function assert_layout(application: ElectronApplication, page: Page) {
   await page.getByText("状态 / 待运行").waitFor();
   await page.evaluate(() => document.fonts.ready);
@@ -1118,6 +1164,55 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     ],
   );
   assert.equal(design_regions[0].left, design_regions[2].left);
+  await assert_visualize_metadata(page);
+  await capture_layout(page, "visualize");
+  const metric_layout = await page
+    .locator(".statistic-panel")
+    .evaluate((panel) => {
+      const panel_rect = panel.getBoundingClientRect();
+      const rows = [...panel.querySelectorAll<HTMLElement>(".metric-row")];
+      return {
+        keys: rows.map((row) => row.dataset.statKey),
+        primary_keys: rows
+          .filter((row) => row.dataset.emphasis === "primary")
+          .map((row) => row.dataset.statKey),
+        contained: rows.every((row) => {
+          const rect = row.getBoundingClientRect();
+          return (
+            rect.top >= panel_rect.top &&
+            rect.bottom <= panel_rect.bottom + 1 &&
+            row.scrollWidth <= row.clientWidth
+          );
+        }),
+        aligned: rows.every((row) => {
+          const rect = row.getBoundingClientRect();
+          return (
+            Math.abs(rect.left - panel_rect.left) < 1 &&
+            Math.abs(rect.right - panel_rect.right) < 1
+          );
+        }),
+      };
+    });
+  assert.deepEqual(metric_layout.keys, [
+    "P50",
+    "MEAN",
+    "P95",
+    "MIN",
+    "P5",
+    "P25",
+    "P75",
+    "MAX",
+  ]);
+  assert.deepEqual(metric_layout.primary_keys, ["P50", "MEAN", "P95"]);
+  await page.getByRole("heading", { name: "关键指标", exact: true }).waitFor();
+  assert.ok(
+    metric_layout.contained,
+    "Every statistic fits within the shared column",
+  );
+  assert.ok(
+    metric_layout.aligned,
+    "Focus readings and the index share both column edges",
+  );
   const visualize_contract = await page.evaluate(() => {
     const viewport = document.querySelector(".visualize-viewport");
     const root = document.querySelector('[data-testid="visualize-root"]');
@@ -1657,6 +1752,64 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     await page.getByRole("group", { name: "可视化操作" }).count(),
     0,
   );
+  // A valid single-run result at the supported numeric limit must remain readable.
+  const large_fixture = structuredClone(result_fixture());
+  large_fixture.display.target = "获得限定角色与限定武器并完成本期模拟目标";
+  large_fixture.display.result_item_name = "限定角色累计兑换代币";
+  large_fixture.fields.target = large_fixture.display.target;
+  large_fixture.fields.result_item_name =
+    large_fixture.display.result_item_name;
+  const maximum = String(Number.MAX_SAFE_INTEGER);
+  large_fixture.analysis = {
+    ...large_fixture.analysis,
+    totals: { runs: "1", result: maximum },
+    values: [maximum],
+    cumulative: [1],
+    statistic: {
+      MIN: maximum,
+      P5: maximum,
+      P25: maximum,
+      P50: maximum,
+      MEAN: maximum,
+      P75: maximum,
+      P95: maximum,
+      MAX: maximum,
+      MEAN_LEVEL: 1,
+    },
+  };
+  await application.evaluate(({ ipcMain }, fixture) => {
+    ipcMain.removeHandler("select-gsr-result");
+    ipcMain.handle("select-gsr-result", () => fixture);
+  }, large_fixture);
+  await page.getByRole("button", { name: "结果可视化" }).click();
+  await page.getByRole("button", { name: "更换结果" }).click();
+  await page
+    .getByTestId("stat-P50")
+    .getByText("9,007,199,254,740,991", { exact: true })
+    .waitFor();
+  await page
+    .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
+    .waitFor();
+  const large_values = await page.locator(".metric-row").evaluateAll((rows) =>
+    rows.map((row) => {
+      const rect = row.getBoundingClientRect();
+      const value = row.querySelector(".metric-value")!;
+      const value_rect = value.getBoundingClientRect();
+      return (
+        value.textContent?.includes("9,007,199,254,740,991") &&
+        row.scrollWidth <= row.clientWidth &&
+        value_rect.left >= rect.left - 1 &&
+        value_rect.right <= rect.right + 1
+      );
+    }),
+  );
+  assert.equal(large_values.length, 8);
+  assert.ok(
+    large_values.every(Boolean),
+    "Full statistic values fit without truncation",
+  );
+  await capture_layout(page, "visualize-long-values");
+  await assert_visualize_metadata(page);
   assert.equal(space_failures.length, 0, space_failures.join("\n"));
 }
 

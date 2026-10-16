@@ -208,3 +208,18 @@ export function build_curve_path(
 
   return path_segments.join(" ");
 }
+
+/** Close the observed CDF against the baseline, without filling the unused domain. */
+export function build_curve_area_path(
+  chart_points: CDFPoint[],
+  x_scale: ScaleFunction | undefined,
+  y_scale: ScaleFunction | undefined,
+  baseline: number,
+): string {
+  const curve = build_curve_path(chart_points, x_scale, y_scale);
+  if (!curve || !x_scale) return "";
+  const first_x = x_scale(chart_points[0].draw);
+  const last_x = x_scale(chart_points[chart_points.length - 1].draw);
+  if (first_x === undefined || last_x === undefined) return "";
+  return `${curve} L ${last_x.toFixed(2)} ${baseline.toFixed(2)} L ${first_x.toFixed(2)} ${baseline.toFixed(2)} Z`;
+}

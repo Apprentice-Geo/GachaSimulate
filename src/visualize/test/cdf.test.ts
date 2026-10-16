@@ -19,6 +19,7 @@ import { get_cdf_level_at_draw } from "../data/cdf";
 import { build_cdf_view_model } from "../view/cdf_view_model";
 import {
   build_curve_path,
+  build_curve_area_path,
   build_marker_views,
   resolve_marker_label_collisions,
 } from "../view/cdf_overlay_layout";
@@ -166,6 +167,21 @@ test("build_curve_path clamps cumulative values", () => {
     ),
     "M 2.00 100.00 L 6.00 100.00 L 6.00 20.00",
   );
+});
+
+test("CDF area preserves steps and closes only across observed values", () => {
+  const x_scale = (draw: unknown) => Number(draw) * 2;
+  const y_scale = (level: unknown) => 120 - Number(level) * 100;
+  const points = [
+    { draw: 1, cumulative: 0.2 },
+    { draw: 3, cumulative: 1 },
+  ];
+  assert.equal(
+    build_curve_area_path(points, x_scale, y_scale, 120),
+    "M 2.00 100.00 L 6.00 100.00 L 6.00 20.00 L 6.00 120.00 L 2.00 120.00 Z",
+  );
+  assert.equal(build_curve_area_path([], x_scale, y_scale, 120), "");
+  assert.equal(build_curve_area_path(points, undefined, y_scale, 120), "");
 });
 
 test("build_cdf_view_model normalizes Analysis and display fields together", () => {
@@ -325,6 +341,7 @@ test("every animation segment spans at least five frames", () => {
     ANIMATION_TIMELINE.CHART_SHELL,
     ANIMATION_TIMELINE.CHART_SURFACE,
     ANIMATION_TIMELINE.CURVE,
+    ANIMATION_TIMELINE.CURVE_AREA,
     ANIMATION_TIMELINE.STAT_SURFACE,
     ANIMATION_TIMELINE.TERMINATION_SURFACE,
     ANIMATION_TIMELINE.TERMINATION_TITLE,
@@ -362,6 +379,8 @@ test("timeline elements use their assigned easing at segment midpoints", () => {
   assert.equal(at_frame(6).title_area(0).opacity, 0.875);
   assert.equal(at_frame(13).chart_surface.opacity, 0.75);
   assert.equal(at_frame(32).curve, 0.5);
+  assert.equal(at_frame(48).curve_area, 0);
+  assert.equal(at_frame(51).curve_area, 0.75);
   assert.equal(at_frame(32).metadata(0).opacity, 0.875);
   assert.equal(at_frame(36).stat_surface.opacity, 0.75);
   assert.equal(at_frame(35).stat_content(0).opacity, 0.75);
@@ -457,6 +476,7 @@ test("frame 56 is unfinished and frame 57 is the complete state", () => {
   assert.deepEqual(progress.chart_shell, { opacity: 1, translate_y: 0 });
   assert.deepEqual(progress.chart_surface, { opacity: 1, translate_y: 0 });
   assert.equal(progress.curve, 1);
+  assert.equal(progress.curve_area, 1);
   assert.deepEqual(progress.mean_line, { opacity: 0.85, scale: 1 });
   assert.deepEqual(progress.stat_surface, { opacity: 1, translate_y: 0 });
   assert.deepEqual(progress.termination_surface, {
@@ -500,6 +520,7 @@ function observable_animation_progress(frame: number) {
     chart_shell: progress.chart_shell,
     chart_surface: progress.chart_surface,
     curve: progress.curve,
+    curve_area: progress.curve_area,
     mean_line: progress.mean_line,
     termination_surface: progress.termination_surface,
     termination_title: progress.termination_title,

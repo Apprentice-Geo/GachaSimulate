@@ -65,19 +65,28 @@ export const STATISTIC_VIEW_ORDER = [
 ] as const satisfies readonly StatisticKey[];
 
 const DISTRIBUTION_GROUP_KEYS = [
-  ["MIN", "P5", "P25"],
-  ["P50", "MEAN"],
-  ["P75", "P95", "MAX"],
+  ["P50", "MEAN", "P95"],
+  ["MIN", "P5", "P25", "P75", "MAX"],
 ] as const satisfies readonly (readonly DistributionStatisticKey[])[];
 
 export function get_distribution_statistic_groups(): {
   title: string;
+  accent: string;
   keys: readonly DistributionStatisticKey[];
 }[] {
-  return ["偏低结果", "典型结果", "偏高结果"].map((title, index) => ({
+  return ["关键指标", "分布索引"].map((title, index) => ({
     title,
+    accent:
+      index === 0 ? "var(--color-rarity-gold)" : "var(--color-rarity-purple)",
     keys: DISTRIBUTION_GROUP_KEYS[index],
   }));
+}
+
+export function get_statistic_insight(key: StatisticKey): string | undefined {
+  if (key === "P50") return "至少 50% 的模拟结果不超过此值";
+  if (key === "P95") return "至少 95% 的模拟结果不超过此值";
+  if (key === "MEAN") return "所有模拟结果的算术平均值";
+  return undefined;
 }
 
 export const TERMINATION_REASON_VIEW_CONFIG = {

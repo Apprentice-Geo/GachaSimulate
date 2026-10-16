@@ -75,7 +75,7 @@ export function TerminationBar({
               : undefined
           }
         >
-          <h2>达成路径分布</h2>
+          <h2 className="visualize-section-label">达成路径分布</h2>
         </div>
         {data ? (
           <>

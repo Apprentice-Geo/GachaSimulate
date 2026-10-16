@@ -43,6 +43,13 @@ export function CDFChart({
       data-testid="cdf-chart"
       style={{ ...style, width: size.width, height: size.height }}
     >
+      <div
+        className="chart-frame-label"
+        style={{ opacity: animation_progress.chart_surface.opacity }}
+      >
+        <span className="visualize-section-label">模拟结果分布</span>
+        <span>累计分布 / CDF</span>
+      </div>
       <svg
         className="cdf-axis-titles"
         width={size.width}

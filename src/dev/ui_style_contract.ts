@@ -117,7 +117,7 @@ export async function chart_style(page: Page) {
         border.width * border.zoom - Math.max(1, Math.floor(2 * border.zoom)),
       ) < 0.001,
     );
-    assert.equal(border.color, "rgb(81, 67, 111)");
+    assert.equal(border.color, "rgb(81, 71, 97)");
     if (border.primary) {
       assert.equal((border.corners.match(/linear-gradient/g) ?? []).length, 8);
     }
