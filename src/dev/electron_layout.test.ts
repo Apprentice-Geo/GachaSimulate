@@ -12,7 +12,7 @@ import {
 import type { ConfigRepositoryState } from "../shared/installed_config";
 import { emulate_viewport } from "./electron_viewport";
 import { result_fixture, simulation_fixture } from "./ui_fixtures";
-import { app_info, app_links } from "../shared/app_info";
+import { app_info } from "../shared/app_info";
 import { theme_storage_key } from "../renderer/theme";
 import {
   assert_style_boundaries,
@@ -563,7 +563,12 @@ async function assert_settings(application: ElectronApplication, page: Page) {
         (globalThis as typeof globalThis & { opened_app_links: string[] })
           .opened_app_links,
     ),
-    Object.values(app_links),
+    [
+      "https://github.com/Apprentice-Geo/GachaSimulate#readme",
+      "https://github.com/Apprentice-Geo/GachaSimulate/issues",
+      "https://github.com/Apprentice-Geo/GachaSimulate/blob/HEAD/LICENSE.txt",
+      "https://github.com/Apprentice-Geo/GachaSimulate/blob/HEAD/THIRD_PARTY_NOTICES.md",
+    ],
   );
   for (const invalid of [
     "https://example.com",

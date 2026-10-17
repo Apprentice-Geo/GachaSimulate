@@ -1,4 +1,11 @@
-import { build, version, license, homepage, bugs } from "../../package.json";
+import {
+  build,
+  version,
+  license,
+  homepage,
+  bugs,
+  repository,
+} from "../../package.json";
 
 export const app_info = {
   name: build.productName,
@@ -6,11 +13,15 @@ export const app_info = {
   license,
 };
 
+const repository_url = repository.url
+  .replace(/^git\+/, "")
+  .replace(/\.git$/, "");
+
 export const app_links = {
   project: homepage,
   issues: bugs.url,
-  license: `${homepage}/blob/HEAD/LICENSE.txt`,
-  notices: `${homepage}/blob/HEAD/THIRD_PARTY_NOTICES.md`,
+  license: `${repository_url}/blob/HEAD/LICENSE.txt`,
+  notices: `${repository_url}/blob/HEAD/THIRD_PARTY_NOTICES.md`,
 } as const;
 
 export type AppLink = keyof typeof app_links;
