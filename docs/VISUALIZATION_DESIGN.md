@@ -37,7 +37,7 @@ Visualization 中文使用思源黑体 Regular、Medium、Bold，数字与标识
 
 CDF 使用弱边框和四角定位标记，统计栏和达成路径使用顶部细线，避免重复的封闭矩形框。使用独立 surface 或向内覆盖，不改变内容测量、绘图区与刻度，不叠加内容透明度动画。P50、P95 使用实线概率刻线，其他 marker 保留虚线辅助，MEAN 保留空心菱形。预览不添加宿主外框，图表四角在预览、正式画面和导出中保持一致。
 
-结果画布保持固定设计坐标，由 [Visualization tokens](../src/visualize/styles/tokens.css) 与 [scene layout](../src/visualize/view/scene_layout.ts) 维护尺寸。Electron 按宿主可用区域等比缩小并双向居中，窗口变化时重新适配，不放大超过原始尺寸，不提供手动缩放。宿主间距以 [preview styles](../src/visualize/styles/preview.css) 为准。该规则不用于整个桌面工作空间。
+结果画布保持固定设计坐标，由 [canvas constants](../src/visualize/constants.ts) 维护画布尺寸，[scene layout](../src/visualize/view/scene_layout.ts) 将尺寸注入共享画面与导出宿主的 CSS 变量，并维护图表设计尺寸。Electron 按宿主可用区域等比缩小并双向居中，窗口变化时重新适配，不放大超过原始尺寸，不提供手动缩放。宿主间距以 [preview styles](../src/visualize/styles/preview.css) 为准。该规则不用于整个桌面工作空间。
 
 CDF 与下方达成路径分布共用左列，右侧统计量面板顶部与 CDF 对齐、底部与达成路径分布对齐。该对齐由共享 Grid 和固定区域尺寸保证，统计内容只在已分配区域内排布，字号、文案与内部间距不得改变外部边界。页头沿用主体列划分，右上角元信息与关键指标区域共用左边界。具体尺寸和间距由上述源码维护，不在本文复制。
 

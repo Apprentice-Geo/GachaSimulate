@@ -1,3 +1,4 @@
+import { WorkbenchIcon } from "./components/WorkbenchIcon";
 import { Button } from "./components/Button";
 import { Field } from "./components/Field";
 import { FileImage, Film, X } from "lucide-react";
@@ -496,7 +497,7 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
             aria-label="关闭通知"
             onClick={() => set_notice(null)}
           >
-            <X aria-hidden="true" size={16} />
+            <WorkbenchIcon icon={X} aria-hidden="true" size={16} />
           </Button>
         </div>
       )}
@@ -525,7 +526,7 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                     aria-label="关闭导出"
                     onClick={cancel_or_return}
                   >
-                    <X aria-hidden="true" size={18} />
+                    <WorkbenchIcon icon={X} aria-hidden="true" size={18} />
                   </Button>
                 </header>
                 <fieldset className="export-format-options">
@@ -536,7 +537,7 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                       type="checkbox"
                       onChange={() => toggle_format("mp4")}
                     />
-                    <Film aria-hidden="true" size={20} />
+                    <WorkbenchIcon icon={Film} aria-hidden="true" size={20} />
                     <span className="export-format-copy">
                       <strong>MP4 动画</strong>
                       <small>60 FPS · H.264</small>
@@ -548,7 +549,11 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                       type="checkbox"
                       onChange={() => toggle_format("png")}
                     />
-                    <FileImage aria-hidden="true" size={20} />
+                    <WorkbenchIcon
+                      icon={FileImage}
+                      aria-hidden="true"
+                      size={20}
+                    />
                     <span className="export-format-copy">
                       <strong>PNG 静帧</strong>
                       <small>动画完成画面</small>
@@ -617,7 +622,7 @@ export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
                     aria-label="返回格式选择"
                     onClick={cancel_or_return}
                   >
-                    <X aria-hidden="true" size={18} />
+                    <WorkbenchIcon icon={X} aria-hidden="true" size={18} />
                   </Button>
                 </header>
                 <p className="export-copy">

@@ -1,3 +1,4 @@
+import { WorkbenchIcon } from "../components/WorkbenchIcon";
 import { ExternalLink, Moon, Settings, Sun } from "lucide-react";
 import { useState } from "react";
 import { app_info, type AppLink } from "../../shared/app_info";
@@ -37,7 +38,7 @@ export function SettingsPage({
     >
       <header className="page-heading">
         <div className="renderer-placeholder-mark">
-          <Settings aria-hidden="true" size={24} />
+          <WorkbenchIcon icon={Settings} aria-hidden="true" size={24} />
         </div>
         <div>
           <p className="renderer-eyebrow">PREFERENCES</p>
@@ -82,7 +83,7 @@ export function SettingsPage({
                     checked={theme === value}
                     onChange={() => on_theme(value)}
                   />
-                  <Icon aria-hidden="true" size={18} />
+                  <WorkbenchIcon icon={Icon} aria-hidden="true" size={18} />
                   <span>{label}</span>
                 </label>
               ))}
@@ -133,7 +134,11 @@ export function SettingsPage({
                 onClick={() => void open_link(id)}
               >
                 {label}
-                <ExternalLink aria-hidden="true" size={15} />
+                <WorkbenchIcon
+                  icon={ExternalLink}
+                  aria-hidden="true"
+                  size={15}
+                />
               </Button>
             ))}
           </div>

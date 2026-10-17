@@ -239,16 +239,6 @@
 :where(.visualize-scope) .cdf-chart-shell .recharts-wrapper {
   animation: none;
 }
-:where(.visualize-scope) .cdf-chart-shell .recharts-cartesian-axis-tick-value {
-  fill: var(--color-text-muted) !important;
-}
-:where(.visualize-scope) .cdf-chart-shell .recharts-cartesian-axis-line,
-:where(.visualize-scope) .cdf-chart-shell .recharts-cartesian-axis-tick-line {
-  stroke: var(--color-hairline-strong);
-}
-:where(.visualize-scope) .cdf-chart-shell .recharts-cartesian-grid line {
-  stroke: var(--color-cdf-grid);
-}
 :where(.visualize-scope) .cdf-curve-path {
   stroke-dasharray: 1;
   stroke-dashoffset: 0;
@@ -311,21 +301,9 @@
   position: absolute;
   z-index: 0;
 }
-:where(.visualize-scope) .metric-list,
-:where(.visualize-scope) .metric-placeholder {
+:where(.visualize-scope) .metric-list {
   position: relative;
   z-index: 1;
-}
-:where(.visualize-scope) .panel-heading {
-  align-items: center;
-  color: var(--color-text-muted);
-  display: flex;
-  font-size: var(--visualize-font-caption);
-  font-weight: 700;
-  justify-content: space-between;
-  letter-spacing: 0.2px;
-  margin-bottom: 28px;
-  text-transform: uppercase;
 }
 :where(.visualize-scope) .metric-list {
   display: grid;
@@ -336,13 +314,17 @@
 }
 :where(.visualize-scope) .metric-group {
   display: grid;
-  grid-template-rows: 64px repeat(5, minmax(132px, 1fr));
+  --metric-row-min-height: 132px;
+  grid-template-rows: 64px repeat(
+      var(--metric-row-count),
+      minmax(var(--metric-row-min-height), 1fr)
+    );
   gap: 0;
   min-height: 0;
   min-width: 0;
 }
-:where(.visualize-scope) .metric-group:first-child {
-  grid-template-rows: 64px repeat(3, minmax(0, 1fr));
+:where(.visualize-scope) .metric-group[data-emphasis="primary"] {
+  --metric-row-min-height: 0px;
 }
 :where(.visualize-scope) .metric-group-heading {
   align-items: baseline;
@@ -359,15 +341,6 @@
   font-weight: 500;
   line-height: 1;
   margin: 0;
-}
-:where(.visualize-scope) .metric-group-heading span {
-  color: var(--color-text-faint);
-  font-size: var(--visualize-font-caption);
-  font-weight: 700;
-  line-height: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 :where(.visualize-scope) .metric-row {
   align-items: center;
@@ -415,17 +388,10 @@
   .metric-value
   span {
   font-size: min(
-    var(--visualize-font-hero),
+    var(--metric-value-font-size),
     calc(1000px / var(--metric-number-length))
   );
   font-weight: 400;
-}
-:where(.visualize-scope) .metric-row[data-stat-key="P95"] .metric-value span,
-:where(.visualize-scope) .metric-row[data-stat-key="MEAN"] .metric-value span {
-  font-size: min(
-    var(--visualize-font-reading),
-    calc(1000px / var(--metric-number-length))
-  );
 }
 :where(.visualize-scope) .metric-copy {
   min-width: 0;
@@ -447,7 +413,7 @@
 }
 :where(.visualize-scope) .metric-value span {
   font-size: min(
-    var(--visualize-font-value),
+    var(--metric-value-font-size),
     calc(520px / var(--metric-number-length))
   );
   font-weight: 400;
@@ -458,54 +424,18 @@
   font-size: var(--visualize-font-content);
   font-weight: 400;
 }
-:where(.visualize-scope) .metric-placeholder {
-  display: grid;
-  gap: 24px;
-}
-:where(.visualize-scope) .metric-placeholder-group {
-  display: grid;
-  gap: 14px;
-  min-width: 0;
-}
-:where(.visualize-scope) .placeholder-heading {
-  height: 40px;
-}
-:where(.visualize-scope) .placeholder-line {
-  background: var(--color-panel-soft);
-  border: 2px solid var(--color-hairline);
-  border-radius: 2px;
-  height: 168px;
-}
 :where(.visualize-scope) .termination-region {
   --section-accent: var(--color-rarity-green);
   align-items: center;
   animation: none;
   display: grid;
-  gap: 68px;
-  grid-template-columns: 36fr 64fr;
   height: var(--footer-height);
   border-radius: var(--radius-card);
   overflow: hidden;
   padding: 32px 0;
   position: relative;
 }
-:where(.visualize-scope) .termination-copy h2 {
-  color: var(--color-text-primary);
-  font-size: var(--visualize-font-title);
-  line-height: 1.18;
-  margin: 0;
-}
-:where(.visualize-scope) .termination-copy p {
-  color: var(--color-text-muted);
-  font-size: var(--visualize-font-content);
-  font-weight: 400;
-  line-height: 1.45;
-}
-:where(.visualize-scope) .termination-copy p {
-  margin: 16px 0 0;
-}
 :where(.visualize-scope) .termination-bars {
-  grid-column: 1 / -1;
   min-width: 0;
   width: 100%;
   position: relative;
@@ -552,9 +482,6 @@
 :where(.visualize-scope) .pk-segment-single {
   border-radius: 2px;
 }
-:where(.visualize-scope) .pk-bar-empty {
-  background: var(--color-panel-soft);
-}
 :where(.visualize-scope) .reason-list {
   align-items: center;
   animation: none;
@@ -582,7 +509,7 @@
 }
 :where(.visualize-scope) .page-note {
   margin: 28px 0 0;
-  max-width: 3840px;
+  max-width: var(--canvas-width);
   position: relative;
   text-align: left;
   z-index: 1;

@@ -1,7 +1,5 @@
 .visualize-scope {
   color-scheme: dark;
-  --canvas-width: 3840px;
-  --canvas-height: 2160px;
   --page-margin: 128px;
   --page-top-margin: 80px;
   --top-height: 240px;
@@ -34,9 +32,6 @@
   --color-danger: #e52020;
   --color-cdf-line: var(--color-cyan);
   --color-cdf-grid: rgba(241, 238, 232, 0.08);
-  --color-cdf-axis: #4c4658;
-  --color-cdf-axis-muted: #b8bcc6;
-  --color-cdf-axis-tick: #c9cbd2;
   --color-cdf-marker-min: var(--color-rarity-gray);
   --color-cdf-marker-p5: var(--color-rarity-gray);
   --color-cdf-marker-p25: #97bbdf;

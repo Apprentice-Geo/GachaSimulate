@@ -1,11 +1,11 @@
 html,
 body,
 #root {
-  height: 2160px;
+  height: var(--canvas-height);
   margin: 0;
   overflow: hidden;
   padding: 0;
-  width: 3840px;
+  width: var(--canvas-width);
 }
 
 body {

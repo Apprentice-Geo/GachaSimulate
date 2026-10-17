@@ -1,3 +1,4 @@
+import { WorkbenchIcon } from "../components/WorkbenchIcon";
 import { SimulationOrbit } from "../components/SimulationOrbit";
 import { FolderOpen, Play, Search } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -185,7 +186,7 @@ export function SimulationPage({ active }: { active: boolean }) {
     >
       <header className="page-heading">
         <div className="renderer-placeholder-mark" aria-hidden="true">
-          <Play size={20} />
+          <WorkbenchIcon icon={Play} size={20} />
         </div>
         <div>
           <p className="renderer-eyebrow">SIMULATION CONSOLE</p>
@@ -255,7 +256,7 @@ export function SimulationPage({ active }: { active: boolean }) {
                 </small>
               </div>
               <label className="item-search">
-                <Search aria-hidden="true" size={15} />
+                <WorkbenchIcon icon={Search} aria-hidden="true" size={15} />
                 <span className="sr-only">搜索统计物品</span>
                 <input
                   autoComplete="off"
@@ -269,7 +270,7 @@ export function SimulationPage({ active }: { active: boolean }) {
             </div>
             <div
               aria-label="当前配置统计物品"
-              className="simulation-item-panel"
+              className="simulation-item-panel workbench-scroll-region"
               data-testid="simulation-item-list"
               role="radiogroup"
             >
@@ -305,7 +306,7 @@ export function SimulationPage({ active }: { active: boolean }) {
                 {status_labels[status]}
               </span>
             </div>
-            <div className="simulation-control-body">
+            <div className="simulation-control-body workbench-scroll-region">
               <div className="simulation-fields">
                 <Field className="target-field">
                   固定次数
@@ -361,7 +362,7 @@ export function SimulationPage({ active }: { active: boolean }) {
                   disabled={busy}
                   onClick={() => void start()}
                 >
-                  <Play size={16} aria-hidden="true" />
+                  <WorkbenchIcon icon={Play} size={16} aria-hidden="true" />
                   启动模拟
                 </Button>
                 <Button
@@ -400,7 +401,11 @@ export function SimulationPage({ active }: { active: boolean }) {
                     type="button"
                     onClick={() => void open_results()}
                   >
-                    <FolderOpen size={16} aria-hidden="true" />
+                    <WorkbenchIcon
+                      icon={FolderOpen}
+                      size={16}
+                      aria-hidden="true"
+                    />
                     打开结果目录
                   </Button>
                 )}

@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import test from "node:test";
 import {
   EXPORT_FRAME_COUNT,
@@ -38,12 +36,6 @@ import { CDFChart } from "../components/CDFChart";
 import { VisualizeShell } from "../components/VisualizeShell";
 import { VisualizeScene } from "../VisualizeScene";
 
-function read_css_px_token(css: string, token_name: string): number {
-  const match = new RegExp(`--${token_name}:\\s*(\\d+)px`).exec(css);
-  assert.ok(match, `Missing CSS token --${token_name}`);
-  return Number(match[1]);
-}
-
 test("get_cdf_level_at_draw returns stepwise cumulative levels", () => {
   const sparse_points = [
     { draw: 1, cumulative: 0.2 },
@@ -56,14 +48,18 @@ test("get_cdf_level_at_draw returns stepwise cumulative levels", () => {
   assert.equal(get_cdf_level_at_draw(sparse_points, 101), 0.8);
 });
 
-test("canvas constants stay aligned with CSS tokens", () => {
-  const tokens_css = readFileSync(
-    path.join(process.cwd(), "src/visualize/styles/tokens.css"),
-    "utf-8",
-  );
-
-  assert.equal(read_css_px_token(tokens_css, "canvas-width"), CANVAS_WIDTH);
-  assert.equal(read_css_px_token(tokens_css, "canvas-height"), CANVAS_HEIGHT);
+test("interactive and export scenes use the canonical canvas dimensions", () => {
+  for (const render_mode of ["interactive", "export"] as const) {
+    const scene = VisualizeScene({
+      animation_progress: build_animation_progress(ANIMATION_TOTAL_MS),
+      animation_state: "idle",
+      data: {} as CDFViewModel,
+      render_mode,
+    });
+    const canvas = VisualizeShell(scene.props);
+    assert.equal(canvas.props.style["--canvas-width"], `${CANVAS_WIDTH}px`);
+    assert.equal(canvas.props.style["--canvas-height"], `${CANVAS_HEIGHT}px`);
+  }
 });
 
 test("build_marker_views positions labels for p50 and mean", () => {

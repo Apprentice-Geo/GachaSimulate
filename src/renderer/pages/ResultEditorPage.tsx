@@ -1,3 +1,4 @@
+import { WorkbenchIcon } from "../components/WorkbenchIcon";
 import { FilePenLine } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "../components/Button";
@@ -126,7 +127,7 @@ export function ResultEditorPage({
       {state && (
         <header className="page-heading result-editor-header">
           <div className="renderer-placeholder-mark" aria-hidden="true">
-            <FilePenLine size={20} />
+            <WorkbenchIcon icon={FilePenLine} size={20} />
           </div>
           <div>
             <p className="renderer-eyebrow">GSR RESULT EDITOR</p>
@@ -184,7 +185,7 @@ export function ResultEditorPage({
                 </dd>
               </div>
             </dl>
-            <div className="result-editor-fields">
+            <div className="result-editor-fields workbench-scroll-region">
               {field("title", "标题")}
               {field("target", "目标")}
               {field("result_item_name", "统计物品展示名称")}
@@ -207,7 +208,7 @@ export function ResultEditorPage({
                 <h2 className="panel-title">可视化预览</h2>
               </div>
             </div>
-            <div className="result-cdf-chart">
+            <div className="result-cdf-chart workbench-scroll-region">
               <ChartPreview size={CDF_CHART_SIZE}>
                 <CDFChart
                   size={CDF_CHART_SIZE}

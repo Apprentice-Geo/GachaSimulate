@@ -38,26 +38,13 @@ export function VisualizeShell({
       <section className="main-region" aria-label="CDF 可视化主体">
         <div className="primary-region">
           <div className="chart-region">{chart_slot}</div>
-          <TerminationBar
-            animation_progress={animation_progress}
-            data={data}
-            is_ready
-          />
+          <TerminationBar animation_progress={animation_progress} data={data} />
         </div>
-        <StatisticPanel
-          animation_progress={animation_progress}
-          data={data}
-          is_ready
-        />
+        <StatisticPanel animation_progress={animation_progress} data={data} />
       </section>
 
-      {data?.note && (
-        <p
-          className="page-note"
-          style={
-            animation_progress ? fade_style(animation_progress.note) : undefined
-          }
-        >
+      {data.note && (
+        <p className="page-note" style={fade_style(animation_progress.note)}>
           {data.note}
         </p>
       )}

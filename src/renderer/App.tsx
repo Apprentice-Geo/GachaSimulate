@@ -1,3 +1,4 @@
+import { WorkbenchIcon } from "./components/WorkbenchIcon";
 import {
   BarChart3,
   FilePenLine,
@@ -32,22 +33,22 @@ const pages: Array<{
   {
     id: "simulation",
     label: "运行模拟",
-    icon: <Play aria-hidden="true" size={18} />,
+    icon: <WorkbenchIcon icon={Play} aria-hidden="true" size={18} />,
   },
   {
     id: "config-repository",
     label: "配置仓库",
-    icon: <Store aria-hidden="true" size={18} />,
+    icon: <WorkbenchIcon icon={Store} aria-hidden="true" size={18} />,
   },
   {
     id: "result-editor",
     label: "结果编辑",
-    icon: <FilePenLine aria-hidden="true" size={18} />,
+    icon: <WorkbenchIcon icon={FilePenLine} aria-hidden="true" size={18} />,
   },
   {
     id: "result-visualize",
     label: "结果可视化",
-    icon: <BarChart3 aria-hidden="true" size={18} />,
+    icon: <WorkbenchIcon icon={BarChart3} aria-hidden="true" size={18} />,
   },
 ];
 
@@ -102,7 +103,11 @@ export default function App() {
           <aside className="renderer-sidebar">
             <nav aria-label="主导航">
               <p className="renderer-nav-label">
-                <PanelsTopLeft aria-hidden="true" size={24} />
+                <WorkbenchIcon
+                  icon={PanelsTopLeft}
+                  aria-hidden="true"
+                  size={24}
+                />
                 <span>工作台</span>
               </p>
               {pages.map((page) => (
@@ -130,7 +135,7 @@ export default function App() {
                 type="button"
                 onClick={() => set_active_page("settings")}
               >
-                <Settings aria-hidden="true" size={18} />
+                <WorkbenchIcon icon={Settings} aria-hidden="true" size={18} />
                 <span className="renderer-nav-copy">
                   <strong>设置</strong>
                 </span>

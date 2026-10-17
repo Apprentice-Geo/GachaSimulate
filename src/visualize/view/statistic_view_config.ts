@@ -1,36 +1,43 @@
-import type { StatisticKey } from "../types/cdf";
-
-export type DistributionStatisticKey = StatisticKey;
+import type { StatisticKey, StatisticMetric } from "../types/cdf";
 
 interface StatisticViewConfig {
   label: string;
+  value_size: "value" | "reading" | "hero";
 }
 
 export const STATISTIC_VIEW_CONFIG: Record<StatisticKey, StatisticViewConfig> =
   {
     P5: {
       label: "P5",
+      value_size: "value",
     },
     P25: {
       label: "P25",
+      value_size: "value",
     },
     P50: {
       label: "P50",
+      value_size: "hero",
     },
     P75: {
       label: "P75",
+      value_size: "value",
     },
     P95: {
       label: "P95",
+      value_size: "reading",
     },
     MEAN: {
       label: "MEAN",
+      value_size: "reading",
     },
     MIN: {
       label: "MIN",
+      value_size: "value",
     },
     MAX: {
       label: "MAX",
+      value_size: "value",
     },
   };
 
@@ -64,21 +71,42 @@ export const STATISTIC_VIEW_ORDER = [
   "MAX",
 ] as const satisfies readonly StatisticKey[];
 
-const DISTRIBUTION_GROUP_KEYS = [
-  ["P50", "MEAN", "P95"],
-  ["MIN", "P5", "P25", "P75", "MAX"],
-] as const satisfies readonly (readonly DistributionStatisticKey[])[];
-
-export function get_distribution_statistic_groups(): {
+const DISTRIBUTION_STATISTIC_GROUPS = [
+  {
+    id: "key-metrics",
+    title: "关键指标",
+    accent: "var(--color-rarity-gold)",
+    emphasis: "primary",
+    keys: ["P50", "MEAN", "P95"],
+  },
+  {
+    id: "distribution-index",
+    title: "分布索引",
+    accent: "var(--color-rarity-purple)",
+    emphasis: "secondary",
+    keys: ["MIN", "P5", "P25", "P75", "MAX"],
+  },
+] as const satisfies readonly {
+  id: string;
   title: string;
   accent: string;
-  keys: readonly DistributionStatisticKey[];
-}[] {
-  return ["关键指标", "分布索引"].map((title, index) => ({
-    title,
-    accent:
-      index === 0 ? "var(--color-rarity-gold)" : "var(--color-rarity-purple)",
-    keys: DISTRIBUTION_GROUP_KEYS[index],
+  emphasis: "primary" | "secondary";
+  keys: readonly StatisticKey[];
+}[];
+
+export function build_statistic_groups(metrics: readonly StatisticMetric[]) {
+  const metrics_by_key = new Map(metrics.map((metric) => [metric.key, metric]));
+  let animation_index = 0;
+  return DISTRIBUTION_STATISTIC_GROUPS.map((group) => ({
+    ...group,
+    animation_index: animation_index++,
+    // The view model contains every statistic; grouping only changes presentation.
+    metrics: group.keys.map((key) => ({
+      ...metrics_by_key.get(key)!,
+      description: get_statistic_description(key),
+      value_size: STATISTIC_VIEW_CONFIG[key].value_size,
+      animation_index: animation_index++,
+    })),
   }));
 }
 

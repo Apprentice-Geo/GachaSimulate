@@ -93,7 +93,7 @@ export function CDFChart({
             domain={[0, data.x_domain_max]}
             stroke={CDF_CHART_VIEW_CONFIG.axis_color}
             tick={{
-              fill: CDF_CHART_VIEW_CONFIG.x_tick_color,
+              fill: CDF_CHART_VIEW_CONFIG.tick_color,
               fontSize: "var(--visualize-font-content)",
             }}
             tickFormatter={format_draw}
@@ -104,7 +104,7 @@ export function CDFChart({
               offset: -5,
               className: "axis-title",
             }}
-            tickLine={{ stroke: CDF_CHART_VIEW_CONFIG.axis_tick_color }}
+            tickLine={{ stroke: CDF_CHART_VIEW_CONFIG.axis_color }}
             type="number"
           />
           <YAxis
@@ -112,13 +112,13 @@ export function CDFChart({
             domain={[0, 1]}
             stroke={CDF_CHART_VIEW_CONFIG.axis_color}
             tick={{
-              fill: CDF_CHART_VIEW_CONFIG.y_tick_color,
+              fill: CDF_CHART_VIEW_CONFIG.tick_color,
               fontSize: "var(--visualize-font-meta)",
             }}
             tickFormatter={format_percent}
             ticks={Y_CDF_AXIS_TICKS}
             tickMargin={10}
-            tickLine={{ stroke: CDF_CHART_VIEW_CONFIG.axis_tick_color }}
+            tickLine={{ stroke: CDF_CHART_VIEW_CONFIG.axis_color }}
             type="number"
             width={Y_AXIS_WIDTH}
           />

@@ -1,3 +1,4 @@
+import { WorkbenchIcon } from "./WorkbenchIcon";
 import { FolderOpen } from "lucide-react";
 import { Button } from "./Button";
 
@@ -21,7 +22,7 @@ export function ResultLoadPanel({
         <h1>载入模拟结果</h1>
         <p>{description}</p>
         <Button type="button" disabled={loading} onClick={on_select}>
-          <FolderOpen size={16} aria-hidden="true" />
+          <WorkbenchIcon icon={FolderOpen} size={16} aria-hidden="true" />
           {loading ? "正在载入…" : "选择 GSR"}
         </Button>
         {status && (
