@@ -2011,6 +2011,187 @@ for (const [width, height] of [
   });
 }
 
+test("Simulation head follows progress and cancellation freezes queued updates", async () => {
+  const { application, cdp, config_home, page } = await launch(1280, 720);
+  const send = (status: string, event?: object) =>
+    application.evaluate(
+      ({ BrowserWindow }, value) =>
+        BrowserWindow.getAllWindows()[0]!.webContents.send(
+          "simulation-event",
+          value,
+        ),
+      { status, event },
+    );
+  const head_style = () =>
+    page.evaluate(() => {
+      const ring = getComputedStyle(
+        document.querySelector(".orbit-head-ring")!,
+      );
+      const probe = document.createElement("span");
+      document.querySelector(".simulation-orbit")!.append(probe);
+      const colors = Object.fromEntries(
+        ["primary", "success", "card-gold", "danger", "text-faint"].map(
+          (role) => {
+            probe.style.color = `var(--workbench-${role})`;
+            return [role, getComputedStyle(probe).color];
+          },
+        ),
+      );
+      probe.remove();
+      return {
+        stroke: ring.stroke,
+        dash: ring.strokeDasharray,
+        motion: ring.animationPlayState,
+        dot: getComputedStyle(document.querySelector(".orbit-head-dot")!).fill,
+        surface: getComputedStyle(
+          document.querySelector(".orbit-head-surface")!,
+        ).fill,
+        panel: getComputedStyle(document.querySelector(".simulation-control")!)
+          .backgroundColor,
+        colors,
+      };
+    });
+  const progress_snapshot = () =>
+    page.evaluate(() => ({
+      percent: document.querySelector(".orbit-percent")!.textContent,
+      count: document.querySelector(".orbit-count")!.textContent,
+      progress: getComputedStyle(
+        document.querySelector(".orbit-ring-progress")!,
+      ).strokeDasharray,
+      head: getComputedStyle(document.querySelector(".orbit-progress-head")!)
+        .transform,
+    }));
+  try {
+    await page.getByRole("progressbar").waitFor();
+    for (const theme of ["深色", "浅色"]) {
+      await page.getByRole("button", { name: "设置", exact: true }).click();
+      await page.getByRole("radio", { name: theme, exact: true }).check();
+      await page.getByRole("button", { name: "运行模拟", exact: true }).click();
+      for (const [status, role, spinning] of [
+        ["idle", "primary", false],
+        ["starting", "success", true],
+        ["running", "success", true],
+        ["saving", "success", true],
+        ["completed", "card-gold", false],
+        ["failed", "danger", false],
+        ["cancelling", "danger", false],
+        ["cancelled", "danger", false],
+      ] as const) {
+        await send(status);
+        await page
+          .locator(`.simulation-orbit[data-status="${status}"]`)
+          .waitFor();
+        const head = await head_style();
+        assert.equal(head.stroke, head.colors[role]);
+        assert.equal(head.dot, head.colors["text-faint"]);
+        assert.equal(head.surface, head.panel);
+        assert.equal(head.dash === "none", !spinning);
+        assert.equal(head.motion, spinning ? "running" : "paused");
+      }
+    }
+    await send("running", { type: "stage", stage: "simulating" });
+    await send("running", {
+      type: "progress",
+      completed: 42,
+      total: 100,
+      unit: "runs",
+    });
+    // Check the actual animated endpoint, including intermediate frames.
+    const alignment = await page.evaluate(async () => {
+      const errors: number[] = [];
+      for (let frame = 0; frame < 24; frame++) {
+        await new Promise(requestAnimationFrame);
+        const progress = document.querySelector(".orbit-ring-progress")!;
+        const percent = parseFloat(getComputedStyle(progress).strokeDasharray);
+        const head =
+          document.querySelector<SVGGraphicsElement>(".orbit-head-dot")!;
+        const matrix = head
+          .ownerSVGElement!.getCTM()!
+          .inverse()
+          .multiply(head.getCTM()!);
+        const angle = (percent / 100) * Math.PI * 2;
+        errors.push(
+          Math.hypot(
+            matrix.e - (220 + 148 * Math.sin(angle)),
+            matrix.f - (200 - 148 * Math.cos(angle)),
+          ),
+        );
+      }
+      return errors;
+    });
+    assert.ok(
+      alignment.every((error) => error < 0.1),
+      String(alignment),
+    );
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    assert.equal((await head_style()).dash, "none");
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    const frozen = await progress_snapshot();
+    await application.evaluate(({ BrowserWindow, ipcMain }) => {
+      let attempts = 0;
+      ipcMain.removeHandler("cancel-simulation");
+      ipcMain.handle("cancel-simulation", () => {
+        const contents = BrowserWindow.getAllWindows()[0]!.webContents;
+        if (++attempts === 1) {
+          for (const event of [
+            { type: "started" },
+            { type: "stage", stage: "saving" },
+            { type: "progress", completed: 99, total: 100, unit: "runs" },
+            { type: "completed", result_path: "late.gsr", total_runs: 100 },
+          ])
+            contents.send("simulation-event", { status: "running", event });
+          contents.send("simulation-event", { status: "completed" });
+          throw new Error("termination failed");
+        }
+        contents.send("simulation-event", { status: "cancelled" });
+      });
+    });
+    await page.getByRole("button", { name: "取消", exact: true }).click();
+    const retry = page.getByRole("button", { name: "重试取消", exact: true });
+    await retry.waitFor();
+    assert.deepEqual(await progress_snapshot(), frozen);
+    assert.equal((await head_style()).dash, "none");
+    await page.locator('.simulation-orbit[data-status="cancelling"]').waitFor();
+    assert.equal(
+      await page.getByRole("button", { name: "启动模拟" }).isDisabled(),
+      true,
+    );
+    assert.equal(
+      await page.getByRole("button", { name: "打开结果目录" }).count(),
+      0,
+    );
+    await retry.click();
+    await page.locator('.simulation-orbit[data-status="cancelled"]').waitFor();
+    assert.deepEqual(await progress_snapshot(), frozen);
+    await application.evaluate(({ BrowserWindow, ipcMain }) => {
+      ipcMain.removeHandler("start-simulation");
+      ipcMain.handle("start-simulation", () => {
+        const contents = BrowserWindow.getAllWindows()[0]!.webContents;
+        contents.send("simulation-event", {
+          status: "starting",
+          event: { type: "started" },
+        });
+        contents.send("simulation-event", {
+          status: "running",
+          event: { type: "progress", completed: 12, total: 100, unit: "runs" },
+        });
+      });
+    });
+    await page.getByRole("button", { name: "启动模拟" }).click();
+    await page.locator('[role="progressbar"][aria-valuenow="12"]').waitFor();
+  } finally {
+    try {
+      await cdp.detach();
+    } finally {
+      try {
+        await application.close();
+      } finally {
+        await rm(config_home, { force: true, recursive: true });
+      }
+    }
+  }
+});
+
 test("CDF labels stay below the heading and inside the chart with close endpoints", async () => {
   const { application, cdp, config_home, page } = await launch(1280, 720);
   try {

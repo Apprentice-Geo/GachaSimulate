@@ -122,6 +122,16 @@ export function SimulationOrbit({
           strokeDasharray={`${percent} 100`}
           transform="rotate(-90 220 200)"
         />
+        <g
+          className="orbit-progress-head"
+          style={{ transform: `rotate(${percent * 3.6}deg)` }}
+        >
+          <g transform="translate(220 52)">
+            <circle className="orbit-head-surface" r="11.5" />
+            <circle className="orbit-head-ring" r="10" pathLength="100" />
+            <circle className="orbit-head-dot" r="3.5" />
+          </g>
+        </g>
         {orbit(false)}
         <g
           className="orbit-cards"

@@ -274,7 +274,7 @@ export class SimulationTask {
     child.stderr?.setEncoding("utf8");
     let stdout = "";
     child.stdout?.on("data", (chunk: string) => {
-      if (this.protocol_error) return;
+      if (this.child !== child || this.protocol_error || this.cancelled) return;
       stdout += chunk;
       // 以换行符分隔 兼容 windows 的 \r\n 和 linux 的 \n
       const lines = stdout.split(/\r?\n/);
@@ -296,7 +296,8 @@ export class SimulationTask {
     });
     child.on("close", (code) => {
       if (this.child !== child) return;
-      if (stdout.trim() && !this.protocol_error) this.handle_line(stdout);
+      if (stdout.trim() && !this.protocol_error && !this.cancelled)
+        this.handle_line(stdout);
       const outcome = resolve_process_outcome(
         code,
         this.saw_completed,
@@ -409,11 +410,15 @@ export class SimulationTask {
     } catch (error) {
       if (this.child !== child) return;
       const failure = readable_error(error);
-      this.notify({ status: previous_status, message: failure.message });
+      this.notify({
+        status: this.cancelled ? "cancelling" : previous_status,
+        message: failure.message,
+      });
     }
   }
 
   private handle_event(event: SimulationEvent): void {
+    if (this.cancelled) return;
     if (event.type === "completed") {
       if (resolve(event.result_path) !== resolve(this.temporary_output))
         throw new Error("core returned an unexpected result path");
@@ -466,20 +471,19 @@ export class SimulationTask {
     if (this.cancel_promise) return this.cancel_promise;
     const child = this.child;
     if (!child) return;
-    const previous_status =
-      this.status === "cancelling" ? "running" : this.status;
     this.cancelled = true;
     this.notify({ status: "cancelling" });
     const cancellation = (async () => {
       try {
-        await (
-          this.dependencies.terminate_native_process ?? terminate_native_process
-        )(child);
+        if (child.exitCode === null && child.signalCode === null)
+          await (
+            this.dependencies.terminate_native_process ??
+            terminate_native_process
+          )(child);
       } catch (error) {
         if (this.child !== child) return;
-        this.cancelled = false;
         const failure = readable_error(error);
-        this.notify({ status: previous_status, message: failure.message });
+        this.notify({ status: "cancelling", message: failure.message });
         throw failure;
       }
       try {
@@ -487,8 +491,7 @@ export class SimulationTask {
       } catch (error) {
         const failure = readable_error(error);
         if (this.child === child) {
-          this.cancelled = false;
-          this.notify({ status: previous_status, message: failure.message });
+          this.notify({ status: "cancelling", message: failure.message });
         }
         throw failure;
       }

@@ -1,7 +1,7 @@
 import { WorkbenchIcon } from "../components/WorkbenchIcon";
 import { SimulationOrbit } from "../components/SimulationOrbit";
 import { FolderOpen, Play, Search } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "../components/Button";
 import { Field } from "../components/Field";
 import type { InstalledConfig } from "../../shared/installed_config";
@@ -50,6 +50,7 @@ export function SimulationPage({ active }: { active: boolean }) {
     unit: string;
   } | null>(null);
   const [result_path, set_result_path] = useState("");
+  const cancellation_requested = useRef(false);
   const key = (config: InstalledConfig) => `${config.source}:${config.id}`;
   const selected =
     configs.find((config) => key(config) === selected_key) ?? configs[0];
@@ -89,6 +90,14 @@ export function SimulationPage({ active }: { active: boolean }) {
     if (!window.desktopApi) return;
     return window.desktopApi.onSimulationEvent(
       ({ status: next_status, event, message }) => {
+        // IPC messages already queued at the time of the click must not resume
+        // progress or turn a cancelled run into a successful result.
+        if (cancellation_requested.current) {
+          if (["cancelling", "cancelled", "failed"].includes(next_status))
+            set_status(next_status);
+          if (message) set_operation_error(message);
+          return;
+        }
         set_status(next_status);
         if (event?.type === "started") {
           set_stage("loading_config");
@@ -119,6 +128,7 @@ export function SimulationPage({ active }: { active: boolean }) {
 
   const busy = ["starting", "running", "saving", "cancelling"].includes(status);
   const start = async () => {
+    cancellation_requested.current = false;
     set_operation_error(null);
     set_progress(null);
     set_result_path("");
@@ -158,9 +168,15 @@ export function SimulationPage({ active }: { active: boolean }) {
   };
 
   const cancel = async () => {
+    cancellation_requested.current = true;
+    set_status("cancelling");
+    set_result_path("");
     set_operation_error(null);
     try {
       await window.desktopApi.cancelSimulation();
+      set_status((current) =>
+        current === "cancelling" ? "cancelled" : current,
+      );
     } catch (reason) {
       set_operation_error(
         reason instanceof Error ? reason.message : String(reason),
@@ -368,10 +384,14 @@ export function SimulationPage({ active }: { active: boolean }) {
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={!busy || status === "cancelling"}
+                  disabled={
+                    !busy || (status === "cancelling" && !operation_error)
+                  }
                   onClick={() => void cancel()}
                 >
-                  取消
+                  {status === "cancelling" && operation_error
+                    ? "重试取消"
+                    : "取消"}
                 </Button>
               </div>
               {operation_error && (

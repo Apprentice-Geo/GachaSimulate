@@ -26,6 +26,42 @@
   stroke-linecap: round;
   transition: stroke-dasharray 0.3s linear;
 }
+.orbit-progress-head {
+  transform-origin: 220px 200px;
+  transition: transform 0.3s linear;
+  --orbit-head-color: var(--workbench-primary);
+}
+.simulation-orbit[data-status="starting"] .orbit-progress-head,
+.simulation-orbit[data-status="running"] .orbit-progress-head,
+.simulation-orbit[data-status="saving"] .orbit-progress-head {
+  --orbit-head-color: var(--workbench-success);
+}
+.simulation-orbit[data-status="completed"] .orbit-progress-head {
+  --orbit-head-color: var(--workbench-card-gold);
+}
+.simulation-orbit[data-status="cancelling"] .orbit-progress-head,
+.simulation-orbit[data-status="cancelled"] .orbit-progress-head,
+.simulation-orbit[data-status="failed"] .orbit-progress-head {
+  --orbit-head-color: var(--workbench-danger);
+}
+.orbit-head-surface {
+  fill: var(--workbench-surface);
+}
+.orbit-head-dot {
+  fill: var(--workbench-text-faint);
+}
+.orbit-head-ring {
+  fill: none;
+  stroke: var(--orbit-head-color);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: orbit-head-spin 1s linear infinite;
+}
+.simulation-orbit[data-motion="running"] .orbit-head-ring {
+  stroke-dasharray: 78 22;
+}
 .orbit-status {
   font-size: var(--workbench-font-content);
   font-weight: 500;
@@ -57,8 +93,16 @@
 }
 .simulation-orbit[data-status="idle"] .orbit-ring-progress,
 .simulation-orbit[data-status="starting"] .orbit-ring-progress,
-.simulation-orbit[data-motion="paused"] .orbit-ring-progress {
+.simulation-orbit[data-motion="paused"] .orbit-ring-progress,
+.simulation-orbit[data-status="idle"] .orbit-progress-head,
+.simulation-orbit[data-status="starting"] .orbit-progress-head,
+.simulation-orbit[data-motion="paused"] .orbit-progress-head {
   transition: none;
+}
+@keyframes orbit-head-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 @keyframes orbit-float {
   to {
@@ -76,6 +120,9 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .simulation-orbit[data-motion] .orbit-head-ring {
+    stroke-dasharray: none;
+  }
   .simulation-orbit * {
     animation: none !important;
     transition: none !important;
