@@ -73,7 +73,7 @@ Analysis 和 DisplayConfig 不能绕过各自校验直接进入视图模型。�
 
 Electron 展示与素材导出复用同一套输入处理、视图模型、画面组件和动画进度。`src/export-renderer/` 负责导出页面与逐帧提交，`src/main/export_host.ts` 负责 CDP、FFmpeg 和输出提交；两者均位于平台无关的可视化层之外。
 
-桌面素材导出入口由 Workbench 侧栏操作组接入 `ExportWorkflow`。`src/visualize/` 不接收 session ID、GSR 文件名、reservation、目录或任务路径；格式、目标选择、覆盖和任务状态由桌面 renderer 与 main 管理。
+桌面素材导出入口由 Workbench 侧栏操作组接入 `ExportWorkflow`。renderer 中的 `export_workflow_controller.ts` 集中维护交互流程的唯一状态、IPC 协调与异步身份检查，`use_export_workflow.ts` 通过订阅连接 React 生命周期；`ExportWorkflow` 管理模态外壳与焦点，`ExportDialogs` 展示表单、确认、进度和通知。main 继续作为导出 reservation、任务执行与资源清理的权威。`src/visualize/` 不接收 session ID、GSR 文件名、reservation、目录或任务路径；格式、目标选择、覆盖和任务状态由桌面 renderer 与 main 管理。
 
 `VisualizeScene` 使用 `render_mode` 标记交互与导出宿主，二者共用纯画面，不承载操作按钮。Workbench 侧栏操作组通过 portal 挂载；结果页管理文件选择和导出入口，Visualization 交互宿主管理重播和动画状态。导出模式不使用页面缩放、真实时钟动画或宿主缩放；画布及视觉表现由 [Visualization Design](<docs/VISUALIZATION_DESIGN.md#结果画布>) 维护。
 
