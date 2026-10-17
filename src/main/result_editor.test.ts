@@ -61,7 +61,15 @@ test("saves and restores DisplayConfig while analysis remains authoritative", as
     const opened = await opening;
     assert.equal(opened.analysis.result_item.id, "draw_count");
     assert.equal(opened.display.display_version, 2);
-    assert.equal(opened.display.subtitle, "");
+    assert.deepEqual(opened.display, {
+      display_version: 2,
+      title: "标题待填写",
+      target: "目标待填写",
+      result_item_name: analysis.result_item.name,
+      note: "MEAN 受极端值影响，P50 表示一半结果不超过该值，P95 表示 95% 结果不超过该值。MIN、MAX 受模拟次数影响，不代表理论极限。",
+      subtitle: "副标题待填写",
+      result_item_unit: "",
+    });
     assert.equal(opened.display.result_item_unit, "");
     const saved = await editor.save({
       session_id: opened.session_id,

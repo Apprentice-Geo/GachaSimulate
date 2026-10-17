@@ -54,12 +54,9 @@ export function TopBar({ data, animation_progress }: TopBarProps) {
     <header className="top-bar">
       <div className="top-bar-inner">
         <div className="title-stack">
-          <div className="section-kicker" style={title_style(0)}>
-            模拟概率图谱
-          </div>
-          <h1 style={title_style(1)}>{data.title}</h1>
+          <h1 style={title_style(0)}>{data.title}</h1>
           {data.subtitle && (
-            <p className="outline" style={title_style(2)}>
+            <p className="outline" style={title_style(1)}>
               {data.subtitle}
             </p>
           )}

@@ -222,11 +222,11 @@ export class ResultEditor {
     if (!existsSync(sidecar))
       return {
         display_version: 2,
-        title: "模拟结果分布",
-        target: "未设置",
+        title: "标题待填写",
+        target: "目标待填写",
         result_item_name: authoritative.result_item.name,
         note: "MEAN 受极端值影响，P50 表示一半结果不超过该值，P95 表示 95% 结果不超过该值。MIN、MAX 受模拟次数影响，不代表理论极限。",
-        subtitle: "",
+        subtitle: "副标题待填写",
         result_item_unit: "",
       };
     return this.read_sidecar(sidecar);
