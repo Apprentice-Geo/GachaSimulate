@@ -4,6 +4,7 @@ import type {
   SimulationStatus,
 } from "../../shared/simulation";
 import "./SimulationOrbit.css";
+import { OrbitOctahedron } from "./OrbitOctahedron";
 
 const labels: Record<SimulationStatus, string> = {
   idle: "待运行",
@@ -44,6 +45,7 @@ export function SimulationOrbit({
     ? Math.min(100, Math.max(0, (progress.completed / progress.total) * 100))
     : 0;
   const busy = ["starting", "running", "saving"].includes(status);
+  const moving = busy && active && visible;
   const saving =
     busy && (status === "saving" || stage === "saving" || percent === 100);
   const current = saving ? 2 : stage === "simulating" ? 1 : 0;
@@ -65,7 +67,7 @@ export function SimulationOrbit({
         strokeWidth="3"
       />
       <g className="orbit-particle">
-        <circle r="6" fill={`url(#${id}-sphere)`} />
+        <use href={`#${id}-octahedron`} />
       </g>
     </g>
   );
@@ -73,7 +75,7 @@ export function SimulationOrbit({
     <div
       className="simulation-orbit"
       data-status={status}
-      data-motion={busy && active && visible ? "running" : "paused"}
+      data-motion={moving ? "running" : "paused"}
     >
       <div
         className="sr-only"
@@ -86,6 +88,7 @@ export function SimulationOrbit({
       />
       <svg viewBox="0 0 440 420" aria-hidden="true" focusable="false">
         <defs>
+          <OrbitOctahedron id={`${id}-octahedron`} moving={moving} />
           {cards.map(({ color }) => (
             <linearGradient
               key={color}
@@ -100,11 +103,6 @@ export function SimulationOrbit({
               />
             </linearGradient>
           ))}
-          <radialGradient id={`${id}-sphere`} cx="30%" cy="25%" r="75%">
-            <stop stopColor="var(--workbench-card-gold-highlight)" />
-            <stop offset=".35" stopColor="var(--workbench-card-gold)" />
-            <stop offset="1" stopColor="var(--workbench-card-gold-shadow)" />
-          </radialGradient>
           <clipPath id={`${id}-back`}>
             <rect width="440" height="211" />
           </clipPath>

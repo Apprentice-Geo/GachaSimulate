@@ -61,6 +61,16 @@
 }
 .simulation-orbit[data-motion="running"] .orbit-head-ring {
   stroke-dasharray: 78 22;
+  /* The SVG arc runs clockwise from 3 o'clock: fade from tail to leading tip. */
+  mask-image: conic-gradient(
+    from 90deg,
+    transparent,
+    var(--orbit-head-color) 78% 82%,
+    transparent 82%
+  );
+  mask-mode: alpha;
+  mask-origin: stroke-box;
+  mask-clip: stroke-box;
 }
 .orbit-status {
   font-size: var(--workbench-font-content);
@@ -87,6 +97,11 @@
   offset-path: ellipse(107px 31px at 220px 211px);
   offset-rotate: 0deg;
   animation: orbit-travel 3s linear infinite;
+}
+.orbit-octahedron {
+  stroke: var(--workbench-card-gold-shadow);
+  stroke-width: 0.5;
+  stroke-linejoin: round;
 }
 .simulation-orbit[data-motion="paused"] * {
   animation-play-state: paused;
@@ -122,6 +137,7 @@
 @media (prefers-reduced-motion: reduce) {
   .simulation-orbit[data-motion] .orbit-head-ring {
     stroke-dasharray: none;
+    mask-image: none;
   }
   .simulation-orbit * {
     animation: none !important;

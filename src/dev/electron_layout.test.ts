@@ -2041,6 +2041,7 @@ test("Simulation head follows progress and cancellation freezes queued updates",
       return {
         stroke: ring.stroke,
         dash: ring.strokeDasharray,
+        mask: ring.maskImage,
         motion: ring.animationPlayState,
         dot: getComputedStyle(document.querySelector(".orbit-head-dot")!).fill,
         surface: getComputedStyle(
@@ -2061,6 +2062,19 @@ test("Simulation head follows progress and cancellation freezes queued updates",
       head: getComputedStyle(document.querySelector(".orbit-progress-head")!)
         .transform,
     }));
+  const octahedron_poses = () =>
+    page.evaluate(async () => {
+      const poses: string[] = [];
+      for (let frame = 0; frame < 6; frame++) {
+        await new Promise(requestAnimationFrame);
+        poses.push(
+          [...document.querySelectorAll(".orbit-octahedron polygon")]
+            .map((face) => face.getAttribute("points"))
+            .join("|"),
+        );
+      }
+      return poses;
+    });
   try {
     await page.getByRole("progressbar").waitFor();
     for (const theme of ["深色", "浅色"]) {
@@ -2086,7 +2100,13 @@ test("Simulation head follows progress and cancellation freezes queued updates",
         assert.equal(head.dot, head.colors["text-faint"]);
         assert.equal(head.surface, head.panel);
         assert.equal(head.dash === "none", !spinning);
+        assert.equal(head.mask === "none", !spinning);
         assert.equal(head.motion, spinning ? "running" : "paused");
+        assert.equal(
+          new Set(await octahedron_poses()).size > 1,
+          spinning,
+          `${theme} ${status}: octahedron spins only while motion is enabled`,
+        );
       }
     }
     await send("running", { type: "stage", stage: "simulating" });
@@ -2125,7 +2145,27 @@ test("Simulation head follows progress and cancellation freezes queued updates",
     );
     await page.emulateMedia({ reducedMotion: "reduce" });
     assert.equal((await head_style()).dash, "none");
+    assert.equal((await head_style()).mask, "none");
+    assert.equal(new Set(await octahedron_poses()).size, 1);
     await page.emulateMedia({ reducedMotion: "no-preference" });
+    assert.ok(new Set(await octahedron_poses()).size > 1);
+    await page.getByRole("button", { name: "结果编辑", exact: true }).click();
+    assert.equal(new Set(await octahedron_poses()).size, 1);
+    await page.getByRole("button", { name: "运行模拟", exact: true }).click();
+    assert.ok(new Set(await octahedron_poses()).size > 1);
+    await page.evaluate(() => {
+      Object.defineProperty(document, "hidden", {
+        configurable: true,
+        value: true,
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    assert.equal(new Set(await octahedron_poses()).size, 1);
+    await page.evaluate(() => {
+      Reflect.deleteProperty(document, "hidden");
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    assert.ok(new Set(await octahedron_poses()).size > 1);
     const frozen = await progress_snapshot();
     await application.evaluate(({ BrowserWindow, ipcMain }) => {
       let attempts = 0;
@@ -2151,6 +2191,7 @@ test("Simulation head follows progress and cancellation freezes queued updates",
     await retry.waitFor();
     assert.deepEqual(await progress_snapshot(), frozen);
     assert.equal((await head_style()).dash, "none");
+    assert.equal((await head_style()).mask, "none");
     await page.locator('.simulation-orbit[data-status="cancelling"]').waitFor();
     assert.equal(
       await page.getByRole("button", { name: "启动模拟" }).isDisabled(),
