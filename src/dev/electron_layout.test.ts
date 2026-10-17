@@ -12,11 +12,15 @@ import {
 import type { ConfigRepositoryState } from "../shared/installed_config";
 import { emulate_viewport } from "./electron_viewport";
 import { result_fixture, simulation_fixture } from "./ui_fixtures";
+import { app_info } from "../shared/app_info";
+import { theme_storage_key } from "../renderer/theme";
 import {
   assert_style_boundaries,
   chart_style,
   assert_export_style,
   assert_workbench_themes,
+  assert_shared_typography,
+  assert_chart_label_bounds,
 } from "./ui_style_contract";
 
 const PROJECT_ROOT = process.cwd();
@@ -43,10 +47,9 @@ function repository_fixture(count = 80): ConfigRepositoryState {
   };
 }
 
-async function launch(width: number, height: number) {
-  const config_home = await mkdtemp(
-    path.join(tmpdir(), "gachasimulate-layout-"),
-  );
+async function launch(width: number, height: number, profile?: string) {
+  const config_home =
+    profile ?? (await mkdtemp(path.join(tmpdir(), "gachasimulate-layout-")));
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([, value]) => value !== undefined),
   ) as Record<string, string>;
@@ -461,7 +464,186 @@ async function fail_with_layout(page: Page, message: string): Promise<never> {
   );
 }
 
+async function assert_visualize_metadata(page: Page) {
+  const metadata = await page.locator(".top-meta").evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    const header = document.querySelector(".top-bar")!.getBoundingClientRect();
+    const statistics = document
+      .querySelector(".statistic-panel")!
+      .getBoundingClientRect();
+    return {
+      aligned_with_statistics: Math.abs(rect.left - statistics.left) < 1,
+      fits:
+        rect.top >= header.top - 1 &&
+        rect.bottom <= header.bottom + 1 &&
+        node.scrollWidth <= node.clientWidth,
+      rows: [...node.children].map((row) => {
+        const label_element = row.querySelector("dt")!;
+        const label_lines = [...label_element.getClientRects()];
+        const label_start = label_lines[0];
+        const label_end = label_lines[label_lines.length - 1];
+        const value_element = row.querySelector("dd")!;
+        const value = value_element.getBoundingClientRect();
+        const first_line = value_element.getClientRects()[0];
+        return {
+          aligned: Math.abs(label_start.left - rect.left) < 1,
+          follows_label: Math.abs(first_line.left - label_end.right) < 1,
+          fits: value.right <= rect.right + 1,
+          value_left: first_line.left,
+        };
+      }),
+    };
+  });
+  assert.ok(
+    metadata.aligned_with_statistics,
+    "Metadata and key indicators share the same left edge",
+  );
+  assert.ok(metadata.fits, "Metadata fits within the header");
+  assert.equal(metadata.rows.length, 3);
+  assert.ok(
+    metadata.rows.every((row) => row.aligned && row.follows_label && row.fits),
+    `Each metadata value follows its left-aligned label without a fixed label column: ${JSON.stringify(metadata.rows)}`,
+  );
+  assert.ok(
+    metadata.rows[1].value_left > metadata.rows[0].value_left,
+    "Longer labels move the following value to the right",
+  );
+}
+
+async function assert_settings(application: ElectronApplication, page: Page) {
+  const theme = () =>
+    page.locator(".workbench-host").getAttribute("data-workbench-theme");
+  assert.equal(await theme(), "light");
+  const settings = page.getByRole("button", { name: "设置", exact: true });
+  const navigation_before = await page
+    .getByRole("navigation", { name: "主导航", exact: true })
+    .boundingBox();
+  await settings.click();
+  assert.equal(await settings.getAttribute("aria-current"), "page");
+  assert.equal(
+    await page.getByTestId("app-version").textContent(),
+    app_info.version,
+  );
+  await assert_contained(page, ".renderer-sidebar", ".renderer-settings-nav");
+  await assert_contained(page, ".settings-page", ".settings-body");
+  await capture_layout(page, "settings-light");
+  const light = page.getByRole("radio", { name: "浅色", exact: true });
+  const dark = page.getByRole("radio", { name: "深色", exact: true });
+  assert.equal(await light.isChecked(), true);
+  await light.focus();
+  await page.keyboard.press("ArrowRight");
+  assert.equal(await dark.isChecked(), true);
+  assert.equal(await theme(), "dark");
+  await capture_layout(page, "settings-dark");
+  assert.deepEqual(
+    await page
+      .getByRole("navigation", { name: "主导航", exact: true })
+      .boundingBox(),
+    navigation_before,
+  );
+  await page.getByRole("button", { name: "运行模拟", exact: true }).click();
+  assert.equal(await theme(), "dark");
+  await settings.click();
+  assert.equal(await dark.isChecked(), true);
+
+  await application.evaluate(({ shell }) => {
+    const opened: string[] = [];
+    (
+      globalThis as typeof globalThis & { opened_app_links: string[] }
+    ).opened_app_links = opened;
+    shell.openExternal = async (url) => {
+      opened.push(url);
+    };
+  });
+  for (const label of ["项目主页", "问题反馈", "开源许可证", "第三方声明"]) {
+    await page.getByRole("button", { name: label, exact: true }).click();
+  }
+  assert.deepEqual(
+    await application.evaluate(
+      () =>
+        (globalThis as typeof globalThis & { opened_app_links: string[] })
+          .opened_app_links,
+    ),
+    [
+      "https://github.com/Apprentice-Geo/GachaSimulate#readme",
+      "https://github.com/Apprentice-Geo/GachaSimulate/issues",
+      "https://github.com/Apprentice-Geo/GachaSimulate/blob/HEAD/LICENSE.txt",
+      "https://github.com/Apprentice-Geo/GachaSimulate/blob/HEAD/THIRD_PARTY_NOTICES.md",
+    ],
+  );
+  for (const invalid of [
+    "https://example.com",
+    "__proto__",
+    "constructor",
+    null,
+  ]) {
+    await assert.rejects(
+      page.evaluate(
+        (value) => window.desktopApi.openAppLink(value as never),
+        invalid,
+      ),
+      /unknown application link/,
+    );
+  }
+  await application.evaluate(({ shell }) => {
+    shell.openExternal = async () => {
+      throw new Error("browser unavailable");
+    };
+  });
+  await page.getByRole("button", { name: "项目主页", exact: true }).click();
+  await page.getByRole("alert").filter({ hasText: "无法打开链接" }).waitFor();
+
+  await page.addInitScript(() => {
+    const observer = new MutationObserver(() => {
+      if (document.querySelector(".renderer-shell")) {
+        document.documentElement.dataset.firstRenderedTheme =
+          document.body.dataset.workbenchTheme;
+        observer.disconnect();
+      }
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await settings.waitFor();
+  assert.equal(await theme(), "dark");
+  assert.equal(
+    await page.locator("html").getAttribute("data-first-rendered-theme"),
+    "dark",
+  );
+  await settings.click();
+  assert.equal(await dark.isChecked(), true);
+  await light.check();
+  await page.evaluate(() => {
+    Storage.prototype.setItem = () => {
+      throw new DOMException("storage unavailable");
+    };
+  });
+  await dark.check();
+  assert.equal(await theme(), "dark");
+  await page.getByRole("alert").filter({ hasText: "无法保存偏好" }).waitFor();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await settings.waitFor();
+  assert.equal(
+    await theme(),
+    "light",
+    "failed save keeps the last persisted preference",
+  );
+  await page.evaluate(
+    (key) => localStorage.setItem(key, "unsupported"),
+    theme_storage_key,
+  );
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await settings.waitFor();
+  assert.equal(
+    await theme(),
+    "light",
+    "invalid stored theme falls back to Light",
+  );
+  await page.evaluate((key) => localStorage.removeItem(key), theme_storage_key);
+}
+
 async function assert_layout(application: ElectronApplication, page: Page) {
+  await assert_settings(application, page);
   await page.getByText("状态 / 待运行").waitFor();
   await page.evaluate(() => document.fonts.ready);
   const visual = await page.evaluate(() => {
@@ -543,7 +725,7 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   }
   await check_space(async () => {
     const [trace, status] = await Promise.all([
-      vertical_geometry(page, ".simulation-trace"),
+      vertical_geometry(page, ".simulation-orbit"),
       vertical_geometry(page, ".simulation-status"),
     ]);
     assert_pixel_equal(
@@ -551,11 +733,14 @@ async function assert_layout(application: ElectronApplication, page: Page) {
       status.top,
       "simulation trace fills remaining control space",
     );
-    await assert_vertical_fill(
-      page,
-      ".simulation-trace",
-      ".simulation-trace li:first-child",
-      ".simulation-trace li:last-child",
+    const svg = await page.locator(".simulation-orbit svg").boundingBox();
+    assert.ok(
+      svg && svg.width > 300 && svg.height >= 350,
+      "orbit stays readable",
+    );
+    assert.equal(
+      await page.locator(".simulation-orbit svg").getAttribute("viewBox"),
+      "0 0 440 420",
     );
   });
   await check_space(() =>
@@ -590,6 +775,115 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   );
   await assert_page_space(page, ".simulation-page", ".simulation-workbench");
   await capture_layout(page, "simulation");
+  const send = async (status: string, event?: object) => {
+    await application.evaluate(
+      ({ BrowserWindow }, value) =>
+        BrowserWindow.getAllWindows()[0]!.webContents.send(
+          "simulation-event",
+          value,
+        ),
+      { status, event },
+    );
+    await page.waitForFunction(
+      (status) =>
+        document
+          .querySelector(".simulation-orbit")
+          ?.getAttribute("data-status") === status,
+      status,
+    );
+  };
+  for (const [status, stage, label] of [
+    ["starting", "loading_config", "编译配置"],
+    ["running", "simulating", "运行模拟"],
+    ["saving", "saving", "正在保存 GSR"],
+    ["completed", "saving", "已完成"],
+    ["failed", "simulating", "运行失败"],
+    ["cancelling", "simulating", "正在取消"],
+    ["cancelled", "simulating", "已取消"],
+  ]) {
+    await send(status!, { type: "stage", stage });
+    assert.equal(await page.locator(".orbit-status").textContent(), label);
+    if (["completed", "failed", "cancelling", "cancelled"].includes(status!))
+      assert.equal(
+        await page.locator(".simulation-orbit").getAttribute("data-motion"),
+        "paused",
+      );
+  }
+  await send("starting", { type: "started" });
+  assert.equal(
+    await page.getByRole("progressbar").getAttribute("aria-valuenow"),
+    "0",
+  );
+  await send("running", { type: "stage", stage: "simulating" });
+  await send("running", {
+    type: "progress",
+    completed: 42,
+    total: 100,
+    unit: "runs",
+  });
+  assert.equal(
+    await page.getByRole("progressbar").getAttribute("aria-valuenow"),
+    "42",
+  );
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      value: true,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector(".simulation-orbit")
+        ?.getAttribute("data-motion") === "paused",
+  );
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      value: false,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector(".simulation-orbit")
+        ?.getAttribute("data-motion") === "running",
+  );
+  await page.evaluate(() => {
+    Reflect.deleteProperty(document, "hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.locator(".simulation-orbit").scrollIntoViewIfNeeded();
+  await capture_layout(page, "simulation-running");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  assert.equal(
+    await page
+      .locator(".orbit-cards")
+      .evaluate((node) => getComputedStyle(node).animationName),
+    "none",
+  );
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.getByRole("button", { name: "结果编辑", exact: true }).click();
+  assert.equal(
+    await page.locator(".simulation-orbit").getAttribute("data-motion"),
+    "paused",
+  );
+  await send("running", {
+    type: "progress",
+    completed: 100,
+    total: 100,
+    unit: "runs",
+  });
+  await page.getByRole("button", { name: "运行模拟", exact: true }).click();
+  assert.equal(
+    await page.locator(".orbit-status").textContent(),
+    "正在保存 GSR",
+  );
+  await page.locator(".simulation-status").scrollIntoViewIfNeeded();
+  await send("idle", { type: "started" });
+  await page.locator(".simulation-actions").scrollIntoViewIfNeeded();
   const selection_before = await simulation.boundingBox();
   const search = page.getByRole("searchbox", { name: "搜索统计物品" });
   await search.fill("item_79");
@@ -993,6 +1287,8 @@ async function assert_layout(application: ElectronApplication, page: Page) {
         width: node.offsetWidth,
         height: node.offsetHeight,
         left: node.getBoundingClientRect().left,
+        top: node.getBoundingClientRect().top,
+        bottom: node.getBoundingClientRect().bottom,
       };
     });
   });
@@ -1006,6 +1302,74 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     ],
   );
   assert.equal(design_regions[0].left, design_regions[2].left);
+  assert_pixel_equal(
+    design_regions[3].top,
+    design_regions[0].top,
+    "Statistics and CDF share the top edge",
+  );
+  assert_pixel_equal(
+    design_regions[3].bottom,
+    design_regions[2].bottom,
+    "Statistics and termination paths share the bottom edge",
+  );
+  await assert_shared_typography(page);
+  await assert_visualize_metadata(page);
+  await capture_layout(page, "visualize");
+  const metric_layout = await page
+    .locator(".statistic-panel")
+    .evaluate((panel) => {
+      const panel_rect = panel.getBoundingClientRect();
+      const rows = [...panel.querySelectorAll<HTMLElement>(".metric-row")];
+      return {
+        keys: rows.map((row) => row.dataset.statKey),
+        primary_keys: rows
+          .filter((row) => row.dataset.emphasis === "primary")
+          .map((row) => row.dataset.statKey),
+        contained: rows.every((row) => {
+          const rect = row.getBoundingClientRect();
+          return (
+            rect.top >= panel_rect.top &&
+            rect.bottom <= panel_rect.bottom + 1 &&
+            row.scrollWidth <= row.clientWidth &&
+            row.scrollHeight <= row.clientHeight
+          );
+        }),
+        aligned: rows.every((row) => {
+          const rect = row.getBoundingClientRect();
+          return (
+            Math.abs(rect.left - panel_rect.left) < 1 &&
+            Math.abs(rect.right - panel_rect.right) < 1
+          );
+        }),
+        index_rows_have_space: rows
+          .filter((row) => row.dataset.emphasis === "secondary")
+          .every((row) => row.offsetHeight >= 132),
+      };
+    });
+  assert.deepEqual(metric_layout.keys, [
+    "P50",
+    "MEAN",
+    "P95",
+    "MIN",
+    "P5",
+    "P25",
+    "P75",
+    "MAX",
+  ]);
+  assert.deepEqual(metric_layout.primary_keys, ["P50", "MEAN", "P95"]);
+  await page.getByRole("heading", { name: "关键指标", exact: true }).waitFor();
+  assert.ok(
+    metric_layout.contained,
+    "Every statistic fits within the shared column",
+  );
+  assert.ok(
+    metric_layout.aligned,
+    "Focus readings and the index share both column edges",
+  );
+  assert.ok(
+    metric_layout.index_rows_have_space,
+    "Larger index typography retains at least the original row height",
+  );
   const visualize_contract = await page.evaluate(() => {
     const viewport = document.querySelector(".visualize-viewport");
     const root = document.querySelector('[data-testid="visualize-root"]');
@@ -1166,6 +1530,18 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   assert.ok(
     actions_box.x >= sidebar_box.x &&
       actions_box.x + actions_box.width <= sidebar_box.x + sidebar_box.width,
+  );
+  const settings_box = await page
+    .getByRole("navigation", { name: "应用设置", exact: true })
+    .boundingBox();
+  assert.ok(settings_box);
+  assert.ok(
+    actions_box.y + actions_box.height <= settings_box.y,
+    "visualization actions do not overlap Settings",
+  );
+  assert.ok(
+    settings_box.y + settings_box.height <= sidebar_box.y + sidebar_box.height,
+    "Settings remains fully visible with visualization actions",
   );
   const export_button = page.getByRole("button", { name: "导出素材" });
   await export_button.focus();
@@ -1545,6 +1921,64 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     await page.getByRole("group", { name: "可视化操作" }).count(),
     0,
   );
+  // A valid single-run result at the supported numeric limit must remain readable.
+  const large_fixture = structuredClone(result_fixture());
+  large_fixture.display.target = "获得限定角色与限定武器并完成本期模拟目标";
+  large_fixture.display.result_item_name = "限定角色累计兑换代币";
+  large_fixture.fields.target = large_fixture.display.target;
+  large_fixture.fields.result_item_name =
+    large_fixture.display.result_item_name;
+  const maximum = String(Number.MAX_SAFE_INTEGER);
+  large_fixture.analysis = {
+    ...large_fixture.analysis,
+    totals: { runs: "1", result: maximum },
+    values: [maximum],
+    cumulative: [1],
+    statistic: {
+      MIN: maximum,
+      P5: maximum,
+      P25: maximum,
+      P50: maximum,
+      MEAN: maximum,
+      P75: maximum,
+      P95: maximum,
+      MAX: maximum,
+      MEAN_LEVEL: 1,
+    },
+  };
+  await application.evaluate(({ ipcMain }, fixture) => {
+    ipcMain.removeHandler("select-gsr-result");
+    ipcMain.handle("select-gsr-result", () => fixture);
+  }, large_fixture);
+  await page.getByRole("button", { name: "结果可视化" }).click();
+  await page.getByRole("button", { name: "更换结果" }).click();
+  await page
+    .getByTestId("stat-P50")
+    .getByText("9,007,199,254,740,991", { exact: true })
+    .waitFor();
+  await page
+    .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
+    .waitFor();
+  const large_values = await page.locator(".metric-row").evaluateAll((rows) =>
+    rows.map((row) => {
+      const rect = row.getBoundingClientRect();
+      const value = row.querySelector(".metric-value")!;
+      const value_rect = value.getBoundingClientRect();
+      return (
+        value.textContent?.includes("9,007,199,254,740,991") &&
+        row.scrollWidth <= row.clientWidth &&
+        value_rect.left >= rect.left - 1 &&
+        value_rect.right <= rect.right + 1
+      );
+    }),
+  );
+  assert.equal(large_values.length, 8);
+  assert.ok(
+    large_values.every(Boolean),
+    "Full statistic values fit without truncation",
+  );
+  await capture_layout(page, "visualize-long-values");
+  await assert_visualize_metadata(page);
   assert.equal(space_failures.length, 0, space_failures.join("\n"));
 }
 
@@ -1576,3 +2010,343 @@ for (const [width, height] of [
     }
   });
 }
+
+test("Simulation head follows progress and cancellation freezes queued updates", async () => {
+  const { application, cdp, config_home, page } = await launch(1280, 720);
+  const send = (status: string, event?: object) =>
+    application.evaluate(
+      ({ BrowserWindow }, value) =>
+        BrowserWindow.getAllWindows()[0]!.webContents.send(
+          "simulation-event",
+          value,
+        ),
+      { status, event },
+    );
+  const head_style = () =>
+    page.evaluate(() => {
+      const ring = getComputedStyle(
+        document.querySelector(".orbit-head-ring")!,
+      );
+      const probe = document.createElement("span");
+      document.querySelector(".simulation-orbit")!.append(probe);
+      const colors = Object.fromEntries(
+        ["primary", "success", "card-gold", "danger", "text-faint"].map(
+          (role) => {
+            probe.style.color = `var(--workbench-${role})`;
+            return [role, getComputedStyle(probe).color];
+          },
+        ),
+      );
+      probe.remove();
+      return {
+        stroke: ring.stroke,
+        dash: ring.strokeDasharray,
+        mask: ring.maskImage,
+        motion: ring.animationPlayState,
+        dot: getComputedStyle(document.querySelector(".orbit-head-dot")!).fill,
+        surface: getComputedStyle(
+          document.querySelector(".orbit-head-surface")!,
+        ).fill,
+        panel: getComputedStyle(document.querySelector(".simulation-control")!)
+          .backgroundColor,
+        colors,
+      };
+    });
+  const progress_snapshot = () =>
+    page.evaluate(() => ({
+      percent: document.querySelector(".orbit-percent")!.textContent,
+      count: document.querySelector(".orbit-count")!.textContent,
+      progress: getComputedStyle(
+        document.querySelector(".orbit-ring-progress")!,
+      ).strokeDasharray,
+      head: getComputedStyle(document.querySelector(".orbit-progress-head")!)
+        .transform,
+    }));
+  const octahedron_poses = () =>
+    page.evaluate(async () => {
+      const poses: string[] = [];
+      for (let frame = 0; frame < 6; frame++) {
+        await new Promise(requestAnimationFrame);
+        poses.push(
+          [...document.querySelectorAll(".orbit-octahedron polygon")]
+            .map((face) => face.getAttribute("points"))
+            .join("|"),
+        );
+      }
+      return poses;
+    });
+  try {
+    await page.getByRole("progressbar").waitFor();
+    for (const theme of ["深色", "浅色"]) {
+      await page.getByRole("button", { name: "设置", exact: true }).click();
+      await page.getByRole("radio", { name: theme, exact: true }).check();
+      await page.getByRole("button", { name: "运行模拟", exact: true }).click();
+      for (const [status, role, spinning] of [
+        ["idle", "primary", false],
+        ["starting", "success", true],
+        ["running", "success", true],
+        ["saving", "success", true],
+        ["completed", "card-gold", false],
+        ["failed", "danger", false],
+        ["cancelling", "danger", false],
+        ["cancelled", "danger", false],
+      ] as const) {
+        await send(status);
+        await page
+          .locator(`.simulation-orbit[data-status="${status}"]`)
+          .waitFor();
+        const head = await head_style();
+        assert.equal(head.stroke, head.colors[role]);
+        assert.equal(head.dot, head.colors["text-faint"]);
+        assert.equal(head.surface, head.panel);
+        assert.equal(head.dash === "none", !spinning);
+        assert.equal(head.mask === "none", !spinning);
+        assert.equal(head.motion, spinning ? "running" : "paused");
+        assert.equal(
+          new Set(await octahedron_poses()).size > 1,
+          spinning,
+          `${theme} ${status}: octahedron spins only while motion is enabled`,
+        );
+      }
+    }
+    await send("running", { type: "stage", stage: "simulating" });
+    await send("running", {
+      type: "progress",
+      completed: 42,
+      total: 100,
+      unit: "runs",
+    });
+    // Check the actual animated endpoint, including intermediate frames.
+    const alignment = await page.evaluate(async () => {
+      const errors: number[] = [];
+      for (let frame = 0; frame < 24; frame++) {
+        await new Promise(requestAnimationFrame);
+        const progress = document.querySelector(".orbit-ring-progress")!;
+        const percent = parseFloat(getComputedStyle(progress).strokeDasharray);
+        const head =
+          document.querySelector<SVGGraphicsElement>(".orbit-head-dot")!;
+        const matrix = head
+          .ownerSVGElement!.getCTM()!
+          .inverse()
+          .multiply(head.getCTM()!);
+        const angle = (percent / 100) * Math.PI * 2;
+        errors.push(
+          Math.hypot(
+            matrix.e - (220 + 148 * Math.sin(angle)),
+            matrix.f - (200 - 148 * Math.cos(angle)),
+          ),
+        );
+      }
+      return errors;
+    });
+    assert.ok(
+      alignment.every((error) => error < 0.1),
+      String(alignment),
+    );
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    assert.equal((await head_style()).dash, "none");
+    assert.equal((await head_style()).mask, "none");
+    assert.equal(new Set(await octahedron_poses()).size, 1);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    assert.ok(new Set(await octahedron_poses()).size > 1);
+    await page.getByRole("button", { name: "结果编辑", exact: true }).click();
+    assert.equal(new Set(await octahedron_poses()).size, 1);
+    await page.getByRole("button", { name: "运行模拟", exact: true }).click();
+    assert.ok(new Set(await octahedron_poses()).size > 1);
+    await page.evaluate(() => {
+      Object.defineProperty(document, "hidden", {
+        configurable: true,
+        value: true,
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    assert.equal(new Set(await octahedron_poses()).size, 1);
+    await page.evaluate(() => {
+      Reflect.deleteProperty(document, "hidden");
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    assert.ok(new Set(await octahedron_poses()).size > 1);
+    const frozen = await progress_snapshot();
+    await application.evaluate(({ BrowserWindow, ipcMain }) => {
+      let attempts = 0;
+      ipcMain.removeHandler("cancel-simulation");
+      ipcMain.handle("cancel-simulation", () => {
+        const contents = BrowserWindow.getAllWindows()[0]!.webContents;
+        if (++attempts === 1) {
+          for (const event of [
+            { type: "started" },
+            { type: "stage", stage: "saving" },
+            { type: "progress", completed: 99, total: 100, unit: "runs" },
+            { type: "completed", result_path: "late.gsr", total_runs: 100 },
+          ])
+            contents.send("simulation-event", { status: "running", event });
+          contents.send("simulation-event", { status: "completed" });
+          throw new Error("termination failed");
+        }
+        contents.send("simulation-event", { status: "cancelled" });
+      });
+    });
+    await page.getByRole("button", { name: "取消", exact: true }).click();
+    const retry = page.getByRole("button", { name: "重试取消", exact: true });
+    await retry.waitFor();
+    assert.deepEqual(await progress_snapshot(), frozen);
+    assert.equal((await head_style()).dash, "none");
+    assert.equal((await head_style()).mask, "none");
+    await page.locator('.simulation-orbit[data-status="cancelling"]').waitFor();
+    assert.equal(
+      await page.getByRole("button", { name: "启动模拟" }).isDisabled(),
+      true,
+    );
+    assert.equal(
+      await page.getByRole("button", { name: "打开结果目录" }).count(),
+      0,
+    );
+    await retry.click();
+    await page.locator('.simulation-orbit[data-status="cancelled"]').waitFor();
+    assert.deepEqual(await progress_snapshot(), frozen);
+    await application.evaluate(({ BrowserWindow, ipcMain }) => {
+      ipcMain.removeHandler("start-simulation");
+      ipcMain.handle("start-simulation", () => {
+        const contents = BrowserWindow.getAllWindows()[0]!.webContents;
+        contents.send("simulation-event", {
+          status: "starting",
+          event: { type: "started" },
+        });
+        contents.send("simulation-event", {
+          status: "running",
+          event: { type: "progress", completed: 12, total: 100, unit: "runs" },
+        });
+      });
+    });
+    await page.getByRole("button", { name: "启动模拟" }).click();
+    await page.locator('[role="progressbar"][aria-valuenow="12"]').waitFor();
+  } finally {
+    try {
+      await cdp.detach();
+    } finally {
+      try {
+        await application.close();
+      } finally {
+        await rm(config_home, { force: true, recursive: true });
+      }
+    }
+  }
+});
+
+test("CDF labels stay below the heading and inside the chart with close endpoints", async () => {
+  const { application, cdp, config_home, page } = await launch(1280, 720);
+  try {
+    const fixture = structuredClone(result_fixture());
+    // Ten observations: MIN/P5/P25 coincide at zero, P95/MAX at 100.
+    fixture.analysis = {
+      ...fixture.analysis,
+      totals: { runs: "10", result: "500" },
+      values: ["0", "1", "99", "100"],
+      cumulative: [0.3, 0.5, 0.7, 1],
+      statistic: {
+        MIN: "0",
+        P5: "0",
+        P25: "0",
+        P50: "50",
+        MEAN: "50",
+        MEAN_LEVEL: 0.5,
+        P75: "99",
+        P95: "100",
+        MAX: "100",
+      },
+    };
+    await application.evaluate(({ ipcMain }, input) => {
+      ipcMain.removeHandler("select-gsr-result");
+      ipcMain.handle("select-gsr-result", () => input);
+    }, fixture);
+    await page.getByRole("button", { name: "结果编辑", exact: true }).click();
+    await page.getByRole("button", { name: "选择 GSR", exact: true }).click();
+    await page.getByRole("button", { name: "更换 GSR", exact: true }).waitFor();
+    await page.evaluate(() => document.fonts.ready);
+    await assert_chart_label_bounds(page);
+    await page.getByRole("button", { name: "结果可视化", exact: true }).click();
+    await page
+      .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
+      .waitFor();
+    await assert_chart_label_bounds(page);
+    await assert_export_style(application, await chart_style(page), fixture);
+  } finally {
+    try {
+      await cdp.detach();
+    } finally {
+      try {
+        await application.close();
+      } finally {
+        await rm(config_home, { force: true, recursive: true });
+      }
+    }
+  }
+});
+
+test("Settings restores the theme after restarting Electron and rejects links from other renderers", async () => {
+  let session = await launch(1280, 720);
+  const profile = session.config_home;
+  try {
+    await session.page
+      .getByRole("button", { name: "设置", exact: true })
+      .click();
+    await session.page
+      .getByRole("radio", { name: "深色", exact: true })
+      .check();
+    await session.cdp.detach();
+    await session.application.close();
+    session = await launch(1280, 720, profile);
+    await session.page
+      .getByRole("button", { name: "设置", exact: true })
+      .click();
+    assert.equal(
+      await session.page
+        .getByRole("radio", { name: "深色", exact: true })
+        .isChecked(),
+      true,
+    );
+    assert.equal(
+      await session.page
+        .locator(".workbench-host")
+        .getAttribute("data-workbench-theme"),
+      "dark",
+    );
+    await assert.rejects(
+      session.application.evaluate(
+        async ({ BrowserWindow }, files) => {
+          const other = new BrowserWindow({
+            show: false,
+            webPreferences: {
+              contextIsolation: true,
+              nodeIntegration: false,
+              preload: files.preload,
+            },
+          });
+          try {
+            await other.loadFile(files.html);
+            await other.webContents.executeJavaScript(
+              "window.desktopApi.openAppLink('project')",
+            );
+          } finally {
+            other.destroy();
+          }
+        },
+        {
+          preload: path.join(PROJECT_ROOT, "out/preload/index.js"),
+          html: path.join(PROJECT_ROOT, "out/renderer/index.html"),
+        },
+      ),
+      /untrusted renderer/,
+    );
+  } finally {
+    try {
+      await session.cdp.detach();
+    } finally {
+      try {
+        await session.application.close();
+      } finally {
+        await rm(profile, { force: true, recursive: true });
+      }
+    }
+  }
+});

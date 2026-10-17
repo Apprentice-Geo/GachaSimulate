@@ -31,6 +31,7 @@ export type ConfigRepositoryState = {
   localError: string | null;
 };
 export type DesktopApi = {
+  openAppLink: (link: import("./app_info").AppLink) => Promise<void>;
   listConfigs: () => Promise<InstalledConfig[]>;
   getConfigRepositoryState: () => Promise<ConfigRepositoryState>;
   refreshConfigRepository: (force?: boolean) => Promise<ConfigRepositoryState>;

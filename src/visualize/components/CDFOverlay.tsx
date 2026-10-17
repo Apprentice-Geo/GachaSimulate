@@ -2,10 +2,12 @@ import type { CSSProperties } from "react";
 import { useMemo } from "react";
 import { usePlotArea, useXAxisScale, useYAxisScale } from "recharts";
 import { get_marker_visual } from "./cdf_marker_visuals";
+import { use_marker_label_bounds } from "../hooks/use_marker_label_bounds";
 import type { CDFViewModel } from "../types/cdf";
 import { CDF_CHART_VIEW_CONFIG } from "../view/cdf_view_config";
 import {
   build_curve_path,
+  build_curve_area_path,
   build_marker_views,
 } from "../view/cdf_overlay_layout";
 import {
@@ -22,13 +24,26 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
   const plot_area = usePlotArea();
   const x_scale = useXAxisScale();
   const y_scale = useYAxisScale();
+  const { ref, bounds } = use_marker_label_bounds(data.markers, plot_area);
   const marker_views = useMemo(
-    () => build_marker_views(data.markers, plot_area, x_scale, y_scale),
-    [plot_area, x_scale, y_scale, data.markers],
+    () => build_marker_views(data.markers, plot_area, x_scale, y_scale, bounds),
+    [plot_area, x_scale, y_scale, data.markers, bounds],
   );
   const curve_path = useMemo(
     () => build_curve_path(data.chart_points, x_scale, y_scale),
     [data.chart_points, x_scale, y_scale],
+  );
+  const area_path = useMemo(
+    () =>
+      plot_area
+        ? build_curve_area_path(
+            data.chart_points,
+            x_scale,
+            y_scale,
+            plot_area.y + plot_area.height,
+          )
+        : "",
+    [data.chart_points, x_scale, y_scale, plot_area],
   );
   const mean_marker = marker_views.find((view) => view.marker.key === "MEAN");
   const mean_marker_visual = mean_marker
@@ -49,7 +64,15 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
   }
 
   return (
-    <g aria-hidden="true" className="marker-overlay">
+    <g aria-hidden="true" className="marker-overlay" ref={ref}>
+      <path
+        className="cdf-area-path"
+        d={area_path}
+        fill={CDF_CHART_VIEW_CONFIG.curve_color}
+        style={{
+          opacity: animation_progress.curve_area * 0.055,
+        }}
+      />
       <path
         className="cdf-curve-path"
         d={curve_path}
@@ -96,13 +119,28 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
             style={
               {
                 "--marker-index": index,
-                "--marker-label-font-size": `${marker_visual.label_font_size}px`,
+                "--marker-label-font-size": marker_visual.label_font_size,
                 "--marker-label-font-weight": marker_visual.label_font_weight,
                 "--marker-label-stroke-width": `${marker_visual.label_stroke_width}px`,
                 "--marker-opacity": marker_visual.opacity,
               } as CSSProperties
             }
           >
+            {(view.marker.key === "P50" || view.marker.key === "P95") && (
+              <line
+                className="quantile-horizontal-line"
+                stroke={view.marker.color}
+                strokeWidth={1.5}
+                x1={plot_area.x}
+                x2={view.x}
+                y1={view.y}
+                y2={view.y}
+                style={{
+                  opacity: marker_line_progress.opacity * 0.45,
+                  transform: `scaleX(${marker_line_progress.scale})`,
+                }}
+              />
+            )}
             <line
               className="marker-line"
               stroke={view.marker.color}
@@ -117,19 +155,33 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
                 transform: `scaleY(${marker_line_progress.scale})`,
               }}
             />
-            <circle
-              className="marker-point"
-              cx={view.x}
-              cy={view.y}
-              fill={view.marker.color}
-              r={marker_visual.point_radius}
-              style={{
-                fontSize: `${marker_visual.label_font_size}px`,
-                opacity: marker_group_progress.opacity,
-                strokeWidth: `${marker_visual.label_stroke_width}px`,
-                transform: `translateY(${marker_group_progress.translate_y}px)`,
-              }}
-            />
+            {view.marker.key === "MEAN" ? (
+              <path
+                className="marker-point"
+                d={`M ${view.x} ${view.y - marker_visual.point_radius} l ${marker_visual.point_radius} ${marker_visual.point_radius} l ${-marker_visual.point_radius} ${marker_visual.point_radius} l ${-marker_visual.point_radius} ${-marker_visual.point_radius} Z`}
+                fill="var(--color-panel)"
+                stroke={view.marker.color}
+                strokeWidth={3}
+                style={{
+                  opacity: marker_group_progress.opacity,
+                  transform: `translateY(${marker_group_progress.translate_y}px)`,
+                }}
+              />
+            ) : (
+              <circle
+                className="marker-point"
+                cx={view.x}
+                cy={view.y}
+                fill={view.marker.color}
+                r={marker_visual.point_radius}
+                style={{
+                  fontSize: marker_visual.label_font_size,
+                  opacity: marker_group_progress.opacity,
+                  strokeWidth: `${marker_visual.label_stroke_width}px`,
+                  transform: `translateY(${marker_group_progress.translate_y}px)`,
+                }}
+              />
+            )}
             <text
               className="marker-label"
               dominantBaseline={view.dominant_baseline}

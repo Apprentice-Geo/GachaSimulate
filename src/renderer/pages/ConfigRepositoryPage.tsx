@@ -1,3 +1,4 @@
+import { WorkbenchIcon } from "../components/WorkbenchIcon";
 import { Store } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "../components/Button";
@@ -121,7 +122,7 @@ export function ConfigRepositoryPage() {
     >
       <header className="page-heading repository-header">
         <div className="renderer-placeholder-mark" aria-hidden="true">
-          <Store size={20} />
+          <WorkbenchIcon icon={Store} size={20} />
         </div>
         <div>
           <p className="renderer-eyebrow">CONFIGURATION CATALOG</p>
@@ -230,7 +231,7 @@ export function ConfigRepositoryPage() {
             </div>
             <span>{state?.official.length ?? 0} 项</span>
           </div>
-          <div className="repository-list">
+          <div className="repository-list workbench-scroll-region">
             {state?.official.length ? (
               state.official.map((config) => {
                 const status = repository_status[config.status];
@@ -306,7 +307,7 @@ export function ConfigRepositoryPage() {
               {state.localError}
             </div>
           )}
-          <div className="local-config-list">
+          <div className="local-config-list workbench-scroll-region">
             {state?.localConfigs.map((config) => (
               <span key={config.id}>
                 <strong>{config.name}</strong>

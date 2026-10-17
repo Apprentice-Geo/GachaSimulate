@@ -91,6 +91,38 @@ async function assert_workbench_primitives(page: Page) {
 
 /** Compare design-space paint and typography, independently of host scaling. */
 export async function chart_style(page: Page) {
+  await assert_chart_label_bounds(page);
+  const borders = await page
+    .locator(".cdf-chart-shell, .panel-surface")
+    .evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const style = getComputedStyle(
+          node,
+          node.matches(".cdf-chart-shell") ? "::after" : null,
+        );
+        const scene = node.closest(".visualize-page");
+        const zoom = scene ? Number(getComputedStyle(scene).zoom) : 1;
+        return {
+          primary: node.matches(".cdf-chart-shell"),
+          width: parseFloat(style.borderTopWidth),
+          color: style.borderTopColor,
+          corners: style.backgroundImage,
+          zoom,
+        };
+      }),
+    );
+  for (const border of borders) {
+    // Chromium snaps CSS borders to device pixels before undoing CSS zoom.
+    assert.ok(
+      Math.abs(
+        border.width * border.zoom - Math.max(1, Math.floor(2 * border.zoom)),
+      ) < 0.001,
+    );
+    assert.equal(border.color, "rgb(81, 71, 97)");
+    if (border.primary) {
+      assert.equal((border.corners.match(/linear-gradient/g) ?? []).length, 8);
+    }
+  }
   return page.locator(".cdf-chart-shell").evaluate((chart) => {
     const selectors = [
       ":scope",
@@ -115,16 +147,74 @@ export async function chart_style(page: Page) {
       "stroke-dasharray",
       "filter",
     ];
-    return selectors.map((selector) => {
-      const nodes =
-        selector === ":scope" ? [chart] : [...chart.querySelectorAll(selector)];
-      if (!nodes.length) throw new Error(`Missing chart element: ${selector}`);
-      return nodes.map((node) => {
-        const style = getComputedStyle(node);
-        return properties.map((property) => style.getPropertyValue(property));
-      });
-    });
+    const frame = getComputedStyle(chart, "::after");
+    return [
+      [
+        frame.borderColor,
+        // Width is checked above with Chromium's device-pixel snapping.
+        frame.backgroundImage,
+        frame.backgroundSize,
+      ],
+      ...selectors.map((selector) => {
+        const nodes =
+          selector === ":scope"
+            ? [chart]
+            : [...chart.querySelectorAll(selector)];
+        if (!nodes.length)
+          throw new Error(`Missing chart element: ${selector}`);
+        return nodes.map((node) => {
+          const style = getComputedStyle(node);
+          return properties.map((property) => style.getPropertyValue(property));
+        });
+      }),
+    ];
   });
+}
+
+/** The title band and the complete painted marker labels must stay separate. */
+export async function assert_chart_label_bounds(page: Page) {
+  const geometry = await page.locator(".cdf-chart-shell").evaluate((chart) => {
+    const chart_rect = chart.getBoundingClientRect();
+    const scale = chart_rect.width / (chart as HTMLElement).offsetWidth;
+    const heading = chart
+      .querySelector(".chart-frame-label")!
+      .getBoundingClientRect();
+    const labels = [
+      ...chart.querySelectorAll<SVGTextElement>(".marker-label"),
+    ].map((label) => {
+      const rect = label.getBoundingClientRect();
+      const stroke =
+        (parseFloat(getComputedStyle(label).strokeWidth) * scale) / 2;
+      return {
+        key: label.parentElement!.getAttribute("data-marker-key"),
+        left: (rect.left - stroke - chart_rect.left) / scale,
+        right: (rect.right + stroke - chart_rect.left) / scale,
+        top: (rect.top - stroke - chart_rect.top) / scale,
+        bottom: (rect.bottom + stroke - chart_rect.top) / scale,
+      };
+    });
+    return {
+      heading_bottom: (heading.bottom - chart_rect.top) / scale,
+      width: (chart as HTMLElement).offsetWidth,
+      height: (chart as HTMLElement).offsetHeight,
+      labels,
+    };
+  });
+  assert.equal(geometry.labels.length, 8);
+  for (const label of geometry.labels) {
+    assert.ok(
+      label.top >= geometry.heading_bottom + 16,
+      `${label.key} clears the heading: ${JSON.stringify(geometry)}`,
+    );
+    assert.ok(
+      label.left >= 0 && label.right <= geometry.width,
+      `${label.key} stays within horizontal chart bounds`,
+    );
+    assert.ok(
+      label.bottom <= geometry.height,
+      `${label.key} stays within vertical chart bounds`,
+    );
+  }
 }
 
 /** Workbench themes change paint, never chart presentation or desktop geometry. */
@@ -162,6 +252,12 @@ export async function assert_workbench_themes(page: Page) {
             style.lineHeight,
           ];
         }),
+        statistics: [
+          ...document.querySelectorAll(".metric-row, .metric-row *"),
+        ].map((node) => {
+          const style = getComputedStyle(node);
+          return [style.color, style.fontSize, style.lineHeight];
+        }),
       };
     });
   const light = await read();
@@ -184,6 +280,7 @@ export async function assert_workbench_themes(page: Page) {
       );
     }
     assert.deepEqual(dark.geometry, light.geometry);
+    assert.deepEqual(dark.statistics, light.statistics);
     assert.deepEqual(await chart_style(page), before);
     await assert_workbench_primitives(page);
   } finally {
@@ -229,6 +326,10 @@ export async function assert_style_boundaries(page: Page) {
   }, sources);
   assert.deepEqual(violations, [], "Visualization rules must be scoped");
   const workbench = await readFile("src/renderer/styles.css", "utf8");
+  const orbit = await readFile(
+    "src/renderer/components/SimulationOrbit.css",
+    "utf8",
+  );
   await assert_workbench_primitives(page);
   const tokens = await readFile("src/renderer/tokens.css", "utf8");
   const theme_keys = await page.evaluate((source) => {
@@ -253,11 +354,34 @@ export async function assert_style_boundaries(page: Page) {
     "Workbench colors belong in tokens",
   );
   assert.doesNotMatch(
+    workbench + orbit,
+    /(?:font-size|font):\s*(?:calc\(|[\d.]+px\b)/,
+    "Workbench font sizes use the shared type scale rather than layout units or local pixel sizes",
+  );
+  assert.doesNotMatch(
     workbench + tokens,
-    /var\(--(?:color-|font-|radius-|canvas-)/,
+    /var\(--(?:color-|font-(?!size-)|radius-|canvas-)/,
   );
 
   assert.equal(await page.locator(".chart-preview.visualize-scope").count(), 1);
+  const background = await page
+    .locator(".result-cdf-chart")
+    .evaluate((node) => {
+      const style = getComputedStyle(node);
+      return [
+        style.backgroundColor,
+        style.backgroundImage,
+        style.backgroundSize,
+      ];
+    });
+  assert.equal(background[0], "rgb(255, 255, 255)");
+  assert.equal(background[1], "none");
+  assert.equal(
+    await page
+      .locator(".chart-preview")
+      .evaluate((node) => getComputedStyle(node, "::after").content),
+    "none",
+  );
   const before = await chart_style(page);
   const navigation_style = () =>
     page
@@ -319,11 +443,39 @@ export async function assert_style_boundaries(page: Page) {
   return before;
 }
 
+/** Both surfaces use one type scale while keeping their own coordinate spaces. */
+export async function assert_shared_typography(page: Page) {
+  const result = await page.evaluate(() => {
+    const root = document.documentElement;
+    const shell = document.querySelector(".renderer-shell")!;
+    const label = document.querySelector(".metric-label")!;
+    const styles = {
+      read() {
+        return [shell, label].map((node) =>
+          parseFloat(getComputedStyle(node).fontSize),
+        );
+      },
+    };
+    const before = styles.read();
+    const previous = root.style.getPropertyValue("--font-size-body");
+    try {
+      root.style.setProperty("--font-size-body", `${before[0] + 1}px`);
+      return { before, after: styles.read() };
+    } finally {
+      if (previous) root.style.setProperty("--font-size-body", previous);
+      else root.style.removeProperty("--font-size-body");
+    }
+  });
+  assert.equal(result.before[1], result.before[0] * 2);
+  assert.equal(result.after[0], result.before[0] + 1);
+  assert.equal(result.after[1], result.before[1] + 2);
+}
+
 export async function assert_export_style(
   application: ElectronApplication,
   expected: Awaited<ReturnType<typeof chart_style>>,
+  fixture = result_fixture(),
 ) {
-  const fixture = result_fixture();
   const view_model = build_cdf_view_model(fixture.analysis!, fixture.display!);
   const [page, window_id] = await Promise.all([
     application.waitForEvent("window"),
@@ -360,6 +512,16 @@ export async function assert_export_style(
     await page.evaluate(() => document.fonts.ready);
     assert.equal(await page.locator("body.visualize-scope > #root").count(), 1);
     assert.deepEqual(await chart_style(page), expected);
+    assert.equal(
+      await page.locator(".visualize-viewport, .result-cdf-chart").count(),
+      0,
+    );
+    assert.equal(
+      await page
+        .locator("body")
+        .evaluate((node) => getComputedStyle(node).backgroundImage),
+      "none",
+    );
     assert.deepEqual(
       await page.evaluate(() => [
         document.body.clientWidth,

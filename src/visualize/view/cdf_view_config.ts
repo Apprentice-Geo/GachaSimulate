@@ -51,15 +51,13 @@ export const CDF_MARKER_VIEW_CONFIG: Record<MarkerKey, CDFMarkerViewConfig> = {
   MAX: {
     label: "MAX",
     color: "var(--color-cdf-marker-max)",
-    weight: "strong",
+    weight: "faint",
   },
 };
 
 export const CDF_CHART_VIEW_CONFIG = {
   curve_color: "var(--color-cdf-line)",
   grid_color: "var(--color-cdf-grid)",
-  axis_color: "var(--color-cdf-axis)",
-  x_tick_color: "var(--color-cdf-axis)",
-  y_tick_color: "var(--color-cdf-axis-muted)",
-  axis_tick_color: "var(--color-cdf-axis-tick)",
+  axis_color: "var(--color-hairline-strong)",
+  tick_color: "var(--color-text-muted)",
 } as const;

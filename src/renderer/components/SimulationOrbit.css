@@ -1,0 +1,146 @@
+.simulation-orbit {
+  flex: 1 0 350px;
+  min-height: 350px;
+  position: relative;
+  margin: 2px 0 14px;
+}
+.simulation-orbit svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+.simulation-orbit text {
+  text-anchor: middle;
+  fill: var(--workbench-text);
+}
+.orbit-ring-track,
+.orbit-ring-progress {
+  fill: none;
+  stroke-width: 6;
+}
+.orbit-ring-track {
+  stroke: var(--workbench-selected-bg);
+}
+.orbit-ring-progress {
+  stroke: var(--workbench-primary);
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.3s linear;
+}
+.orbit-progress-head {
+  transform-origin: 220px 200px;
+  transition: transform 0.3s linear;
+  --orbit-head-color: var(--workbench-primary);
+}
+.simulation-orbit[data-status="starting"] .orbit-progress-head,
+.simulation-orbit[data-status="running"] .orbit-progress-head,
+.simulation-orbit[data-status="saving"] .orbit-progress-head {
+  --orbit-head-color: var(--workbench-success);
+}
+.simulation-orbit[data-status="completed"] .orbit-progress-head {
+  --orbit-head-color: var(--workbench-card-gold);
+}
+.simulation-orbit[data-status="cancelling"] .orbit-progress-head,
+.simulation-orbit[data-status="cancelled"] .orbit-progress-head,
+.simulation-orbit[data-status="failed"] .orbit-progress-head {
+  --orbit-head-color: var(--workbench-danger);
+}
+.orbit-head-surface {
+  fill: var(--workbench-surface);
+}
+.orbit-head-dot {
+  fill: var(--workbench-text-faint);
+}
+.orbit-head-ring {
+  fill: none;
+  stroke: var(--orbit-head-color);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: orbit-head-spin 1s linear infinite;
+}
+.simulation-orbit[data-motion="running"] .orbit-head-ring {
+  stroke-dasharray: 78 22;
+  /* The SVG arc runs clockwise from 3 o'clock: fade from tail to leading tip. */
+  mask-image: conic-gradient(
+    from 90deg,
+    transparent,
+    var(--orbit-head-color) 78% 82%,
+    transparent 82%
+  );
+  mask-mode: alpha;
+  mask-origin: stroke-box;
+  mask-clip: stroke-box;
+}
+.orbit-status {
+  font-size: var(--workbench-font-content);
+  font-weight: 500;
+}
+.orbit-count {
+  font-family: var(--workbench-font-mono);
+  font-size: var(--workbench-font-caption);
+  font-variant-numeric: tabular-nums;
+}
+.orbit-percent {
+  font-family: var(--workbench-font-mono);
+  font-size: var(--workbench-font-title);
+  font-weight: 600;
+}
+.orbit-cards {
+  animation: orbit-float 3s ease-in-out infinite alternate;
+}
+.orbit-card-enter {
+  transform-origin: 220px 264px;
+  animation: orbit-open 0.6s ease-out;
+}
+.orbit-particle {
+  offset-path: ellipse(107px 31px at 220px 211px);
+  offset-rotate: 0deg;
+  animation: orbit-travel 3s linear infinite;
+}
+.orbit-octahedron {
+  stroke: var(--workbench-card-gold-shadow);
+  stroke-width: 0.5;
+  stroke-linejoin: round;
+}
+.simulation-orbit[data-motion="paused"] * {
+  animation-play-state: paused;
+}
+.simulation-orbit[data-status="idle"] .orbit-ring-progress,
+.simulation-orbit[data-status="starting"] .orbit-ring-progress,
+.simulation-orbit[data-motion="paused"] .orbit-ring-progress,
+.simulation-orbit[data-status="idle"] .orbit-progress-head,
+.simulation-orbit[data-status="starting"] .orbit-progress-head,
+.simulation-orbit[data-motion="paused"] .orbit-progress-head {
+  transition: none;
+}
+@keyframes orbit-head-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes orbit-float {
+  to {
+    transform: translateY(-4px);
+  }
+}
+@keyframes orbit-open {
+  from {
+    transform: scaleX(0.75);
+  }
+}
+@keyframes orbit-travel {
+  to {
+    offset-distance: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .simulation-orbit[data-motion] .orbit-head-ring {
+    stroke-dasharray: none;
+    mask-image: none;
+  }
+  .simulation-orbit * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

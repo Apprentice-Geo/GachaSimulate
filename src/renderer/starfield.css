@@ -1,0 +1,7 @@
+/* Desktop hosts only: fixed stars never enter the shared export scene. */
+.visualize-scope.visualize-viewport {
+  background-color: #000;
+  background-image: url("./starfield.svg");
+  background-size: 960px 720px;
+  background-repeat: repeat;
+}

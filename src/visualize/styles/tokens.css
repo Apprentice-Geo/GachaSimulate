@@ -1,66 +1,88 @@
 .visualize-scope {
   color-scheme: dark;
-  --canvas-width: 3840px;
-  --canvas-height: 2160px;
   --page-margin: 128px;
   --page-top-margin: 80px;
   --top-height: 240px;
   --footer-height: 280px;
-  --square-length: 20px;
-
-  --color-sentry-primary: #150f23;
-  --color-sentry-ink: #1f1633;
-  --color-sentry-muted: #6b6578;
-  --color-sentry-pink: #fa7faa;
-  --color-nvidia-green: #76b900;
-  --color-nvidia-green-dark: #3f8500;
   --color-cyan: #22d3ee;
-  --color-canvas: #120d1f;
-  --color-page-backdrop: #303030;
+  --color-rarity-gray: #9ba7b9;
+  --color-rarity-green: #58d88e;
+  --color-rarity-blue: #4d9dff;
+  --color-rarity-purple: #b48aff;
+  --color-rarity-gold: #f3c45c;
+  --color-rarity-red: #f87586;
+  --color-cdf-frame: var(--color-rarity-blue);
+  --color-canvas: #12101b;
   --color-host-divider: #555555;
-  --color-preview-frame: #737373;
-  --preview-frame-width: 3px;
-  --color-panel: #1b142b;
-  --color-panel-soft: #211936;
-  --color-hairline: #362d59;
-  --color-hairline-strong: #51436f;
+  --color-panel: #17151f;
+  --color-panel-soft: #211e2c;
+  --color-hairline: #373143;
+  --color-hairline-strong: #514761;
   --color-text-primary: #f7f3ff;
-  --color-text-muted: rgba(247, 243, 255, 0.68);
-  --color-text-faint: rgba(247, 243, 255, 0.54);
-  --color-pk-a: #6a5fc1;
-  --color-pk-b: #fa7faa;
-  --color-pk-c: #22d3ee;
-  --color-pk-d: #76b900;
-  --color-pk-e: #f2c94c;
-  --color-pk-f: #ef9100;
-  --color-pk-g: #4d8dff;
-  --color-pk-h: #e85d75;
+  --color-text-muted: rgba(247, 243, 255, 0.78);
+  --color-text-faint: rgba(247, 243, 255, 0.6);
+  --color-pk-a: var(--color-rarity-blue);
+  --color-pk-b: var(--color-rarity-purple);
+  --color-pk-c: var(--color-rarity-gold);
+  --color-pk-d: var(--color-rarity-green);
+  --color-pk-e: var(--color-rarity-gray);
+  --color-pk-f: var(--color-rarity-red);
+  --color-pk-g: var(--color-cyan);
+  --color-pk-h: #ed85df;
   --color-danger: #e52020;
   --color-cdf-line: var(--color-cyan);
-  --color-cdf-grid: rgba(247, 243, 255, 0.12);
-  --color-cdf-axis: #4c4658;
-  --color-cdf-axis-muted: #b8bcc6;
-  --color-cdf-axis-tick: #c9cbd2;
-  --color-cdf-marker-min: var(--color-nvidia-green-dark);
-  --color-cdf-marker-p5: var(--color-nvidia-green-dark);
-  --color-cdf-marker-p25: var(--color-nvidia-green);
-  --color-cdf-marker-p50: #bff230;
-  --color-cdf-marker-mean: #952fc6;
-  --color-cdf-marker-p75: #ef9100;
-  --color-cdf-marker-p95: #df6500;
-  --color-cdf-marker-max: var(--color-danger);
+  --color-cdf-grid: rgba(241, 238, 232, 0.08);
+  --color-cdf-marker-min: var(--color-rarity-gray);
+  --color-cdf-marker-p5: var(--color-rarity-gray);
+  --color-cdf-marker-p25: #97bbdf;
+  --color-cdf-marker-p50: var(--color-rarity-gold);
+  --color-cdf-marker-mean: var(--color-rarity-purple);
+  --color-cdf-marker-p75: #97bbdf;
+  --color-cdf-marker-p95: #73b8ff;
+  --color-cdf-marker-max: var(--color-rarity-gray);
 
   --font-ui: SourceHanSansSC, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", SourceHanSansSC, monospace;
-  --radius-card: 2px;
+  /* Convert the shared desktop scale to the fixed 3840 x 2160 design canvas. */
+  --visualize-type-scale: 2;
+  --visualize-font-caption: calc(
+    var(--font-size-caption) * var(--visualize-type-scale)
+  );
+  --visualize-font-meta: calc(
+    var(--font-size-meta) * var(--visualize-type-scale)
+  );
+  --visualize-font-content: calc(
+    var(--font-size-content) * var(--visualize-type-scale)
+  );
+  --visualize-font-body: calc(
+    var(--font-size-body) * var(--visualize-type-scale)
+  );
+  --visualize-font-heading: calc(
+    var(--font-size-heading) * var(--visualize-type-scale)
+  );
+  --visualize-font-title: calc(
+    var(--font-size-title) * var(--visualize-type-scale)
+  );
+  --visualize-font-value: calc(
+    var(--font-size-value) * var(--visualize-type-scale)
+  );
+  --visualize-font-display: calc(
+    var(--font-size-display) * var(--visualize-type-scale)
+  );
+  --visualize-font-reading: calc(
+    var(--font-size-reading) * var(--visualize-type-scale)
+  );
+  --visualize-font-hero: calc(
+    var(--font-size-hero) * var(--visualize-type-scale)
+  );
+  --radius-card: 0px;
   --radius-button: 2px;
-  --color-stardust: rgba(247, 243, 255, 0.025);
 }
 
 .visualize-scope {
   color: var(--color-text-primary);
   font-family: var(--font-ui);
-  font-size: 16px;
+  font-size: var(--visualize-font-body);
   font-weight: 400;
   font-style: normal;
   line-height: normal;

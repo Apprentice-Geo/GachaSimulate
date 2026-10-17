@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import test from "node:test";
 import {
   EXPORT_FRAME_COUNT,
@@ -19,7 +17,9 @@ import { get_cdf_level_at_draw } from "../data/cdf";
 import { build_cdf_view_model } from "../view/cdf_view_model";
 import {
   build_curve_path,
+  build_curve_area_path,
   build_marker_views,
+  constrain_marker_label,
   resolve_marker_label_collisions,
 } from "../view/cdf_overlay_layout";
 import { STATISTIC_VIEW_ORDER } from "../view/statistic_view_config";
@@ -37,12 +37,6 @@ import { CDFChart } from "../components/CDFChart";
 import { VisualizeShell } from "../components/VisualizeShell";
 import { VisualizeScene } from "../VisualizeScene";
 
-function read_css_px_token(css: string, token_name: string): number {
-  const match = new RegExp(`--${token_name}:\\s*(\\d+)px`).exec(css);
-  assert.ok(match, `Missing CSS token --${token_name}`);
-  return Number(match[1]);
-}
-
 test("get_cdf_level_at_draw returns stepwise cumulative levels", () => {
   const sparse_points = [
     { draw: 1, cumulative: 0.2 },
@@ -55,14 +49,18 @@ test("get_cdf_level_at_draw returns stepwise cumulative levels", () => {
   assert.equal(get_cdf_level_at_draw(sparse_points, 101), 0.8);
 });
 
-test("canvas constants stay aligned with CSS tokens", () => {
-  const tokens_css = readFileSync(
-    path.join(process.cwd(), "src/visualize/styles/tokens.css"),
-    "utf-8",
-  );
-
-  assert.equal(read_css_px_token(tokens_css, "canvas-width"), CANVAS_WIDTH);
-  assert.equal(read_css_px_token(tokens_css, "canvas-height"), CANVAS_HEIGHT);
+test("interactive and export scenes use the canonical canvas dimensions", () => {
+  for (const render_mode of ["interactive", "export"] as const) {
+    const scene = VisualizeScene({
+      animation_progress: build_animation_progress(ANIMATION_TOTAL_MS),
+      animation_state: "idle",
+      data: {} as CDFViewModel,
+      render_mode,
+    });
+    const canvas = VisualizeShell(scene.props);
+    assert.equal(canvas.props.style["--canvas-width"], `${CANVAS_WIDTH}px`);
+    assert.equal(canvas.props.style["--canvas-height"], `${CANVAS_HEIGHT}px`);
+  }
 });
 
 test("build_marker_views positions labels for p50 and mean", () => {
@@ -151,6 +149,99 @@ test("resolve_marker_label_collisions returns adjusted copies", () => {
   assert.equal(adjusted_views[1].label_y, 36);
 });
 
+test("endpoint labels face inward, including a zero minimum", () => {
+  const markers: CDFMarker[] = [
+    {
+      key: "MIN",
+      label: "MIN",
+      draw: 0,
+      level: 0.001,
+      color: "gray",
+      weight: "faint",
+    },
+    {
+      key: "MAX",
+      label: "MAX",
+      draw: 100,
+      level: 1,
+      color: "gray",
+      weight: "faint",
+    },
+  ];
+  const views = build_marker_views(
+    markers,
+    { x: 200, y: 180, width: 2400, height: 1000 },
+    (draw: unknown) => 200 + Number(draw) * 24,
+    (level: unknown) => 1180 - Number(level) * 1000,
+  );
+  assert.equal(views[0].text_anchor, "start");
+  assert.ok(views[0].label_x > views[0].x);
+  assert.equal(views[1].text_anchor, "end");
+  assert.ok(views[1].label_x < views[1].x);
+});
+
+test("label constraints contain measured glyphs and stroke, not just anchors", () => {
+  const plot = {
+    left: 200,
+    top: 180,
+    right: 2600,
+    bottom: 1180,
+    width: 2400,
+    height: 1000,
+  };
+  const marker: CDFMarker = {
+    key: "MAX",
+    label: "MAX",
+    draw: 100,
+    level: 1,
+    color: "gray",
+    weight: "faint",
+  };
+  for (const text_anchor of ["start", "middle", "end"] as const) {
+    for (const dominant_baseline of [
+      "auto",
+      "hanging",
+      "middle",
+      "text-after-edge",
+    ] as const) {
+      const bounds = {
+        x: text_anchor === "start" ? -3 : text_anchor === "end" ? -123 : -63,
+        y:
+          dominant_baseline === "hanging"
+            ? -3
+            : dominant_baseline === "middle"
+              ? -33
+              : -63,
+        width: 126,
+        height: 66,
+      };
+      for (const [label_x, label_y] of [
+        [0, 0],
+        [2800, 1400],
+      ]) {
+        const view = constrain_marker_label(
+          {
+            marker,
+            x: 0,
+            y: 0,
+            label_x,
+            label_y,
+            text_anchor,
+            dominant_baseline,
+            label_text: "MAX",
+          },
+          bounds,
+          plot,
+        );
+        assert.ok(view.label_x + bounds.x >= plot.left + 8);
+        assert.ok(view.label_x + bounds.x + bounds.width <= plot.right - 8);
+        assert.ok(view.label_y + bounds.y >= 96);
+        assert.ok(view.label_y + bounds.y + bounds.height <= plot.bottom - 16);
+      }
+    }
+  }
+});
+
 test("build_curve_path clamps cumulative values", () => {
   const x_scale = (draw: unknown) => Number(draw) * 2;
   const y_scale = (level: unknown) => 120 - Number(level) * 100;
@@ -166,6 +257,21 @@ test("build_curve_path clamps cumulative values", () => {
     ),
     "M 2.00 100.00 L 6.00 100.00 L 6.00 20.00",
   );
+});
+
+test("CDF area preserves steps and closes only across observed values", () => {
+  const x_scale = (draw: unknown) => Number(draw) * 2;
+  const y_scale = (level: unknown) => 120 - Number(level) * 100;
+  const points = [
+    { draw: 1, cumulative: 0.2 },
+    { draw: 3, cumulative: 1 },
+  ];
+  assert.equal(
+    build_curve_area_path(points, x_scale, y_scale, 120),
+    "M 2.00 100.00 L 6.00 100.00 L 6.00 20.00 L 6.00 120.00 L 2.00 120.00 Z",
+  );
+  assert.equal(build_curve_area_path([], x_scale, y_scale, 120), "");
+  assert.equal(build_curve_area_path(points, undefined, y_scale, 120), "");
 });
 
 test("build_cdf_view_model normalizes Analysis and display fields together", () => {
@@ -325,6 +431,7 @@ test("every animation segment spans at least five frames", () => {
     ANIMATION_TIMELINE.CHART_SHELL,
     ANIMATION_TIMELINE.CHART_SURFACE,
     ANIMATION_TIMELINE.CURVE,
+    ANIMATION_TIMELINE.CURVE_AREA,
     ANIMATION_TIMELINE.STAT_SURFACE,
     ANIMATION_TIMELINE.TERMINATION_SURFACE,
     ANIMATION_TIMELINE.TERMINATION_TITLE,
@@ -362,6 +469,8 @@ test("timeline elements use their assigned easing at segment midpoints", () => {
   assert.equal(at_frame(6).title_area(0).opacity, 0.875);
   assert.equal(at_frame(13).chart_surface.opacity, 0.75);
   assert.equal(at_frame(32).curve, 0.5);
+  assert.equal(at_frame(48).curve_area, 0);
+  assert.equal(at_frame(51).curve_area, 0.75);
   assert.equal(at_frame(32).metadata(0).opacity, 0.875);
   assert.equal(at_frame(36).stat_surface.opacity, 0.75);
   assert.equal(at_frame(35).stat_content(0).opacity, 0.75);
@@ -457,6 +566,7 @@ test("frame 56 is unfinished and frame 57 is the complete state", () => {
   assert.deepEqual(progress.chart_shell, { opacity: 1, translate_y: 0 });
   assert.deepEqual(progress.chart_surface, { opacity: 1, translate_y: 0 });
   assert.equal(progress.curve, 1);
+  assert.equal(progress.curve_area, 1);
   assert.deepEqual(progress.mean_line, { opacity: 0.85, scale: 1 });
   assert.deepEqual(progress.stat_surface, { opacity: 1, translate_y: 0 });
   assert.deepEqual(progress.termination_surface, {
@@ -500,6 +610,7 @@ function observable_animation_progress(frame: number) {
     chart_shell: progress.chart_shell,
     chart_surface: progress.chart_surface,
     curve: progress.curve,
+    curve_area: progress.curve_area,
     mean_line: progress.mean_line,
     termination_surface: progress.termination_surface,
     termination_title: progress.termination_title,

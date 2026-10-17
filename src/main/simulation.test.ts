@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -297,7 +298,7 @@ test("cancels only after the child closes", async () => {
   assert.equal(task.active, false);
 });
 
-test("failed termination restores the active state and allows retry", async () => {
+test("failed termination keeps cancellation latched and allows retry", async () => {
   let attempts = 0;
   const { child, events, task } = create_task(async () => {
     attempts += 1;
@@ -305,7 +306,7 @@ test("failed termination restores the active state and allows retry", async () =
   });
 
   await assert.rejects(task.cancel(), /access denied/);
-  assert.equal(events.at(-1)?.status, "running");
+  assert.equal(events.at(-1)?.status, "cancelling");
   assert.equal(task.active, true);
 
   const retry = task.cancel();
@@ -325,12 +326,88 @@ test("child close wins when termination reports an error", async () => {
   assert.equal(task.active, false);
 });
 
-test("close timeout restores a retryable active state", async () => {
-  const { events, task } = create_task(async () => {}, 5);
+test("close timeout keeps cancellation latched until the child exits", async () => {
+  const { args, child, events, task } = create_task(async () => {}, 5);
 
   await assert.rejects(task.cancel(), /timed out/);
-  assert.equal(events.at(-1)?.status, "running");
+  assert.equal(events.at(-1)?.status, "cancelling");
   assert.equal(task.active, true);
+  writeFileSync(args.at(-1)!, "complete");
+  child.stdout.write(
+    `${JSON.stringify({
+      type: "completed",
+      result_path: args.at(-1),
+      total_runs: 1,
+      total_result: 1,
+    })}\n`,
+  );
+  child.close(0);
+  assert.equal(events.at(-1)?.status, "cancelled");
+  assert.equal(existsSync(args.at(-1)!), false);
+});
+
+test("cancellation discards even a completed output and suppresses late events", async () => {
+  for (const completed_before_cancel of [false, true]) {
+    for (const termination_fails of [false, true]) {
+      const results_dir = join(
+        simulation_results,
+        String(result_directory_id++),
+      );
+      const { args, child, events, task } = create_task(
+        async () => {
+          if (termination_fails) throw new Error("access denied");
+        },
+        100,
+        request,
+        results_dir,
+      );
+      const output = args.at(-1)!;
+      writeFileSync(output, "complete");
+      const completion = `${JSON.stringify({
+        type: "completed",
+        result_path: output,
+        total_runs: 1,
+        total_result: 1,
+      })}\n`;
+      child.stdout.write(
+        '{"type":"progress","completed":42,"total":100,"unit":"runs"}\n',
+      );
+      if (completed_before_cancel) child.stdout.write(completion);
+      const stopping = task.cancel();
+      if (termination_fails) await assert.rejects(stopping, /access denied/);
+      const count_after_cancel = events.length;
+      child.stdout.write(
+        '{"type":"started"}\n' +
+          '{"type":"stage","stage":"saving"}\n' +
+          '{"type":"progress","completed":100,"total":100,"unit":"runs"}\n' +
+          completion,
+      );
+      assert.equal(events.length, count_after_cancel);
+      child.close(0);
+      if (!termination_fails) await stopping;
+      assert.equal(events.at(-1)?.status, "cancelled");
+      assert.equal(
+        events.some(({ status }) => status === "completed"),
+        false,
+      );
+      assert.deepEqual(readdirSync(results_dir), []);
+    }
+  }
+});
+
+test("cancel waits for stdout close when the native process has already exited", async () => {
+  let termination_attempts = 0;
+  const { child, events, task } = create_task(async () => {
+    termination_attempts++;
+    throw new Error("already exited");
+  });
+  child.exitCode = 0;
+  const stopping = task.cancel();
+  assert.equal(termination_attempts, 0);
+  assert.equal(task.active, true);
+  child.close(0);
+  await stopping;
+  assert.equal(events.at(-1)?.status, "cancelled");
 });
 
 test("invalid JSONL keeps the task active until close then fails", async () => {

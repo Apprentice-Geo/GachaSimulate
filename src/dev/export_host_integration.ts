@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
   access,
+  copyFile,
   mkdir,
   mkdtemp,
   readFile,
@@ -609,6 +610,13 @@ async function main(): Promise<void> {
     assert.equal(result.ffmpeg_crash_closed, true);
     assert.equal(result.renderer_crashed, true);
     await probe_mp4(ffmpeg, mp4_output);
+    if (process.env.GACHASIMULATE_EXPORT_CAPTURE === "1") {
+      const capture_dir = resolve("tmp", "export-captures");
+      await mkdir(capture_dir, { recursive: true });
+      await copyFile(dual_png_output, join(capture_dir, "result.png"));
+      await copyFile(mp4_output, join(capture_dir, "result.mp4"));
+      console.log(`Export captures: ${capture_dir}`);
+    }
 
     await application.close();
     application = undefined;

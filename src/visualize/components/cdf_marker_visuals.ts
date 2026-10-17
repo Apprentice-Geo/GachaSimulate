@@ -4,7 +4,7 @@ interface CDFMarkerVisual {
   opacity: number;
   stroke_width: number;
   point_radius: number;
-  label_font_size: number;
+  label_font_size: string;
   label_font_weight: number;
   label_stroke_width: number;
 }
@@ -16,7 +16,7 @@ export const MARKER_VISUALS: Record<CDFMarker["weight"], CDFMarkerVisual> = {
     opacity: 0.85, // 不透明度
     stroke_width: 4, // 线条宽度
     point_radius: 11, // 标注点的半径
-    label_font_size: 30, // 标签字体大小
+    label_font_size: "var(--visualize-font-content)",
     label_font_weight: 700, // 标签字体粗细
     label_stroke_width: 5, // 标签描边宽度
   },
@@ -25,7 +25,7 @@ export const MARKER_VISUALS: Record<CDFMarker["weight"], CDFMarkerVisual> = {
     opacity: 0.9,
     stroke_width: 4.66,
     point_radius: 11,
-    label_font_size: 36,
+    label_font_size: "var(--visualize-font-body)",
     label_font_weight: 700,
     label_stroke_width: 5.5,
   },
@@ -34,7 +34,7 @@ export const MARKER_VISUALS: Record<CDFMarker["weight"], CDFMarkerVisual> = {
     opacity: 0.95,
     stroke_width: 5.32,
     point_radius: 13,
-    label_font_size: 42,
+    label_font_size: "var(--visualize-font-heading)",
     label_font_weight: 700,
     label_stroke_width: 6,
   },
@@ -43,7 +43,7 @@ export const MARKER_VISUALS: Record<CDFMarker["weight"], CDFMarkerVisual> = {
     opacity: 0.95,
     stroke_width: 6,
     point_radius: 16,
-    label_font_size: 48,
+    label_font_size: "var(--visualize-font-title)",
     label_font_weight: 800,
     label_stroke_width: 6,
   },

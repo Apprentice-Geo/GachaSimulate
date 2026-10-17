@@ -1,24 +1,34 @@
-/* Default Light; explicit Dark is reserved for internal validation. */
+/* Default Light; settings selects an explicit Workbench theme. */
 .workbench-host {
   color-scheme: light;
-  --workbench-bg: #fafafa;
+  --workbench-bg: #edf1f5;
   --workbench-surface: #ffffff;
-  --workbench-surface-muted: #f5f5f5;
-  --workbench-border: #e5e5e5;
-  --workbench-border-strong: #bdbdbd;
-  --workbench-text: #171717;
-  --workbench-text-muted: #525252;
-  --workbench-text-faint: #737373;
-  --workbench-primary: #171717;
-  --workbench-primary-hover: #383838;
+  --workbench-surface-muted: #f5f7fa;
+  --workbench-border: #dce3eb;
+  --workbench-border-strong: #bcc8d6;
+  --workbench-text: #182737;
+  --workbench-text-muted: #526477;
+  --workbench-text-faint: #687b8e;
+  /* Card quality and brand accents; separate from action and status roles. */
+  --workbench-card-blue: #4583d6;
+  --workbench-card-purple: #965fca;
+  --workbench-card-gold: #c99732;
+  --workbench-card-gold-highlight: #fff6d8;
+  --workbench-card-gold-shadow: #72501d;
+  --workbench-card-blue-surface: #c7ddfa;
+  --workbench-card-purple-surface: #dec6f5;
+  --workbench-card-gold-surface: #f4dfa1;
+  --workbench-orbit-track: #9aafc5;
+  --workbench-primary: #1766d4;
+  --workbench-primary-hover: #1052b0;
   --workbench-on-primary: #ffffff;
-  --workbench-hover: #eeeeee;
-  --workbench-selected-bg: #eaeaea;
-  --workbench-selected-border: #a3a3a3;
-  --workbench-selected-text: #171717;
-  --workbench-focus: #0070f3;
-  --workbench-link: #0068d9;
-  --workbench-info: #0068d9;
+  --workbench-hover: #e8eef5;
+  --workbench-selected-bg: #e8f1ff;
+  --workbench-selected-border: #a6c5ed;
+  --workbench-selected-text: #1758b0;
+  --workbench-focus: var(--workbench-primary);
+  --workbench-link: var(--workbench-primary);
+  --workbench-info: var(--workbench-primary);
   --workbench-success: #18733b;
   --workbench-danger: #c62828;
   --workbench-danger-hover: #a61c1c;
@@ -26,7 +36,7 @@
   --workbench-danger-surface: #fff1f1;
   --workbench-danger-border: #e8aaaa;
   --workbench-warning: #946000;
-  --workbench-disabled-bg: #ededed;
+  --workbench-disabled-bg: #e7edf4;
   --workbench-disabled-text: #858585;
   --workbench-disabled-border: #dedede;
   --workbench-input-bg: #ffffff;
@@ -39,20 +49,29 @@
 
 .workbench-host[data-workbench-theme="dark"] {
   color-scheme: dark;
-  --workbench-bg: #111111;
-  --workbench-surface: #191919;
-  --workbench-surface-muted: #222222;
-  --workbench-border: #333333;
-  --workbench-border-strong: #666666;
-  --workbench-text: #ededed;
+  --workbench-bg: #101419;
+  --workbench-surface: #191f27;
+  --workbench-surface-muted: #202832;
+  --workbench-border: #303d4b;
+  --workbench-border-strong: #53677b;
+  --workbench-text: #e7edf4;
   --workbench-text-muted: #b5b5b5;
   --workbench-text-faint: #999999;
-  --workbench-primary: #ededed;
-  --workbench-primary-hover: #cccccc;
-  --workbench-on-primary: #171717;
+  --workbench-card-blue: #659ce4;
+  --workbench-card-purple: #b78ae4;
+  --workbench-card-gold: #d8b86d;
+  --workbench-card-gold-highlight: #fff2c9;
+  --workbench-card-gold-shadow: #715526;
+  --workbench-card-blue-surface: #243c5b;
+  --workbench-card-purple-surface: #433052;
+  --workbench-card-gold-surface: #514329;
+  --workbench-orbit-track: #596d84;
+  --workbench-primary: #347de0;
+  --workbench-primary-hover: #4890ef;
+  --workbench-on-primary: #ffffff;
   --workbench-hover: #2c2c2c;
-  --workbench-selected-bg: #303030;
-  --workbench-selected-border: #777777;
+  --workbench-selected-bg: #1b304c;
+  --workbench-selected-border: #508bd9;
   --workbench-selected-text: #ffffff;
   --workbench-focus: #70adff;
   --workbench-link: #70adff;
@@ -60,14 +79,14 @@
   --workbench-success: #6ecb8d;
   --workbench-danger: #ff8585;
   --workbench-danger-hover: #ffa0a0;
-  --workbench-on-danger: #171717;
+  --workbench-on-danger: #182737;
   --workbench-danger-surface: #351e1e;
   --workbench-danger-border: #854444;
   --workbench-warning: #e5b65c;
   --workbench-disabled-bg: #292929;
   --workbench-disabled-text: #858585;
   --workbench-disabled-border: #393939;
-  --workbench-input-bg: #171717;
+  --workbench-input-bg: #182737;
   --workbench-overlay: rgba(0, 0, 0, 0.65);
   --workbench-shadow-dialog: 0 16px 48px rgba(0, 0, 0, 0.4);
   --workbench-scrollbar: #555555;
@@ -79,11 +98,11 @@
   --workbench-font-ui: SourceHanSansSC, "Segoe UI", sans-serif;
   --workbench-font-mono: "JetBrains Mono", SourceHanSansSC, monospace;
   --workbench-radius-button: 6px;
-  --workbench-radius-panel: 8px;
+  --workbench-radius-panel: 0px;
   --workbench-radius-scrollbar: 8px;
   --workbench-selection-stripe: 4px;
   --workbench-card-stripe-inset: 2px;
-  --desktop-font: 20px;
+  --desktop-font: var(--font-size-body);
   --desktop-unit: 1.15px;
 
   /* Common Workbench spacing; specialized layout geometry stays local. */
@@ -93,9 +112,10 @@
   --workbench-space-lg: calc(var(--desktop-unit) * 24);
   --workbench-control-height: calc(var(--desktop-unit) * 38);
 
-  --workbench-font-caption: calc(var(--desktop-unit) * 12);
-  --workbench-font-meta: calc(var(--desktop-unit) * 13);
-  --workbench-font-content: calc(var(--desktop-unit) * 15);
-  --workbench-font-body: var(--desktop-font);
-  --workbench-font-heading: calc(var(--desktop-unit) * 20);
+  --workbench-font-caption: var(--font-size-caption);
+  --workbench-font-meta: var(--font-size-meta);
+  --workbench-font-content: var(--font-size-content);
+  --workbench-font-body: var(--font-size-body);
+  --workbench-font-heading: var(--font-size-heading);
+  --workbench-font-title: var(--font-size-title);
 }

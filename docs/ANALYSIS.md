@@ -5,13 +5,13 @@
 ```json
 {
   "result_item": { "id": "draw_count", "name": "抽数" },
-  "totals": { "runs": "10000", "result": "123456" },
+  "totals": { "runs": "10000", "result": "15000" },
   "values": ["1", "2"],
   "cumulative": [0.5, 1],
   "statistic": {
     "P5": "1",
     "P25": "1",
-    "P50": "2",
+    "P50": "1",
     "P75": "2",
     "P95": "2",
     "MIN": "1",

@@ -19,6 +19,8 @@
 
 在应用的配置仓库页面下载并安装配置，默认下载源为官方配置仓库 [GachaSimulate-Configs](<https://github.com/Apprentice-Geo/GachaSimulate-Configs>)；也可以点击「选择本地目录」，指定本地配置目录。配置就绪后，选择统计物品与模拟参数即可运行。
 
+侧栏底部的「设置」提供浅色、深色工作台主题，并自动保存选择；软件版本、许可证与项目链接也在此查看。结果可视化和导出素材保持深色画面。
+
 ### 从源码运行
 
 开发基准为 Windows x64。先按 [Development Checks](<docs/DEVELOPMENT_CHECKS.md#前置准备>) 准备 Node.js、pnpm 与 MSYS2 UCRT64 工具链，然后在仓库根目录执行：

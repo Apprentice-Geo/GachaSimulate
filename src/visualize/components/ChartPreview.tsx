@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { use_element_size } from "../hooks/use_element_size";
 
 interface ChartPreviewProps {
@@ -15,12 +15,7 @@ export function ChartPreview({ size, children }: ChartPreviewProps) {
     <div
       className="visualize-scope chart-preview"
       ref={host_ref}
-      style={
-        {
-          height: size.height * scale,
-          "--preview-rendered-width": `${size.width * scale}px`,
-        } as CSSProperties
-      }
+      style={{ height: size.height * scale }}
     >
       <div
         className="chart-preview-content"

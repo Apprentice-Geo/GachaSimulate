@@ -1,4 +1,12 @@
-import { BarChart3, FilePenLine, Play, Store } from "lucide-react";
+import { WorkbenchIcon } from "./components/WorkbenchIcon";
+import {
+  BarChart3,
+  FilePenLine,
+  PanelsTopLeft,
+  Play,
+  Settings,
+  Store,
+} from "lucide-react";
 import { useCallback, useState, useMemo, type ReactNode } from "react";
 import type { ResultEditorState } from "../shared/result_editor";
 import { ExportWorkflow } from "./ExportWorkflow";
@@ -7,12 +15,15 @@ import { ResultEditorPage } from "./pages/ResultEditorPage";
 import { ConfigRepositoryPage } from "./pages/ConfigRepositoryPage";
 import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
 import { ResultVisualizePage } from "./pages/ResultVisualizePage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { save_theme, type WorkbenchTheme } from "./theme";
 
 type Page =
   | "simulation"
   | "config-repository"
   | "result-editor"
-  | "result-visualize";
+  | "result-visualize"
+  | "settings";
 
 const pages: Array<{
   id: Page;
@@ -22,26 +33,38 @@ const pages: Array<{
   {
     id: "simulation",
     label: "运行模拟",
-    icon: <Play aria-hidden="true" size={18} />,
+    icon: <WorkbenchIcon icon={Play} aria-hidden="true" size={18} />,
   },
   {
     id: "config-repository",
     label: "配置仓库",
-    icon: <Store aria-hidden="true" size={18} />,
+    icon: <WorkbenchIcon icon={Store} aria-hidden="true" size={18} />,
   },
   {
     id: "result-editor",
     label: "结果编辑",
-    icon: <FilePenLine aria-hidden="true" size={18} />,
+    icon: <WorkbenchIcon icon={FilePenLine} aria-hidden="true" size={18} />,
   },
   {
     id: "result-visualize",
     label: "结果可视化",
-    icon: <BarChart3 aria-hidden="true" size={18} />,
+    icon: <WorkbenchIcon icon={BarChart3} aria-hidden="true" size={18} />,
   },
 ];
 
 export default function App() {
+  const [theme, set_theme] = useState<WorkbenchTheme>(() =>
+    document.body.dataset.workbenchTheme === "dark" ? "dark" : "light",
+  );
+  const [theme_error, set_theme_error] = useState<string | null>(null);
+  const change_theme = (next: WorkbenchTheme) => {
+    set_theme(next);
+    set_theme_error(
+      save_theme(next)
+        ? null
+        : "主题已切换，但无法保存偏好；下次启动可能恢复默认主题。",
+    );
+  };
   const [visualize_actions_host, set_visualize_actions_host] =
     useState<HTMLDivElement | null>(null);
   const [active_page, set_active_page] = useState<Page>("simulation");
@@ -78,11 +101,15 @@ export default function App() {
       {({ active: export_active, open: open_export }) => (
         <div className="renderer-shell">
           <aside className="renderer-sidebar">
-            <div className="renderer-brand">
-              <span className="renderer-brand-mark" aria-hidden="true" />
-            </div>
             <nav aria-label="主导航">
-              <p className="renderer-nav-label">工作台</p>
+              <p className="renderer-nav-label">
+                <WorkbenchIcon
+                  icon={PanelsTopLeft}
+                  aria-hidden="true"
+                  size={24}
+                />
+                <span>工作台</span>
+              </p>
               {pages.map((page) => (
                 <button
                   key={page.id}
@@ -99,6 +126,20 @@ export default function App() {
                 </button>
               ))}
               <div ref={set_visualize_actions_host} />
+            </nav>
+            <nav className="renderer-settings-nav" aria-label="应用设置">
+              <button
+                className="renderer-nav-button"
+                aria-current={active_page === "settings" ? "page" : undefined}
+                aria-label="设置"
+                type="button"
+                onClick={() => set_active_page("settings")}
+              >
+                <WorkbenchIcon icon={Settings} aria-hidden="true" size={18} />
+                <span className="renderer-nav-copy">
+                  <strong>设置</strong>
+                </span>
+              </button>
             </nav>
           </aside>
           <main className="renderer-main">
@@ -119,6 +160,12 @@ export default function App() {
                 />
               ) : active_page === "config-repository" ? (
                 <ConfigRepositoryPage />
+              ) : active_page === "settings" ? (
+                <SettingsPage
+                  theme={theme}
+                  on_theme={change_theme}
+                  theme_error={theme_error}
+                />
               ) : null}
             </div>
           </main>

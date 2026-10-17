@@ -1,5 +1,7 @@
+import { WorkbenchIcon } from "../components/WorkbenchIcon";
+import { SimulationOrbit } from "../components/SimulationOrbit";
 import { FolderOpen, Play, Search } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "../components/Button";
 import { Field } from "../components/Field";
 import type { InstalledConfig } from "../../shared/installed_config";
@@ -48,6 +50,7 @@ export function SimulationPage({ active }: { active: boolean }) {
     unit: string;
   } | null>(null);
   const [result_path, set_result_path] = useState("");
+  const cancellation_requested = useRef(false);
   const key = (config: InstalledConfig) => `${config.source}:${config.id}`;
   const selected =
     configs.find((config) => key(config) === selected_key) ?? configs[0];
@@ -87,11 +90,31 @@ export function SimulationPage({ active }: { active: boolean }) {
     if (!window.desktopApi) return;
     return window.desktopApi.onSimulationEvent(
       ({ status: next_status, event, message }) => {
+        // IPC messages already queued at the time of the click must not resume
+        // progress or turn a cancelled run into a successful result.
+        if (cancellation_requested.current) {
+          if (["cancelling", "cancelled", "failed"].includes(next_status))
+            set_status(next_status);
+          if (message) set_operation_error(message);
+          return;
+        }
         set_status(next_status);
-        if (event?.type === "started") set_stage("loading_config");
+        if (event?.type === "started") {
+          set_stage("loading_config");
+          set_progress(null);
+          set_result_path("");
+          set_operation_error(null);
+        }
         if (event?.type === "stage") set_stage(event.stage);
         if (event?.type === "progress") set_progress(event);
-        if (event?.type === "completed") set_result_path(event.result_path);
+        if (event?.type === "completed") {
+          set_result_path(event.result_path);
+          set_progress({
+            completed: event.total_runs,
+            total: event.total_runs,
+            unit: "runs",
+          });
+        }
         if (message) set_operation_error(message);
       },
     );
@@ -105,6 +128,7 @@ export function SimulationPage({ active }: { active: boolean }) {
 
   const busy = ["starting", "running", "saving", "cancelling"].includes(status);
   const start = async () => {
+    cancellation_requested.current = false;
     set_operation_error(null);
     set_progress(null);
     set_result_path("");
@@ -133,6 +157,7 @@ export function SimulationPage({ active }: { active: boolean }) {
     };
     try {
       validate_simulation_request(request, logical_cpu_count);
+      set_status("starting");
       await window.desktopApi.startSimulation(request);
     } catch (reason) {
       set_status("failed");
@@ -143,9 +168,15 @@ export function SimulationPage({ active }: { active: boolean }) {
   };
 
   const cancel = async () => {
+    cancellation_requested.current = true;
+    set_status("cancelling");
+    set_result_path("");
     set_operation_error(null);
     try {
       await window.desktopApi.cancelSimulation();
+      set_status((current) =>
+        current === "cancelling" ? "cancelled" : current,
+      );
     } catch (reason) {
       set_operation_error(
         reason instanceof Error ? reason.message : String(reason),
@@ -163,19 +194,6 @@ export function SimulationPage({ active }: { active: boolean }) {
     }
   };
 
-  const stage_index = {
-    loading_config: 0,
-    simulating: 1,
-    saving: 2,
-  }[stage ?? "loading_config"];
-  const trace_state = (index: number) => {
-    if (status === "completed") return "done";
-    if (["failed", "cancelled"].includes(status) && index === stage_index)
-      return "failed";
-    if (status === "idle" || index > stage_index) return "pending";
-    return index < stage_index ? "done" : "active";
-  };
-
   return (
     <section
       hidden={!active}
@@ -184,7 +202,7 @@ export function SimulationPage({ active }: { active: boolean }) {
     >
       <header className="page-heading">
         <div className="renderer-placeholder-mark" aria-hidden="true">
-          <Play size={20} />
+          <WorkbenchIcon icon={Play} size={20} />
         </div>
         <div>
           <p className="renderer-eyebrow">SIMULATION CONSOLE</p>
@@ -254,7 +272,7 @@ export function SimulationPage({ active }: { active: boolean }) {
                 </small>
               </div>
               <label className="item-search">
-                <Search aria-hidden="true" size={15} />
+                <WorkbenchIcon icon={Search} aria-hidden="true" size={15} />
                 <span className="sr-only">搜索统计物品</span>
                 <input
                   autoComplete="off"
@@ -268,7 +286,7 @@ export function SimulationPage({ active }: { active: boolean }) {
             </div>
             <div
               aria-label="当前配置统计物品"
-              className="simulation-item-panel"
+              className="simulation-item-panel workbench-scroll-region"
               data-testid="simulation-item-list"
               role="radiogroup"
             >
@@ -304,7 +322,7 @@ export function SimulationPage({ active }: { active: boolean }) {
                 {status_labels[status]}
               </span>
             </div>
-            <div className="simulation-control-body">
+            <div className="simulation-control-body workbench-scroll-region">
               <div className="simulation-fields">
                 <Field className="target-field">
                   固定次数
@@ -360,16 +378,20 @@ export function SimulationPage({ active }: { active: boolean }) {
                   disabled={busy}
                   onClick={() => void start()}
                 >
-                  <Play size={16} aria-hidden="true" />
+                  <WorkbenchIcon icon={Play} size={16} aria-hidden="true" />
                   启动模拟
                 </Button>
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={!busy || status === "cancelling"}
+                  disabled={
+                    !busy || (status === "cancelling" && !operation_error)
+                  }
                   onClick={() => void cancel()}
                 >
-                  取消
+                  {status === "cancelling" && operation_error
+                    ? "重试取消"
+                    : "取消"}
                 </Button>
               </div>
               {operation_error && (
@@ -377,40 +399,21 @@ export function SimulationPage({ active }: { active: boolean }) {
                   错误：{operation_error}
                 </div>
               )}
-              <ol className="simulation-trace" aria-label="模拟任务轨迹">
-                {[
-                  ["编译配置", "YAML → IR"],
-                  [
-                    "运行模拟",
-                    progress
-                      ? `${progress.completed} / ${progress.total} runs`
-                      : "等待 core",
-                  ],
-                  [
-                    "保存 GSR",
-                    result_path ? result_path.split(/[\\/]/).pop() : "等待写入",
-                  ],
-                ].map(([label, detail], index) => (
-                  <li data-state={trace_state(index)} key={label}>
-                    <i aria-hidden="true" />
-                    <span>
-                      <strong>{label}</strong>
-                      <small title={index === 2 ? result_path : undefined}>
-                        {detail}
-                      </small>
-                    </span>
-                  </li>
-                ))}
-              </ol>
-              {progress && (
-                <progress
-                  aria-label="模拟进度"
-                  max={progress.total}
-                  value={progress.completed}
-                />
-              )}
+              <SimulationOrbit
+                status={status}
+                stage={stage}
+                progress={progress}
+                active={active}
+              />
               <div className="simulation-status" role="status">
-                <span>状态 / {status_labels[status]}</span>
+                <span title={result_path || undefined}>
+                  状态 / {status_labels[status]}
+                  {result_path && (
+                    <span className="simulation-result-path">
+                      {result_path}
+                    </span>
+                  )}
+                </span>
                 {result_path && (
                   <Button
                     variant="ghost"
@@ -418,7 +421,11 @@ export function SimulationPage({ active }: { active: boolean }) {
                     type="button"
                     onClick={() => void open_results()}
                   >
-                    <FolderOpen size={16} aria-hidden="true" />
+                    <WorkbenchIcon
+                      icon={FolderOpen}
+                      size={16}
+                      aria-hidden="true"
+                    />
                     打开结果目录
                   </Button>
                 )}

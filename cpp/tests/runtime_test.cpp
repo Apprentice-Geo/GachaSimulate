@@ -51,8 +51,8 @@ std::string hex(const std::vector<unsigned char> &data) {
   constexpr char digits[] = "0123456789abcdef";
   std::string result;
   for (const auto byte : data) {
-    result += digits[byte >> 4];
-    result += digits[byte & 15];
+    result += digits[byte >> 4u];
+    result += digits[byte & 15u];
   }
   return result;
 }
@@ -204,7 +204,7 @@ TEST(Runtime, LoadsInt64ResolveValuesAndRejectsInvalidOnes) {
   ir["item_resolve"][1]["reduce_per_batch"] = -1;
   std::ofstream(path) << ir;
   EXPECT_THROW(gachasimulate::load_ir_file(path.string()), std::runtime_error);
-  ir["item_resolve"][1]["retain"] = nlohmann::json::number_unsigned_t{1ULL << 63};
+  ir["item_resolve"][1]["retain"] = nlohmann::json::number_unsigned_t{1ULL << 63u};
   std::ofstream(path) << ir;
   EXPECT_THROW(gachasimulate::load_ir_file(path.string()), std::runtime_error);
   std::filesystem::remove(path);

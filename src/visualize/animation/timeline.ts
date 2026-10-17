@@ -14,6 +14,7 @@ export const ANIMATION_TIMELINE = {
   },
   CHART_SURFACE: { start_frame: 10, completion_frame: 16 },
   CURVE: { start_frame: 16, completion_frame: 48 },
+  CURVE_AREA: { start_frame: 48, completion_frame: 54 },
   METADATA: {
     start_frame: 24,
     completion_frame: 40,

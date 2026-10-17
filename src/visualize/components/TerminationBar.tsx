@@ -6,9 +6,8 @@ import type { CDFViewModel } from "../types/cdf";
 import { TERMINATION_REASON_VIEW_CONFIG } from "../view/statistic_view_config";
 
 interface TerminationBarProps {
-  data: CDFViewModel | null;
-  animation_progress: AnimationProgress | null;
-  is_ready: boolean;
+  data: CDFViewModel;
+  animation_progress: AnimationProgress;
 }
 
 function get_segment_color(index: number): string {
@@ -49,101 +48,80 @@ function build_segment_layout(reasons: readonly TerminationReason[]) {
 export function TerminationBar({
   data,
   animation_progress,
-  is_ready,
 }: TerminationBarProps) {
-  const segment_layout = data
-    ? build_segment_layout(data.termination_reason)
-    : [];
+  const segment_layout = build_segment_layout(data.termination_reason);
 
   return (
-    <footer className="termination-region" data-ready={is_ready}>
+    <footer className="termination-region">
       <div
         aria-hidden="true"
         className="termination-region-surface panel-surface"
-        style={
-          animation_progress
-            ? fade_style(animation_progress.termination_surface)
-            : undefined
-        }
+        style={fade_style(animation_progress.termination_surface)}
       />
       <div className="termination-bars" data-testid="termination-bar">
         <div
           className="metric-group-heading termination-heading"
+          style={fade_style(animation_progress.termination_title)}
+        >
+          <h2 className="visualize-section-label">达成路径分布</h2>
+        </div>
+        <div
+          className="pk-bar"
+          data-segment-count={data.termination_reason.length}
+          aria-label="终止原因比例"
           style={
-            animation_progress
-              ? fade_style(animation_progress.termination_title)
-              : undefined
+            {
+              opacity: animation_progress.pk_fill,
+            } as CSSProperties
           }
         >
-          <h2>达成路径分布</h2>
+          <div
+            className="pk-segments"
+            style={{
+              transform: `scaleX(${animation_progress.pk_fill})`,
+            }}
+          >
+            {segment_layout.map(({ item, index, position, start }) => {
+              const has_leading_seam =
+                position === "middle" || position === "end";
+              return (
+                <div
+                  className={`pk-segment pk-segment-${position}`}
+                  data-segment-position={position}
+                  key={item.reason}
+                  style={
+                    {
+                      "--segment-color": get_segment_color(index),
+                      display: item.proportion === 0 ? "none" : undefined,
+                      left: has_leading_seam
+                        ? `calc(${start}% - var(--pk-seam-width))`
+                        : `${start}%`,
+                      width: has_leading_seam
+                        ? `calc(${item.proportion}% + var(--pk-seam-width))`
+                        : `${item.proportion}%`,
+                      zIndex: index,
+                    } as CSSProperties
+                  }
+                />
+              );
+            })}
+          </div>
         </div>
-        {data ? (
-          <>
-            <div
-              className="pk-bar"
-              data-segment-count={data.termination_reason.length}
-              aria-label="终止原因比例"
-              style={
-                {
-                  opacity: animation_progress?.pk_fill ?? 1,
-                } as CSSProperties
-              }
-            >
-              <div
-                className="pk-segments"
-                style={{
-                  transform: `scaleX(${animation_progress?.pk_fill ?? 1})`,
-                }}
-              >
-                {segment_layout.map(({ item, index, position, start }) => {
-                  const has_leading_seam =
-                    position === "middle" || position === "end";
-                  return (
-                    <div
-                      className={`pk-segment pk-segment-${position}`}
-                      data-segment-position={position}
-                      key={item.reason}
-                      style={
-                        {
-                          "--segment-color": get_segment_color(index),
-                          display: item.proportion === 0 ? "none" : undefined,
-                          left: has_leading_seam
-                            ? `calc(${start}% - var(--pk-seam-width))`
-                            : `${start}%`,
-                          width: has_leading_seam
-                            ? `calc(${item.proportion}% + var(--pk-seam-width))`
-                            : `${item.proportion}%`,
-                          zIndex: index,
-                        } as CSSProperties
-                      }
-                    />
-                  );
-                })}
-              </div>
+        <div
+          className="reason-list"
+          style={fade_style(animation_progress.termination_detail)}
+        >
+          {data.termination_reason.map((item, index) => (
+            <div className="reason-item" key={item.reason}>
+              <span
+                className="reason-swatch"
+                style={{ background: get_segment_color(index) }}
+              />
+              <span>{item.reason}</span>
+              <strong>{item.proportion}%</strong>
             </div>
-            <div
-              className="reason-list"
-              style={
-                animation_progress
-                  ? fade_style(animation_progress.termination_detail)
-                  : undefined
-              }
-            >
-              {data.termination_reason.map((item, index) => (
-                <div className="reason-item" key={item.reason}>
-                  <span
-                    className="reason-swatch"
-                    style={{ background: get_segment_color(index) }}
-                  />
-                  <span>{item.reason}</span>
-                  <strong>{item.proportion}%</strong>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="pk-bar pk-bar-empty" aria-hidden="true" />
-        )}
+          ))}
+        </div>
       </div>
     </footer>
   );
