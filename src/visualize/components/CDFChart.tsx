@@ -6,7 +6,7 @@ import { CDF_CHART_VIEW_CONFIG } from "../view/cdf_view_config";
 import type { AnimationProgress } from "../animation/progress";
 
 const CHART_MARGIN = {
-  top: 116,
+  top: 180,
   right: 72,
   bottom: 68,
   left: 96,

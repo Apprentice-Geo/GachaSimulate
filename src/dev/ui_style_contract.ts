@@ -91,6 +91,7 @@ async function assert_workbench_primitives(page: Page) {
 
 /** Compare design-space paint and typography, independently of host scaling. */
 export async function chart_style(page: Page) {
+  await assert_chart_label_bounds(page);
   const borders = await page
     .locator(".cdf-chart-shell, .panel-surface")
     .evaluateAll((nodes) =>
@@ -168,6 +169,52 @@ export async function chart_style(page: Page) {
       }),
     ];
   });
+}
+
+/** The title band and the complete painted marker labels must stay separate. */
+export async function assert_chart_label_bounds(page: Page) {
+  const geometry = await page.locator(".cdf-chart-shell").evaluate((chart) => {
+    const chart_rect = chart.getBoundingClientRect();
+    const scale = chart_rect.width / (chart as HTMLElement).offsetWidth;
+    const heading = chart
+      .querySelector(".chart-frame-label")!
+      .getBoundingClientRect();
+    const labels = [
+      ...chart.querySelectorAll<SVGTextElement>(".marker-label"),
+    ].map((label) => {
+      const rect = label.getBoundingClientRect();
+      const stroke =
+        (parseFloat(getComputedStyle(label).strokeWidth) * scale) / 2;
+      return {
+        key: label.parentElement!.getAttribute("data-marker-key"),
+        left: (rect.left - stroke - chart_rect.left) / scale,
+        right: (rect.right + stroke - chart_rect.left) / scale,
+        top: (rect.top - stroke - chart_rect.top) / scale,
+        bottom: (rect.bottom + stroke - chart_rect.top) / scale,
+      };
+    });
+    return {
+      heading_bottom: (heading.bottom - chart_rect.top) / scale,
+      width: (chart as HTMLElement).offsetWidth,
+      height: (chart as HTMLElement).offsetHeight,
+      labels,
+    };
+  });
+  assert.equal(geometry.labels.length, 8);
+  for (const label of geometry.labels) {
+    assert.ok(
+      label.top >= geometry.heading_bottom + 16,
+      `${label.key} clears the heading: ${JSON.stringify(geometry)}`,
+    );
+    assert.ok(
+      label.left >= 0 && label.right <= geometry.width,
+      `${label.key} stays within horizontal chart bounds`,
+    );
+    assert.ok(
+      label.bottom <= geometry.height,
+      `${label.key} stays within vertical chart bounds`,
+    );
+  }
 }
 
 /** Workbench themes change paint, never chart presentation or desktop geometry. */
@@ -427,8 +474,8 @@ export async function assert_shared_typography(page: Page) {
 export async function assert_export_style(
   application: ElectronApplication,
   expected: Awaited<ReturnType<typeof chart_style>>,
+  fixture = result_fixture(),
 ) {
-  const fixture = result_fixture();
   const view_model = build_cdf_view_model(fixture.analysis!, fixture.display!);
   const [page, window_id] = await Promise.all([
     application.waitForEvent("window"),

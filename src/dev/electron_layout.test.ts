@@ -20,6 +20,7 @@ import {
   assert_export_style,
   assert_workbench_themes,
   assert_shared_typography,
+  assert_chart_label_bounds,
 } from "./ui_style_contract";
 
 const PROJECT_ROOT = process.cwd();
@@ -2009,6 +2010,56 @@ for (const [width, height] of [
     }
   });
 }
+
+test("CDF labels stay below the heading and inside the chart with close endpoints", async () => {
+  const { application, cdp, config_home, page } = await launch(1280, 720);
+  try {
+    const fixture = structuredClone(result_fixture());
+    // Ten observations: MIN/P5/P25 coincide at zero, P95/MAX at 100.
+    fixture.analysis = {
+      ...fixture.analysis,
+      totals: { runs: "10", result: "500" },
+      values: ["0", "1", "99", "100"],
+      cumulative: [0.3, 0.5, 0.7, 1],
+      statistic: {
+        MIN: "0",
+        P5: "0",
+        P25: "0",
+        P50: "50",
+        MEAN: "50",
+        MEAN_LEVEL: 0.5,
+        P75: "99",
+        P95: "100",
+        MAX: "100",
+      },
+    };
+    await application.evaluate(({ ipcMain }, input) => {
+      ipcMain.removeHandler("select-gsr-result");
+      ipcMain.handle("select-gsr-result", () => input);
+    }, fixture);
+    await page.getByRole("button", { name: "结果编辑", exact: true }).click();
+    await page.getByRole("button", { name: "选择 GSR", exact: true }).click();
+    await page.getByRole("button", { name: "更换 GSR", exact: true }).waitFor();
+    await page.evaluate(() => document.fonts.ready);
+    await assert_chart_label_bounds(page);
+    await page.getByRole("button", { name: "结果可视化", exact: true }).click();
+    await page
+      .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
+      .waitFor();
+    await assert_chart_label_bounds(page);
+    await assert_export_style(application, await chart_style(page), fixture);
+  } finally {
+    try {
+      await cdp.detach();
+    } finally {
+      try {
+        await application.close();
+      } finally {
+        await rm(config_home, { force: true, recursive: true });
+      }
+    }
+  }
+});
 
 test("Settings restores the theme after restarting Electron and rejects links from other renderers", async () => {
   let session = await launch(1280, 720);

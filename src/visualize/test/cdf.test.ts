@@ -19,6 +19,7 @@ import {
   build_curve_path,
   build_curve_area_path,
   build_marker_views,
+  constrain_marker_label,
   resolve_marker_label_collisions,
 } from "../view/cdf_overlay_layout";
 import { STATISTIC_VIEW_ORDER } from "../view/statistic_view_config";
@@ -146,6 +147,99 @@ test("resolve_marker_label_collisions returns adjusted copies", () => {
   assert.notEqual(adjusted_views[1], views[1]);
   assert.equal(adjusted_views[0].label_y, 50);
   assert.equal(adjusted_views[1].label_y, 36);
+});
+
+test("endpoint labels face inward, including a zero minimum", () => {
+  const markers: CDFMarker[] = [
+    {
+      key: "MIN",
+      label: "MIN",
+      draw: 0,
+      level: 0.001,
+      color: "gray",
+      weight: "faint",
+    },
+    {
+      key: "MAX",
+      label: "MAX",
+      draw: 100,
+      level: 1,
+      color: "gray",
+      weight: "faint",
+    },
+  ];
+  const views = build_marker_views(
+    markers,
+    { x: 200, y: 180, width: 2400, height: 1000 },
+    (draw: unknown) => 200 + Number(draw) * 24,
+    (level: unknown) => 1180 - Number(level) * 1000,
+  );
+  assert.equal(views[0].text_anchor, "start");
+  assert.ok(views[0].label_x > views[0].x);
+  assert.equal(views[1].text_anchor, "end");
+  assert.ok(views[1].label_x < views[1].x);
+});
+
+test("label constraints contain measured glyphs and stroke, not just anchors", () => {
+  const plot = {
+    left: 200,
+    top: 180,
+    right: 2600,
+    bottom: 1180,
+    width: 2400,
+    height: 1000,
+  };
+  const marker: CDFMarker = {
+    key: "MAX",
+    label: "MAX",
+    draw: 100,
+    level: 1,
+    color: "gray",
+    weight: "faint",
+  };
+  for (const text_anchor of ["start", "middle", "end"] as const) {
+    for (const dominant_baseline of [
+      "auto",
+      "hanging",
+      "middle",
+      "text-after-edge",
+    ] as const) {
+      const bounds = {
+        x: text_anchor === "start" ? -3 : text_anchor === "end" ? -123 : -63,
+        y:
+          dominant_baseline === "hanging"
+            ? -3
+            : dominant_baseline === "middle"
+              ? -33
+              : -63,
+        width: 126,
+        height: 66,
+      };
+      for (const [label_x, label_y] of [
+        [0, 0],
+        [2800, 1400],
+      ]) {
+        const view = constrain_marker_label(
+          {
+            marker,
+            x: 0,
+            y: 0,
+            label_x,
+            label_y,
+            text_anchor,
+            dominant_baseline,
+            label_text: "MAX",
+          },
+          bounds,
+          plot,
+        );
+        assert.ok(view.label_x + bounds.x >= plot.left + 8);
+        assert.ok(view.label_x + bounds.x + bounds.width <= plot.right - 8);
+        assert.ok(view.label_y + bounds.y >= 96);
+        assert.ok(view.label_y + bounds.y + bounds.height <= plot.bottom - 16);
+      }
+    }
+  }
 });
 
 test("build_curve_path clamps cumulative values", () => {

@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { useMemo } from "react";
 import { usePlotArea, useXAxisScale, useYAxisScale } from "recharts";
 import { get_marker_visual } from "./cdf_marker_visuals";
+import { use_marker_label_bounds } from "../hooks/use_marker_label_bounds";
 import type { CDFViewModel } from "../types/cdf";
 import { CDF_CHART_VIEW_CONFIG } from "../view/cdf_view_config";
 import {
@@ -23,9 +24,10 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
   const plot_area = usePlotArea();
   const x_scale = useXAxisScale();
   const y_scale = useYAxisScale();
+  const { ref, bounds } = use_marker_label_bounds(data.markers, plot_area);
   const marker_views = useMemo(
-    () => build_marker_views(data.markers, plot_area, x_scale, y_scale),
-    [plot_area, x_scale, y_scale, data.markers],
+    () => build_marker_views(data.markers, plot_area, x_scale, y_scale, bounds),
+    [plot_area, x_scale, y_scale, data.markers, bounds],
   );
   const curve_path = useMemo(
     () => build_curve_path(data.chart_points, x_scale, y_scale),
@@ -62,7 +64,7 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
   }
 
   return (
-    <g aria-hidden="true" className="marker-overlay">
+    <g aria-hidden="true" className="marker-overlay" ref={ref}>
       <path
         className="cdf-area-path"
         d={area_path}

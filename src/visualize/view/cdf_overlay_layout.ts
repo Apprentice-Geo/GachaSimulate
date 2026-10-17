@@ -1,6 +1,7 @@
 import type { ScaleFunction } from "recharts";
-import type { CDFMarker, CDFPoint } from "../types/cdf";
+import type { CDFMarker, CDFPoint, MarkerKey } from "../types/cdf";
 import { CDF_MARKER_VIEW_CONFIG } from "./cdf_view_config";
+import { CDF_MARKER_LABEL_TOP } from "./scene_layout";
 
 export interface MarkerView {
   marker: CDFMarker;
@@ -33,28 +34,36 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-function estimate_label_width(label: string): number {
-  return label.length * 19.2;
+// Glyph bounds relative to the text anchor, including its stroke.
+export interface MarkerLabelBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
-function clamp_label_x(
-  x: number,
-  text_anchor: MarkerView["text_anchor"],
-  label_text: string,
+export type MarkerLabelBoundsByKey = Partial<
+  Record<MarkerKey, MarkerLabelBounds>
+>;
+
+export function constrain_marker_label(
+  view: MarkerView,
+  bounds: MarkerLabelBounds,
   plot_box: PlotBox,
-): number {
-  const label_width = estimate_label_width(label_text);
-  if (text_anchor === "end") {
-    return clamp(x, plot_box.left + label_width, plot_box.right - 8);
-  }
-  if (text_anchor === "start") {
-    return clamp(x, plot_box.left + 8, plot_box.right - label_width);
-  }
-  return clamp(
-    x,
-    plot_box.left + label_width / 2,
-    plot_box.right - label_width / 2,
-  );
+): MarkerView {
+  return {
+    ...view,
+    label_x: clamp(
+      view.label_x,
+      plot_box.left + 8 - bounds.x,
+      plot_box.right - 8 - bounds.x - bounds.width,
+    ),
+    label_y: clamp(
+      view.label_y,
+      CDF_MARKER_LABEL_TOP - bounds.y,
+      plot_box.bottom - 16 - bounds.y - bounds.height,
+    ),
+  };
 }
 
 export function resolve_marker_label_collisions(
@@ -93,6 +102,7 @@ export function build_marker_views(
   plot_area: ChartPlotArea | undefined,
   x_scale: ScaleFunction | undefined,
   y_scale: ScaleFunction | undefined,
+  label_bounds: MarkerLabelBoundsByKey = {},
 ): MarkerView[] {
   if (!plot_area || !x_scale || !y_scale) {
     return [];
@@ -124,6 +134,12 @@ export function build_marker_views(
     let text_anchor: MarkerView["text_anchor"] = "end";
     let dominant_baseline: MarkerView["dominant_baseline"] = "auto";
     let label_text = marker.label;
+
+    if (marker.key === "MIN") {
+      label_x = x + 16;
+      text_anchor = "start";
+      dominant_baseline = "text-after-edge";
+    }
 
     if (marker.key === "MEAN") {
       label_x = x - 28;
@@ -165,16 +181,10 @@ export function build_marker_views(
     };
   });
 
-  return resolve_marker_label_collisions(views).map((view) => ({
-    ...view,
-    label_x: clamp_label_x(
-      view.label_x,
-      view.text_anchor,
-      view.label_text,
-      plot_box,
-    ),
-    label_y: clamp(view.label_y, 48, plot_box.bottom - 16),
-  }));
+  return resolve_marker_label_collisions(views).map((view) => {
+    const bounds = label_bounds[view.marker.key];
+    return bounds ? constrain_marker_label(view, bounds, plot_box) : view;
+  });
 }
 
 export function build_curve_path(
