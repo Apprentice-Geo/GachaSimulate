@@ -484,9 +484,9 @@ RunResult single_run(const RuntimeProgram &p, uint64_t run_seed) {
 namespace {
 uint64_t derive_run_seed(int64_t global_seed, uint64_t run_index) {
   uint64_t x = static_cast<uint64_t>(global_seed) + 0x9e3779b97f4a7c15ULL * (run_index + 1);
-  x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
-  x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
-  return x ^ (x >> 31);
+  x = (x ^ (x >> 30u)) * 0xbf58476d1ce4e5b9ULL;
+  x = (x ^ (x >> 27u)) * 0x94d049bb133111ebULL;
+  return x ^ (x >> 31u);
 }
 uint32_t effective_threads(uint64_t work, uint32_t threads) {
   if (!threads)

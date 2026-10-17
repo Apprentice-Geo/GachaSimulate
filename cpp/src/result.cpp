@@ -60,7 +60,7 @@ bool valid_utf8(const std::string &text) {
       return false;
     const auto first = *p;
     for (unsigned i = 1; i <= count; ++i)
-      if ((p[i] & 0xC0) != 0x80)
+      if ((p[i] & 0xC0u) != 0x80u)
         return false;
     if ((first == 0xE0 && p[1] < 0xA0) || (first == 0xED && p[1] >= 0xA0) ||
         (first == 0xF0 && p[1] < 0x90) || (first == 0xF4 && p[1] >= 0x90))
