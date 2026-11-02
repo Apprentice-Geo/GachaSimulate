@@ -75,6 +75,24 @@ function display_fields(input: DisplayConfig): DisplayFields {
   ) as DisplayFields;
 }
 
+export function validate_save_result_fields_request(
+  value: unknown,
+): SaveResultFieldsRequest {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("invalid result fields request");
+  const request = value as Record<string, unknown>;
+  if (
+    Object.keys(request).length !== 2 ||
+    typeof request.session_id !== "string" ||
+    !request.session_id
+  )
+    throw new Error("invalid result fields request");
+  return {
+    session_id: request.session_id,
+    fields: fields_value(request.fields),
+  };
+}
+
 function sidecar_path(path: string): string {
   return `${path.slice(0, -4)}.visualize.json`;
 }
@@ -115,8 +133,7 @@ export class ResultEditor {
   }
 
   save(value: SaveResultFieldsRequest): Promise<SavedResultFields> {
-    const session_id = value?.session_id;
-    const fields = fields_value(value?.fields);
+    const { session_id, fields } = validate_save_result_fields_request(value);
     if (!session_id || session_id !== this.session_id)
       return Promise.reject(new Error("result session has changed"));
     const operation = this.save_queue

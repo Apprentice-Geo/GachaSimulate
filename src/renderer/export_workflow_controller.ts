@@ -6,7 +6,7 @@ import {
   type ExportFormat,
   type ExportPreparationEvent,
 } from "../shared/export_task";
-import type { DesktopApi } from "../shared/installed_config";
+import type { DesktopApi } from "../shared/desktop_ipc";
 
 export type ExportContext = Readonly<{
   session_id: string;

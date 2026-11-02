@@ -6,20 +6,18 @@ import {
   Menu,
   net,
   shell,
-  type WebContents,
 } from "electron";
 import { cpus } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { ConfigManager } from "./config_manager";
 import { download_https, type ConfigRequest } from "./config_download";
 import { ResultEditor } from "./result_editor";
 import { shutdown_native_processes, SimulationTask } from "./simulation";
-import { validate_simulation_request } from "../shared/simulation";
-import type { SaveResultFieldsRequest } from "../shared/result_editor";
 import { UserRequestAdmission } from "./request_admission";
 import { ExportTaskCoordinator } from "./export_task";
-import { validate_export_task_request } from "../shared/export_task";
-import { app_links, type AppLink } from "../shared/app_info";
+import { app_links } from "../shared/app_info";
+import { DesktopIpc, protect_desktop_navigation } from "./desktop_ipc";
 import { ShutdownCoordinator } from "./shutdown";
 
 let simulation: SimulationTask;
@@ -27,6 +25,10 @@ let result_editor: ResultEditor;
 let config_manager: ConfigManager;
 let export_tasks: ExportTaskCoordinator;
 let main_window: BrowserWindow | null = null;
+const desktop_url =
+  process.env.ELECTRON_RENDERER_URL ??
+  pathToFileURL(join(__dirname, "../renderer/index.html")).href;
+const desktop_ipc = new DesktopIpc(ipcMain, () => main_window, desktop_url);
 const admission = new UserRequestAdmission();
 let exit_committed = false;
 let exit_request: Promise<void> | null = null;
@@ -89,6 +91,12 @@ function request_exit(before_shutdown?: () => Promise<void>): Promise<void> {
   return operation;
 }
 
+function require_main_window(): BrowserWindow {
+  if (!main_window || main_window.isDestroyed())
+    throw new Error("main window is unavailable");
+  return main_window;
+}
+
 function create_window(): void {
   const window = new BrowserWindow({
     width: 1600,
@@ -106,6 +114,7 @@ function create_window(): void {
     },
   });
   main_window = window;
+  protect_desktop_navigation(window, desktop_url);
   if (!app.isPackaged) {
     window.webContents.on("before-input-event", (event, input) => {
       if (
@@ -148,13 +157,8 @@ app.whenReady().then(() => {
   result_editor = new ResultEditor({
     assert_open_allowed: () => admission.admit("analysis"),
   });
-  export_tasks = new ExportTaskCoordinator(
-    result_editor,
-    admission,
-    (event) => {
-      if (main_window && !main_window.isDestroyed())
-        main_window.webContents.send("export-event", event);
-    },
+  export_tasks = new ExportTaskCoordinator(result_editor, admission, (event) =>
+    desktop_ipc.send("export-event", event),
   );
   config_manager = new ConfigManager(configs_dir, {
     download: (url, limit) =>
@@ -164,49 +168,42 @@ app.whenReady().then(() => {
   simulation = new SimulationTask(
     config_manager.installed_dir,
     results_dir,
-    (event) => {
-      for (const window of BrowserWindow.getAllWindows())
-        window.webContents.send("simulation-event", event);
-    },
+    (event) => desktop_ipc.send("simulation-event", event),
     {
       local_dir: () => config_manager.local_dir,
       shutdown_native_processes: shutdown_native,
     },
   );
-  ipcMain.handle("list-configs", () => config_manager.list_configs());
-  ipcMain.handle("open-app-link", (event, link: unknown) => {
-    if (!main_window || event.sender !== main_window.webContents)
-      throw new Error(
-        "application link request came from an untrusted renderer",
-      );
-    if (typeof link !== "string" || !Object.hasOwn(app_links, link))
-      throw new Error("unknown application link");
-    return shell.openExternal(app_links[link as AppLink]);
-  });
-  ipcMain.handle("get-config-repository-state", () => config_manager.state());
-  ipcMain.handle("refresh-config-repository", (_event, force: boolean) => {
+  desktop_ipc.handle("list-configs", () => config_manager.list_configs());
+  desktop_ipc.handle("open-app-link", (link) =>
+    shell.openExternal(app_links[link]),
+  );
+  desktop_ipc.handle("get-config-repository-state", () =>
+    config_manager.state(),
+  );
+  desktop_ipc.handle("refresh-config-repository", (force) => {
     admission.admit("config-refresh");
     return config_manager.refresh(force === true);
   });
-  ipcMain.handle("install-config", (_event, id: string) => {
+  desktop_ipc.handle("install-config", (id) => {
     admission.admit("config-change");
     return config_manager.install(id);
   });
-  ipcMain.handle("update-config", (_event, id: string) => {
+  desktop_ipc.handle("update-config", (id) => {
     admission.admit("config-change");
     return config_manager.update(id);
   });
-  ipcMain.handle("uninstall-config", (_event, id: string) => {
+  desktop_ipc.handle("uninstall-config", (id) => {
     admission.admit("config-change");
     return config_manager.uninstall(id);
   });
-  ipcMain.handle("select-local-config-directory", async () => {
+  desktop_ipc.handle("select-local-config-directory", async () => {
     admission.admit("config-change");
     if (simulation.active)
       throw new Error("local directory cannot change during simulation");
     if (config_manager.active)
       throw new Error("a configuration change is already running");
-    const result = await dialog.showOpenDialog({
+    const result = await dialog.showOpenDialog(require_main_window(), {
       properties: ["openDirectory"],
     });
     if (result.canceled || result.filePaths.length === 0)
@@ -218,18 +215,17 @@ app.whenReady().then(() => {
       throw new Error("a configuration change is already running");
     return config_manager.set_local_directory(result.filePaths[0]);
   });
-  ipcMain.handle("get-logical-cpu-count", () => cpus().length);
-  ipcMain.handle("start-simulation", (_event, request: unknown) => {
+  desktop_ipc.handle("get-logical-cpu-count", () => cpus().length);
+  desktop_ipc.handle("start-simulation", (request) => {
     admission.admit("simulation");
     if (config_manager.active)
       throw new Error("simulation cannot start during a configuration change");
-    validate_simulation_request(request, cpus().length);
     simulation.start(request);
   });
-  ipcMain.handle("cancel-simulation", () => shutdown_native());
-  ipcMain.handle("select-gsr-result", async () => {
+  desktop_ipc.handle("cancel-simulation", () => shutdown_native());
+  desktop_ipc.handle("select-gsr-result", async () => {
     admission.admit("analysis");
-    const result = await dialog.showOpenDialog({
+    const result = await dialog.showOpenDialog(require_main_window(), {
       defaultPath: results_dir,
       properties: ["openFile"],
       filters: [{ name: "GachaSimulate 结果", extensions: ["gsr"] }],
@@ -238,27 +234,14 @@ app.whenReady().then(() => {
     admission.admit("analysis");
     return result_editor.open(result.filePaths[0]);
   });
-  ipcMain.handle(
-    "save-result-fields",
-    (_event, request: SaveResultFieldsRequest) => {
-      admission.admit("result-save");
-      return result_editor.save(request);
-    },
-  );
-  const assert_export_sender = (sender: WebContents) => {
-    if (
-      !main_window ||
-      main_window.isDestroyed() ||
-      sender !== main_window.webContents
-    )
-      throw new Error("export request came from an untrusted renderer");
-  };
-  ipcMain.handle("prepare-export", (event, request: unknown) => {
-    assert_export_sender(event.sender);
+  desktop_ipc.handle("save-result-fields", (request) => {
+    admission.admit("result-save");
+    return result_editor.save(request);
+  });
+  desktop_ipc.handle("prepare-export", (request) => {
     return export_tasks.prepare(request);
   });
-  ipcMain.handle("select-export-destination", (event, request: unknown) => {
-    assert_export_sender(event.sender);
+  desktop_ipc.handle("select-export-destination", (request) => {
     return export_tasks.select_destination(request, async () => {
       if (!main_window || main_window.isDestroyed())
         throw new Error("main window is unavailable");
@@ -270,31 +253,24 @@ app.whenReady().then(() => {
         : result.filePaths[0];
     });
   });
-  ipcMain.handle("confirm-export-overwrite", (event, request: unknown) => {
-    assert_export_sender(event.sender);
+  desktop_ipc.handle("confirm-export-overwrite", (request) => {
     return export_tasks.confirm_overwrite(request);
   });
-  ipcMain.handle("cancel-export", (event, request: unknown) => {
-    assert_export_sender(event.sender);
+  desktop_ipc.handle("cancel-export", (request) => {
     return export_tasks.cancel(request);
   });
-  ipcMain.handle("retry-export-cleanup", (event, request: unknown) => {
-    assert_export_sender(event.sender);
+  desktop_ipc.handle("retry-export-cleanup", (request) => {
     return export_tasks.retry_cleanup(request);
   });
-  ipcMain.handle("open-export-directory", (event, request: unknown) => {
-    assert_export_sender(event.sender);
+  desktop_ipc.handle("open-export-directory", (request) => {
     return export_tasks.open_directory(request, open_directory);
   });
-  ipcMain.handle(
-    "exit-after-export-cleanup",
-    async (event, request: unknown) => {
-      assert_export_sender(event.sender);
-      validate_export_task_request(request);
-      await request_exit(() => export_tasks.retry_cleanup(request));
-    },
+  desktop_ipc.handle("exit-after-export-cleanup", async (request) => {
+    await request_exit(() => export_tasks.retry_cleanup(request));
+  });
+  desktop_ipc.handle("open-results-directory", () =>
+    open_directory(results_dir),
   );
-  ipcMain.handle("open-results-directory", () => open_directory(results_dir));
   create_window();
 
   app.on("activate", () => {

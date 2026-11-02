@@ -3,7 +3,7 @@ import {
   type DisplayFields,
   type ResultEditorState,
 } from "../shared/result_editor";
-import type { DesktopApi } from "../shared/installed_config";
+import type { DesktopApi } from "../shared/desktop_ipc";
 import { validate_display_config } from "../visualize/data/validate_display_config";
 import {
   apply_cdf_display,
