@@ -14,6 +14,7 @@ import {
   type DisplayFields,
   type ResultEditorState,
   type SaveResultFieldsRequest,
+  type SavedResultFields,
 } from "../shared/result_editor";
 import type { Analysis } from "../visualize/types/analysis";
 import type { DisplayConfig } from "../visualize/types/display_config";
@@ -113,7 +114,7 @@ export class ResultEditor {
     return this.state();
   }
 
-  save(value: SaveResultFieldsRequest): Promise<ResultEditorState> {
+  save(value: SaveResultFieldsRequest): Promise<SavedResultFields> {
     const session_id = value?.session_id;
     const fields = fields_value(value?.fields);
     if (!session_id || session_id !== this.session_id)
@@ -149,7 +150,7 @@ export class ResultEditor {
         }
         this.display = display;
         this.save_error = null;
-        return this.state();
+        return { session_id, display };
       });
     this.save_queue = operation.then(
       () => undefined,

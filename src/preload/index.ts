@@ -24,7 +24,8 @@ contextBridge.exposeInMainWorld("desktopApi", {
   selectGsrResult: () => ipcRenderer.invoke("select-gsr-result"),
   saveResultFields: (
     request: import("../shared/result_editor").SaveResultFieldsRequest,
-  ) => ipcRenderer.invoke("save-result-fields", request),
+  ): Promise<import("../shared/result_editor").SavedResultFields> =>
+    ipcRenderer.invoke("save-result-fields", request),
   prepareExport: (
     request: import("../shared/export_task").ExportPreparationRequest,
   ) => ipcRenderer.invoke("prepare-export", request),

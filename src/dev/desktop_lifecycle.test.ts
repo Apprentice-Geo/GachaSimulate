@@ -5,6 +5,118 @@ import { join } from "node:path";
 import test from "node:test";
 import { _electron as electron } from "playwright";
 import { result_fixture } from "./ui_fixtures";
+import type {
+  SavedResultFields,
+  SaveResultFieldsRequest,
+} from "../shared/result_editor";
+
+test("delayed saves cannot restore a previous session or replace a returning page draft", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "gachasimulate-save-order-"));
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([, value]) => value !== undefined),
+  ) as Record<string, string>;
+  delete env.ELECTRON_RUN_AS_NODE;
+  const application = await electron.launch({
+    args: [process.cwd()],
+    cwd: process.cwd(),
+    env: {
+      ...env,
+      GACHASIMULATE_ELECTRON_OFFSCREEN: "1",
+      XDG_CONFIG_HOME: directory,
+    },
+  });
+  try {
+    const page = await application.firstWindow();
+    for (const outcome of ["new-session", "new-draft"] as const) {
+      const first = structuredClone(result_fixture());
+      first.session_id = "A";
+      first.fields.title = first.display.title = "A original";
+      const second = structuredClone(first);
+      second.session_id = "B";
+      second.fields.title = second.display.title = "B original";
+      await application.evaluate(
+        ({ ipcMain }, fixtures) => {
+          const pending: Array<{
+            request: SaveResultFieldsRequest;
+            resolve: (saved: SavedResultFields) => void;
+          }> = [];
+          (
+            globalThis as never as { saveOrder: { pending: typeof pending } }
+          ).saveOrder = { pending };
+          ipcMain.removeHandler("select-gsr-result");
+          ipcMain.handle("select-gsr-result", () => fixtures.shift());
+          ipcMain.removeHandler("save-result-fields");
+          ipcMain.handle(
+            "save-result-fields",
+            (_event, request: SaveResultFieldsRequest) =>
+              new Promise<SavedResultFields>((resolve) =>
+                pending.push({ request, resolve }),
+              ),
+          );
+        },
+        [first, second],
+      );
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: "结果编辑", exact: true }).click();
+      await page.getByRole("button", { name: "选择 GSR", exact: true }).click();
+      await page.getByLabel("标题", { exact: true }).fill("A saved");
+      await page
+        .getByRole("button", { name: "结果可视化", exact: true })
+        .click();
+      await application.evaluate(async () => {
+        const state = (
+          globalThis as never as { saveOrder: { pending: unknown[] } }
+        ).saveOrder;
+        const deadline = Date.now() + 5000;
+        while (!state.pending.length) {
+          if (Date.now() > deadline)
+            throw new Error("blur save did not reach main");
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+      });
+      if (outcome === "new-session") {
+        await page
+          .getByRole("button", { name: "更换结果", exact: true })
+          .click();
+        await page.locator('[data-testid="visualize-root"]').waitFor();
+      }
+      await page.getByRole("button", { name: "结果编辑", exact: true }).click();
+      if (outcome === "new-draft")
+        await page.getByLabel("标题", { exact: true }).fill("A newer draft");
+      await application.evaluate(() => {
+        const state = (
+          globalThis as never as {
+            saveOrder: {
+              pending: Array<{
+                request: SaveResultFieldsRequest;
+                resolve: (saved: SavedResultFields) => void;
+              }>;
+            };
+          }
+        ).saveOrder;
+        const saved = state.pending.shift()!;
+        saved.resolve({
+          session_id: saved.request.session_id,
+          display: { display_version: 2, ...saved.request.fields },
+        });
+      });
+      // An IPC round trip plus a frame lets the delayed response reach React.
+      await page.evaluate(async () => {
+        await window.desktopApi.getLogicalCpuCount();
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => resolve()),
+        );
+      });
+      assert.equal(
+        await page.getByLabel("标题", { exact: true }).inputValue(),
+        outcome === "new-session" ? "B original" : "A newer draft",
+      );
+    }
+  } finally {
+    await application.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test("renderer rejects unrenderable loads before publishing and can load again", async () => {
   const directory = await mkdtemp(join(tmpdir(), "gachasimulate-load-"));

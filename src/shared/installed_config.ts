@@ -49,7 +49,7 @@ export type DesktopApi = {
   >;
   saveResultFields: (
     request: import("./result_editor").SaveResultFieldsRequest,
-  ) => Promise<import("./result_editor").ResultEditorState>;
+  ) => Promise<import("./result_editor").SavedResultFields>;
   prepareExport: (
     request: import("./export_task").ExportPreparationRequest,
   ) => Promise<import("./export_task").ExportPreparationAccepted>;

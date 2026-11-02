@@ -83,25 +83,33 @@ test("saves and restores DisplayConfig while analysis remains authoritative", as
       },
     });
     assert.deepEqual(
-      JSON.parse(readFileSync(saved.sidecar_path, "utf8")),
+      JSON.parse(readFileSync(opened.sidecar_path, "utf8")),
       saved.display,
     );
     assert.equal(saved.display.result_item_name, "代币");
+    assert.deepEqual(Object.keys(saved).sort(), ["display", "session_id"]);
     assert.equal(saved.display.display_version, 2);
     assert.equal("timestamp" in saved.display, false);
     const snapshot = await editor.snapshot(opened.session_id);
     assert.deepEqual(snapshot.analysis, opened.analysis);
     assert.notEqual(snapshot.analysis, opened.analysis);
     assert.deepEqual(snapshot.display, saved.display);
+    const later = await editor.save({
+      session_id: opened.session_id,
+      fields: { ...opened.fields, title: "后续编辑" },
+    });
+    assert.equal(snapshot.display.title, "标题");
+    assert.equal(snapshot.view_model.title, "标题");
+    assert.equal(Object.isFrozen(snapshot), true);
 
     const reopening = editor.open(path);
     children[1].stdout.write(JSON.stringify(analysis));
     children[1].close();
     const reopened = await reopening;
-    assert.deepEqual(reopened.display, saved.display);
+    assert.deepEqual(reopened.display, later.display);
     assert.notEqual(reopened.session_id, opened.session_id);
     await assert.rejects(
-      editor.save({ session_id: opened.session_id, fields: saved.fields }),
+      editor.save({ session_id: opened.session_id, fields: opened.fields }),
       /session has changed/,
     );
     assert.deepEqual(snapshot.display, saved.display);
