@@ -31,6 +31,7 @@ import {
   type SimulationStatus,
 } from "../shared/simulation";
 import { resolve_config_selection } from "./config_manager";
+import { settle_shutdown } from "./shutdown";
 
 const STDERR_LIMIT = 64 * 1024;
 const JSONL_LINE_LIMIT = 64 * 1024;
@@ -72,10 +73,10 @@ export function resolve_native_executable(
 export async function shutdown_native_processes(
   ...tasks: Array<NativeTask | undefined>
 ): Promise<void> {
-  await Promise.all(
+  await settle_shutdown(
     tasks
       .filter((task): task is NativeTask => Boolean(task?.active))
-      .map((task) => task.cancel()),
+      .map((task) => () => task.cancel()),
   );
 }
 

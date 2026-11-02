@@ -20,6 +20,7 @@ import { UserRequestAdmission } from "./request_admission";
 import { ExportTaskCoordinator } from "./export_task";
 import { validate_export_task_request } from "../shared/export_task";
 import { app_links, type AppLink } from "../shared/app_info";
+import { ShutdownCoordinator } from "./shutdown";
 
 let simulation: SimulationTask;
 let result_editor: ResultEditor;
@@ -27,7 +28,14 @@ let config_manager: ConfigManager;
 let export_tasks: ExportTaskCoordinator;
 let main_window: BrowserWindow | null = null;
 const admission = new UserRequestAdmission();
-let quitting = false;
+let exit_committed = false;
+let exit_request: Promise<void> | null = null;
+const shutdown = new ShutdownCoordinator(admission, [
+  () => shutdown_native(),
+  async () => {
+    await export_tasks?.shutdown();
+  },
+]);
 const electron_offscreen = process.env.GACHASIMULATE_ELECTRON_OFFSCREEN === "1";
 // Automation already supplies a temporary profile; isolate persisted UI settings too.
 if (electron_offscreen && process.env.XDG_CONFIG_HOME)
@@ -46,9 +54,39 @@ function shutdown_native(): Promise<void> {
   return shutdown_native_processes(simulation, result_editor);
 }
 
-async function shutdown_all(): Promise<void> {
-  admission.begin_shutdown();
-  await Promise.all([shutdown_native(), export_tasks?.shutdown()]);
+function request_exit(before_shutdown?: () => Promise<void>): Promise<void> {
+  if (exit_request) return exit_request;
+  const operation = (async () => {
+    const window = main_window;
+    if (simulation?.active && window && !window.isDestroyed()) {
+      const { response } = await dialog.showMessageBox(window, {
+        type: "warning",
+        buttons: ["继续运行", "关闭并取消任务"],
+        defaultId: 0,
+        cancelId: 0,
+        message: "模拟仍在运行，确定要关闭窗口吗？",
+      });
+      if (response !== 1) return;
+    }
+    await before_shutdown?.();
+    await shutdown.stop();
+    exit_committed = true;
+    if (window && !window.isDestroyed()) window.destroy();
+    app.quit();
+  })().catch((error) => {
+    dialog.showErrorBox(
+      "无法退出 GachaSimulate",
+      error instanceof Error ? error.message : String(error),
+    );
+    throw error;
+  });
+  exit_request = operation;
+  void operation
+    .finally(() => {
+      if (exit_request === operation) exit_request = null;
+    })
+    .catch(() => undefined);
+  return operation;
 }
 
 function create_window(): void {
@@ -89,51 +127,9 @@ function create_window(): void {
   });
 
   window.on("close", (event) => {
-    if (
-      (result_editor?.active || export_tasks?.active) &&
-      !simulation?.active
-    ) {
-      event.preventDefault();
-      if (quitting) return;
-      quitting = true;
-      void shutdown_all().then(
-        () => window.destroy(),
-        () => {
-          quitting = false;
-        },
-      );
-      return;
-    }
-    if (!simulation?.active) return;
+    if (exit_committed) return;
     event.preventDefault();
-    if (quitting) return;
-    quitting = true;
-    void dialog
-      .showMessageBox(window, {
-        type: "warning",
-        buttons: ["继续运行", "关闭并取消任务"],
-        defaultId: 0,
-        cancelId: 0,
-        message: "模拟仍在运行，确定要关闭窗口吗？",
-      })
-      .then(async ({ response }) => {
-        if (response !== 1) {
-          quitting = false;
-          return;
-        }
-        try {
-          await shutdown_all();
-          window.destroy();
-        } catch (error) {
-          quitting = false;
-          await dialog.showMessageBox(window, {
-            type: "error",
-            buttons: ["确定"],
-            message: "无法终止模拟进程",
-            detail: error instanceof Error ? error.message : String(error),
-          });
-        }
-      });
+    void request_exit().catch(() => undefined);
   });
 
   const renderer_url = process.env.ELECTRON_RENDERER_URL;
@@ -149,7 +145,9 @@ app.whenReady().then(() => {
 
   const configs_dir = join(app.getPath("userData"), "configs");
   const results_dir = join(app.getPath("userData"), "results");
-  result_editor = new ResultEditor();
+  result_editor = new ResultEditor({
+    assert_open_allowed: () => admission.admit("analysis"),
+  });
   export_tasks = new ExportTaskCoordinator(
     result_editor,
     admission,
@@ -213,6 +211,11 @@ app.whenReady().then(() => {
     });
     if (result.canceled || result.filePaths.length === 0)
       return config_manager.state();
+    admission.admit("config-change");
+    if (simulation.active)
+      throw new Error("local directory cannot change during simulation");
+    if (config_manager.active)
+      throw new Error("a configuration change is already running");
     return config_manager.set_local_directory(result.filePaths[0]);
   });
   ipcMain.handle("get-logical-cpu-count", () => cpus().length);
@@ -232,6 +235,7 @@ app.whenReady().then(() => {
       filters: [{ name: "GachaSimulate 结果", extensions: ["gsr"] }],
     });
     if (result.canceled || result.filePaths.length === 0) return null;
+    admission.admit("analysis");
     return result_editor.open(result.filePaths[0]);
   });
   ipcMain.handle(
@@ -287,18 +291,7 @@ app.whenReady().then(() => {
     async (event, request: unknown) => {
       assert_export_sender(event.sender);
       validate_export_task_request(request);
-      if (quitting) return;
-      quitting = true;
-      try {
-        await export_tasks.retry_cleanup(request);
-        const window = main_window;
-        if (window && !window.isDestroyed()) window.destroy();
-        await shutdown_all();
-        app.quit();
-      } catch (error) {
-        quitting = false;
-        throw error;
-      }
+      await request_exit(() => export_tasks.retry_cleanup(request));
     },
   );
   ipcMain.handle("open-results-directory", () => open_directory(results_dir));
@@ -318,19 +311,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", (event) => {
-  if (!simulation?.active && !result_editor?.active && !export_tasks?.active)
-    return;
+  if (exit_committed) return;
   event.preventDefault();
-  if (quitting) return;
-  quitting = true;
-  void shutdown_all().then(
-    () => app.quit(),
-    (error) => {
-      quitting = false;
-      dialog.showErrorBox(
-        "无法退出 GachaSimulate",
-        error instanceof Error ? error.message : String(error),
-      );
-    },
-  );
+  void request_exit().catch(() => undefined);
 });

@@ -17,6 +17,8 @@ import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
 import { ResultVisualizePage } from "./pages/ResultVisualizePage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { save_theme, type WorkbenchTheme } from "./theme";
+import type { CDFViewModel } from "../visualize/types/cdf";
+import { ResultErrorBoundary } from "./components/ResultErrorBoundary";
 
 type Page =
   | "simulation"
@@ -71,13 +73,22 @@ export default function App() {
   const [result_state, set_result_state] = useState<ResultEditorState | null>(
     null,
   );
+  const [visualize_input, set_visualize_input] = useState<CDFViewModel | null>(
+    null,
+  );
+  const apply_result_state = useCallback((next: ResultEditorState) => {
+    // Prepare within the load/save operation, before publishing React state.
+    const model = build_cdf_view_model(next.analysis, next.display);
+    set_result_state(next);
+    set_visualize_input(model);
+  }, []);
 
   const select_result = useCallback(async (): Promise<boolean> => {
     const selected = await window.desktopApi.selectGsrResult();
     if (!selected) return false;
-    set_result_state(selected);
+    apply_result_state(selected);
     return true;
-  }, []);
+  }, [apply_result_state]);
   const export_context = useMemo(
     () =>
       result_state
@@ -87,13 +98,6 @@ export default function App() {
           }
         : null,
     [result_state],
-  );
-  const visualize_input = useMemo(
-    () =>
-      result_state
-        ? build_cdf_view_model(result_state.analysis, result_state.display)
-        : null,
-    [result_state?.analysis, result_state?.display],
   );
 
   return (
@@ -146,18 +150,28 @@ export default function App() {
             <div className="renderer-content">
               <SimulationPage active={active_page === "simulation"} />
               {active_page === "result-editor" ? (
-                <ResultEditorPage
-                  state={result_state}
-                  on_state={set_result_state}
-                />
+                <ResultErrorBoundary
+                  key={result_state?.session_id}
+                  on_select={select_result}
+                >
+                  <ResultEditorPage
+                    state={result_state}
+                    on_state={apply_result_state}
+                  />
+                </ResultErrorBoundary>
               ) : active_page === "result-visualize" ? (
-                <ResultVisualizePage
-                  actions_host={visualize_actions_host}
-                  input={visualize_input}
-                  on_select_result={select_result}
-                  export_active={export_active}
-                  on_export={open_export}
-                />
+                <ResultErrorBoundary
+                  key={result_state?.session_id}
+                  on_select={select_result}
+                >
+                  <ResultVisualizePage
+                    actions_host={visualize_actions_host}
+                    input={visualize_input}
+                    on_select_result={select_result}
+                    export_active={export_active}
+                    on_export={open_export}
+                  />
+                </ResultErrorBoundary>
               ) : active_page === "config-repository" ? (
                 <ConfigRepositoryPage />
               ) : active_page === "settings" ? (

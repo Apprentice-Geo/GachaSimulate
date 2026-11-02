@@ -104,7 +104,7 @@ export function build_cdf_view_model(
     termination_reason: analysis.termination_reason,
     x_domain_max: Math.max(
       1,
-      Math.ceil(Math.max(...values, statistic.MAX) * 1.04),
+      Math.ceil(Math.max(values[values.length - 1], statistic.MAX) * 1.04),
     ),
     metrics: STATISTIC_VIEW_ORDER.map((key) => ({
       key,
