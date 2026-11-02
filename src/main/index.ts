@@ -8,10 +8,8 @@ import {
   shell,
   type WebContents,
 } from "electron";
-import { execFile, spawn } from "node:child_process";
 import { cpus } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import { ConfigManager } from "./config_manager";
 import { download_https, type ConfigRequest } from "./config_download";
 import { ResultEditor } from "./result_editor";
@@ -39,34 +37,7 @@ if (process.platform === "win32")
   // Windows 的字体缩放会影响设计好的 UI
   app.commandLine.appendSwitch("force-device-scale-factor", "1");
 
-const exec_file = promisify(execFile);
-
 async function open_directory(path: string): Promise<void> {
-  if (process.platform === "linux" && process.env.WSL_DISTRO_NAME) {
-    try {
-      const { stdout } = await exec_file("wslpath", ["-w", path]);
-      await new Promise<void>((resolve, reject) => {
-        const child = spawn("explorer.exe", [stdout.trim()], {
-          detached: true,
-          stdio: "ignore",
-        });
-        child.once("error", reject);
-        child.once("spawn", () => {
-          child.unref();
-          resolve();
-        });
-      });
-      return;
-    } catch (error) {
-      throw new Error(
-        `WSL Explorer failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        { cause: error },
-      );
-    }
-  }
-
   const error = await shell.openPath(path);
   if (error) throw new Error(error);
 }
