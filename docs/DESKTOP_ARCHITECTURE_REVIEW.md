@@ -2,9 +2,45 @@
 
 初审日期：2026-11-01。代码基线：`eead8f0d47ab3464c09e764d81b08c08d8d8bcaf`。复审及修复策略更新：2026-11-02。
 
-本文保留 D01–D08 的问题证据、修复策略和验收条件，供后续实施使用。这些问题尚未修复；下文“修复策略”描述目标行为，不代表当前实现。本文属于开发工作记录，稳定模块边界仍以 [Architecture](../ARCHITECTURE.md) 为入口；实施时再同步受影响的常驻文档。
+D01–D08 已于 2026-11-03 完成代码修复。本文保留初审问题证据、原修复策略和本次验收记录；“原始审查”章节描述当时的实现，不代表修复后的现状。当前稳定模块边界见 [Architecture](../ARCHITECTURE.md)，检查入口见 [Development Checks](DEVELOPMENT_CHECKS.md)。
 
-## 范围与总体判断
+## 修复完成状态（2026-11-03）
+
+按依赖分四批实施，每批由修复 agent 实现、另一 agent 独立审查，由主 agent 统筹验证和提交。前三批提交为 `608ca4b`、`4784cc8`、`4a008bc`；最终汇总检查见末尾实施与验收记录。
+
+| 编号 | 状态与最终实现 | 主要验收依据 |
+| --- | --- | --- |
+| D01 | 完成。App 持有 [ResultSessionController](../src/renderer/result_session_controller.ts)，会话、草稿代次、保存身份和载入状态独立管理，切页不销毁队列与错误；导出前等待 renderer 保存队列尾。 | controller 交错、失败重试、扩展队列尾及导出取消测试；[真实 Electron](../src/dev/desktop_lifecycle.test.ts) 覆盖跨会话旧响应及同会话返回后的新草稿两种顺序。 |
+| D02 | 完成。统一退出协调有界等待全部停止分支和配置事务/刷新收尾，失败后恢复 worker 服务和全局准入；超时保留配置事务/刷新身份，导出资源、任务与占用保留至清理成功。 | [shutdown](../src/main/shutdown.test.ts)、[导出任务](../src/main/export_task.test.ts) 依赖注入；真实 Electron 覆盖关闭、before-quit 终止失败，以及 PNG 导出清理失败后的 close、exit-after-export-cleanup、重试与恢复。 |
+| D03 | 完成。轴范围比较末项及统计 MAX，不再展开数组；main 和 renderer 在发布会话前确认建模成功，失败保留有效结果，页面保留恢复入口。 | 200,000 点合法输入、单点/零值/不一致 MAX、超范围数值和失败后再次载入的回归测试。 |
+| D04 | P1/P2 均完成。analyzer 按子进程身份去重取消，有界等待并锁定输出超限；[native_process](../src/main/native_process.ts) 集中定位、终止和等待基础能力，模拟、分析及 FFmpeg 复用适用部分。 | 并发取消、超时/终止失败重试、旧子进程终止迟到、输出超限及已有 FFmpeg 背压/提交/清理回归；线程终止也有界，超时不丢所有权。 |
+| D05 | 完成。保存 IPC 仅返回 session_id 和实际保存的 DisplayConfig；共享层拆出数值准备与文案组合，controller 按会话复用曲线及 marker，导出仍独立复制快照。 | 精简响应键集合、数值数组/marker 复用、单位编辑与新会话隔离、导出快照不随后续保存变化；测量见下文。 |
+| D06 | 完成。依据测量将读取、摘要、协议/Compiler 校验和运行编译移入受控 worker；每次查询重新读取完整包，摘要不变才复用校验。安装元数据步骤与首次 installed 查询复用已验 YAML receipt。 | [快照](../src/main/config_snapshot.test.ts)、[worker](../src/main/config_worker.test.ts)、[配置管理](../src/main/config_manager.test.ts) 测试覆盖同 size/mtime 外部修改、文件增删、非法包、目录切换、迟到安装/刷新、慢下载收尾超时、线程故障、退役超时及退出恢复；production Electron 实际启动构建后的 worker 查询和编译。 |
+| D07 | 完成。所有桌面 handler 统一检查有效主窗口、主 frame 和精确应用 URL，限制导航；桌面事件只投递当前有效应用窗口。 | [真实 IPC](../src/dev/desktop_ipc.test.ts) 正常往返、其他窗口/子 frame 拒绝、隐藏窗口事件隔离、导航与强制更换页面后的请求拒绝；隐藏导出通道继续独立校验。 |
+| D08 | 完成。[共享桌面契约](../src/shared/desktop_ipc.ts) 集中 channel 请求/响应/事件和 DesktopApi；preload 使用 typed helpers 与 satisfies，main 注册消费相同映射，原始参数仍运行时校验。 | 常规 typecheck 包含[类型负例](../src/main/desktop_ipc.typecheck.ts)；正常 CPU/保存响应真实跨层往返，以及非法请求在业务操作前拒绝。 |
+
+稳定知识已同步到 Architecture 与 Development Checks。未改动 YAML、IR、GSR、Analysis 或 DisplayConfig 持久化协议；没有新增分布点数、配置数量或模拟规模限制。
+
+## 修复测量与边界
+
+### D05：200,000 点 Analysis
+
+同一代表性输入下，原完整保存状态的 JSON 为 3,379,007 字节，精简保存响应为 390 字节。数值准备及文案组合的完整建模中位耗时为 10.69 ms，已准备数据的文案组合中位耗时为 0.189 ms，controller 单次文字修改的 CPU 中位耗时为 0.160 ms。
+
+这些是 Windows Node 下的 JSON 大小与模型/controller 测量，不是 Electron wire 实际传输字节或用户键入总延迟；不包含 React、DOM/SVG 绘制、IPC 运输或内存峰值。未据此宣称 200,000 点绘制流畅。
+
+### D06：同一配置集合的冷、热查询
+
+| 输入集合 | 修复前查询总耗时 | worker 冷查询总耗时 | worker 热查询总耗时 |
+| --- | --- | --- | --- |
+| 5 包 × 3 个终止条件 × 20 个物品，YAML 总量 5,095 字节 | 约 9–22 ms | 266.72 ms | 2.53–4.57 ms |
+| 60 包 × 20 个终止条件 × 200 个物品，YAML 总量 455,260 字节 | 约 485–646 ms | 656.80 ms | 75.45–83.22 ms，中位 78.39 ms |
+
+较大集合在修复前的零延迟 timer 延后约 485–646 ms，与同步查询阻塞一致；修复后冷查询 timer 延后 1.98 ms，热查询为 0.11–5.27 ms。修复前较大集合的阶段测量包括读取约 89.4 ms、摘要约 4.2 ms、协议约 37.4 ms、Compiler/物品解析约 414.2 ms，因此读取与摘要也一并移入 worker。
+
+测量环境为 Windows 原生 Node/tsx，冷查询包含源码 worker 的 tsx 启动成本，不能作为 production Electron 首次载入耗时。热查询仍重新读取所有包内容，只复用摘要相同的完整校验结论；这里测得的是本次样例的总耗时和等价 main 事件循环响应，不代表所有机器或配置集合，也不声称已有用户卡顿报告。
+
+## 原始审查：范围与总体判断
 
 本次重点检查 Electron main、preload、renderer、隐藏导出 renderer，以及共享可视化层的调用关系、状态归属、进程生命周期和数据传递。C++ Runtime 与 Compiler 仅核对整体职责及桌面调用入口，未做同等深度的逐模块审查。
 
@@ -30,7 +66,7 @@ YAML -> TS Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 
 没有发现足以支持整体重写的大量业务代码复制。主要问题是状态和生命周期分散、同一数据被反复传递与计算，以及部分实现没有完整落实既有边界。
 
-## 问题清单
+## 原始问题清单与修复策略
 
 优先级表示建议处理顺序：P1 为已暴露正确性或失败恢复问题；P2 为职责、性能和边界问题；P3 为类型组织及冗余整理。
 
@@ -212,7 +248,7 @@ App 在 React 渲染阶段构建模型，异常没有在结果选择请求内转
 
 验收条件：错误 channel、错误参数和错误 handler 返回类型能由类型检查检出；preload 操作及事件订阅满足统一契约；覆盖至少一条正常跨层往返及非法输入拒绝；D05 的精简保存响应在三层一致。类型检查使用有意义的类型负例，不通过测试源文件精确拼写来验证契约。
 
-## 实施顺序与保留边界
+## 原实施顺序与保留边界
 
 1. 修复 D03 的建模及载入错误路径；完成 D04 的 P1 取消保护，再实施依赖其有界收尾的 D02 退出恢复。
 2. 修复 D01 的会话、草稿和保存归属，随后实施 D05 的精简保存响应及数值准备复用；导出保存屏障一并验收。
@@ -256,3 +292,13 @@ App 在 React 渲染阶段构建模型，异常没有在结果选择请求内转
 - 用户随后明确移除 WSL 支持，已删除 main 中的 WSL 路径转换、Explorer 启动分支和相关导入；此次代码改动后 `test:simulation` 共 48 项、typecheck、lint、改动文件格式检查及 production build 通过。未执行其他冗余清理。
 - 临时复现脚本及隔离用户目录已清理，额外复现尚未转为仓库回归测试。复审未执行完整布局、真实导出集成、打包或 C++ 全量检查。
 - 本次文档更新只确定修复策略，未实施 D01–D08 的代码修复；文档链接检查结果在本次交付时单独报告。
+
+### 2026-11-03 修复实施与验收
+
+- D01–D08 的实现与回归测试已完成，按四批执行独立审查；历史复现已经转为常驻测试，不再依赖初审的临时脚本。
+- 配置事务/刷新收尾等待同样有界，超时保留原 Promise 与事务占用，旧响应由代次拒绝；慢下载超时后的恢复、迟到响应拒绝及正常重试已有回归覆盖。
+- 最终标准 `test:simulation` 84/84、`test:visualize:cdf` 24/24、`test:electron-export` 65/65、typecheck、全量 lint、全量格式检查及普通 production build 通过。
+- 新 production Electron 定向检查 5/5 通过：真实 worker 的 list/state/模拟准备编译、IPC sender/frame/URL 边界、旧保存响应、非法载入恢复、退出失败恢复和真实 PNG 导出清理失败重试。原生进程和隐藏窗口失败由注入模拟，没有真实制造无法终止的 analyzer/FFmpeg 或锁死资源。
+- 较大合法 CDF 仅确认可建模，不等于验证绘制流畅；D05/D06 性能测量范围与冷启动成本已单独标明。
+- 最终 `test:electron-layout` 12/12 通过，包含四尺寸布局、三个原有专项及五个真实桌面生命周期/IPC 场景；上述标准回归合计 185 项通过，无 skip。17 个 UI 场景截图完成，并人工查看小/大窗口的结果编辑、可视化及导出画面。
+- 强制真实 ExportHost 像素探针 PNG/MP4 集成通过，随后普通 `pnpm run build` 通过，构建产物已恢复为无探针版本；仓库 Markdown 链接检查 1/1 通过。未改 C++ 或发布依赖，未执行无关的 C++ 全量检查及 Windows 安装包验证。

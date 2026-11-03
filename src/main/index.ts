@@ -32,12 +32,19 @@ const desktop_ipc = new DesktopIpc(ipcMain, () => main_window, desktop_url);
 const admission = new UserRequestAdmission();
 let exit_committed = false;
 let exit_request: Promise<void> | null = null;
-const shutdown = new ShutdownCoordinator(admission, [
-  () => shutdown_native(),
-  async () => {
-    await export_tasks?.shutdown();
-  },
-]);
+const shutdown = new ShutdownCoordinator(
+  admission,
+  [
+    async () => {
+      await config_manager?.shutdown();
+    },
+    () => shutdown_native(),
+    async () => {
+      await export_tasks?.shutdown();
+    },
+  ],
+  () => config_manager?.resume(),
+);
 const electron_offscreen = process.env.GACHASIMULATE_ELECTRON_OFFSCREEN === "1";
 // Automation already supplies a temporary profile; isolate persisted UI settings too.
 if (electron_offscreen && process.env.XDG_CONFIG_HOME)
@@ -164,6 +171,7 @@ app.whenReady().then(() => {
     download: (url, limit) =>
       download_https(url, limit, net.request as unknown as ConfigRequest),
     simulation_active: () => simulation?.active ?? false,
+    assert_request_allowed: (kind) => admission.admit(kind),
   });
   simulation = new SimulationTask(
     config_manager.installed_dir,
@@ -172,6 +180,8 @@ app.whenReady().then(() => {
     {
       local_dir: () => config_manager.local_dir,
       shutdown_native_processes: shutdown_native,
+      prepare_program: (request) => config_manager.compile_selection(request),
+      assert_start_allowed: () => admission.admit("simulation"),
     },
   );
   desktop_ipc.handle("list-configs", () => config_manager.list_configs());
@@ -220,7 +230,7 @@ app.whenReady().then(() => {
     admission.admit("simulation");
     if (config_manager.active)
       throw new Error("simulation cannot start during a configuration change");
-    simulation.start(request);
+    return simulation.start(request);
   });
   desktop_ipc.handle("cancel-simulation", () => shutdown_native());
   desktop_ipc.handle("select-gsr-result", async () => {

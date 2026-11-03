@@ -27,12 +27,14 @@ export class ShutdownCoordinator {
   constructor(
     private readonly admission: UserRequestAdmission,
     private readonly operations: readonly (() => Promise<void>)[],
+    private readonly on_recover?: () => void,
   ) {}
 
   stop(): Promise<void> {
     if (this.pending) return this.pending;
     this.admission.begin_shutdown();
     const operation = settle_shutdown(this.operations).catch((error) => {
+      this.on_recover?.();
       this.admission.recover_shutdown();
       throw error;
     });

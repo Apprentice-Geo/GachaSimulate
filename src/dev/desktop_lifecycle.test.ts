@@ -307,6 +307,10 @@ test("real desktop close and before-quit recover after injected termination fail
         }
       }, fixture.fields);
       assert.match(error, /result session has changed/);
+      assert.deepEqual(
+        await page.evaluate(() => window.desktopApi.listConfigs()),
+        [],
+      );
     }
   } finally {
     // Finish the injected process before normal application teardown.

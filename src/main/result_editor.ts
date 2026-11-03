@@ -25,7 +25,9 @@ import type { CDFViewModel } from "../visualize/types/cdf";
 import {
   resolve_native_executable,
   terminate_native_process,
-} from "./simulation";
+  wait_for_process_close,
+  NATIVE_PROCESS_TIMEOUT_MS,
+} from "./native_process";
 
 export const ANALYSIS_JSON_BYTE_LIMIT = 64 * 1024 * 1024;
 export const DISPLAY_CONFIG_JSON_BYTE_LIMIT = 16 * 1024 * 1024;
@@ -233,20 +235,11 @@ export class ResultEditor {
         if (this.child !== child) return;
         throw error;
       }
-      let timer: NodeJS.Timeout | undefined;
-      try {
-        await Promise.race([
-          close,
-          new Promise<never>((_resolve, reject) => {
-            timer = setTimeout(
-              () => reject(new Error("analyzer process close timed out")),
-              this.dependencies.close_timeout_ms ?? 10_000,
-            );
-          }),
-        ]);
-      } finally {
-        if (timer) clearTimeout(timer);
-      }
+      await wait_for_process_close(
+        close,
+        this.dependencies.close_timeout_ms ?? NATIVE_PROCESS_TIMEOUT_MS,
+        "analyzer process close timed out",
+      );
     })();
     this.cancel_promise = cancellation;
     this.cancel_child = child;

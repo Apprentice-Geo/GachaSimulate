@@ -15,11 +15,11 @@ import { basename, join, resolve } from "node:path";
 import { PassThrough } from "node:stream";
 import test, { after } from "node:test";
 import type { ChildProcess } from "node:child_process";
-import {
-  resolve_native_executable,
-  shutdown_native_processes,
-  SimulationTask,
-} from "./simulation";
+import { shutdown_native_processes, SimulationTask } from "./simulation";
+import { resolve_native_executable } from "./native_process";
+import { ConfigSnapshotEngine } from "./config_snapshot";
+import type { CompiledProgram } from "@gachasimulate/config-compiler";
+import type { ConfigWork } from "./config_worker_protocol";
 import {
   parse_simulation_line,
   resolve_process_outcome,
@@ -61,7 +61,7 @@ class FakeChild extends EventEmitter {
   }
 }
 
-function create_task(
+async function create_task(
   terminate: (child: ChildProcess) => Promise<void>,
   close_timeout_ms = 100,
   simulation_request = request,
@@ -84,14 +84,22 @@ function create_task(
       terminate_native_process: terminate,
       close_timeout_ms,
       local_dir: () => resolve("test-fixtures/configs"),
+      prepare_program: async (value) =>
+        new ConfigSnapshotEngine().compile(
+          resolve("test-fixtures/configs", value.configId),
+          value.configId,
+          value.configSource,
+          value.termination,
+          value.resultItem,
+        ),
     },
   );
-  task.start(simulation_request);
+  await task.start(simulation_request);
   child.stdout.write('{"type":"started"}\n');
   return { args, child, command, events, task };
 }
 
-function complete(value: ReturnType<typeof create_task>): string {
+function complete(value: Awaited<ReturnType<typeof create_task>>): string {
   const temporary = value.args.at(-1)!;
   writeFileSync(temporary, "complete");
   value.child.stdout.write(
@@ -173,7 +181,7 @@ test("resolves process outcomes", () => {
   assert.equal(resolve_process_outcome(null, false, false, true), "cancelled");
 });
 
-test("starts local and installed configs with the same id by source", () => {
+test("starts local and installed configs with the same id by source", async () => {
   const root = mkdtempSync(join(tmpdir(), "gachasimulate-sources-"));
   try {
     cpSync(
@@ -202,7 +210,7 @@ test("starts local and installed configs with the same id by source", () => {
           },
         },
       );
-      task.start({ ...request, configSource });
+      await task.start({ ...request, configSource });
       assert.equal(task.active, true);
       writeFileSync(output, "complete");
       child.stdout.write(
@@ -227,7 +235,7 @@ test("starts local and installed configs with the same id by source", () => {
   }
 });
 
-test("leaves room for the visualize sidecar with long valid names", () => {
+test("leaves room for the visualize sidecar with long valid names", async () => {
   const root = mkdtempSync(join(tmpdir(), "gachasimulate-long-result-"));
   try {
     const config_dir = join(root, "configs", "test");
@@ -262,7 +270,7 @@ test("leaves room for the visualize sidecar with long valid names", () => {
         },
       },
     );
-    task.start({ ...request, termination });
+    await task.start({ ...request, termination });
     writeFileSync(output, "complete");
     child.stdout.write(
       `${JSON.stringify({
@@ -286,7 +294,7 @@ test("leaves room for the visualize sidecar with long valid names", () => {
 });
 
 test("cancels only after the child closes", async () => {
-  const { child, events, task } = create_task(async () => {});
+  const { child, events, task } = await create_task(async () => {});
 
   const cancelling = task.cancel();
   assert.equal(events.at(-1)?.status, "cancelling");
@@ -300,7 +308,7 @@ test("cancels only after the child closes", async () => {
 
 test("failed termination keeps cancellation latched and allows retry", async () => {
   let attempts = 0;
-  const { child, events, task } = create_task(async () => {
+  const { child, events, task } = await create_task(async () => {
     attempts += 1;
     if (attempts === 1) throw new Error("access denied");
   });
@@ -316,7 +324,7 @@ test("failed termination keeps cancellation latched and allows retry", async () 
 });
 
 test("child close wins when termination reports an error", async () => {
-  const { events, task } = create_task(async (child) => {
+  const { events, task } = await create_task(async (child) => {
     (child as unknown as FakeChild).close(null, "SIGTERM");
     throw new Error("already gone");
   });
@@ -327,7 +335,7 @@ test("child close wins when termination reports an error", async () => {
 });
 
 test("close timeout keeps cancellation latched until the child exits", async () => {
-  const { args, child, events, task } = create_task(async () => {}, 5);
+  const { args, child, events, task } = await create_task(async () => {}, 5);
 
   await assert.rejects(task.cancel(), /timed out/);
   assert.equal(events.at(-1)?.status, "cancelling");
@@ -353,7 +361,7 @@ test("cancellation discards even a completed output and suppresses late events",
         simulation_results,
         String(result_directory_id++),
       );
-      const { args, child, events, task } = create_task(
+      const { args, child, events, task } = await create_task(
         async () => {
           if (termination_fails) throw new Error("access denied");
         },
@@ -397,7 +405,7 @@ test("cancellation discards even a completed output and suppresses late events",
 
 test("cancel waits for stdout close when the native process has already exited", async () => {
   let termination_attempts = 0;
-  const { child, events, task } = create_task(async () => {
+  const { child, events, task } = await create_task(async () => {
     termination_attempts++;
     throw new Error("already exited");
   });
@@ -412,7 +420,7 @@ test("cancel waits for stdout close when the native process has already exited",
 
 test("invalid JSONL keeps the task active until close then fails", async () => {
   let terminate_calls = 0;
-  const { child, events, task } = create_task(async () => {
+  const { child, events, task } = await create_task(async () => {
     terminate_calls += 1;
   });
 
@@ -421,7 +429,7 @@ test("invalid JSONL keeps the task active until close then fails", async () => {
   assert.equal(terminate_calls, 1);
   assert.equal(events.at(-1)?.status, "cancelling");
   assert.equal(task.active, true);
-  assert.throws(() => task.start(request), /already running/);
+  await assert.rejects(() => task.start(request), /already running/);
 
   child.close(1);
   assert.equal(events.at(-1)?.status, "failed");
@@ -430,7 +438,7 @@ test("invalid JSONL keeps the task active until close then fails", async () => {
 });
 
 test("assembles chunked JSONL and rejects oversized complete or partial lines once", async () => {
-  const normal = create_task(async () => {});
+  const normal = await create_task(async () => {});
   normal.child.stdout.write('{"type":"pro');
   normal.child.stdout.write('gress","completed":1,"total":1,"unit":"runs"}\n');
   assert.equal(normal.events.at(-1)?.event?.type, "progress");
@@ -441,7 +449,7 @@ test("assembles chunked JSONL and rejects oversized complete or partial lines on
     ["x".repeat(32 * 1024), "x".repeat(32 * 1024 + 1)],
   ]) {
     let terminate_calls = 0;
-    const value = create_task(async () => {
+    const value = await create_task(async () => {
       terminate_calls += 1;
     });
     const output = value.args.at(-1)!;
@@ -460,7 +468,7 @@ test("assembles chunked JSONL and rejects oversized complete or partial lines on
 
 test("protocol termination failure remains retryable and preserves the protocol error", async () => {
   let terminate_calls = 0;
-  const { child, events, task } = create_task(async () => {
+  const { child, events, task } = await create_task(async () => {
     terminate_calls += 1;
     if (terminate_calls === 1) throw new Error("access denied");
   });
@@ -480,8 +488,8 @@ test("protocol termination failure remains retryable and preserves the protocol 
   assert.equal(task.active, false);
 });
 
-test("core error event becomes terminal only after close", () => {
-  const { child, events, task } = create_task(async () => {});
+test("core error event becomes terminal only after close", async () => {
+  const { child, events, task } = await create_task(async () => {});
 
   child.stdout.write('{"type":"error","message":"bad config"}\n');
   assert.equal(events.at(-1)?.status, "running");
@@ -493,7 +501,7 @@ test("core error event becomes terminal only after close", () => {
   assert.equal(events.at(-1)?.message, "bad config");
 });
 
-test("requires a matching terminal event and exit code", () => {
+test("requires a matching terminal event and exit code", async () => {
   const cases = [
     { line: "completed", code: 0, status: "completed" },
     { line: "completed", code: 1, status: "failed" },
@@ -507,7 +515,7 @@ test("requires a matching terminal event and exit code", () => {
   ] as const;
 
   for (const scenario of cases) {
-    const { args, child, events } = create_task(async () => {});
+    const { args, child, events } = await create_task(async () => {});
     if (scenario.line === "completed") {
       writeFileSync(args.at(-1)!, "complete");
       child.stdout.write(
@@ -524,8 +532,8 @@ test("requires a matching terminal event and exit code", () => {
   }
 });
 
-test("uses only trusted native paths and removes temporary IR on close", () => {
-  const { args, child, command } = create_task(async () => {});
+test("uses only trusted native paths and removes temporary IR on close", async () => {
+  const { args, child, command } = await create_task(async () => {});
   assert.equal(
     command,
     resolve(
@@ -552,17 +560,17 @@ test("uses only trusted native paths and removes temporary IR on close", () => {
 });
 
 test("keeps only a successfully completed GSR", async () => {
-  const success = create_task(async () => {});
+  const success = await create_task(async () => {});
   const success_output = complete(success);
   assert.equal(existsSync(success_output), true);
 
-  const failed = create_task(async () => {});
+  const failed = await create_task(async () => {});
   const failed_output = failed.args.at(-1)!;
   writeFileSync(failed_output, "partial");
   failed.child.close(1);
   assert.equal(existsSync(failed_output), false);
 
-  const cancelled = create_task(async () => {});
+  const cancelled = await create_task(async () => {});
   const cancelled_output = cancelled.args.at(-1)!;
   writeFileSync(cancelled_output, "partial");
   const stopping = cancelled.task.cancel();
@@ -571,15 +579,15 @@ test("keeps only a successfully completed GSR", async () => {
   assert.equal(existsSync(cancelled_output), false);
 });
 
-test("uses deterministic result identities and replaces stale results", () => {
+test("uses deterministic result identities and replaces stale results", async () => {
   const results = join(simulation_results, "replacement");
-  const first = create_task(async () => {}, 100, request, results);
+  const first = await create_task(async () => {}, 100, request, results);
   const final = complete(first);
   const sidecar = final.replace(/\.gsr$/, ".visualize.json");
   writeFileSync(final, "old result");
   writeFileSync(sidecar, "old sidecar");
 
-  const replacement = create_task(async () => {}, 100, request, results);
+  const replacement = await create_task(async () => {}, 100, request, results);
   const replaced = complete(replacement);
 
   assert.equal(replaced, final);
@@ -593,19 +601,19 @@ test("uses deterministic result identities and replaces stale results", () => {
 
 test("failed replacement preserves the previous result and sidecar", async () => {
   const results = join(simulation_results, "failed-replacement");
-  const initial = create_task(async () => {}, 100, request, results);
+  const initial = await create_task(async () => {}, 100, request, results);
   const final = complete(initial);
   const sidecar = final.replace(/\.gsr$/, ".visualize.json");
   writeFileSync(final, "old result");
   writeFileSync(sidecar, "old sidecar");
 
-  const failed = create_task(async () => {}, 100, request, results);
+  const failed = await create_task(async () => {}, 100, request, results);
   writeFileSync(failed.args.at(-1)!, "partial");
   failed.child.close(1);
   assert.equal(readFileSync(final, "utf8"), "old result");
   assert.equal(readFileSync(sidecar, "utf8"), "old sidecar");
 
-  const cancelled = create_task(async () => {}, 100, request, results);
+  const cancelled = await create_task(async () => {}, 100, request, results);
   writeFileSync(cancelled.args.at(-1)!, "partial");
   const stopping = cancelled.task.cancel();
   cancelled.child.close(null, "SIGTERM");
@@ -614,10 +622,10 @@ test("failed replacement preserves the previous result and sidecar", async () =>
   assert.equal(readFileSync(sidecar, "utf8"), "old sidecar");
 });
 
-test("includes result item in the deterministic identity", () => {
+test("includes result item in the deterministic identity", async () => {
   const results = join(simulation_results, "result-items");
-  const draw = create_task(async () => {}, 100, request, results);
-  const target = create_task(
+  const draw = await create_task(async () => {}, 100, request, results);
+  const target = await create_task(
     async () => {},
     100,
     { ...request, resultItem: "target_item_1" },
@@ -630,7 +638,7 @@ test("includes result item in the deterministic identity", () => {
   assert.match(basename(target_path), /^local-test-termination-target_item_1-/);
 });
 
-test("spawn failure removes the temporary IR", () => {
+test("spawn failure removes the temporary IR", async () => {
   let ir = "";
   const task = new SimulationTask(
     resolve("test-fixtures/configs"),
@@ -644,7 +652,7 @@ test("spawn failure removes the temporary IR", () => {
       },
     },
   );
-  assert.throws(() => task.start(request), /spawn failed/);
+  await assert.rejects(() => task.start(request), /spawn failed/);
   assert.equal(existsSync(ir), false);
 });
 
@@ -656,4 +664,123 @@ test("shutdown stops active simulation and analyzer tasks together", async () =>
     { active: false, cancel: async () => void calls.push("inactive") },
   );
   assert.deepEqual(calls.sort(), ["analyzer", "simulation"]);
+});
+
+test("preparation holds the task identity and cancellation prevents a delayed native spawn", async () => {
+  let finish!: (program: CompiledProgram) => void;
+  const preparing = new Promise<CompiledProgram>((resolve) => {
+    finish = resolve;
+  });
+  let spawned = 0;
+  let preparation_started = false;
+  const events: DesktopSimulationEvent[] = [];
+  const task = new SimulationTask(
+    resolve("test-fixtures/configs"),
+    simulation_results,
+    (event) => events.push(event),
+    {
+      local_dir: () => resolve("test-fixtures/configs"),
+      prepare_program: () => {
+        preparation_started = true;
+        return preparing;
+      },
+      spawn: () => {
+        spawned += 1;
+        return new FakeChild() as unknown as ChildProcess;
+      },
+    },
+  );
+  const starting = task.start(request);
+  assert.equal(task.active, true);
+  await assert.rejects(task.start(request), /already running/);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(preparation_started, true);
+  let cancellation_finished = false;
+  const cancelling = task.cancel().then(() => {
+    cancellation_finished = true;
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(cancellation_finished, false);
+  finish({ ir: {} } as CompiledProgram);
+  await Promise.all([starting, cancelling]);
+  assert.equal(spawned, 0);
+  assert.equal(task.active, false);
+  assert.equal(events.at(-1)?.status, "cancelled");
+});
+
+test("preparation rechecks admission before starting native code", async () => {
+  let finish!: (program: CompiledProgram) => void;
+  const preparing = new Promise<CompiledProgram>((resolve) => {
+    finish = resolve;
+  });
+  let spawned = 0;
+  const task = new SimulationTask(
+    resolve("test-fixtures/configs"),
+    simulation_results,
+    () => undefined,
+    {
+      local_dir: () => resolve("test-fixtures/configs"),
+      prepare_program: () => preparing,
+      assert_start_allowed: () => {
+        throw new Error("application is shutting down");
+      },
+      spawn: () => {
+        spawned += 1;
+        return new FakeChild() as unknown as ChildProcess;
+      },
+    },
+  );
+  const starting = task.start(request);
+  const rejected = assert.rejects(starting, /shutting down/);
+  finish({ ir: {} } as CompiledProgram);
+  await rejected;
+  assert.equal(spawned, 0);
+  assert.equal(task.active, false);
+});
+
+test("a failed owned-worker stop preserves preparation cleanup and retries cancellation", async () => {
+  let reject_compile!: (reason: Error) => void;
+  const compile = new Promise<CompiledProgram>((_resolve, reject) => {
+    reject_compile = reject;
+  });
+  let stops = 0;
+  let resumed = 0;
+  let spawned = 0;
+  const work: ConfigWork = {
+    request: () => compile as never,
+    stop: async () => {
+      stops += 1;
+      reject_compile(new Error("compile stopped"));
+      if (stops === 1) throw new Error("worker termination blocked");
+    },
+    resume: () => {
+      resumed += 1;
+    },
+  };
+  const events: DesktopSimulationEvent[] = [];
+  const task = new SimulationTask(
+    resolve("test-fixtures/configs"),
+    simulation_results,
+    (event) => events.push(event),
+    {
+      local_dir: () => resolve("test-fixtures/configs"),
+      config_work: work,
+      spawn: () => {
+        spawned += 1;
+        return new FakeChild() as unknown as ChildProcess;
+      },
+    },
+  );
+  const starting = task.start(request);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  await assert.rejects(task.cancel(), /termination blocked/);
+  await starting;
+  assert.equal(task.active, true);
+  assert.equal(events.at(-1)?.status, "cancelling");
+  await assert.rejects(task.start(request), /already running/);
+  await task.cancel();
+  assert.equal(task.active, false);
+  assert.equal(stops, 2);
+  assert.equal(resumed, 1);
+  assert.equal(spawned, 0);
 });

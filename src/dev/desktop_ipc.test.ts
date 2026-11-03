@@ -119,6 +119,15 @@ test("production desktop IPC validates requests, rejects other windows and child
     assert.ok(
       (await page.evaluate(() => window.desktopApi.getLogicalCpuCount())) > 0,
     );
+    assert.equal(
+      (await page.evaluate(() => window.desktopApi.listConfigs()))[0]?.id,
+      "test",
+    );
+    assert.equal(
+      (await page.evaluate(() => window.desktopApi.getConfigRepositoryState()))
+        .official[0]?.id,
+      "test",
+    );
     const opened = await page.evaluate(() =>
       window.desktopApi.selectGsrResult(),
     );
