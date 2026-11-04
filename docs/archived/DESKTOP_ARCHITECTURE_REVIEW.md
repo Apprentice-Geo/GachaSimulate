@@ -1,23 +1,27 @@
-# 桌面应用架构审查记录
+# 桌面应用架构审查与修复记录（已归档）
 
 初审日期：2026-11-01。代码基线：`eead8f0d47ab3464c09e764d81b08c08d8d8bcaf`。复审及修复策略更新：2026-11-02。
 
-D01–D08 已于 2026-11-03 完成代码修复。本文保留初审问题证据、原修复策略和本次验收记录；“原始审查”章节描述当时的实现，不代表修复后的现状。当前稳定模块边界见 [Architecture](../ARCHITECTURE.md)，检查入口见 [Development Checks](DEVELOPMENT_CHECKS.md)。
+状态：已完成。完成日期：2026-11-03。归档日期：2026-11-04。
+
+本文保留 D01–D08 的初审证据、修复决策、实施结果与验收记录，供历史追溯；实现、测试与性能数据均记录任务完成时的状态，不随项目后续变化维护，也不作为当前规范。“原始审查”章节保留修复前的实现描述。
+
+长期知识已迁移至 [Architecture 的代码地图](../../ARCHITECTURE.md#代码地图)、[边界与不变量](../../ARCHITECTURE.md#边界与不变量)、[可视化与导出](../../ARCHITECTURE.md#可视化与导出)，检查入口与适用范围见 [Development Checks](../DEVELOPMENT_CHECKS.md)。
 
 ## 修复完成状态（2026-11-03）
 
-按依赖分四批实施，每批由修复 agent 实现、另一 agent 独立审查，由主 agent 统筹验证和提交。前三批提交为 `608ca4b`、`4784cc8`、`4a008bc`；最终汇总检查见末尾实施与验收记录。
+按依赖分四批实施，每批由修复 agent 实现、另一 agent 独立审查，由主 agent 统筹验证和提交。四批修复提交为 `608ca4b`、`4784cc8`、`4a008bc`、`f176c67`；最终汇总检查见末尾实施与验收记录。
 
 | 编号 | 状态与最终实现 | 主要验收依据 |
 | --- | --- | --- |
-| D01 | 完成。App 持有 [ResultSessionController](../src/renderer/result_session_controller.ts)，会话、草稿代次、保存身份和载入状态独立管理，切页不销毁队列与错误；导出前等待 renderer 保存队列尾。 | controller 交错、失败重试、扩展队列尾及导出取消测试；[真实 Electron](../src/dev/desktop_lifecycle.test.ts) 覆盖跨会话旧响应及同会话返回后的新草稿两种顺序。 |
-| D02 | 完成。统一退出协调有界等待全部停止分支和配置事务/刷新收尾，失败后恢复 worker 服务和全局准入；超时保留配置事务/刷新身份，导出资源、任务与占用保留至清理成功。 | [shutdown](../src/main/shutdown.test.ts)、[导出任务](../src/main/export_task.test.ts) 依赖注入；真实 Electron 覆盖关闭、before-quit 终止失败，以及 PNG 导出清理失败后的 close、exit-after-export-cleanup、重试与恢复。 |
+| D01 | 完成。App 持有 [ResultSessionController](../../src/renderer/result_session_controller.ts)，会话、草稿代次、保存身份和载入状态独立管理，切页不销毁队列与错误；导出前等待 renderer 保存队列尾。 | controller 交错、失败重试、扩展队列尾及导出取消测试；[真实 Electron](../../src/dev/desktop_lifecycle.test.ts) 覆盖跨会话旧响应及同会话返回后的新草稿两种顺序。 |
+| D02 | 完成。统一退出协调有界等待全部停止分支和配置事务/刷新收尾，失败后恢复 worker 服务和全局准入；超时保留配置事务/刷新身份，导出资源、任务与占用保留至清理成功。 | [shutdown](../../src/main/shutdown.test.ts)、[导出任务](../../src/main/export_task.test.ts) 依赖注入；真实 Electron 覆盖关闭、before-quit 终止失败，以及 PNG 导出清理失败后的 close、exit-after-export-cleanup、重试与恢复。 |
 | D03 | 完成。轴范围比较末项及统计 MAX，不再展开数组；main 和 renderer 在发布会话前确认建模成功，失败保留有效结果，页面保留恢复入口。 | 200,000 点合法输入、单点/零值/不一致 MAX、超范围数值和失败后再次载入的回归测试。 |
-| D04 | P1/P2 均完成。analyzer 按子进程身份去重取消，有界等待并锁定输出超限；[native_process](../src/main/native_process.ts) 集中定位、终止和等待基础能力，模拟、分析及 FFmpeg 复用适用部分。 | 并发取消、超时/终止失败重试、旧子进程终止迟到、输出超限及已有 FFmpeg 背压/提交/清理回归；线程终止也有界，超时不丢所有权。 |
+| D04 | P1/P2 均完成。analyzer 按子进程身份去重取消，有界等待并锁定输出超限；[native_process](../../src/main/native_process.ts) 集中定位、终止和等待基础能力，模拟、分析及 FFmpeg 复用适用部分。 | 并发取消、超时/终止失败重试、旧子进程终止迟到、输出超限及已有 FFmpeg 背压/提交/清理回归；线程终止也有界，超时不丢所有权。 |
 | D05 | 完成。保存 IPC 仅返回 session_id 和实际保存的 DisplayConfig；共享层拆出数值准备与文案组合，controller 按会话复用曲线及 marker，导出仍独立复制快照。 | 精简响应键集合、数值数组/marker 复用、单位编辑与新会话隔离、导出快照不随后续保存变化；测量见下文。 |
-| D06 | 完成。依据测量将读取、摘要、协议/Compiler 校验和运行编译移入受控 worker；每次查询重新读取完整包，摘要不变才复用校验。安装元数据步骤与首次 installed 查询复用已验 YAML receipt。 | [快照](../src/main/config_snapshot.test.ts)、[worker](../src/main/config_worker.test.ts)、[配置管理](../src/main/config_manager.test.ts) 测试覆盖同 size/mtime 外部修改、文件增删、非法包、目录切换、迟到安装/刷新、慢下载收尾超时、线程故障、退役超时及退出恢复；production Electron 实际启动构建后的 worker 查询和编译。 |
-| D07 | 完成。所有桌面 handler 统一检查有效主窗口、主 frame 和精确应用 URL，限制导航；桌面事件只投递当前有效应用窗口。 | [真实 IPC](../src/dev/desktop_ipc.test.ts) 正常往返、其他窗口/子 frame 拒绝、隐藏窗口事件隔离、导航与强制更换页面后的请求拒绝；隐藏导出通道继续独立校验。 |
-| D08 | 完成。[共享桌面契约](../src/shared/desktop_ipc.ts) 集中 channel 请求/响应/事件和 DesktopApi；preload 使用 typed helpers 与 satisfies，main 注册消费相同映射，原始参数仍运行时校验。 | 常规 typecheck 包含[类型负例](../src/main/desktop_ipc.typecheck.ts)；正常 CPU/保存响应真实跨层往返，以及非法请求在业务操作前拒绝。 |
+| D06 | 完成。依据测量将读取、摘要、协议/Compiler 校验和运行编译移入受控 worker；每次查询重新读取完整包，摘要不变才复用校验。安装元数据步骤与首次 installed 查询复用已验 YAML receipt。 | [快照](../../src/main/config_snapshot.test.ts)、[worker](../../src/main/config_worker.test.ts)、[配置管理](../../src/main/config_manager.test.ts) 测试覆盖同 size/mtime 外部修改、文件增删、非法包、目录切换、迟到安装/刷新、慢下载收尾超时、线程故障、退役超时及退出恢复；production Electron 实际启动构建后的 worker 查询和编译。 |
+| D07 | 完成。所有桌面 handler 统一检查有效主窗口、主 frame 和精确应用 URL，限制导航；桌面事件只投递当前有效应用窗口。 | [真实 IPC](../../src/dev/desktop_ipc.test.ts) 正常往返、其他窗口/子 frame 拒绝、隐藏窗口事件隔离、导航与强制更换页面后的请求拒绝；隐藏导出通道继续独立校验。 |
+| D08 | 完成。[共享桌面契约](../../src/shared/desktop_ipc.ts) 集中 channel 请求/响应/事件和 DesktopApi；preload 使用 typed helpers 与 satisfies，main 注册消费相同映射，原始参数仍运行时校验。 | 常规 typecheck 包含[类型负例](../../src/main/desktop_ipc.typecheck.ts)；正常 CPU/保存响应真实跨层往返，以及非法请求在业务操作前拒绝。 |
 
 稳定知识已同步到 Architecture 与 Development Checks。未改动 YAML、IR、GSR、Analysis 或 DisplayConfig 持久化协议；没有新增分布点数、配置数量或模拟规模限制。
 
@@ -83,7 +87,7 @@ YAML -> TS Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 
 ### D01：旧保存响应覆盖新会话或同会话的新草稿
 
-相关代码：[ResultEditorPage](../src/renderer/pages/ResultEditorPage.tsx)、[App](../src/renderer/App.tsx)。
+相关代码：[ResultEditorPage](../../src/renderer/pages/ResultEditorPage.tsx)、[App](../../src/renderer/App.tsx)。
 
 编辑页维护自己的 `save_queue`、`save_version` 和 `fields_ref`。保存成功后，`apply_state()` 会通过 `on_state()` 更新 App 的共享结果。App 切换页面时会卸载编辑页，但已经发出的异步操作仍可回调父组件。
 
@@ -112,7 +116,7 @@ YAML -> TS Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 
 ### D02：退出失败后的准入和资源所有权无法一致恢复
 
-相关代码：[main 入口](../src/main/index.ts)、[UserRequestAdmission](../src/main/request_admission.ts)、[ExportTaskCoordinator](../src/main/export_task.ts)。
+相关代码：[main 入口](../../src/main/index.ts)、[UserRequestAdmission](../../src/main/request_admission.ts)、[ExportTaskCoordinator](../../src/main/export_task.ts)。
 
 `shutdown_all()` 首先调用 `admission.begin_shutdown()`，将 `shutting_down` 设为 `true`。后续原生进程终止失败时，窗口关闭及应用退出的错误分支会恢复 `quitting = false`，但准入对象没有对应恢复操作。
 
@@ -134,7 +138,7 @@ YAML -> TS Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 
 ### D03：CDF 数组展开异常及建模失败的载入边界
 
-相关代码：[CDF view model](../src/visualize/view/cdf_view_model.ts)、[Analysis 校验](../src/visualize/data/analysis.ts)、[Analysis Schema](schemas/analysis.schema.json)。
+相关代码：[CDF view model](../../src/visualize/view/cdf_view_model.ts)、[Analysis 校验](../../src/visualize/data/analysis.ts)、[Analysis Schema](../schemas/analysis.schema.json)。
 
 `build_cdf_view_model()` 使用 `Math.max(...values, statistic.MAX)` 计算横轴范围。该写法把每个分布点展开为函数实参，输入较大时会超过运行时允许的实参数量。
 
@@ -155,7 +159,7 @@ App 在 React 渲染阶段构建模型，异常没有在结果选择请求内转
 
 ### D04：原生进程生命周期重复实现且保护不一致
 
-相关代码：[SimulationTask](../src/main/simulation.ts)、[ResultEditor](../src/main/result_editor.ts)、[ExportHost](../src/main/export_host.ts)。
+相关代码：[SimulationTask](../../src/main/simulation.ts)、[ResultEditor](../../src/main/result_editor.ts)、[ExportHost](../../src/main/export_host.ts)。
 
 三个模块各自维护子进程、退出 Promise、错误输出、终止和清理状态，但保护措施不同：
 
@@ -180,7 +184,7 @@ App 在 React 渲染阶段构建模型，异常没有在结果选择请求内转
 
 ### D05：文案保存和预览反复传递、重建完整分析数据
 
-相关代码：[ResultEditor](../src/main/result_editor.ts)、[ResultEditorState](../src/shared/result_editor.ts)、[ResultEditorPage](../src/renderer/pages/ResultEditorPage.tsx)、[App](../src/renderer/App.tsx)。
+相关代码：[ResultEditor](../../src/main/result_editor.ts)、[ResultEditorState](../../src/shared/result_editor.ts)、[ResultEditorPage](../../src/renderer/pages/ResultEditorPage.tsx)、[App](../../src/renderer/App.tsx)。
 
 修改六个展示字段中的任意一项，失焦保存后 main 返回完整 `ResultEditorState`，包含整份 `analysis`。因此仅保存少量文字也会通过 Electron IPC 再次序列化和传递分布数组。
 
@@ -199,7 +203,7 @@ App 在 React 渲染阶段构建模型，异常没有在结果选择请求内转
 
 ### D06：配置列表和状态查询同步执行整包校验
 
-相关代码：[ConfigManager](../src/main/config_manager.ts)、[SimulationTask](../src/main/simulation.ts)、[批量配置校验](../packages/config-compiler/src/batch.ts)。
+相关代码：[ConfigManager](../../src/main/config_manager.ts)、[SimulationTask](../../src/main/simulation.ts)、[批量配置校验](../../packages/config-compiler/src/batch.ts)。
 
 `list_configs()` 和 `state()` 通过目录扫描调用 `validate_config_directory()`，同步读取文件，并校验配置及全部终止条件，再读取物品列表。运行模拟时又对所选配置执行整包校验，随后重新读取文件进行单次编译。安装流程在写入安装元数据前后也连续执行目录校验。
 
@@ -217,7 +221,7 @@ App 在 React 渲染阶段构建模型，异常没有在结果选择请求内转
 
 ### D07：桌面 IPC sender 检查和事件接收范围不统一
 
-相关代码：[main IPC 注册](../src/main/index.ts)、[桌面 preload](../src/preload/index.ts)、[导出 preload](../src/preload/export.ts)。
+相关代码：[main IPC 注册](../../src/main/index.ts)、[桌面 preload](../../src/preload/index.ts)、[导出 preload](../../src/preload/export.ts)。
 
 导出请求和外部链接请求检查 sender 是否属于主窗口；多数配置、模拟和结果接口没有同样检查。模拟事件还通过 `BrowserWindow.getAllWindows()` 广播，接收范围包括隐藏导出窗口。
 
@@ -233,7 +237,7 @@ App 在 React 渲染阶段构建模型，异常没有在结果选择请求内转
 
 ### D08：IPC 类型与实现需要多处手工同步
 
-相关代码：[DesktopApi](../src/shared/installed_config.ts)、[preload 实现](../src/preload/index.ts)、[main handlers](../src/main/index.ts)。
+相关代码：[DesktopApi](../../src/shared/installed_config.ts)、[preload 实现](../../src/preload/index.ts)、[main handlers](../../src/main/index.ts)。
 
 新增或修改操作通常需要分别维护 main handler、preload 对象和 `DesktopApi`。preload 对象没有直接接受 `satisfies DesktopApi` 等约束，`ipcRenderer.invoke()` 的返回值也没有形成可靠的跨层静态契约检查。
 
@@ -259,7 +263,7 @@ App 在 React 渲染阶段构建模型，异常没有在结果选择请求内转
 
 保留现有 Compiler、Runtime、Analyzer 和共享可视化的分层。导出流程中的 reservation、目标身份检查、逐产物提交和清理重试各有用途；不能仅因 `ExportHost` 文件较大或状态较多就删除这些语义。后续可以按独立职责拆出进程工具和文件提交模块，暂不需要通用任务框架。
 
-检查命令及完整影响矩阵以 [Development Checks](DEVELOPMENT_CHECKS.md) 为准。实施 D01/D02/D04/D05/D07/D08 时执行 Electron 行为、typecheck、lint 和 build；D03/D05 另覆盖 CDF、布局及共享导出消费；涉及真实导出宿主时执行对应集成检查。验收条件是后续应补的检查，不能用初审测试通过代替。
+检查命令及完整影响矩阵以 [Development Checks](../DEVELOPMENT_CHECKS.md) 为准。实施 D01/D02/D04/D05/D07/D08 时执行 Electron 行为、typecheck、lint 和 build；D03/D05 另覆盖 CDF、布局及共享导出消费；涉及真实导出宿主时执行对应集成检查。验收条件是后续应补的检查，不能用初审测试通过代替。
 
 ## 已执行验证与限制
 
