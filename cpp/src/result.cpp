@@ -291,34 +291,36 @@ void write_gsr_v2(const std::string &path, const RuntimeProgram &p, const BatchR
       p.result_name.size() > kMaxStringSize || !valid_utf8(p.result_id) ||
       !valid_utf8(p.result_name))
     throw std::runtime_error("invalid result item string");
-  std::vector<uint32_t> raw = r.reasons;
-  for (const auto id : raw)
+  std::unordered_map<uint32_t, uint32_t> reason_indexes;
+  std::vector<uint32_t> raw;
+  for (const auto id : r.reasons) {
+    if (!reason_indexes.try_emplace(id, 0).second)
+      continue;
     if (id >= p.strings.size() || p.strings[id].empty() || p.strings[id].size() > kMaxStringSize ||
         !valid_utf8(p.strings[id]))
       throw std::runtime_error("invalid reason string");
+    raw.push_back(id);
+  }
   std::sort(raw.begin(), raw.end(),
             [&](uint32_t left, uint32_t right) { return p.strings[left] < p.strings[right]; });
+  uint32_t reason_index{};
+  for (size_t i = 0; i < raw.size(); ++i) {
+    if (i && p.strings[raw[i - 1]] != p.strings[raw[i]])
+      ++reason_index;
+    reason_indexes.at(raw[i]) = reason_index;
+  }
   raw.erase(std::unique(
                 raw.begin(), raw.end(),
                 [&](uint32_t left, uint32_t right) { return p.strings[left] == p.strings[right]; }),
             raw.end());
   if (raw.empty() || raw.size() > kMaxReasons)
     throw std::runtime_error("invalid reason count");
-  std::vector<uint32_t> reasons;
-  reasons.reserve(r.reasons.size());
   uint64_t strings_size = p.result_id.size() + p.result_name.size();
   for (const auto id : raw)
     strings_size += 4 + p.strings[id].size();
-  for (const auto id : r.reasons)
-    reasons.push_back(
-        static_cast<uint32_t>(std::lower_bound(raw.begin(), raw.end(), p.strings[id],
-                                               [&](uint32_t raw_id, const std::string &reason) {
-                                                 return p.strings[raw_id] < reason;
-                                               }) -
-                              raw.begin()));
   const auto result_offset = kHeaderSize;
   const auto reason_offset = checked_section(result_offset, r.values.size(), 8, "result section");
-  const auto string_offset = checked_section(reason_offset, reasons.size(), 4, "reason section");
+  const auto string_offset = checked_section(reason_offset, r.reasons.size(), 4, "reason section");
   if (strings_size > kMaxFileSize - string_offset)
     throw std::runtime_error("GSR exceeds 16 GiB");
   const auto file_size = string_offset + strings_size;
@@ -343,8 +345,8 @@ void write_gsr_v2(const std::string &path, const RuntimeProgram &p, const BatchR
   put<uint64_t>(out, 0);
   for (const auto value : r.values)
     put<uint64_t>(out, value);
-  for (const auto value : reasons)
-    put<uint32_t>(out, value);
+  for (const auto id : r.reasons)
+    put<uint32_t>(out, reason_indexes.at(id));
   out.write(p.result_id.data(), static_cast<std::streamsize>(p.result_id.size()));
   out.write(p.result_name.data(), static_cast<std::streamsize>(p.result_name.size()));
   for (const auto id : raw) {

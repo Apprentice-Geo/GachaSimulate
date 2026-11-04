@@ -37,19 +37,29 @@ if(BUILD_TESTING)
   set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(googletest)
   include(GoogleTest)
-  add_executable(gachasimulate_runtime_tests tests/runtime_test.cpp)
+  add_executable(gachasimulate_runtime_tests
+    tests/runtime_test.cpp
+    tests/runtime_safety_test.cpp
+    tests/runtime_semantics_test.cpp
+    tests/gsr_writer_test.cpp)
   target_link_libraries(gachasimulate_runtime_tests PRIVATE gachasimulate_runtime gachasimulate_result GTest::gtest_main)
   target_compile_definitions(gachasimulate_runtime_tests PRIVATE
     GACHASIMULATE_TEST_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_fixture_ir.json"
     GACHASIMULATE_TEST_COST_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_cost_fixture_ir.json"
     GACHASIMULATE_TEST_RANDOM_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_random_fixture_ir.json"
     GACHASIMULATE_TEST_GSR_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/gsr_v2_fixture.hex")
-  gtest_discover_tests(gachasimulate_runtime_tests)
+  gtest_discover_tests(gachasimulate_runtime_tests PROPERTIES TIMEOUT 30)
   add_test(NAME Cli.EmitsJsonlProtocol COMMAND ${CMAKE_COMMAND}
     -DCORE=$<TARGET_FILE:gachasimulate-core>
     -DFIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_fixture_ir.json
     -DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/cli_中文输出.gsr
     -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli_protocol_test.cmake)
+  add_test(NAME Cli.BenchmarkSupportsUtf8Paths COMMAND ${CMAKE_COMMAND}
+    -DBENCHMARK=$<TARGET_FILE:gachasimulate-benchmark>
+    -DCORE=$<TARGET_FILE:gachasimulate-core>
+    -DFIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/tests/batch_fixture_ir.json
+    -DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/benchmark_中文输出.gsr
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/benchmark_protocol_test.cmake)
 endif()
 
 add_executable(gachasimulate-benchmark src/benchmark.cpp)
@@ -73,4 +83,5 @@ if(MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   endforeach()
   target_link_options(gachasimulate-core PRIVATE -municode)
   target_link_options(gachasimulate-analyze PRIVATE -municode)
+  target_link_options(gachasimulate-benchmark PRIVATE -municode)
 endif()
