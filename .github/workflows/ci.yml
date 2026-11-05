@@ -206,6 +206,9 @@ jobs:
           name: native-windows-x64
           path: build/native
 
+      - name: Install Electron binary
+        run: pnpm exec install-electron
+
       - name: Run Electron renderer layout tests
         run: pnpm run test:electron-layout
 
