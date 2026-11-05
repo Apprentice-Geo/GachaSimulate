@@ -1,110 +1,43 @@
 import { WorkbenchIcon } from "../components/WorkbenchIcon";
 import { FilePenLine } from "lucide-react";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useMemo } from "react";
 import { Button } from "../components/Button";
 import { Field } from "../components/Field";
 import { ResultLoadPanel } from "../components/ResultLoadPanel";
+import type { DisplayFields } from "../../shared/result_editor";
 import type {
-  DisplayFields,
-  ResultEditorState,
-} from "../../shared/result_editor";
+  ResultSessionController,
+  ResultSessionState,
+} from "../result_session_controller";
 import { ANIMATION_TOTAL_MS } from "../../visualize/animation/timeline";
 import { build_animation_progress } from "../../visualize/animation/progress";
 import { ChartPreview } from "../../visualize/components/ChartPreview";
 import { CDF_CHART_SIZE } from "../../visualize/view/scene_layout";
 import { CDFChart } from "../../visualize/components/CDFChart";
-import { build_cdf_view_model } from "../../visualize/view/cdf_view_model";
 
 export function ResultEditorPage({
-  state,
-  on_state,
+  session,
+  controller,
 }: {
-  state: ResultEditorState | null;
-  on_state: (state: ResultEditorState) => void;
+  session: ResultSessionState;
+  controller: ResultSessionController;
 }) {
-  const [fields, set_fields] = useState<DisplayFields | null>(null);
-  const [status, set_status] = useState<string | undefined>();
-  const [loading, set_loading] = useState(false);
-  const [saving, set_saving] = useState(false);
-  const [error, set_error] = useState<string | null>(null);
-  const fields_ref = useRef<DisplayFields | null>(null);
-  const save_queue = useRef(Promise.resolve());
-  const save_version = useRef(0);
-  const preview_data =
-    state && fields
-      ? build_cdf_view_model(state.analysis, { ...state.display, ...fields })
-      : null;
+  const {
+    result: state,
+    draft: fields,
+    preview: preview_data,
+    loading,
+    saving,
+    status,
+  } = session;
+  const error = session.load_error ?? session.save_error;
   const preview_animation = useMemo(
     () => build_animation_progress(ANIMATION_TOTAL_MS),
     [],
   );
-
-  const apply_state = (next: ResultEditorState) => {
-    on_state(next);
-    fields_ref.current = next.fields;
-    set_fields(next.fields);
-  };
-
-  useEffect(() => {
-    fields_ref.current = state?.fields ?? null;
-    set_fields(fields_ref.current);
-  }, [state]);
-
-  const select = async () => {
-    set_loading(true);
-    set_error(null);
-    set_status("正在分析…");
-    try {
-      const next = await window.desktopApi.selectGsrResult();
-      if (next) {
-        apply_state(next);
-        set_status("分析完成，尚无未保存更改。");
-      } else {
-        set_status("未选择文件。");
-      }
-    } catch (reason) {
-      set_error(reason instanceof Error ? reason.message : String(reason));
-      set_status("分析失败。");
-    } finally {
-      set_loading(false);
-    }
-  };
-
-  const save = () => {
-    const snapshot = fields_ref.current;
-    if (!snapshot) return;
-    const version = ++save_version.current;
-    set_saving(true);
-    set_error(null);
-    set_status("正在保存…");
-    save_queue.current = save_queue.current.then(async () => {
-      try {
-        if (!state) throw new Error("result session is unavailable");
-        const next = await window.desktopApi.saveResultFields({
-          session_id: state.session_id,
-          fields: snapshot,
-        });
-        if (version === save_version.current) {
-          if (fields_ref.current === snapshot) apply_state(next);
-          set_status("已保存。");
-        }
-      } catch (reason) {
-        if (version === save_version.current) {
-          set_error(reason instanceof Error ? reason.message : String(reason));
-          set_status("保存失败，现有 sidecar 未被覆盖。");
-        }
-      } finally {
-        if (version === save_version.current) set_saving(false);
-      }
-    });
-  };
-
-  const change_field = (key: keyof DisplayFields, value: string) =>
-    set_fields((current) => {
-      if (!current) return current;
-      fields_ref.current = { ...current, [key]: value };
-      return fields_ref.current;
-    });
+  const select = controller.select_result;
+  const save = () => void controller.save().catch(() => undefined);
+  const change_field = controller.change_field;
 
   const field = (key: keyof DisplayFields, label: string, class_name = "") => (
     <Field className={class_name}>
@@ -224,6 +157,16 @@ export function ResultEditorPage({
         <p className="result-save-status" role="status">
           {status}
         </p>
+      )}
+      {state && session.save_error && (
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={loading || saving}
+          onClick={save}
+        >
+          重试保存
+        </Button>
       )}
       {state && error && (
         <p className="simulation-error" role="alert">

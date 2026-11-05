@@ -6,7 +6,7 @@ import {
   type ExportFormat,
   type ExportPreparationEvent,
 } from "../shared/export_task";
-import type { DesktopApi } from "../shared/installed_config";
+import type { DesktopApi } from "../shared/desktop_ipc";
 
 export type ExportContext = Readonly<{
   session_id: string;
@@ -136,7 +136,10 @@ export class ExportWorkflowController {
   private cleanup_attempt = 0;
   private readonly early_events = new Map<string, ExportPreparationEvent>();
 
-  constructor(private readonly api: ExportWorkflowApi) {}
+  constructor(
+    private readonly api: ExportWorkflowApi,
+    private readonly before_prepare?: (session_id: string) => Promise<void>,
+  ) {}
 
   get_snapshot = (): ExportWorkflowState => this.state;
 
@@ -235,6 +238,14 @@ export class ExportWorkflowController {
       { validation_error: null },
     );
     try {
+      if (this.before_prepare) {
+        await this.before_prepare(context.session_id);
+        if (run !== this.generation) return;
+        if (this.get_snapshot().flow.phase === "cancelling") {
+          this.finish({ kind: "cancelled", message: "已取消导出" });
+          return;
+        }
+      }
       const { reservation_id } = await this.api.prepareExport({
         session_id: context.session_id,
         base_name,

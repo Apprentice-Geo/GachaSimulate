@@ -20,9 +20,8 @@ pacman -S --needed \
 将 `C:\msys64\ucrt64\bin` 放在 Windows `PATH` 前部，再在 PowerShell 中准备项目：
 
 ```powershell
-# 安装锁定依赖与仓库 pre-commit hook
+# 安装锁定依赖
 pnpm install --frozen-lockfile
-pnpm run hooks:install
 
 # Electron 开发前：Release 构建、测试、安装与隔离 PATH 冒烟
 pnpm run check:cpp:release
@@ -54,13 +53,13 @@ pnpm run check:cpp:release  # Release 构建、CTest、安装与隔离 PATH 冒�
 本地需先安装 `actionlint`；CI 使用 workflow 声明的固定版本，并将 workflow 检查作为其它 job 的前置条件。
 
 ```powershell
-# GitHub Actions workflow、hook 自测与仓库内 Markdown 链接
+# GitHub Actions workflow 与仓库内 Markdown 链接
 actionlint
-pnpm run test:pre-commit
 pnpm run test:markdown:links
 
 # 第三方许可证、格式、静态规则与类型
 pnpm run test:application-licenses
+pnpm run test:maintenance
 pnpm run format:check
 pnpm run lint
 pnpm run typecheck
@@ -68,14 +67,14 @@ pnpm run typecheck
 # Compiler 与配置仓库协议
 pnpm run test:packages
 
-# 配置安装、模拟/分析进程、IPC、结果会话与 sidecar
+# 配置快照与 worker、安装、模拟/分析进程、IPC、结果会话与 sidecar
 pnpm run test:simulation
 
 # 可视化输入契约、CDF 与导出宿主/任务行为
 pnpm run test:visualize:cdf
 pnpm run test:electron-export
 
-# 真实 Electron 布局与 DOM/SVG 几何
+# 真实 Electron 布局、DOM/SVG 几何、桌面 IPC 与生命周期
 pnpm run test:electron-layout
 
 # 普通 production build；不得启用导出像素探针
@@ -112,6 +111,7 @@ pnpm run format
 - Electron 导出 renderer、逐帧协议、CDP、FFmpeg 或输出提交：`test:visualize:cdf`、`test:electron-export`、typecheck、lint、build 和下述宿主集成检查。
 - 桌面导出入口、格式/文件名、目标选择、覆盖、进度、终态或阻塞清理交互：执行导出范围检查，追加 `test:electron-layout`，并查看下述导出状态截图。
 - npm 生产依赖、字体、原生第三方组件或 Electron 打包资源：`test:application-licenses`、`package:win` 和 `test:package:win`。
+- 工程维护脚本：`test:maintenance`；许可证生成或核对另跑 `test:application-licenses`，FFmpeg 构建另按 [scripts README](../scripts/README.md) 执行源码、构建和材料检查。
 - 文档：核对命令与完成状态，执行 `test:markdown:links`；跨层契约变更仍按对应范围验证。
 
 ## Windows x64 Electron 导出检查
@@ -152,7 +152,7 @@ pnpm run build
 
 ## Electron 布局与截图检查
 
-布局契约以 [Workbench Design](<WORKBENCH_DESIGN.md>) 与 [Visualization Design](<VISUALIZATION_DESIGN.md>) 为依据，共享画面与逐帧语义见 [Architecture](<../ARCHITECTURE.md#可视化与导出>)。`test:electron-layout` 覆盖四种窗口尺寸下的空间分配、滚动、文字缩放、固定画布适配与 DOM/SVG 几何；`capture:ui` 只生成截图，供 Agent 检查真实渲染的视觉层级、密度、裁切和遮挡，不能替代布局测试。
+布局契约以 [Workbench Design](<WORKBENCH_DESIGN.md>) 与 [Visualization Design](<VISUALIZATION_DESIGN.md>) 为依据，共享画面与逐帧语义见 [Architecture](<../ARCHITECTURE.md#可视化与导出>)。`test:electron-layout` 覆盖四种窗口尺寸下的空间分配、滚动、文字缩放、固定画布适配与 DOM/SVG 几何，并运行 production main/preload/renderer 的桌面 IPC、结果保存交错、关闭恢复与导出清理失败恢复检查。其中配置列表、状态查询及模拟准备实际启动构建后的配置 worker；子 frame 请求测试仅在隔离 harness 中开启子 frame preload 能力，不改变 production 窗口配置。`capture:ui` 只生成截图，供 Agent 检查真实渲染的视觉层级、密度、裁切和遮挡，不能替代布局测试。
 
 布局契约及其测试必须谨慎修改：不得为让测试通过而删除断言、放宽容差、缩减尺寸或 fixture 覆盖；只有明确改变设计规格时才同步调整对应断言，并保留未受影响的回归保护。断言暴露既有布局问题时，应修复或报告问题。
 

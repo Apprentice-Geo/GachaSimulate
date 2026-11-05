@@ -4,6 +4,16 @@ import { create_renderer_config } from "./electron.vite.renderer.config";
 
 export default defineConfig({
   main: {
+    build: {
+      rollupOptions: {
+        external: ["electron"],
+        input: {
+          index: resolve(__dirname, "src/main/index.ts"),
+          config_worker: resolve(__dirname, "src/main/config_worker.ts"),
+        },
+        output: { entryFileNames: "[name].js", format: "cjs" },
+      },
+    },
     plugins: [
       externalizeDepsPlugin({
         exclude: [

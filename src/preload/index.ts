@@ -1,70 +1,39 @@
-import { contextBridge, ipcRenderer } from "electron";
-import type {
-  DesktopSimulationEvent,
-  SimulationRequest,
-} from "../shared/simulation";
+import { contextBridge } from "electron";
+import type { DesktopApi } from "../shared/desktop_ipc";
+import { invoke_desktop, subscribe_desktop } from "./desktop_ipc";
 
-contextBridge.exposeInMainWorld("desktopApi", {
-  openAppLink: (link: import("../shared/app_info").AppLink) =>
-    ipcRenderer.invoke("open-app-link", link),
-  listConfigs: () => ipcRenderer.invoke("list-configs"),
-  getConfigRepositoryState: () =>
-    ipcRenderer.invoke("get-config-repository-state"),
+const desktop_api = {
+  openAppLink: (link) => invoke_desktop("open-app-link", link),
+  listConfigs: () => invoke_desktop("list-configs"),
+  getConfigRepositoryState: () => invoke_desktop("get-config-repository-state"),
   refreshConfigRepository: (force = false) =>
-    ipcRenderer.invoke("refresh-config-repository", force),
-  installConfig: (id: string) => ipcRenderer.invoke("install-config", id),
-  updateConfig: (id: string) => ipcRenderer.invoke("update-config", id),
-  uninstallConfig: (id: string) => ipcRenderer.invoke("uninstall-config", id),
+    invoke_desktop("refresh-config-repository", force),
+  installConfig: (id) => invoke_desktop("install-config", id),
+  updateConfig: (id) => invoke_desktop("update-config", id),
+  uninstallConfig: (id) => invoke_desktop("uninstall-config", id),
   selectLocalConfigDirectory: () =>
-    ipcRenderer.invoke("select-local-config-directory"),
-  getLogicalCpuCount: () => ipcRenderer.invoke("get-logical-cpu-count"),
-  startSimulation: (request: SimulationRequest) =>
-    ipcRenderer.invoke("start-simulation", request),
-  cancelSimulation: () => ipcRenderer.invoke("cancel-simulation"),
-  selectGsrResult: () => ipcRenderer.invoke("select-gsr-result"),
-  saveResultFields: (
-    request: import("../shared/result_editor").SaveResultFieldsRequest,
-  ) => ipcRenderer.invoke("save-result-fields", request),
-  prepareExport: (
-    request: import("../shared/export_task").ExportPreparationRequest,
-  ) => ipcRenderer.invoke("prepare-export", request),
-  selectExportDestination: (
-    request: import("../shared/export_task").ExportDestinationRequest,
-  ) => ipcRenderer.invoke("select-export-destination", request),
-  confirmExportOverwrite: (
-    request: import("../shared/export_task").ExportDestinationRequest,
-  ) => ipcRenderer.invoke("confirm-export-overwrite", request),
-  cancelExport: (
-    request: import("../shared/export_task").ExportCancelRequest,
-  ) => ipcRenderer.invoke("cancel-export", request),
-  retryExportCleanup: (
-    request: import("../shared/export_task").ExportTaskRequest,
-  ) => ipcRenderer.invoke("retry-export-cleanup", request),
-  openExportDirectory: (
-    request: import("../shared/export_task").ExportTaskRequest,
-  ) => ipcRenderer.invoke("open-export-directory", request),
-  exitAfterExportCleanup: (
-    request: import("../shared/export_task").ExportTaskRequest,
-  ) => ipcRenderer.invoke("exit-after-export-cleanup", request),
-  openResultsDirectory: () => ipcRenderer.invoke("open-results-directory"),
-  onSimulationEvent: (listener: (event: DesktopSimulationEvent) => void) => {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      value: DesktopSimulationEvent,
-    ) => listener(value);
-    ipcRenderer.on("simulation-event", handler);
-    return () => ipcRenderer.removeListener("simulation-event", handler);
-  },
-  onExportEvent: (
-    listener: (
-      event: import("../shared/export_task").DesktopExportEvent,
-    ) => void,
-  ) => {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      value: import("../shared/export_task").DesktopExportEvent,
-    ) => listener(value);
-    ipcRenderer.on("export-event", handler);
-    return () => ipcRenderer.removeListener("export-event", handler);
-  },
-});
+    invoke_desktop("select-local-config-directory"),
+  getLogicalCpuCount: () => invoke_desktop("get-logical-cpu-count"),
+  startSimulation: (request) => invoke_desktop("start-simulation", request),
+  cancelSimulation: () => invoke_desktop("cancel-simulation"),
+  selectGsrResult: () => invoke_desktop("select-gsr-result"),
+  saveResultFields: (request) => invoke_desktop("save-result-fields", request),
+  prepareExport: (request) => invoke_desktop("prepare-export", request),
+  selectExportDestination: (request) =>
+    invoke_desktop("select-export-destination", request),
+  confirmExportOverwrite: (request) =>
+    invoke_desktop("confirm-export-overwrite", request),
+  cancelExport: (request) => invoke_desktop("cancel-export", request),
+  retryExportCleanup: (request) =>
+    invoke_desktop("retry-export-cleanup", request),
+  openExportDirectory: (request) =>
+    invoke_desktop("open-export-directory", request),
+  exitAfterExportCleanup: (request) =>
+    invoke_desktop("exit-after-export-cleanup", request),
+  openResultsDirectory: () => invoke_desktop("open-results-directory"),
+  onSimulationEvent: (listener) =>
+    subscribe_desktop("simulation-event", listener),
+  onExportEvent: (listener) => subscribe_desktop("export-event", listener),
+} satisfies DesktopApi;
+
+contextBridge.exposeInMainWorld("desktopApi", desktop_api);

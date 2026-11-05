@@ -11,13 +11,30 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
+import test, { afterEach } from "node:test";
 import {
-  ConfigManager,
   resolve_config_selection,
   scan_installed_configs,
   scan_local_configs,
-} from "./config_manager";
+} from "./config_snapshot";
+import { ConfigManager } from "./config_manager";
+import type { ConfigWork } from "./config_worker_protocol";
+import type { LocalConfigSnapshot } from "./config_snapshot";
+import { ShutdownCoordinator } from "./shutdown";
+import { UserRequestAdmission } from "./request_admission";
+
+const managers = new Set<ConfigManager>();
+function tracked_manager(
+  ...args: ConstructorParameters<typeof ConfigManager>
+): ConfigManager {
+  const value = new ConfigManager(...args);
+  managers.add(value);
+  return value;
+}
+afterEach(async () => {
+  await Promise.all([...managers].map((value) => value.shutdown()));
+  managers.clear();
+});
 
 type ZipEntry = {
   name: string;
@@ -156,7 +173,7 @@ function manager(
     rename?: typeof renameSync;
   } = {},
 ): ConfigManager {
-  return new ConfigManager(join(root, "configs"), {
+  return tracked_manager(join(root, "configs"), {
     download: async (url) =>
       url.endsWith("index.json")
         ? (options.index ?? index_for(archive))
@@ -219,7 +236,7 @@ test("persists one local directory and reports a disappeared directory", async (
     const restarted = manager(root, archive);
     assert.equal(restarted.local_dir, local_b);
     rmSync(local_b, { recursive: true });
-    assert.match(restarted.state().localError ?? "", /不存在/);
+    assert.match((await restarted.state()).localError ?? "", /不存在/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -233,19 +250,22 @@ test("derives available, installed, update, and removed states", async () => {
     const configs = join(root, "configs");
     const current = manager(root, archive);
     await current.refresh();
-    assert.equal(current.state().official[0]?.status, "available");
+    assert.equal((await current.state()).official[0]?.status, "available");
     write_config(join(configs, "installed"), "installed", digest);
-    assert.equal(current.state().official[0]?.status, "installed");
+    assert.equal((await current.state()).official[0]?.status, "installed");
     writeFileSync(
       join(configs, "installed", "example", ".gachasimulate.json"),
       JSON.stringify({ sha256: "f".repeat(64) }),
     );
-    assert.equal(current.state().official[0]?.status, "update_available");
+    assert.equal(
+      (await current.state()).official[0]?.status,
+      "update_available",
+    );
     const removed = manager(root, archive, {
       index: index_for(archive, false),
     });
     await removed.refresh();
-    assert.equal(removed.state().official[0]?.status, "removed");
+    assert.equal((await removed.state()).official[0]?.status, "removed");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -255,7 +275,7 @@ test("offline refresh keeps installed configs available for use and uninstall", 
   const root = temporary();
   try {
     write_config(join(root, "configs", "installed"), "installed");
-    const current = new ConfigManager(join(root, "configs"), {
+    const current = tracked_manager(join(root, "configs"), {
       download: async () => {
         throw new Error("offline");
       },
@@ -264,9 +284,9 @@ test("offline refresh keeps installed configs available for use and uninstall", 
     const state = await current.refresh();
     assert.match(state.sourceError ?? "", /offline/);
     assert.equal(state.official[0]?.status, "installed");
-    assert.equal(current.list_configs()[0]?.source, "installed");
+    assert.equal((await current.list_configs())[0]?.source, "installed");
     await current.uninstall("example");
-    assert.deepEqual(current.list_configs(), []);
+    assert.deepEqual(await current.list_configs(), []);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -280,7 +300,7 @@ test("refresh throttles automatic calls, merges concurrency, and allows force", 
     let current_time = 0;
     let release!: () => void;
     const waiting = new Promise<void>((resolve) => (release = resolve));
-    const current = new ConfigManager(join(root, "configs"), {
+    const current = tracked_manager(join(root, "configs"), {
       download: async () => {
         downloads += 1;
         if (downloads === 1) await waiting;
@@ -313,7 +333,7 @@ test("failed refresh also throttles automatic retries", async () => {
   const root = temporary();
   try {
     let downloads = 0;
-    const current = new ConfigManager(join(root, "configs"), {
+    const current = tracked_manager(join(root, "configs"), {
       download: async () => {
         downloads += 1;
         throw new Error("offline");
@@ -329,6 +349,126 @@ test("failed refresh also throttles automatic retries", async () => {
   }
 });
 
+for (const outcome of ["success", "failure"] as const) {
+  test(`local directory changes preserve a pending official refresh ${outcome}`, async () => {
+    const root = temporary();
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let downloads = 0;
+    const current = tracked_manager(join(root, "configs"), {
+      download: async () => {
+        downloads += 1;
+        await waiting;
+        if (outcome === "failure") throw new Error("offline");
+        return index_for(zip(package_entries()));
+      },
+      simulation_active: () => false,
+      now: () => 0,
+    });
+    try {
+      const local = join(root, "local");
+      mkdirSync(local);
+      const refreshing = current.refresh();
+      const changed = await current.set_local_directory(local);
+      assert.equal(changed.localDirectory, local);
+      assert.deepEqual(changed.official, []);
+      release();
+      const state = await refreshing;
+      assert.equal(state.localDirectory, local);
+      if (outcome === "success") {
+        assert.equal(state.official[0]?.id, "example");
+        assert.equal(state.sourceError, null);
+      } else {
+        assert.deepEqual(state.official, []);
+        assert.match(state.sourceError ?? "", /offline/);
+      }
+      assert.deepEqual(await current.refresh(), state);
+      assert.equal(downloads, 1, "completed refreshes retain their TTL");
+    } finally {
+      release();
+      await current.shutdown();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
+
+test("a forced official refresh does not invalidate an ongoing local scan", async () => {
+  const root = temporary();
+  const empty: LocalConfigSnapshot = {
+    installed: [],
+    local: [],
+    local_error: null,
+  };
+  const scans: Array<(snapshot: LocalConfigSnapshot) => void> = [];
+  const work: ConfigWork = {
+    request: () =>
+      new Promise<LocalConfigSnapshot>((resolve) =>
+        scans.push(resolve),
+      ) as never,
+    stop: async () => undefined,
+    resume: () => undefined,
+  };
+  const current = tracked_manager(join(root, "configs"), {
+    download: async () => index_for(zip(package_entries())),
+    simulation_active: () => false,
+    config_work: work,
+  });
+  try {
+    const listing = current.list_configs();
+    const refreshing = current.refresh(true);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(scans.length, 2);
+    scans[0](empty);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(scans.length, 2, "the original scan must remain usable");
+    scans[1](empty);
+    assert.deepEqual(await listing, []);
+    assert.equal((await refreshing).official[0]?.id, "example");
+  } finally {
+    for (const resolve of scans) resolve(empty);
+    await current.shutdown();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a refresh denied after download neither publishes nor throttles retry", async () => {
+  const root = temporary();
+  const body = index_for(zip(package_entries()));
+  let release!: (value: Buffer) => void;
+  const pending = new Promise<Buffer>((resolve) => {
+    release = resolve;
+  });
+  let allowed = true;
+  let downloads = 0;
+  const current = tracked_manager(join(root, "configs"), {
+    download: async () => (++downloads === 1 ? pending : body),
+    simulation_active: () => false,
+    now: () => 0,
+    assert_request_allowed: () => {
+      if (!allowed) throw new Error("refresh admission denied");
+    },
+  });
+  try {
+    const refreshing = current.refresh();
+    const rejected = assert.rejects(refreshing, /admission denied/);
+    allowed = false;
+    release(body);
+    await rejected;
+    const state = await current.state();
+    assert.deepEqual(state.official, []);
+    assert.equal(state.sourceError, null);
+    allowed = true;
+    assert.equal((await current.refresh()).official[0]?.id, "example");
+    assert.equal(downloads, 2);
+  } finally {
+    release(body);
+    await current.shutdown();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("installs a validated archive and startup removes stale staging", async () => {
   const root = temporary();
   try {
@@ -339,7 +479,7 @@ test("installs a validated archive and startup removes stale staging", async () 
       (await current.install("example")).official[0]?.status,
       "installed",
     );
-    assert.equal(current.list_configs()[0]?.source, "installed");
+    assert.equal((await current.list_configs())[0]?.source, "installed");
     mkdirSync(join(root, "configs", ".staging", "stale"), { recursive: true });
     manager(root, archive);
     assert.equal(existsSync(join(root, "configs", ".staging")), false);
@@ -475,7 +615,7 @@ ${terminations
     await current.refresh();
     await current.install("example");
     assert.equal(
-      current.list_configs()[0]?.terminations.length,
+      (await current.list_configs())[0]?.terminations.length,
       terminations.length,
     );
   } finally {
@@ -524,7 +664,7 @@ test("configuration changes reject simulation and concurrent mutations", async (
 
     let release!: () => void;
     const waiting = new Promise<void>((resolve) => (release = resolve));
-    const concurrent = new ConfigManager(join(root, "concurrent"), {
+    const concurrent = tracked_manager(join(root, "concurrent"), {
       download: async (url) => {
         if (url.endsWith("index.json")) return index_for(archive);
         await waiting;
@@ -558,8 +698,236 @@ test("uninstall removes only the installed config with a colliding local id", as
     await current.install("example");
     await current.uninstall("example");
     assert.equal(existsSync(join(local, "example", "config.yaml")), true);
-    assert.equal(current.list_configs()[0]?.source, "local");
+    assert.equal((await current.list_configs())[0]?.source, "local");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("a scan from a previous local directory cannot publish after a directory change", async () => {
+  const root = temporary();
+  const scans: Array<(value: LocalConfigSnapshot) => void> = [];
+  const work: ConfigWork = {
+    request: () =>
+      new Promise<LocalConfigSnapshot>((resolve) =>
+        scans.push(resolve),
+      ) as never,
+    stop: async () => undefined,
+    resume: () => undefined,
+  };
+  try {
+    const local = join(root, "local");
+    mkdirSync(local);
+    const current = tracked_manager(join(root, "configs"), {
+      download: async () => index_for(zip(package_entries())),
+      simulation_active: () => false,
+      config_work: work,
+    });
+    const previous = current.state();
+    const changing = current.set_local_directory(local);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(scans.length, 2);
+    scans[1]({ installed: [], local: [], local_error: null });
+    await changing;
+    scans[0]({ installed: [], local: [], local_error: "obsolete directory" });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(scans.length, 3);
+    scans[2]({ installed: [], local: [], local_error: null });
+    assert.equal((await previous).localDirectory, local);
+    assert.equal((await previous).localError, null);
+    const a = current.list_configs();
+    const b = current.state();
+    assert.equal(
+      scans.length,
+      5,
+      "a later query must read anew rather than reuse an older in-flight scan",
+    );
+    scans[3]({ installed: [], local: [], local_error: null });
+    scans[4]({ installed: [], local: [], local_error: null });
+    await Promise.all([a, b]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("shutdown waits for an admitted install download and prevents its late commit", async () => {
+  const root = temporary();
+  const archive = zip(package_entries());
+  let release!: (body: Buffer) => void;
+  const download = new Promise<Buffer>((resolve) => {
+    release = resolve;
+  });
+  try {
+    const current = tracked_manager(join(root, "configs"), {
+      download: async (url) =>
+        url.endsWith("index.json") ? index_for(archive) : download,
+      simulation_active: () => false,
+    });
+    await current.refresh();
+    const installing = current.install("example");
+    const rejected = assert.rejects(installing, /shutdown/);
+    let stopped = false;
+    const stopping = current.shutdown().then(() => {
+      stopped = true;
+    });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(stopped, false);
+    await assert.rejects(current.list_configs(), /shutdown/);
+    release(archive);
+    await Promise.all([rejected, stopping]);
+    assert.equal(existsSync(join(current.installed_dir, "example")), false);
+    assert.equal(current.active, false);
+    current.resume();
+    assert.deepEqual(await current.list_configs(), []);
+    await current.install("example");
+    assert.equal((await current.list_configs()).length, 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a failed worker stop still waits for refresh settlement before recovery", async () => {
+  const root = temporary();
+  let release!: (body: Buffer) => void;
+  const download = new Promise<Buffer>((resolve) => {
+    release = resolve;
+  });
+  let resumes = 0;
+  const work: ConfigWork = {
+    request: async () =>
+      ({ installed: [], local: [], local_error: null }) as never,
+    stop: async () => {
+      throw new Error("worker cannot stop");
+    },
+    resume: () => {
+      resumes += 1;
+    },
+  };
+  const current = new ConfigManager(join(root, "configs"), {
+    download: () => download,
+    simulation_active: () => false,
+    config_work: work,
+  });
+  try {
+    const refreshing = current.refresh();
+    const rejected_refresh = assert.rejects(refreshing, /shutdown/);
+    let finished = false;
+    const stopped = assert
+      .rejects(current.shutdown(), /worker cannot stop/)
+      .then(() => {
+        finished = true;
+      });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(finished, false);
+    release(index_for(zip(package_entries())));
+    await Promise.all([stopped, rejected_refresh]);
+    await assert.rejects(current.state(), /shutdown/);
+    current.resume();
+    assert.equal(resumes, 1);
+    assert.deepEqual(await current.list_configs(), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("shutdown times out a stalled install, retains its owner, and rejects its late commit after recovery", async () => {
+  const root = temporary();
+  const archive = zip(package_entries());
+  let release!: (body: Buffer) => void;
+  const download = new Promise<Buffer>((resolve) => {
+    release = resolve;
+  });
+  const admission = new UserRequestAdmission();
+  const current = tracked_manager(join(root, "configs"), {
+    download: async (url) =>
+      url.endsWith("index.json") ? index_for(archive) : download,
+    simulation_active: () => false,
+    assert_request_allowed: (kind) => admission.admit(kind),
+    shutdown_timeout_ms: 10,
+  });
+  const shutdown = new ShutdownCoordinator(
+    admission,
+    [() => current.shutdown()],
+    () => current.resume(),
+  );
+  try {
+    await current.refresh();
+    const installing = current.install("example");
+    const rejected_install = assert.rejects(
+      installing,
+      /directory has changed/,
+    );
+    await assert.rejects(
+      shutdown.stop(),
+      /configuration change settlement timed out/,
+    );
+    assert.equal(current.active, true);
+    admission.admit("analysis");
+    assert.deepEqual(await current.list_configs(), []);
+    await assert.rejects(current.uninstall("example"), /already running/);
+    release(archive);
+    await rejected_install;
+    assert.equal(existsSync(join(current.installed_dir, "example")), false);
+    assert.equal(current.active, false);
+    await current.install("example");
+    assert.equal((await current.list_configs()).length, 1);
+    await shutdown.stop();
+  } finally {
+    release(archive);
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+for (const outcome of ["success", "failure"] as const) {
+  test(`shutdown rejects a late refresh ${outcome} after recovery without throttling retry`, async () => {
+    const root = temporary();
+    const body = index_for(zip(package_entries()));
+    let release!: (value: Buffer) => void;
+    const download = new Promise<Buffer>((resolve, reject) => {
+      release = (value) => {
+        if (outcome === "success") resolve(value);
+        else reject(new Error("late offline error"));
+      };
+    });
+    let downloads = 0;
+    const admission = new UserRequestAdmission();
+    const current = tracked_manager(join(root, "configs"), {
+      download: async () => {
+        downloads += 1;
+        return downloads === 1 ? download : body;
+      },
+      simulation_active: () => false,
+      assert_request_allowed: (kind) => admission.admit(kind),
+      shutdown_timeout_ms: 10,
+    });
+    const shutdown = new ShutdownCoordinator(
+      admission,
+      [() => current.shutdown()],
+      () => current.resume(),
+    );
+    try {
+      const refreshing = current.refresh();
+      const rejected_refresh = assert.rejects(refreshing, /refresh.*shutdown/);
+      await assert.rejects(
+        shutdown.stop(),
+        /configuration refresh settlement timed out/,
+      );
+      admission.admit("analysis");
+      assert.deepEqual((await current.state()).official, []);
+      const joined = current.refresh(true);
+      const rejected_joined = assert.rejects(joined, /refresh.*shutdown/);
+      assert.equal(downloads, 1);
+      release(body);
+      await Promise.all([rejected_refresh, rejected_joined]);
+      const state = await current.state();
+      assert.deepEqual(state.official, []);
+      assert.equal(state.sourceError, null);
+      assert.equal((await current.refresh()).official.length, 1);
+      assert.equal(downloads, 2);
+      await shutdown.stop();
+    } finally {
+      release(body);
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}

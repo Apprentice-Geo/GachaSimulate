@@ -305,6 +305,9 @@ test("cleanup failure retains admission, supports retry, and keeps one terminal 
   assert.equal(opened, "C:\\exports");
 
   host.retry_fails = true;
+  await assert.rejects(coordinator.shutdown(), /cleanup locked/);
+  assert.equal(coordinator.active, true);
+  assert.throws(() => admission.admit("analysis"), /during export/);
   await coordinator.retry_cleanup({ task_id: "task" });
   assert.equal(events.at(-1)?.type, "cleanup-failed");
   assert.throws(() => admission.admit("analysis"), /during export/);

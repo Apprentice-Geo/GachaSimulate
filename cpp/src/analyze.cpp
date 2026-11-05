@@ -1,29 +1,15 @@
+#include "cli.hpp"
 #include "gachasimulate/result.hpp"
 
 #include <iostream>
 #include <stdexcept>
 #include <string>
-#ifdef _WIN32
-#include <windows.h>
-#endif
 
 namespace {
+using gachasimulate::cli::argument;
 [[noreturn]] void usage() {
   throw std::runtime_error("usage: gachasimulate-analyze --input <file.gsr>");
 }
-#ifdef _WIN32
-std::string utf8(const wchar_t *value) {
-  const int size =
-      WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, value, -1, nullptr, 0, nullptr, nullptr);
-  if (!size)
-    throw std::runtime_error("invalid Unicode command line");
-  std::string result(size, '\0');
-  WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, value, -1, result.data(), size, nullptr,
-                      nullptr);
-  result.pop_back();
-  return result;
-}
-#endif
 } // namespace
 
 #ifdef _WIN32
@@ -34,13 +20,8 @@ int main(int argc, char **argv) {
   try {
     std::string input;
     for (int i = 1; i < argc; ++i) {
-#ifdef _WIN32
-      const auto arg = utf8(argv[i]);
-      auto value = [&] { return ++i < argc ? utf8(argv[i]) : (usage(), std::string{}); };
-#else
-      const std::string arg = argv[i];
-      auto value = [&] { return ++i < argc ? std::string(argv[i]) : (usage(), std::string{}); };
-#endif
+      const auto arg = argument(argv[i]);
+      auto value = [&] { return ++i < argc ? argument(argv[i]) : (usage(), std::string{}); };
       if (arg == "--input" && input.empty())
         input = value();
       else

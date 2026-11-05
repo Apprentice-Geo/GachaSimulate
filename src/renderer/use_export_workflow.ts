@@ -1,9 +1,11 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { ExportWorkflowController } from "./export_workflow_controller";
 
-export function use_export_workflow() {
+export function use_export_workflow(
+  before_prepare?: (session_id: string) => Promise<void>,
+) {
   const [controller] = useState(
-    () => new ExportWorkflowController(window.desktopApi),
+    () => new ExportWorkflowController(window.desktopApi, before_prepare),
   );
   const state = useSyncExternalStore(
     controller.subscribe,

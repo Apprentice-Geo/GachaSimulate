@@ -122,11 +122,11 @@ jobs:
       - name: Check Node.js formatting
         run: pnpm run format:check
 
-      - name: Check repository hook
-        run: pnpm run test:pre-commit
-
       - name: Check Markdown links
         run: pnpm run test:markdown:links
+
+      - name: Check maintenance script failure handling
+        run: pnpm run test:maintenance
 
       - name: Lint Node.js
         run: pnpm run lint
@@ -205,6 +205,9 @@ jobs:
         with:
           name: native-windows-x64
           path: build/native
+
+      - name: Install Electron binary
+        run: pnpm exec install-electron
 
       - name: Run Electron renderer layout tests
         run: pnpm run test:electron-layout

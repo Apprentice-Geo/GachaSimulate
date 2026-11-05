@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { createPortal } from "react-dom";
 import VisualizeApp from "../../visualize/App";
 import type { CDFViewModel } from "../../visualize/types/cdf";
 import { ResultLoadPanel } from "../components/ResultLoadPanel";
 import { Button } from "../components/Button";
+import type { ResultSessionState } from "../result_session_controller";
 
 export function ResultVisualizePage({
   input,
@@ -11,33 +11,17 @@ export function ResultVisualizePage({
   on_export,
   export_active,
   actions_host,
+  session,
 }: {
   input: CDFViewModel | null;
+  session: ResultSessionState;
   on_select_result: () => Promise<boolean>;
   on_export: () => void;
   export_active: boolean;
   actions_host: HTMLElement | null;
 }) {
-  const [loading, set_loading] = useState(false);
-  const [status, set_status] = useState<string | undefined>();
-  const [error, set_error] = useState<string | null>(null);
-
-  const select = async (): Promise<boolean> => {
-    set_loading(true);
-    set_error(null);
-    set_status("正在分析…");
-    try {
-      const selected = await on_select_result();
-      set_status(selected ? undefined : "未选择文件。");
-      return selected;
-    } catch (reason) {
-      set_error(reason instanceof Error ? reason.message : String(reason));
-      set_status("分析失败。");
-      return false;
-    } finally {
-      set_loading(false);
-    }
-  };
+  const { loading, load_error: error, load_status: status } = session;
+  const select = on_select_result;
 
   if (input) {
     return (

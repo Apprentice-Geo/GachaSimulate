@@ -15,6 +15,7 @@ import { use_export_workflow } from "./use_export_workflow";
 
 type ExportWorkflowProps = {
   context: ExportContext;
+  before_prepare?: (session_id: string) => Promise<void>;
   children: (controls: { active: boolean; open: () => void }) => ReactNode;
 };
 
@@ -61,8 +62,12 @@ function use_focus_trap(
   }, [active, dialog_ref, focus_key, on_escape]);
 }
 
-export function ExportWorkflow({ context, children }: ExportWorkflowProps) {
-  const { state, controller } = use_export_workflow();
+export function ExportWorkflow({
+  context,
+  children,
+  before_prepare,
+}: ExportWorkflowProps) {
+  const { state, controller } = use_export_workflow(before_prepare);
   const trigger_ref = useRef<HTMLElement | null>(null);
   const dialog_ref = useRef<HTMLDivElement>(null);
   const { flow, notice, live_message } = state;

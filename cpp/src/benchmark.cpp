@@ -1,49 +1,46 @@
+#include "cli.hpp"
 #include "gachasimulate/result.hpp"
 #include "gachasimulate/runtime.hpp"
 
-#include <charconv>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
 
 namespace {
-// Input text and its diagnostic label are distinct at every local call site.
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-template <class T> T integer(const char *text, const char *name) {
-  T value{};
-  const auto [end, error] =
-      std::from_chars(text, text + std::char_traits<char>::length(text), value);
-  if (error != std::errc{} || end != text + std::char_traits<char>::length(text))
-    throw std::runtime_error(std::string("invalid ") + name);
-  return value;
-}
+using gachasimulate::cli::argument;
+using gachasimulate::cli::integer;
 [[noreturn]] void usage() {
   throw std::runtime_error("usage: gachasimulate-benchmark --ir <path> --total-runs <positive> "
                            "--seed <int64> --threads <positive> --output <absolute .gsr path>");
 }
 } // namespace
 
+#ifdef _WIN32
+int wmain(int argc, wchar_t **argv) {
+#else
 int main(int argc, char **argv) {
+#endif
   try {
     std::string ir, output;
     uint64_t runs{};
     int64_t seed{};
     uint32_t threads{};
     for (int i = 1; i < argc; ++i) {
-      const std::string arg = argv[i];
+      const std::string arg = argument(argv[i]);
       if (++i == argc)
         usage();
+      const auto value = argument(argv[i]);
       if (arg == "--ir")
-        ir = argv[i];
+        ir = value;
       else if (arg == "--total-runs")
-        runs = integer<uint64_t>(argv[i], "total-runs");
+        runs = integer<uint64_t>(value, "total-runs");
       else if (arg == "--seed")
-        seed = integer<int64_t>(argv[i], "seed");
+        seed = integer<int64_t>(value, "seed");
       else if (arg == "--threads")
-        threads = integer<uint32_t>(argv[i], "threads");
+        threads = integer<uint32_t>(value, "threads");
       else if (arg == "--output")
-        output = argv[i];
+        output = value;
       else
         usage();
     }
@@ -61,6 +58,7 @@ int main(int argc, char **argv) {
     std::cout << "{\"elapsed_ms\":" << elapsed << ",\"total_runs\":" << result.values.size()
               << ",\"total_result\":" << result.total_result
               << ",\"gsr_bytes\":" << std::filesystem::file_size(path) << "}\n";
+    return 0;
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n';
     return 1;

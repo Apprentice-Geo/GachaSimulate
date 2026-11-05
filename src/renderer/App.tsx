@@ -7,16 +7,16 @@ import {
   Settings,
   Store,
 } from "lucide-react";
-import { useCallback, useState, useMemo, type ReactNode } from "react";
-import type { ResultEditorState } from "../shared/result_editor";
+import { useState, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import { ExportWorkflow } from "./ExportWorkflow";
 import { SimulationPage } from "./pages/SimulationPage";
 import { ResultEditorPage } from "./pages/ResultEditorPage";
 import { ConfigRepositoryPage } from "./pages/ConfigRepositoryPage";
-import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
 import { ResultVisualizePage } from "./pages/ResultVisualizePage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { save_theme, type WorkbenchTheme } from "./theme";
+import { ResultSessionController } from "./result_session_controller";
+import { ResultErrorBoundary } from "./components/ResultErrorBoundary";
 
 type Page =
   | "simulation"
@@ -68,16 +68,16 @@ export default function App() {
   const [visualize_actions_host, set_visualize_actions_host] =
     useState<HTMLDivElement | null>(null);
   const [active_page, set_active_page] = useState<Page>("simulation");
-  const [result_state, set_result_state] = useState<ResultEditorState | null>(
-    null,
+  const [result_controller] = useState(
+    () => new ResultSessionController(window.desktopApi),
   );
-
-  const select_result = useCallback(async (): Promise<boolean> => {
-    const selected = await window.desktopApi.selectGsrResult();
-    if (!selected) return false;
-    set_result_state(selected);
-    return true;
-  }, []);
+  const result_session = useSyncExternalStore(
+    result_controller.subscribe,
+    result_controller.get_snapshot,
+  );
+  const result_state = result_session.result;
+  const select_result = result_controller.select_result;
+  const visualize_input = result_session.model;
   const export_context = useMemo(
     () =>
       result_state
@@ -88,16 +88,12 @@ export default function App() {
         : null,
     [result_state],
   );
-  const visualize_input = useMemo(
-    () =>
-      result_state
-        ? build_cdf_view_model(result_state.analysis, result_state.display)
-        : null,
-    [result_state?.analysis, result_state?.display],
-  );
 
   return (
-    <ExportWorkflow context={export_context}>
+    <ExportWorkflow
+      context={export_context}
+      before_prepare={result_controller.wait_for_saves}
+    >
       {({ active: export_active, open: open_export }) => (
         <div className="renderer-shell">
           <aside className="renderer-sidebar">
@@ -146,18 +142,29 @@ export default function App() {
             <div className="renderer-content">
               <SimulationPage active={active_page === "simulation"} />
               {active_page === "result-editor" ? (
-                <ResultEditorPage
-                  state={result_state}
-                  on_state={set_result_state}
-                />
+                <ResultErrorBoundary
+                  key={result_state?.session_id}
+                  on_select={select_result}
+                >
+                  <ResultEditorPage
+                    session={result_session}
+                    controller={result_controller}
+                  />
+                </ResultErrorBoundary>
               ) : active_page === "result-visualize" ? (
-                <ResultVisualizePage
-                  actions_host={visualize_actions_host}
-                  input={visualize_input}
-                  on_select_result={select_result}
-                  export_active={export_active}
-                  on_export={open_export}
-                />
+                <ResultErrorBoundary
+                  key={result_state?.session_id}
+                  on_select={select_result}
+                >
+                  <ResultVisualizePage
+                    actions_host={visualize_actions_host}
+                    input={visualize_input}
+                    session={result_session}
+                    on_select_result={select_result}
+                    export_active={export_active}
+                    on_export={open_export}
+                  />
+                </ResultErrorBoundary>
               ) : active_page === "config-repository" ? (
                 <ConfigRepositoryPage />
               ) : active_page === "settings" ? (

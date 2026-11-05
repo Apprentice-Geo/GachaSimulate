@@ -39,6 +39,7 @@ import type {
 } from "./export_host";
 import type { ResultEditor, ResultSnapshot } from "./result_editor";
 import { UserRequestAdmission } from "./request_admission";
+import { settle_shutdown } from "./shutdown";
 
 export type ResolvedExportTargets = Readonly<
   Partial<Record<ExportFormat, string>>
@@ -327,21 +328,21 @@ export class ExportTaskCoordinator {
   async shutdown(): Promise<void> {
     const reservation = this.reservation;
     const task = this.task;
-    await Promise.all([
-      reservation
-        ? this.cancel({ reservation_id: reservation.id, reason: "cancelled" })
-        : Promise.resolve(),
-      task ? this.cancel({ task_id: task.id }) : Promise.resolve(),
+    await settle_shutdown([
+      () =>
+        reservation
+          ? this.cancel({ reservation_id: reservation.id, reason: "cancelled" })
+          : Promise.resolve(),
+      () => (task ? this.cancel({ task_id: task.id }) : Promise.resolve()),
     ]);
     const retained = this.task;
     if (retained?.host.cleanup_failed) {
-      try {
-        await retained.host.retry_cleanup();
-      } catch {
-        // Application exit gets one final best-effort retry and then proceeds.
-      }
-      if (this.task === retained) this.task = null;
-      this.admission.release_export(retained.id);
+      await this.retry_cleanup({ task_id: retained.id });
+      if (this.task === retained)
+        throw (
+          retained.host.cleanup_error ??
+          new Error("export cleanup is still blocked")
+        );
     }
     this.directory_authorization = null;
   }

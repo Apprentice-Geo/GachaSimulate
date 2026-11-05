@@ -1,27 +1,18 @@
-import { compile_yaml, YAML_TEXT_LIMIT } from "@gachasimulate/config-compiler";
-import { spawn, execFile } from "node:child_process";
+import type { CompiledProgram } from "@gachasimulate/config-compiler";
+import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   renameSync,
   rmSync,
-  statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { cpus, tmpdir } from "node:os";
-import {
-  basename,
-  dirname,
-  isAbsolute,
-  join,
-  relative,
-  resolve,
-} from "node:path";
+import { dirname, join, resolve } from "node:path";
 import {
   parse_simulation_line,
   resolve_process_outcome,
@@ -29,12 +20,20 @@ import {
   type DesktopSimulationEvent,
   type SimulationEvent,
   type SimulationStatus,
+  type SimulationRequest,
 } from "../shared/simulation";
-import { resolve_config_selection } from "./config_manager";
+import { ConfigWorkerClient } from "./config_worker_client";
+import type { ConfigWork } from "./config_worker_protocol";
+import { settle_shutdown } from "./shutdown";
+import {
+  resolve_native_executable,
+  terminate_native_process,
+  wait_for_process_close,
+  NATIVE_PROCESS_TIMEOUT_MS,
+} from "./native_process";
 
 const STDERR_LIMIT = 64 * 1024;
 const JSONL_LINE_LIMIT = 64 * 1024;
-const TERMINATION_TIMEOUT_MS = 10_000;
 const RESULT_STEM_LIMIT = 255 - Buffer.byteLength(".visualize.json");
 
 type SimulationTaskDependencies = {
@@ -49,33 +48,20 @@ type SimulationTaskDependencies = {
   native_dir?: string;
   random_uuid?: () => string;
   local_dir?: () => string | null;
+  prepare_program?: (request: SimulationRequest) => Promise<CompiledProgram>;
+  assert_start_allowed?: () => void;
+  config_work?: ConfigWork;
 };
 
 type NativeTask = { active: boolean; cancel(): Promise<void> };
 
-export function resolve_native_executable(
-  name: string,
-  override?: string,
-): string {
-  const directory = resolve(
-    override ??
-      (process.env.ELECTRON_RENDERER_URL || !process.resourcesPath
-        ? join(process.cwd(), "build", "native", "bin")
-        : join(process.resourcesPath, "native", "bin")),
-  );
-  return join(
-    directory,
-    `${name}${process.platform === "win32" ? ".exe" : ""}`,
-  );
-}
-
 export async function shutdown_native_processes(
   ...tasks: Array<NativeTask | undefined>
 ): Promise<void> {
-  await Promise.all(
+  await settle_shutdown(
     tasks
       .filter((task): task is NativeTask => Boolean(task?.active))
-      .map((task) => task.cancel()),
+      .map((task) => () => task.cancel()),
   );
 }
 
@@ -105,47 +91,17 @@ function result_basename(
   return `${readable.slice(0, RESULT_STEM_LIMIT - suffix.length)}${suffix}.gsr`;
 }
 
-export async function terminate_native_process(
-  child: ChildProcess,
-): Promise<void> {
-  if (process.platform !== "win32") {
-    try {
-      if (!child.kill("SIGTERM")) throw new Error("process was not running");
-      return;
-    } catch (error) {
-      throw new Error(
-        `failed to terminate native process: ${readable_error(error).message}`,
-        { cause: error },
-      );
-    }
-  }
-  if (!child.pid)
-    throw new Error("failed to terminate native process: process has no PID");
-  await new Promise<void>((resolve, reject) => {
-    execFile(
-      "taskkill",
-      ["/PID", String(child.pid), "/T", "/F"],
-      { timeout: TERMINATION_TIMEOUT_MS },
-      (error, _stdout, stderr) => {
-        const detail = stderr.trim();
-        if (error) {
-          reject(
-            new Error(
-              `failed to terminate native process: ${detail || error.message}`,
-            ),
-          );
-        } else {
-          resolve();
-        }
-      },
-    );
-  });
-}
-
 export class SimulationTask {
   private child: ChildProcess | null = null;
+  private preparing: {
+    cancelled: boolean;
+    running: Promise<void>;
+    cancelling: Promise<void> | null;
+  } | null = null;
+  private readonly config_work: ConfigWork;
   private child_close: Promise<Error | null> | null = null;
   private cancel_promise: Promise<void> | null = null;
+  private cancel_child: ChildProcess | null = null;
   private status: SimulationStatus = "idle";
   private cancelled = false;
   private saw_completed = false;
@@ -168,10 +124,12 @@ export class SimulationTask {
     private readonly results_dir: string,
     private readonly emit: (event: DesktopSimulationEvent) => void,
     private readonly dependencies: SimulationTaskDependencies = {},
-  ) {}
+  ) {
+    this.config_work = dependencies.config_work ?? new ConfigWorkerClient();
+  }
 
   get active(): boolean {
-    return this.child !== null;
+    return this.child !== null || this.preparing !== null;
   }
 
   private notify(event: DesktopSimulationEvent): void {
@@ -179,43 +137,63 @@ export class SimulationTask {
     this.emit(event);
   }
 
-  start(value: unknown): void {
+  async start(value: unknown): Promise<void> {
     if (this.active) throw new Error("a simulation is already running");
     validate_simulation_request(value, cpus().length);
     const request = value;
-    const config_dir = resolve_config_selection(
-      this.installed_dir,
-      this.dependencies.local_dir?.() ?? null,
-      request.configSource,
-      request.configId,
-      request.termination,
-    );
-    const termination = request.termination;
-    const termination_path = resolve(config_dir, termination);
-    if (
-      isAbsolute(request.termination) ||
-      basename(termination) !== termination ||
-      relative(config_dir, termination_path).startsWith("..")
-    )
-      throw new Error("termination must be inside config directory");
-    const config_path = join(config_dir, "config.yaml");
-    const manifest_path = join(config_dir, "manifest.yaml");
-    if (
-      !existsSync(config_path) ||
-      !existsSync(termination_path) ||
-      !existsSync(manifest_path)
-    )
-      throw new Error("configuration files not found");
-    for (const path of [config_path, termination_path, manifest_path])
-      if (statSync(path).size > YAML_TEXT_LIMIT)
-        throw new Error(`${basename(path)} exceeds 1 MiB`);
-    const program = compile_yaml(
-      readFileSync(config_path, "utf8"),
-      readFileSync(termination_path, "utf8"),
-      readFileSync(manifest_path, "utf8"),
-      request.resultItem,
-    );
+    const preparation: NonNullable<SimulationTask["preparing"]> = {
+      cancelled: false,
+      running: Promise.resolve(),
+      cancelling: null,
+    };
+    this.preparing = preparation;
+    this.cancelled = false;
+    const running = Promise.resolve().then(async () => {
+      try {
+        if (preparation.cancelled) return;
+        const root =
+          request.configSource === "installed"
+            ? this.installed_dir
+            : this.dependencies.local_dir?.();
+        if (!root)
+          throw new Error(
+            `${request.configSource} configuration directory is unavailable`,
+          );
+        const program = this.dependencies.prepare_program
+          ? await this.dependencies.prepare_program(request)
+          : await this.config_work.request("compile", {
+              directory: join(root, request.configId),
+              id: request.configId,
+              source: request.configSource,
+              termination: request.termination,
+              result_item: request.resultItem,
+            });
+        if (preparation.cancelled || this.preparing !== preparation) return;
+        this.dependencies.assert_start_allowed?.();
+        this.spawn_program(request, program);
+      } catch (error) {
+        if (!preparation.cancelled) {
+          this.notify({
+            status: "failed",
+            message: readable_error(error).message,
+          });
+          throw error;
+        }
+      } finally {
+        if (this.preparing === preparation && !preparation.cancelled) {
+          this.preparing = null;
+        }
+      }
+    });
+    preparation.running = running;
+    this.notify({ status: "starting" });
+    await running;
+  }
 
+  private spawn_program(
+    request: SimulationRequest,
+    program: CompiledProgram,
+  ): void {
     mkdirSync(this.results_dir, { recursive: true });
     this.final_output = join(this.results_dir, result_basename(request));
     this.temporary_output = join(
@@ -250,7 +228,6 @@ export class SimulationTask {
     this.protocol_stop_started = false;
     this.completed_event = null;
     this.stderr = "";
-    this.notify({ status: "starting" });
     let child: ChildProcess;
     try {
       writeFileSync(ir, JSON.stringify(program.ir));
@@ -450,27 +427,59 @@ export class SimulationTask {
   private async wait_for_close(child: ChildProcess): Promise<void> {
     const close = this.child === child ? this.child_close : null;
     if (!close) return;
-    let timer: NodeJS.Timeout | undefined;
-    try {
-      const cleanup_error = await Promise.race([
-        close,
-        new Promise<never>((_resolve, reject) => {
-          timer = setTimeout(
-            () => reject(new Error("simulation process close timed out")),
-            this.dependencies.close_timeout_ms ?? TERMINATION_TIMEOUT_MS,
-          );
-        }),
-      ]);
-      if (cleanup_error) throw cleanup_error;
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
+    const cleanup_error = await wait_for_process_close(
+      close,
+      this.dependencies.close_timeout_ms ?? NATIVE_PROCESS_TIMEOUT_MS,
+      "simulation process close timed out",
+    );
+    if (cleanup_error) throw cleanup_error;
   }
 
   async cancel(): Promise<void> {
-    if (this.cancel_promise) return this.cancel_promise;
+    const preparation = this.preparing;
+    if (preparation) {
+      if (preparation.cancelling) return preparation.cancelling;
+      if (!preparation.cancelled) {
+        preparation.cancelled = true;
+        this.cancelled = true;
+        this.notify({ status: "cancelling" });
+      }
+      const cancelling = (async () => {
+        try {
+          await settle_shutdown([
+            async () => {
+              if (!this.dependencies.prepare_program)
+                await this.config_work.stop();
+            },
+            () => preparation.running,
+          ]);
+          if (!this.dependencies.prepare_program) this.config_work.resume();
+          if (this.preparing === preparation) {
+            this.preparing = null;
+            this.notify({ status: "cancelled" });
+          }
+        } catch (error) {
+          if (this.preparing === preparation)
+            this.notify({
+              status: "cancelling",
+              message: readable_error(error).message,
+            });
+          throw error;
+        }
+      })();
+      preparation.cancelling = cancelling;
+      try {
+        await cancelling;
+      } finally {
+        if (preparation.cancelling === cancelling)
+          preparation.cancelling = null;
+      }
+      return;
+    }
     const child = this.child;
     if (!child) return;
+    if (this.cancel_promise && this.cancel_child === child)
+      return this.cancel_promise;
     this.cancelled = true;
     this.notify({ status: "cancelling" });
     const cancellation = (async () => {
@@ -497,10 +506,14 @@ export class SimulationTask {
       }
     })();
     this.cancel_promise = cancellation;
+    this.cancel_child = child;
     try {
       await cancellation;
     } finally {
-      if (this.cancel_promise === cancellation) this.cancel_promise = null;
+      if (this.cancel_promise === cancellation) {
+        this.cancel_promise = null;
+        this.cancel_child = null;
+      }
     }
   }
 }

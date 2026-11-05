@@ -36,6 +36,10 @@ export class UserRequestAdmission {
     this.shutting_down = true;
   }
 
+  recover_shutdown(): void {
+    this.shutting_down = false;
+  }
+
   get export_active(): boolean {
     return this.export_owner !== null;
   }

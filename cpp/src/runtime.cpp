@@ -119,6 +119,16 @@ struct Frame {
   uint64_t repeats{};
 };
 
+Range draw_actions(const RuntimeProgram &p, State &s, uint32_t pool_id) {
+  const auto &pool = p.pools[pool_id];
+  std::uniform_real_distribution<double> random(0.0, 1.0);
+  const auto value = random(s.rng);
+  const auto first = p.entries.begin() + pool.entries.begin;
+  return std::lower_bound(first, first + pool.entries.count, value,
+                          [](const Entry &e, double v) { return e.threshold < v; })
+      ->actions;
+}
+
 bool condition(const RuntimeProgram &p, State &s, uint32_t id, std::vector<Range> &output) {
   if (++s.steps > kMaxRunSteps)
     throw std::runtime_error("runtime step limit exceeded");
@@ -200,16 +210,9 @@ void execute(const RuntimeProgram &p, State &s, Range initial) {
       s.inventory[action.target] = action.amount;
       enqueue_resolve(action.target);
       break;
-    case ActionKind::Draw: {
-      const auto &pool = p.pools[action.target];
-      std::uniform_real_distribution<double> random(0.0, 1.0);
-      const auto value = random(s.rng);
-      const auto first = p.entries.begin() + pool.entries.begin;
-      const auto entry = std::lower_bound(first, first + pool.entries.count, value,
-                                          [](const Entry &e, double v) { return e.threshold < v; });
-      push({entry->actions, 0, 1});
+    case ActionKind::Draw:
+      push({draw_actions(p, s, action.target), 0, 1});
       break;
-    }
     case ActionKind::Change:
       s.pool = action.target;
       break;
@@ -417,20 +420,30 @@ RuntimeProgram load_ir_file(const std::string &path) {
   p.termination_condition = u32(field(root, "termination_condition"), "termination condition");
   if (p.termination_condition >= p.conditions.size())
     fail("invalid termination condition");
-  std::vector<uint8_t> visiting(p.conditions.size());
+  enum class Visit : uint8_t { Unseen, Active, Complete };
+  std::vector<Visit> visiting(p.conditions.size());
+  std::vector<size_t> heights(p.conditions.size());
   // Node id and recursion depth are distinct within this local traversal.
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-  const auto depth = [&](auto &&self, uint32_t id, size_t level) -> void {
+  const auto depth = [&](auto &&self, uint32_t id, size_t level) -> size_t {
     if (level > kMaxConditionDepth)
       fail("condition depth exceeds 256");
-    if (visiting[id])
+    if (visiting[id] == Visit::Active)
       fail("cyclic condition tree");
-    visiting[id] = 1;
+    if (visiting[id] == Visit::Complete) {
+      if (heights[id] > kMaxConditionDepth - level + 1)
+        fail("condition depth exceeds 256");
+      return heights[id];
+    }
+    visiting[id] = Visit::Active;
+    size_t height = 1;
     const auto &c = p.conditions[id];
     if (c.logic)
       for (uint32_t i = 0; i < c.children.count; ++i)
-        self(self, p.children[c.children.begin + i], level + 1);
-    visiting[id] = 0;
+        height = std::max(height, 1 + self(self, p.children[c.children.begin + i], level + 1));
+    heights[id] = height;
+    visiting[id] = Visit::Complete;
+    return height;
   };
   for (uint32_t i = 0; i < p.conditions.size(); ++i)
     depth(depth, i, 1);
@@ -450,14 +463,7 @@ RunResult single_run(const RuntimeProgram &p, uint64_t run_seed) {
     execute(p, s, p.every_draw);
     if (s.stop)
       break;
-    execute(p, s, {0, 0});
-    const auto &pool = p.pools[s.pool];
-    std::uniform_real_distribution<double> random(0.0, 1.0);
-    const auto entry =
-        std::lower_bound(p.entries.begin() + pool.entries.begin,
-                         p.entries.begin() + pool.entries.begin + pool.entries.count, random(s.rng),
-                         [](const Entry &e, double v) { return e.threshold < v; });
-    execute(p, s, entry->actions);
+    execute(p, s, draw_actions(p, s, s.pool));
     for (uint32_t i = 0; i < p.rules.size() && !s.stop; ++i) {
       const auto &rule = p.rules[i];
       if (rule.mode == RuleMode::Once && s.once[i])
@@ -507,14 +513,19 @@ void finish(BatchResult &r) {
     r.total_result += value;
   }
 }
-template <class Work>
-BatchResult batches(uint64_t work, uint32_t threads, uint32_t requested_chunks, Work &&do_chunk,
-                    const std::function<void(uint64_t)> &progress) {
-  const auto chunks = effective_threads(work, requested_chunks ? requested_chunks : threads);
-  const auto workers = effective_threads(chunks, threads);
+} // namespace
+
+BatchResult simulate_fixed_runs(const RuntimeProgram &p, const FixedRunOptions &options,
+                                const std::function<void(uint64_t)> &progress) {
+  const auto total_runs = options.total_runs;
+  if (!total_runs || total_runs > 1'000'000'007)
+    throw std::runtime_error("total-runs out of range");
+  const auto chunks =
+      effective_threads(total_runs, options.chunks ? options.chunks : options.threads);
+  const auto workers = effective_threads(chunks, options.threads);
   BatchResult result;
-  result.values.resize(work);
-  result.reasons.resize(work);
+  result.values.resize(total_runs);
+  result.reasons.resize(total_runs);
   std::atomic<uint32_t> next_chunk{}, finished_workers{};
   std::atomic<uint64_t> done{};
   std::atomic<bool> stop{};
@@ -527,7 +538,11 @@ BatchResult batches(uint64_t work, uint32_t threads, uint32_t requested_chunks, 
         const auto chunk = next_chunk.fetch_add(1);
         if (chunk >= chunks)
           break;
-        do_chunk(chunk, chunks, result, done);
+        const auto begin = total_runs * chunk / chunks, end = total_runs * (chunk + 1) / chunks;
+        for (auto i = begin; i < end && !stop; ++i) {
+          store(result, i, p, single_run(p, derive_run_seed(options.seed, i)));
+          ++done;
+        }
       }
     } catch (...) {
       std::lock_guard lock(mutex);
@@ -540,50 +555,36 @@ BatchResult batches(uint64_t work, uint32_t threads, uint32_t requested_chunks, 
   };
   std::vector<std::jthread> pool;
   pool.reserve(workers);
-  for (uint32_t i = 0; i < workers; ++i)
-    pool.emplace_back(worker);
-  uint64_t reported{};
-  std::unique_lock lock(mutex);
-  while (finished_workers < workers) {
-    finished.wait_for(lock, std::chrono::milliseconds(50));
-    const auto current = done.load();
-    if (progress && current != reported) {
-      lock.unlock();
-      progress(current);
-      lock.lock();
-      reported = current;
+  try {
+    for (uint32_t i = 0; i < workers; ++i)
+      pool.emplace_back(worker);
+    uint64_t reported{};
+    std::unique_lock lock(mutex);
+    while (finished_workers < workers) {
+      finished.wait_for(lock, std::chrono::milliseconds(50));
+      const auto current = done.load();
+      if (progress && current != reported) {
+        lock.unlock();
+        progress(current);
+        lock.lock();
+        reported = current;
+      }
     }
+    lock.unlock();
+    for (auto &t : pool)
+      t.join();
+    if (error)
+      std::rethrow_exception(error);
+    if (progress && done != reported)
+      progress(done.load());
+    finish(result);
+    return result;
+  } catch (...) {
+    // Stop at the next run boundary before jthread destruction joins any live workers.
+    // This also covers progress callbacks and partially constructed thread pools.
+    stop = true;
+    throw;
   }
-  lock.unlock();
-  for (auto &t : pool)
-    t.join();
-  if (error)
-    std::rethrow_exception(error);
-  if (progress && done != reported)
-    progress(done.load());
-  finish(result);
-  return result;
-}
-} // namespace
-
-BatchResult simulate_fixed_runs(const RuntimeProgram &p, const FixedRunOptions &options,
-                                const std::function<void(uint64_t)> &progress) {
-  const auto total_runs = options.total_runs;
-  const auto seed = options.seed;
-  const auto threads = options.threads;
-  const auto chunks = options.chunks;
-  if (!total_runs || total_runs > 1'000'000'007)
-    throw std::runtime_error("total-runs out of range");
-  return batches(
-      total_runs, threads, chunks,
-      [&](uint32_t chunk, uint32_t chunks, BatchResult &result, std::atomic<uint64_t> &done) {
-        const auto begin = total_runs * chunk / chunks, end = total_runs * (chunk + 1) / chunks;
-        for (auto i = begin; i < end; ++i) {
-          store(result, i, p, single_run(p, derive_run_seed(seed, i)));
-          ++done;
-        }
-      },
-      progress);
 }
 
 } // namespace gachasimulate

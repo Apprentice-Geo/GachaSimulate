@@ -1,6 +1,16 @@
 export { compile, compile_yaml } from "./compiler.js";
 export { validate_config_files } from "./batch.js";
 export { read_config_manifest } from "./manifest.js";
+export type {
+  Action,
+  CheckCondition,
+  Comparison,
+  Condition,
+  ItemAction,
+  ItemResolve,
+  ProgramIR,
+  RuleMode,
+} from "./ir.js";
 export {
   CompilerError,
   YAML_TEXT_LIMIT,

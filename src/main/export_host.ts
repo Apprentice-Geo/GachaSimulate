@@ -17,6 +17,11 @@ import { CANVAS_HEIGHT, CANVAS_WIDTH, VIDEO_FPS } from "../visualize/constants";
 import type { CDFViewModel } from "../visualize/types/cdf";
 import type { ExportFormat, ExportStage } from "../shared/export_task";
 
+import {
+  wait_for_process_close,
+  NATIVE_PROCESS_TIMEOUT_MS,
+} from "./native_process";
+
 export { EXPORT_FRAME_COUNT };
 
 export const EXPORT_WIDTH = CANVAS_WIDTH;
@@ -1008,21 +1013,13 @@ export class ExportHost {
       child.kill("SIGTERM");
     }
     if (this.child_close) {
-      let timer: NodeJS.Timeout | undefined;
-      try {
-        await Promise.race([
-          this.child_close.catch(() => ({ code: null, signal: null })),
-          new Promise<never>((_resolve, reject) => {
-            timer = setTimeout(
-              () => reject(new Error("FFmpeg process close timed out")),
-              this.dependencies.process_close_timeout_ms ?? 10_000,
-            );
-          }),
-        ]);
-      } finally {
-        if (timer) clearTimeout(timer);
-      }
+      await wait_for_process_close(
+        this.child_close.catch(() => ({ code: null, signal: null })),
+        this.dependencies.process_close_timeout_ms ?? NATIVE_PROCESS_TIMEOUT_MS,
+        "FFmpeg process close timed out",
+      );
     }
+
     this.child = null;
     this.child_close = null;
   }

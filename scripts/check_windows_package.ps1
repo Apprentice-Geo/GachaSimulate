@@ -8,6 +8,7 @@ $Core = Join-Path $UnpackedBin "gachasimulate-core.exe"
 $Analyzer = Join-Path $UnpackedBin "gachasimulate-analyze.exe"
 $ffmpeg = Join-Path $UnpackedRoot "resources/ffmpeg/bin/ffmpeg.exe"
 $SourceFfmpeg = Join-Path $ProjectRoot "build/ffmpeg/win32-x64/bin/ffmpeg.exe"
+$FfmpegLock = Get-Content -LiteralPath (Join-Path $ProjectRoot "build/ffmpeg/win32-x64/materials/source-lock.json") -Raw | ConvertFrom-Json
 $Installer = Join-Path $ProjectRoot "dist/GachaSimulate Setup $($Package.version).exe"
 
 foreach ($Path in @($Core, $Analyzer, $ffmpeg, $SourceFfmpeg, $Installer)) {
@@ -24,39 +25,8 @@ if (($NativeNames -join ',') -ne ($ExpectedNames -join ',')) {
   throw "Unexpected packaged native files: $($NativeNames -join ', ')."
 }
 
-$LicenseMappings = @{
-  "JetBrainsMono-OFL-1.1.txt" = "third_party/licenses/JetBrainsMono-OFL-1.1.txt"
-  "JetBrainsMono-AUTHORS.txt" = "third_party/licenses/JetBrainsMono-AUTHORS.txt"
-  "LICENSE.txt" = "LICENSE.txt"
-  "THIRD_PARTY_NOTICES.md" = "THIRD_PARTY_NOTICES.md"
-  "SourceHanSansSC-OFL-1.1.txt" = "third_party/licenses/SourceHanSansSC-OFL-1.1.txt"
-  "nlohmann-json-3.11.3-MIT.txt" = "third_party/licenses/nlohmann-json-3.11.3-MIT.txt"
-  "victory-vendor-37.3.6.txt" = "third_party/licenses/victory-vendor-37.3.6.txt"
-}
-foreach ($Entry in $LicenseMappings.GetEnumerator()) {
-  $Packaged = Join-Path $LicenseRoot $Entry.Key
-  $Source = Join-Path $ProjectRoot $Entry.Value
-  if (-not (Test-Path -LiteralPath $Packaged -PathType Leaf) -or (Get-Item -LiteralPath $Packaged).Length -eq 0) {
-    throw "Missing or empty packaged license material: $Packaged"
-  }
-  if ((Get-FileHash -LiteralPath $Packaged -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash) {
-    throw "Packaged license material differs from repository source: $($Entry.Key)"
-  }
-}
-
-$NpmLicenses = Join-Path $LicenseRoot "THIRD_PARTY_LICENSES.txt"
-if (-not (Test-Path -LiteralPath $NpmLicenses -PathType Leaf) -or (Get-Item -LiteralPath $NpmLicenses).Length -eq 0) {
-  throw "Missing or empty packaged npm license inventory: $NpmLicenses"
-}
-$NpmLicenseText = Get-Content -LiteralPath $NpmLicenses -Raw
-foreach ($Dependency in @("ajv@", "lucide-react@", "react@", "react-dom@", "recharts@", "victory-vendor@37.3.6", "yaml@", "yauzl@")) {
-  if (-not $NpmLicenseText.Contains($Dependency)) {
-    throw "Packaged npm license inventory is missing $Dependency."
-  }
-}
-if ($NpmLicenseText.Contains($ProjectRoot, [StringComparison]::OrdinalIgnoreCase)) {
-  throw "Packaged npm license inventory exposes the workspace path."
-}
+& node (Join-Path $PSScriptRoot "application_licenses.mjs") --verify $LicenseRoot
+if ($LASTEXITCODE -ne 0) { throw "Packaged application license verification failed." }
 
 foreach ($ElectronNotice in @("LICENSE.electron.txt", "LICENSES.chromium.html")) {
   $Notice = Join-Path $UnpackedRoot $ElectronNotice
@@ -72,7 +42,8 @@ try {
   $env:Path = "$env:SystemRoot\System32;$env:SystemRoot"
   $FfmpegVersion = & $ffmpeg -version 2>&1 | Out-String
   if ($LASTEXITCODE -ne 0) { throw "Packaged FFmpeg smoke failed with exit code $LASTEXITCODE`:`n$FfmpegVersion" }
-  if ($FfmpegVersion -notmatch '(?m)^ffmpeg version 9\.0\.1(?:[\s-]|$)') {
+  $ExpectedFfmpegVersion = [regex]::Escape($FfmpegLock.ffmpeg.version)
+  if ($FfmpegVersion -notmatch "(?m)^ffmpeg version $ExpectedFfmpegVersion(?:[\s-]|$)") {
     throw "Packaged FFmpeg reports an unexpected version: $FfmpegVersion"
   }
   & $Core --ir (Join-Path $ProjectRoot "cpp/tests/batch_fixture_ir.json") `

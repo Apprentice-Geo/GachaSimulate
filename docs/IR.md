@@ -8,6 +8,8 @@ IR 不是用户配置、持久化结果或公共交换格式。Compiler 和 Runt
 
 Config Compiler 定义 IR 的结构以及 YAML 到 IR 的表示规则，并负责将合法 YAML 规范化为 IR。C++ loader 将文件内容视为不可信输入，重新检查 JSON 形状、数值范围、引用、arena 区间和运行安全边界；这些检查用于保护 Runtime，不构成另一套 IR 定义。IR 如何表示已编译程序由 Compiler 决定，执行该程序时的模拟行为由 C++ Runtime 决定。
 
+Compiler 的静态 IR 类型集中在 `packages/config-compiler/src/ir.ts`，动作和条件使用判别联合。语法编译统一生成这些节点，resolver、同步调用图、repeat 和终止路径检查消费同一份已编译表示；批量校验中的每个 termination 使用独立的工作 arena。
+
 若 Compiler 输出与 C++ loader 冲突，应修正两端及契约测试，不能把某一端的偶然行为当作兼容格式。
 
 ## 顶层结构

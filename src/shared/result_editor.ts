@@ -29,3 +29,8 @@ export type SaveResultFieldsRequest = {
   session_id: string;
   fields: DisplayFields;
 };
+
+export type SavedResultFields = {
+  session_id: string;
+  display: DisplayConfig;
+};

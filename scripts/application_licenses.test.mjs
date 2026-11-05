@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   generateApplicationLicenses,
   readPnpmLicenseInventory,
+  verifyApplicationLicenses,
 } from "./application_licenses.mjs";
 
 const projectRoot = path.resolve(
@@ -176,18 +177,48 @@ test("generates the current production dependency inventory", async () => {
       outputDirectory: path.join(root, "output"),
       projectRoot,
     });
-    for (const dependency of [
-      "ajv@",
-      "lucide-react@",
-      "react@",
-      "react-dom@",
-      "recharts@",
-      "victory-vendor@37.3.6",
-      "yaml@",
-      "yauzl@",
-    ]) {
-      assert.ok(result.aggregate.includes(dependency), `missing ${dependency}`);
-    }
+    const expected = [
+      ...new Set(
+        Object.values(inventory)
+          .flat()
+          .filter(({ name }) => !name.startsWith("@gachasimulate/"))
+          .flatMap(({ name, versions }) =>
+            versions.map((version) => `${name}@${version}`),
+          ),
+      ),
+    ].sort();
+    assert.deepEqual(result.packages.map(({ key }) => key).sort(), expected);
     assert.ok(!result.aggregate.includes(projectRoot));
+    await verifyApplicationLicenses({
+      inventory,
+      directory: path.join(root, "output"),
+      projectRoot,
+    });
+  });
+});
+
+test("packaged license verification rejects changed, missing, and stale materials", async () => {
+  await withFixture(async (root) => {
+    const directory = path.join(root, "output");
+    const inventory = inventoryFor([]);
+    await generateApplicationLicenses({
+      inventory,
+      outputDirectory: directory,
+      projectRoot,
+    });
+    const verify = () =>
+      verifyApplicationLicenses({ inventory, directory, projectRoot });
+    const aggregate = path.join(directory, "THIRD_PARTY_LICENSES.txt");
+    const original = await fs.readFile(aggregate);
+    await fs.writeFile(aggregate, "outdated inventory\n");
+    await assert.rejects(verify, /differs from source/);
+    await fs.writeFile(aggregate, original);
+    const material = path.join(directory, "LICENSE.txt");
+    const license = await fs.readFile(material);
+    await fs.rm(material);
+    await assert.rejects(verify, /file collection/);
+    await fs.writeFile(material, license);
+    await fs.writeFile(path.join(directory, "stale-license.txt"), "stale");
+    await assert.rejects(verify, /file collection/);
   });
 });

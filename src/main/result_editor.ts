@@ -14,6 +14,7 @@ import {
   type DisplayFields,
   type ResultEditorState,
   type SaveResultFieldsRequest,
+  type SavedResultFields,
 } from "../shared/result_editor";
 import type { Analysis } from "../visualize/types/analysis";
 import type { DisplayConfig } from "../visualize/types/display_config";
@@ -24,7 +25,9 @@ import type { CDFViewModel } from "../visualize/types/cdf";
 import {
   resolve_native_executable,
   terminate_native_process,
-} from "./simulation";
+  wait_for_process_close,
+  NATIVE_PROCESS_TIMEOUT_MS,
+} from "./native_process";
 
 export const ANALYSIS_JSON_BYTE_LIMIT = 64 * 1024 * 1024;
 export const DISPLAY_CONFIG_JSON_BYTE_LIMIT = 16 * 1024 * 1024;
@@ -40,6 +43,8 @@ type ResultEditorDependencies = {
   native_dir?: string;
   random_uuid?: () => string;
   analysis_json_byte_limit?: number;
+  close_timeout_ms?: number;
+  assert_open_allowed?: () => void;
 };
 
 export type ResultSnapshot = Readonly<{
@@ -72,6 +77,24 @@ function display_fields(input: DisplayConfig): DisplayFields {
   ) as DisplayFields;
 }
 
+export function validate_save_result_fields_request(
+  value: unknown,
+): SaveResultFieldsRequest {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("invalid result fields request");
+  const request = value as Record<string, unknown>;
+  if (
+    Object.keys(request).length !== 2 ||
+    typeof request.session_id !== "string" ||
+    !request.session_id
+  )
+    throw new Error("invalid result fields request");
+  return {
+    session_id: request.session_id,
+    fields: fields_value(request.fields),
+  };
+}
+
 function sidecar_path(path: string): string {
   return `${path.slice(0, -4)}.visualize.json`;
 }
@@ -83,6 +106,9 @@ export class ResultEditor {
   private display: DisplayConfig | null = null;
   private child: ChildProcess | null = null;
   private child_close: Promise<void> | null = null;
+  private cancel_promise: Promise<void> | null = null;
+  private cancel_child: ChildProcess | null = null;
+  private cancelled_child: ChildProcess | null = null;
   private save_queue: Promise<void> = Promise.resolve();
   private save_error: { session_id: string; error: Error } | null = null;
 
@@ -98,6 +124,8 @@ export class ResultEditor {
       throw new Error("请选择 .gsr 结果文件");
     const analysis = await this.analyze(path);
     const display = this.restore_sidecar(path, analysis);
+    build_cdf_view_model(analysis, display);
+    this.dependencies.assert_open_allowed?.();
     this.path = path;
     this.analysis = analysis;
     this.display = display;
@@ -106,9 +134,8 @@ export class ResultEditor {
     return this.state();
   }
 
-  save(value: SaveResultFieldsRequest): Promise<ResultEditorState> {
-    const session_id = value?.session_id;
-    const fields = fields_value(value?.fields);
+  save(value: SaveResultFieldsRequest): Promise<SavedResultFields> {
+    const { session_id, fields } = validate_save_result_fields_request(value);
     if (!session_id || session_id !== this.session_id)
       return Promise.reject(new Error("result session has changed"));
     const operation = this.save_queue
@@ -142,7 +169,7 @@ export class ResultEditor {
         }
         this.display = display;
         this.save_error = null;
-        return this.state();
+        return { session_id, display };
       });
     this.save_queue = operation.then(
       () => undefined,
@@ -194,10 +221,36 @@ export class ResultEditor {
     const child = this.child;
     const close = this.child_close;
     if (!child || !close) return;
-    await (
-      this.dependencies.terminate_native_process ?? terminate_native_process
-    )(child);
-    await close;
+    if (this.cancel_promise && this.cancel_child === child)
+      return this.cancel_promise;
+    this.cancelled_child = child;
+    const cancellation = (async () => {
+      try {
+        if (child.exitCode == null && child.signalCode == null)
+          await (
+            this.dependencies.terminate_native_process ??
+            terminate_native_process
+          )(child);
+      } catch (error) {
+        if (this.child !== child) return;
+        throw error;
+      }
+      await wait_for_process_close(
+        close,
+        this.dependencies.close_timeout_ms ?? NATIVE_PROCESS_TIMEOUT_MS,
+        "analyzer process close timed out",
+      );
+    })();
+    this.cancel_promise = cancellation;
+    this.cancel_child = child;
+    try {
+      await cancellation;
+    } finally {
+      if (this.cancel_promise === cancellation) {
+        this.cancel_promise = null;
+        this.cancel_child = null;
+      }
+    }
   }
 
   private state(): ResultEditorState {
@@ -277,6 +330,7 @@ export class ResultEditor {
       let stdout_size = 0;
       let stderr = "";
       let process_error: Error | null = null;
+      let output_exceeded = false;
       let resolve_close!: () => void;
       this.child_close = new Promise<void>((done) => {
         resolve_close = done;
@@ -284,9 +338,13 @@ export class ResultEditor {
       child.stdout?.setEncoding("utf8");
       child.stderr?.setEncoding("utf8");
       child.stdout?.on("data", (chunk: string) => {
+        if (this.child !== child || output_exceeded) return;
         stdout_size += Buffer.byteLength(chunk);
         if (stdout_size <= framed_limit) stdout += chunk;
-        else void this.cancel().catch(() => undefined);
+        else {
+          output_exceeded = true;
+          void this.cancel().catch(() => undefined);
+        }
       });
       child.stderr?.on("data", (chunk: string) => {
         stderr = (stderr + chunk).slice(-STDERR_LIMIT);
@@ -295,6 +353,8 @@ export class ResultEditor {
         process_error = error;
       });
       child.once("close", (code) => {
+        const cancelled = this.cancelled_child === child;
+        if (cancelled) this.cancelled_child = null;
         if (this.child === child) {
           this.child = null;
           this.child_close = null;
@@ -305,8 +365,9 @@ export class ResultEditor {
           : stdout.endsWith("\n")
             ? stdout.slice(0, -1)
             : stdout;
-        if (stdout_size > framed_limit || Buffer.byteLength(json) > json_limit)
+        if (output_exceeded || Buffer.byteLength(json) > json_limit)
           reject(new Error("analyzer JSON exceeds 64 MiB"));
+        else if (cancelled) reject(new Error("analysis was cancelled"));
         else if (code !== 0)
           reject(
             new Error(

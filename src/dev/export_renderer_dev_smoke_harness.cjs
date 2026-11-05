@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports, no-undef */
 const { app, BrowserWindow, ipcMain } = require("electron");
-const path = require("node:path");
 
 globalThis.exportRendererSmoke = { loadFailures: [], messages: [] };
 app.commandLine.appendSwitch("force-device-scale-factor", "1");
@@ -37,7 +36,7 @@ app.whenReady().then(async () => {
       backgroundThrottling: false,
       contextIsolation: true,
       nodeIntegration: false,
-      preload: path.join(__dirname, "export_renderer_dev_smoke_preload.cjs"),
+      preload: process.env.GACHASIMULATE_SMOKE_PRELOAD,
       sandbox: true,
     },
   });

@@ -1,5 +1,7 @@
-export type ActionRange = { begin: number; count: number };
-export type CompiledProgram = { ir: Record<string, unknown> };
+import type { ProgramIR } from "./ir.js";
+
+export type { ActionRange } from "./ir.js";
+export type CompiledProgram = { ir: ProgramIR };
 export type ConfigItem = { id: string; name: string };
 export type ConfigTermination = { file: string; name: string };
 export type ConfigManifest = {

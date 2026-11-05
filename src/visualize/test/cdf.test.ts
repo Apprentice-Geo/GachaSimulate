@@ -14,6 +14,7 @@ import {
 } from "../animation/progress";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../constants";
 import { get_cdf_level_at_draw } from "../data/cdf";
+import { validate_analysis } from "../data/analysis";
 import { build_cdf_view_model } from "../view/cdf_view_model";
 import {
   build_curve_path,
@@ -695,4 +696,54 @@ test("VisualizeScene shares chart layout between interactive and export modes", 
     export_scene.props.chart_slot.props,
     interactive_scene.props.chart_slot.props,
   );
+});
+
+test("large validated distributions preserve axis rules without argument spreading", () => {
+  const sample: Analysis = {
+    result_item: { id: "draw_count", name: "抽数" },
+    totals: { runs: "200000", result: "200000" },
+    values: Array.from({ length: 200000 }, (_, index) => String(index)),
+    cumulative: Array.from(
+      { length: 200000 },
+      (_, index) => (index + 1) / 200000,
+    ),
+    statistic: {
+      MIN: "0",
+      P5: "0",
+      P25: "0",
+      P50: "0",
+      P75: "0",
+      P95: "0",
+      MEAN: "0",
+      MEAN_LEVEL: 0,
+      MAX: "200001",
+    },
+    termination_reason: [{ reason: "done", proportion: 100 }],
+  };
+  const display: DisplayConfig = {
+    display_version: 2,
+    title: "",
+    target: "",
+    result_item_name: "抽数",
+    result_item_unit: "",
+    subtitle: "",
+    note: "",
+  };
+  const validated = validate_analysis(sample);
+  const model = build_cdf_view_model(validated, display);
+  assert.equal(model.chart_points.length, 200000);
+  assert.equal(model.x_domain_max, Math.ceil(200001 * 1.04));
+  for (const [value, maximum, expected] of [
+    ["0", "0", 1],
+    ["1", "0", 2],
+    ["0", "5", 6],
+  ]) {
+    const single = validate_analysis({
+      ...sample,
+      values: [value],
+      cumulative: [1],
+      statistic: { ...sample.statistic, MAX: maximum },
+    });
+    assert.equal(build_cdf_view_model(single, display).x_domain_max, expected);
+  }
 });

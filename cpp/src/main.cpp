@@ -1,29 +1,21 @@
+#include "cli.hpp"
 #include "gachasimulate/result.hpp"
 #include "gachasimulate/runtime.hpp"
 
-#include <charconv>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
-#ifdef _WIN32
-#include <windows.h>
-#endif
 
 namespace {
 using Json = nlohmann::json;
+using gachasimulate::cli::argument;
+using gachasimulate::cli::integer;
 [[noreturn]] void usage() {
   throw std::runtime_error(
       "usage: gachasimulate-core --ir <path> --total-runs <positive> --seed <int64> --threads "
       "<positive> --output <absolute .gsr path>");
-}
-template <class T> T integer(const std::string &value, const char *name) {
-  T result{};
-  const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), result);
-  if (error != std::errc{} || end != value.data() + value.size())
-    throw std::runtime_error(std::string("invalid ") + name);
-  return result;
 }
 void event(const char *name, const Json &extra = Json::object()) {
   Json line = extra;
@@ -31,19 +23,6 @@ void event(const char *name, const Json &extra = Json::object()) {
   std::cout << line.dump() << '\n' << std::flush;
 }
 void stage(const char *name) { event("stage", {{"stage", name}}); }
-#ifdef _WIN32
-std::string utf8(const wchar_t *value) {
-  const int size =
-      WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, value, -1, nullptr, 0, nullptr, nullptr);
-  if (!size)
-    throw std::runtime_error("invalid Unicode command line");
-  std::string result(size, '\0');
-  WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, value, -1, result.data(), size, nullptr,
-                      nullptr);
-  result.pop_back();
-  return result;
-}
-#endif
 } // namespace
 
 #ifdef _WIN32
@@ -58,21 +37,12 @@ int main(int argc, char **argv) {
     uint32_t threads = 0;
     bool haveSeed = false, haveThreads = false;
     for (int i = 1; i < argc; ++i) {
-#ifdef _WIN32
-      const std::string arg = utf8(argv[i]);
+      const std::string arg = argument(argv[i]);
       auto value = [&]() {
         if (++i == argc)
           usage();
-        return utf8(argv[i]);
+        return argument(argv[i]);
       };
-#else
-      const std::string arg = argv[i];
-      auto value = [&]() {
-        if (++i == argc)
-          usage();
-        return std::string(argv[i]);
-      };
-#endif
       if (arg == "--ir")
         ir = value();
       else if (arg == "--output")
