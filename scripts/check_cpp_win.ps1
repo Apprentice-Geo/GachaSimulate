@@ -119,9 +119,6 @@ function Invoke-ReleaseCheck {
     }
     try {
       Move-Item -LiteralPath (Join-Path $StagePrefix "bin") -Destination $DestinationBin
-      if (Test-Path -LiteralPath $BackupBin) {
-        Remove-Item -LiteralPath $BackupBin -Recurse -Force
-      }
     } catch {
       if (Test-Path -LiteralPath $DestinationBin) {
         Remove-Item -LiteralPath $DestinationBin -Recurse -Force
@@ -130,6 +127,14 @@ function Invoke-ReleaseCheck {
         Move-Item -LiteralPath $BackupBin -Destination $DestinationBin
       }
       throw
+    }
+    # Replacing bin commits the validated install. Backup cleanup cannot roll it back.
+    if (Test-Path -LiteralPath $BackupBin) {
+      try {
+        Remove-Item -LiteralPath $BackupBin -Recurse -Force
+      } catch {
+        Write-Warning "The new native programs are installed, but the previous backup could not be removed: $BackupBin"
+      }
     }
   } finally {
     if (Test-Path -LiteralPath $StagePrefix) {

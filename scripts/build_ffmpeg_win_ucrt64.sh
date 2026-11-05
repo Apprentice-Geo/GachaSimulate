@@ -237,7 +237,11 @@ cp "$ffmpeg_build/libavcodec/parser_list.c" "$materials/parser_list.c"
 sed -n 's/^[[:space:]]*&ff_\([a-z0-9_]*\)_parser,.*/\1/p' \
   "$materials/parser_list.c" > "$materials/parsers.txt"
 
-grep -Eq '^ffmpeg version 9\.0\.1([[:space:]-]|$)' "$materials/ffmpeg-version.txt"
+read -r program label reported_version version_details < "$materials/ffmpeg-version.txt"
+if [[ "$program" != ffmpeg || "$label" != version || ( "$reported_version" != "$GS_FFMPEG_VERSION" && "$reported_version" != "$GS_FFMPEG_VERSION-"* ) ]]; then
+  printf 'Expected FFmpeg version %s, got %s.\n' "$GS_FFMPEG_VERSION" "$reported_version" >&2
+  exit 2
+fi
 grep -Eq '^[[:space:]]*V[^[:space:]]*[[:space:]]+png([[:space:]]|$)' "$materials/decoders.txt"
 grep -Eq '^[[:space:]]*V[^[:space:]]*[[:space:]]+h264([[:space:]]|$)' "$materials/decoders.txt"
 grep -Eq '^[[:space:]]*V[^[:space:]]*[[:space:]]+libx264([[:space:]]|$)' "$materials/encoders.txt"

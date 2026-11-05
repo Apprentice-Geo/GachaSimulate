@@ -7,8 +7,6 @@
   "private": true,
   "scripts": {
     "dev": "pnpm run build:packages && electron-vite dev",
-    "hooks:install": "git config core.hooksPath .githooks",
-    "test:pre-commit": "git -c core.hooksPath=.githooks hook run pre-commit -- --self-test",
     "test:markdown:links": "node --test scripts/markdown_links.test.mjs",
     "check:cpp": "pwsh -NoProfile -File scripts/check_cpp_win.ps1",
     "check:cpp:format": "pwsh -NoProfile -File scripts/check_cpp_win.ps1 -Task Format",
@@ -30,6 +28,7 @@
     "package:ffmpeg:compliance": "pwsh -NoProfile -File scripts/package_ffmpeg_compliance.ps1",
     "test:ffmpeg:compliance": "pwsh -NoProfile -File scripts/package_ffmpeg_compliance.test.ps1",
     "test:build:ffmpeg:win": "node scripts/build_ffmpeg_win.test.mjs",
+    "test:maintenance": "pwsh -NoProfile -File scripts/maintenance.test.ps1",
     "test:electron-export": "tsx --test src/renderer/export_workflow_controller.test.ts src/export-renderer/export_renderer.test.ts src/main/export_host.test.ts src/main/export_task.test.ts src/dev/export_renderer_dev_smoke.test.ts",
     "test:electron-export:integration": "tsx src/dev/export_host_integration.ts",
     "test:visualize:cdf": "tsx --test src/visualize/test/cdf.test.ts src/visualize/test/analysis.test.ts",

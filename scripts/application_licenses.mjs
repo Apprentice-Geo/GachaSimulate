@@ -195,29 +195,77 @@ export function renderThirdPartyLicenses(packages) {
   );
 }
 
+async function prepareApplicationLicenses(inventory, projectRoot) {
+  const policy = await loadLicensePolicy(projectRoot);
+  const packages = await collectPackages(inventory, policy, projectRoot);
+  const aggregate = renderThirdPartyLicenses(packages);
+  if (aggregate.toLowerCase().includes(projectRoot.toLowerCase())) {
+    throw new Error(
+      "Application license inventory exposes the workspace path.",
+    );
+  }
+  const materials = await Promise.all(
+    policy.application_files.map(async ({ source, output }) => ({
+      name: output,
+      content: await fs.readFile(path.join(projectRoot, source)),
+    })),
+  );
+  materials.push({
+    name: "THIRD_PARTY_LICENSES.txt",
+    content: Buffer.from(aggregate),
+  });
+  for (const material of materials) {
+    if (!material.content.length)
+      throw new Error(`Empty application license material: ${material.name}`);
+  }
+  return { aggregate, packages, materials };
+}
+
 export async function generateApplicationLicenses({
   inventory,
   outputDirectory,
   projectRoot,
 }) {
-  const policy = await loadLicensePolicy(projectRoot);
-  const packages = await collectPackages(inventory, policy, projectRoot);
-  const aggregate = renderThirdPartyLicenses(packages);
+  const { aggregate, packages, materials } = await prepareApplicationLicenses(
+    inventory,
+    projectRoot,
+  );
 
   await fs.rm(outputDirectory, { recursive: true, force: true });
   await fs.mkdir(outputDirectory, { recursive: true });
-  for (const mapping of policy.application_files) {
-    await fs.copyFile(
-      path.join(projectRoot, mapping.source),
-      path.join(outputDirectory, mapping.output),
+  for (const material of materials) {
+    await fs.writeFile(
+      path.join(outputDirectory, material.name),
+      material.content,
     );
   }
-  await fs.writeFile(
-    path.join(outputDirectory, "THIRD_PARTY_LICENSES.txt"),
-    aggregate,
-    "utf8",
-  );
   return { aggregate, packages };
+}
+
+export async function verifyApplicationLicenses({
+  inventory,
+  directory,
+  projectRoot,
+}) {
+  const { materials } = await prepareApplicationLicenses(
+    inventory,
+    projectRoot,
+  );
+  const actualNames = (await fs.readdir(directory)).sort(compareText);
+  const expectedNames = materials.map(({ name }) => name).sort(compareText);
+  if (JSON.stringify(actualNames) !== JSON.stringify(expectedNames)) {
+    throw new Error(
+      "Packaged application license file collection differs from the current policy.",
+    );
+  }
+  for (const material of materials) {
+    const actual = await fs.readFile(path.join(directory, material.name));
+    if (!actual.equals(material.content)) {
+      throw new Error(
+        `Packaged application license material differs from source: ${material.name}`,
+      );
+    }
+  }
 }
 
 async function main() {
@@ -226,6 +274,18 @@ async function main() {
     "..",
   );
   const inventory = readPnpmLicenseInventory(projectRoot);
+  const args = process.argv.slice(2);
+  if (args.length) {
+    if (args.length !== 2 || args[0] !== "--verify")
+      throw new Error("Usage: application_licenses.mjs [--verify <directory>]");
+    await verifyApplicationLicenses({
+      inventory,
+      directory: path.resolve(args[1]),
+      projectRoot,
+    });
+    process.stdout.write("Verified packaged application license materials.\n");
+    return;
+  }
   const outputDirectory = path.join(
     projectRoot,
     "build",

@@ -20,9 +20,8 @@ pacman -S --needed \
 将 `C:\msys64\ucrt64\bin` 放在 Windows `PATH` 前部，再在 PowerShell 中准备项目：
 
 ```powershell
-# 安装锁定依赖与仓库 pre-commit hook
+# 安装锁定依赖
 pnpm install --frozen-lockfile
-pnpm run hooks:install
 
 # Electron 开发前：Release 构建、测试、安装与隔离 PATH 冒烟
 pnpm run check:cpp:release
@@ -54,13 +53,13 @@ pnpm run check:cpp:release  # Release 构建、CTest、安装与隔离 PATH 冒�
 本地需先安装 `actionlint`；CI 使用 workflow 声明的固定版本，并将 workflow 检查作为其它 job 的前置条件。
 
 ```powershell
-# GitHub Actions workflow、hook 自测与仓库内 Markdown 链接
+# GitHub Actions workflow 与仓库内 Markdown 链接
 actionlint
-pnpm run test:pre-commit
 pnpm run test:markdown:links
 
 # 第三方许可证、格式、静态规则与类型
 pnpm run test:application-licenses
+pnpm run test:maintenance
 pnpm run format:check
 pnpm run lint
 pnpm run typecheck
@@ -112,6 +111,7 @@ pnpm run format
 - Electron 导出 renderer、逐帧协议、CDP、FFmpeg 或输出提交：`test:visualize:cdf`、`test:electron-export`、typecheck、lint、build 和下述宿主集成检查。
 - 桌面导出入口、格式/文件名、目标选择、覆盖、进度、终态或阻塞清理交互：执行导出范围检查，追加 `test:electron-layout`，并查看下述导出状态截图。
 - npm 生产依赖、字体、原生第三方组件或 Electron 打包资源：`test:application-licenses`、`package:win` 和 `test:package:win`。
+- 工程维护脚本：`test:maintenance`；许可证生成或核对另跑 `test:application-licenses`，FFmpeg 构建另按 [scripts README](../scripts/README.md) 执行源码、构建和材料检查。
 - 文档：核对命令与完成状态，执行 `test:markdown:links`；跨层契约变更仍按对应范围验证。
 
 ## Windows x64 Electron 导出检查

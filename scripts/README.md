@@ -8,6 +8,7 @@
 | 文件                                   | 职责                                                         |
 | -------------------------------------- | ------------------------------------------------------------ |
 | [check_cpp_win.ps1](check_cpp_win.ps1) | Windows 本地与 CI 共用的 C++ 格式化、Debug/Release CTest、clang-tidy、安装和隔离 PATH 冒烟入口。 |
+| `maintenance.test.ps1` | 使用故障注入验证原生程序安装的提交与回滚、FFmpeg 版本检查和一键入口失败传播；通过 `pnpm run test:maintenance` 执行，不编译或下载源码。 |
 
 ### Windows 应用打包
 
@@ -17,6 +18,8 @@
 | [application_licenses.test.mjs](application_licenses.test.mjs) | 使用固定 fixture 验证生成、排序、拒绝路径和版本覆盖，并检查当前真实生产依赖树。 |
 | [application_licenses_policy.json](application_licenses_policy.json) | 应用许可证生成器允许的表达式、精确版本人工覆盖和静态材料映射。 |
 | [check_windows_package.ps1](check_windows_package.ps1)       | 检查当前版本 NSIS、unpacked 原生程序和许可证材料，核对包内 FFmpeg 与自编译源文件的 SHA-256，并在隔离开发工具 PATH 后运行包内 FFmpeg 版本检查和 core/analyzer。 |
+
+应用许可证的生成和包内验证共用 `application_licenses.mjs` 的材料准备逻辑。`node scripts/application_licenses.mjs --verify <目录>` 按策略及当前实际生产依赖重新计算期望材料，核对完整文件集合和内容，不修改目标目录。原生程序安装在验证后的 `bin` 替换成功时提交；之后旧备份清理失败只报告残留位置，不回滚新版。
 
 #### 发布流程
 

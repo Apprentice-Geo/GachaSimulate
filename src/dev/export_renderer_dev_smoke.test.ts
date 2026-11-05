@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import path from "node:path";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import test from "node:test";
 import { _electron as electron } from "playwright";
-import { createServer } from "vite";
+import { build, createServer } from "vite";
+import { resolveConfig } from "electron-vite";
 import { create_renderer_config } from "../../electron.vite.renderer.config";
 import { result_fixture } from "./ui_fixtures";
 import { build_cdf_view_model } from "../visualize/view/cdf_view_model";
@@ -22,8 +25,26 @@ test("development server export renderer initializes and requests its first fram
       strictPort: false,
     },
   });
+  const preload_directory = await mkdtemp(
+    path.join(tmpdir(), "gachasimulate-smoke-preload-"),
+  );
   let application: Awaited<ReturnType<typeof electron.launch>> | undefined;
   try {
+    const previous_node_env = process.env.NODE_ENV;
+    try {
+      const { config } = await resolveConfig({ logLevel: "silent" }, "build");
+      assert.ok(config?.preload);
+      await build({
+        ...config.preload,
+        configFile: false,
+        logLevel: "silent",
+        build: { ...config.preload.build, outDir: preload_directory },
+      });
+    } finally {
+      // electron-vite resolves a production build; the server stays in development.
+      if (previous_node_env === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previous_node_env;
+    }
     await server.listen();
     const address = server.httpServer?.address();
     assert.ok(address && typeof address === "object");
@@ -32,6 +53,7 @@ test("development server export renderer initializes and requests its first fram
       Object.entries(process.env).filter(([, value]) => value !== undefined),
     ) as Record<string, string>;
     delete env.ELECTRON_RUN_AS_NODE;
+    env.GACHASIMULATE_SMOKE_PRELOAD = path.join(preload_directory, "export.js");
     application = await electron.launch({
       args: [
         path.join(
@@ -138,7 +160,11 @@ test("development server export renderer initializes and requests its first fram
       [],
     );
   } finally {
-    await application?.close();
-    await server.close();
+    try {
+      await application?.close();
+    } finally {
+      await server.close();
+      await rm(preload_directory, { recursive: true, force: true });
+    }
   }
 });

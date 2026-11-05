@@ -82,7 +82,10 @@ function Assert-SystemPeImports {
 }
 
 function Assert-IsolatedExecution {
-  param([Parameter(Mandatory = $true)][string]$BinPath)
+  param(
+    [Parameter(Mandatory = $true)][string]$BinPath,
+    [Parameter(Mandatory = $true)][string]$Version
+  )
 
   $RunRoot = [System.IO.Path]::GetFullPath((Join-Path ([System.IO.Path]::GetTempPath()) ("gachasimulate-ffmpeg-run-" + [guid]::NewGuid().ToString("N"))))
   New-Item -ItemType Directory -Path $RunRoot | Out-Null
@@ -96,7 +99,8 @@ function Assert-IsolatedExecution {
       try {
         $FfmpegVersion = Invoke-CheckedNative -Executable (Join-Path $RunRoot "ffmpeg.exe") -Arguments @("-version") -Description "isolated ffmpeg.exe validation"
         $FfprobeVersion = Invoke-CheckedNative -Executable (Join-Path $RunRoot "ffprobe.exe") -Arguments @("-version") -Description "isolated ffprobe.exe validation"
-        if ($FfmpegVersion -notmatch '(?m)^ffmpeg version 9\.0\.1(?:[\s-]|$)' -or $FfprobeVersion -notmatch '(?m)^ffprobe version 9\.0\.1(?:[\s-]|$)') {
+        $ExpectedVersion = [regex]::Escape($Version)
+        if ($FfmpegVersion -notmatch "(?m)^ffmpeg version $ExpectedVersion(?:[\s-]|$)" -or $FfprobeVersion -notmatch "(?m)^ffprobe version $ExpectedVersion(?:[\s-]|$)") {
           throw "The staged executables report an unexpected version outside the development PATH."
         }
       }
@@ -211,7 +215,7 @@ try {
     throw "Staged bin must contain only ffmpeg.exe and ffprobe.exe; found: $($BinFiles -join ', ')."
   }
   Assert-SystemPeImports -MaterialsPath $Materials -Programs @("ffmpeg", "ffprobe")
-  Assert-IsolatedExecution -BinPath $StageBin
+  Assert-IsolatedExecution -BinPath $StageBin -Version $Lock.ffmpeg.version
 
   $AllInstalledPackages | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $Materials "msys2-package-snapshot.json") -Encoding utf8
   [ordered]@{
@@ -226,7 +230,7 @@ try {
   }
   try {
     Move-Item -LiteralPath $StageRoot -Destination $Destination
-    Assert-IsolatedExecution -BinPath (Join-Path $Destination "bin")
+    Assert-IsolatedExecution -BinPath (Join-Path $Destination "bin") -Version $Lock.ffmpeg.version
     $Installed = $true
   }
   catch {

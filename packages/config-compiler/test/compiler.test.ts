@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { prepare_config } from "../src/compiler.js";
+import { parse_yaml } from "../src/validation.js";
 import {
   CompilerError,
   YAML_TEXT_LIMIT,
@@ -41,7 +43,7 @@ test("compiles v2 YAML with the simulation-selected result item", () => {
   const target = compile_yaml(config, termination, manifest, "target").ir;
   assert.equal(draw.result_item, 0);
   assert.equal(target.result_item, 1);
-  assert.deepEqual((draw.items as { id: number }[]).length, 2);
+  assert.equal(draw.items.length, 2);
   assert.equal("termination" in draw, false);
 });
 
@@ -64,14 +66,12 @@ termination_rule:
     manifest,
     "draw_count",
   );
-  const nodes = ir.condition_nodes as {
-    kind: string;
-    children?: { begin: number; count: number };
-  }[];
-  const childIds = ir.condition_children as number[];
-  const root = nodes[ir.termination_condition as number];
+  const nodes = ir.condition_nodes;
+  const childIds = ir.condition_children;
+  const root = nodes[ir.termination_condition];
+  assert.ok(root.kind === "logic");
   const rootChildren = childIds.slice(
-    root.children!.begin,
+    root.children.begin,
     root.children!.begin + root.children!.count,
   );
 
@@ -80,11 +80,12 @@ termination_rule:
     ["logic", "check"],
   );
   const nested = nodes[rootChildren[0]];
+  assert.ok(nested.kind === "logic");
   assert.deepEqual(
     childIds
       .slice(
-        nested.children!.begin,
-        nested.children!.begin + nested.children!.count,
+        nested.children.begin,
+        nested.children.begin + nested.children.count,
       )
       .map((id) => nodes[id].kind),
     ["check", "check"],
@@ -101,10 +102,7 @@ test("uses an item id as its display name when no name is provided", () => {
     manifest,
     "draw_count",
   );
-  assert.equal(
-    (ir.strings as string[])[(ir.items as { name: number }[])[1].name],
-    "target",
-  );
+  assert.equal(ir.strings[ir.items[1].name], "target");
 });
 
 test("reads config items with the compiler's item validation", () => {
@@ -139,10 +137,7 @@ test("emits the resolve batch reduction without making consumers rescan actions"
     manifest,
     "draw_count",
   );
-  const resolves = ir.item_resolve as {
-    retain: number;
-    reduce_per_batch: number;
-  }[];
+  const resolves = ir.item_resolve;
   assert.deepEqual(
     resolves.map(({ retain, reduce_per_batch }) => ({
       retain,
@@ -166,7 +161,7 @@ test("keeps safe-integer resolve values above uint32", () => {
     manifest,
     "draw_count",
   );
-  const resolve = (ir.item_resolve as Record<string, number>[])[1];
+  const resolve = ir.item_resolve[1];
   assert.equal(resolve.retain, large);
   assert.equal(resolve.reduce_per_batch, large);
 });
@@ -178,9 +173,7 @@ test("rejects an infinite weighted pool sum but normalizes large finite weights"
   );
   const { ir } = compile_yaml(weighted, termination, manifest, "draw_count");
   assert.deepEqual(
-    (ir.pool_entries as { threshold: number }[]).map(
-      ({ threshold }) => threshold,
-    ),
+    ir.pool_entries.map(({ threshold }) => threshold),
     [0.5, 1],
   );
   assert.throws(
@@ -635,4 +628,198 @@ test("does not swallow unexpected batch validation errors", () => {
     },
   };
   assert.throws(() => validate_config_files(config, [input]), unexpected);
+});
+
+test("uses the same command whitespace rules in every action position", () => {
+  const term = parse_yaml(termination, "termination");
+  const info = parse_yaml(manifest, "manifest");
+  const base = {
+    schema_version: 2,
+    items: ["draw_count", "target", "token"],
+    pools: [
+      { main: [{ probability: 1 }] },
+      { auxiliary: [{ probability: 1 }] },
+    ],
+  };
+  for (const command of ["terminate", "draw", "change"]) {
+    const target = command === "terminate" ? "done" : "auxiliary";
+    for (const separator of [" ", "  ", "\t", "\n"]) {
+      const action = command + separator + target;
+      const candidates = [
+        () => compile({ ...base, initial: action }, term, info, "draw_count"),
+        () =>
+          compile({ ...base, every_draw: action }, term, info, "draw_count"),
+        () =>
+          compile(
+            {
+              ...base,
+              pools: [
+                { main: [{ probability: 1, actions: action }] },
+                base.pools[1],
+              ],
+            },
+            term,
+            info,
+            "draw_count",
+          ),
+        () =>
+          compile(
+            {
+              ...base,
+              item_resolve: [
+                { item: "token", retain: 0, actions: ["token -= 1", action] },
+              ],
+            },
+            term,
+            info,
+            "draw_count",
+          ),
+        ...["once", "repeat"].map(
+          (mode) => () =>
+            compile(
+              {
+                ...base,
+                rules: [
+                  {
+                    bounded: {
+                      mode,
+                      condition: {
+                        check: "draw_count >= 1",
+                        actions: [action, "draw_count -= 1"],
+                      },
+                    },
+                  },
+                ],
+              },
+              term,
+              info,
+              "draw_count",
+            ),
+        ),
+        () =>
+          compile(
+            base,
+            {
+              retained_items: [],
+              termination_rule: {
+                condition: {
+                  check: "target >= 1",
+                  actions: [action, "terminate done"],
+                },
+              },
+            },
+            info,
+            "draw_count",
+          ),
+      ];
+      for (const candidate of candidates) {
+        if (separator === " " || separator === "  ")
+          assert.doesNotThrow(candidate);
+        else assert.throws(candidate, /unsupported action/);
+      }
+    }
+  }
+});
+
+test("termination path checks use compiled AND and OR nodes", () => {
+  const base = parse_yaml(config, "config");
+  const info = parse_yaml(manifest, "manifest");
+  const stop = { check: "target >= 1", actions: "terminate done" };
+  const empty = { check: "draw_count >= 1" };
+  for (const op of ["AND", "&&"]) {
+    assert.doesNotThrow(() =>
+      compile(
+        base,
+        {
+          retained_items: [],
+          termination_rule: { condition: { op, children: [empty, stop] } },
+        },
+        info,
+        "draw_count",
+      ),
+    );
+  }
+  for (const op of ["OR", "||"]) {
+    assert.throws(
+      () =>
+        compile(
+          base,
+          {
+            retained_items: [],
+            termination_rule: { condition: { op, children: [empty, stop] } },
+          },
+          info,
+          "draw_count",
+        ),
+      /every termination path/,
+    );
+    assert.doesNotThrow(() =>
+      compile(
+        base,
+        {
+          retained_items: [],
+          termination_rule: {
+            condition: {
+              op,
+              children: [empty, stop],
+              actions: "terminate parent",
+            },
+          },
+        },
+        info,
+        "draw_count",
+      ),
+    );
+  }
+});
+
+test("normalizes multiline reason text through the shared action parser", () => {
+  const base = parse_yaml(config, "config");
+  const info = parse_yaml(manifest, "manifest");
+  const { ir } = compile(
+    base,
+    {
+      retained_items: [],
+      termination_rule: {
+        condition: {
+          check: "target >= 1",
+          actions: "terminate first\n  second",
+        },
+      },
+    },
+    info,
+    "draw_count",
+  );
+  assert.ok(ir.strings.includes("first second"));
+});
+
+test("prepared configs isolate successful, failed, and validation-only terminations", () => {
+  const prepared = prepare_config(parse_yaml(config, "config"));
+  const first = prepared.compile_termination(
+    {
+      retained_items: [{ target: 5 }],
+      termination_rule: {
+        condition: { check: "target >= 1", actions: "terminate first" },
+      },
+    },
+    "target",
+  );
+  const snapshot = structuredClone(first);
+  const invalid = {
+    retained_items: [{ target: 99 }],
+    termination_rule: {
+      condition: { check: "missing >= 1", actions: "terminate invalid" },
+    },
+  };
+  assert.throws(
+    () => prepared.compile_termination(invalid, "target"),
+    /unknown item id/,
+  );
+  const valid = parse_yaml(termination, "termination");
+  prepared.validate_termination(valid);
+  const second = prepared.compile_termination(valid, "draw_count");
+  assert.equal(second.ir.item_resolve[1].retain, 0);
+  assert.ok(!second.ir.strings.includes("first"));
+  assert.ok(!second.ir.strings.includes("invalid"));
+  assert.deepEqual(first, snapshot);
 });

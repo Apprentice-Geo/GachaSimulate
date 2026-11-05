@@ -181,6 +181,7 @@ Action =
 - `Actions` 可为 `null`、单个 action 字符串、或 action 字符串列表；普通 actions 的空列表等价空动作。
 - `ResolveActions` 不能为 `null` 或空列表。
 - `terminate` 后续 action 不再执行。
+- `draw`、`change`、`terminate` 与目标之间使用一个或多个普通空格；物品操作符和比较操作符两侧可使用空格或制表符，不接受换行。
 
 ## Condition Tree
 

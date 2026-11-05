@@ -1,9 +1,13 @@
-pwsh -NoProfile -File scripts/acquire_ffmpeg_sources.ps1
+$ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
 
-$lock = Get-Content scripts/ffmpeg_windows_source_lock.json -Raw |
+& (Join-Path $PSScriptRoot "acquire_ffmpeg_sources.ps1")
+
+$lock = Get-Content (Join-Path $PSScriptRoot "ffmpeg_windows_source_lock.json") -Raw |
   ConvertFrom-Json
+$inputs = Join-Path $PSScriptRoot "../tmp/ffmpeg-build-inputs"
 
-pwsh -NoProfile -File scripts/build_ffmpeg_win.ps1 `
-  -X264Source "tmp/ffmpeg-build-inputs/x264" `
-  -FfmpegArchive "tmp/ffmpeg-build-inputs/$($lock.ffmpeg.archive_name)" `
-  -ZlibArchive "tmp/ffmpeg-build-inputs/$($lock.zlib.archive_name)"
+& (Join-Path $PSScriptRoot "build_ffmpeg_win.ps1") `
+  -X264Source (Join-Path $inputs "x264") `
+  -FfmpegArchive (Join-Path $inputs $lock.ffmpeg.archive_name) `
+  -ZlibArchive (Join-Path $inputs $lock.zlib.archive_name)
