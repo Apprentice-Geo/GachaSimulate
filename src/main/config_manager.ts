@@ -128,6 +128,7 @@ export class ConfigManager {
   private changing = false;
   private suspended = false;
   private generation = 0;
+  private shutdown_generation = 0;
   private change_in_flight: Promise<ConfigRepositoryState> | null = null;
   private readonly config_work: ConfigWork;
   private refreshed_at: number | null = null;
@@ -237,7 +238,6 @@ export class ConfigManager {
     if (this.changing)
       throw new Error("a configuration change is already running");
     if (this.refresh_in_flight) return this.refresh_in_flight;
-    if (force) this.invalidate_snapshot();
     const now = this.dependencies.now ?? Date.now;
     if (
       !force &&
@@ -249,29 +249,33 @@ export class ConfigManager {
     const refresh = this.refresh_remote();
     this.refresh_in_flight = refresh;
     try {
-      return await refresh;
-    } finally {
+      const state = await refresh;
       this.refreshed_at = now();
+      return state;
+    } finally {
       this.refresh_in_flight = null;
     }
   }
 
   private async refresh_remote(): Promise<ConfigRepositoryState> {
-    const generation = this.generation;
+    const shutdown_generation = this.shutdown_generation;
+    let remote: ConfigRepositoryIndex | undefined;
+    let source_error: string | null = null;
     try {
       const body = await this.dependencies.download(
         OFFICIAL_CONFIG_INDEX_URL,
         CONFIG_INDEX_DOWNLOAD_LIMIT,
       );
-      this.assert_available(generation);
-      this.dependencies.assert_request_allowed?.("config-refresh");
-      this.remote = read_repository_index(body.toString("utf8"));
-      this.remote_error = null;
+      remote = read_repository_index(body.toString("utf8"));
     } catch (error) {
-      this.assert_available(generation);
-      this.remote_error =
-        error instanceof Error ? error.message : String(error);
+      source_error = error instanceof Error ? error.message : String(error);
     }
+    this.assert_available();
+    if (shutdown_generation !== this.shutdown_generation)
+      throw new Error("configuration refresh was cancelled during shutdown");
+    this.dependencies.assert_request_allowed?.("config-refresh");
+    if (remote) this.remote = remote;
+    this.remote_error = source_error;
     return this.state();
   }
 
@@ -439,6 +443,7 @@ export class ConfigManager {
   async shutdown(): Promise<void> {
     this.suspended = true;
     this.generation += 1;
+    this.shutdown_generation += 1;
     const changing = this.change_in_flight;
     const refreshing = this.refresh_in_flight;
     const timeout =

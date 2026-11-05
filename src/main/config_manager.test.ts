@@ -349,6 +349,126 @@ test("failed refresh also throttles automatic retries", async () => {
   }
 });
 
+for (const outcome of ["success", "failure"] as const) {
+  test(`local directory changes preserve a pending official refresh ${outcome}`, async () => {
+    const root = temporary();
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let downloads = 0;
+    const current = tracked_manager(join(root, "configs"), {
+      download: async () => {
+        downloads += 1;
+        await waiting;
+        if (outcome === "failure") throw new Error("offline");
+        return index_for(zip(package_entries()));
+      },
+      simulation_active: () => false,
+      now: () => 0,
+    });
+    try {
+      const local = join(root, "local");
+      mkdirSync(local);
+      const refreshing = current.refresh();
+      const changed = await current.set_local_directory(local);
+      assert.equal(changed.localDirectory, local);
+      assert.deepEqual(changed.official, []);
+      release();
+      const state = await refreshing;
+      assert.equal(state.localDirectory, local);
+      if (outcome === "success") {
+        assert.equal(state.official[0]?.id, "example");
+        assert.equal(state.sourceError, null);
+      } else {
+        assert.deepEqual(state.official, []);
+        assert.match(state.sourceError ?? "", /offline/);
+      }
+      assert.deepEqual(await current.refresh(), state);
+      assert.equal(downloads, 1, "completed refreshes retain their TTL");
+    } finally {
+      release();
+      await current.shutdown();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
+
+test("a forced official refresh does not invalidate an ongoing local scan", async () => {
+  const root = temporary();
+  const empty: LocalConfigSnapshot = {
+    installed: [],
+    local: [],
+    local_error: null,
+  };
+  const scans: Array<(snapshot: LocalConfigSnapshot) => void> = [];
+  const work: ConfigWork = {
+    request: () =>
+      new Promise<LocalConfigSnapshot>((resolve) =>
+        scans.push(resolve),
+      ) as never,
+    stop: async () => undefined,
+    resume: () => undefined,
+  };
+  const current = tracked_manager(join(root, "configs"), {
+    download: async () => index_for(zip(package_entries())),
+    simulation_active: () => false,
+    config_work: work,
+  });
+  try {
+    const listing = current.list_configs();
+    const refreshing = current.refresh(true);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(scans.length, 2);
+    scans[0](empty);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(scans.length, 2, "the original scan must remain usable");
+    scans[1](empty);
+    assert.deepEqual(await listing, []);
+    assert.equal((await refreshing).official[0]?.id, "example");
+  } finally {
+    for (const resolve of scans) resolve(empty);
+    await current.shutdown();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a refresh denied after download neither publishes nor throttles retry", async () => {
+  const root = temporary();
+  const body = index_for(zip(package_entries()));
+  let release!: (value: Buffer) => void;
+  const pending = new Promise<Buffer>((resolve) => {
+    release = resolve;
+  });
+  let allowed = true;
+  let downloads = 0;
+  const current = tracked_manager(join(root, "configs"), {
+    download: async () => (++downloads === 1 ? pending : body),
+    simulation_active: () => false,
+    now: () => 0,
+    assert_request_allowed: () => {
+      if (!allowed) throw new Error("refresh admission denied");
+    },
+  });
+  try {
+    const refreshing = current.refresh();
+    const rejected = assert.rejects(refreshing, /admission denied/);
+    allowed = false;
+    release(body);
+    await rejected;
+    const state = await current.state();
+    assert.deepEqual(state.official, []);
+    assert.equal(state.sourceError, null);
+    allowed = true;
+    assert.equal((await current.refresh()).official[0]?.id, "example");
+    assert.equal(downloads, 2);
+  } finally {
+    release(body);
+    await current.shutdown();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("installs a validated archive and startup removes stale staging", async () => {
   const root = temporary();
   try {
@@ -758,52 +878,56 @@ test("shutdown times out a stalled install, retains its owner, and rejects its l
   }
 });
 
-test("shutdown times out a stalled refresh, retains its promise, and ignores its late index", async () => {
-  const root = temporary();
-  const body = index_for(zip(package_entries()));
-  let release!: (value: Buffer) => void;
-  const download = new Promise<Buffer>((resolve) => {
-    release = resolve;
-  });
-  let downloads = 0;
-  const admission = new UserRequestAdmission();
-  const current = tracked_manager(join(root, "configs"), {
-    download: async () => {
-      downloads += 1;
-      return download;
-    },
-    simulation_active: () => false,
-    assert_request_allowed: (kind) => admission.admit(kind),
-    shutdown_timeout_ms: 10,
-  });
-  const shutdown = new ShutdownCoordinator(
-    admission,
-    [() => current.shutdown()],
-    () => current.resume(),
-  );
-  try {
-    const refreshing = current.refresh();
-    const rejected_refresh = assert.rejects(
-      refreshing,
-      /directory has changed/,
+for (const outcome of ["success", "failure"] as const) {
+  test(`shutdown rejects a late refresh ${outcome} after recovery without throttling retry`, async () => {
+    const root = temporary();
+    const body = index_for(zip(package_entries()));
+    let release!: (value: Buffer) => void;
+    const download = new Promise<Buffer>((resolve, reject) => {
+      release = (value) => {
+        if (outcome === "success") resolve(value);
+        else reject(new Error("late offline error"));
+      };
+    });
+    let downloads = 0;
+    const admission = new UserRequestAdmission();
+    const current = tracked_manager(join(root, "configs"), {
+      download: async () => {
+        downloads += 1;
+        return downloads === 1 ? download : body;
+      },
+      simulation_active: () => false,
+      assert_request_allowed: (kind) => admission.admit(kind),
+      shutdown_timeout_ms: 10,
+    });
+    const shutdown = new ShutdownCoordinator(
+      admission,
+      [() => current.shutdown()],
+      () => current.resume(),
     );
-    await assert.rejects(
-      shutdown.stop(),
-      /configuration refresh settlement timed out/,
-    );
-    admission.admit("analysis");
-    assert.deepEqual((await current.state()).official, []);
-    const joined = current.refresh(true);
-    const rejected_joined = assert.rejects(joined, /directory has changed/);
-    assert.equal(downloads, 1);
-    release(body);
-    await Promise.all([rejected_refresh, rejected_joined]);
-    assert.deepEqual((await current.state()).official, []);
-    assert.equal((await current.refresh(true)).official.length, 1);
-    assert.equal(downloads, 2);
-    await shutdown.stop();
-  } finally {
-    release(body);
-    rmSync(root, { recursive: true, force: true });
-  }
-});
+    try {
+      const refreshing = current.refresh();
+      const rejected_refresh = assert.rejects(refreshing, /refresh.*shutdown/);
+      await assert.rejects(
+        shutdown.stop(),
+        /configuration refresh settlement timed out/,
+      );
+      admission.admit("analysis");
+      assert.deepEqual((await current.state()).official, []);
+      const joined = current.refresh(true);
+      const rejected_joined = assert.rejects(joined, /refresh.*shutdown/);
+      assert.equal(downloads, 1);
+      release(body);
+      await Promise.all([rejected_refresh, rejected_joined]);
+      const state = await current.state();
+      assert.deepEqual(state.official, []);
+      assert.equal(state.sourceError, null);
+      assert.equal((await current.refresh()).official.length, 1);
+      assert.equal(downloads, 2);
+      await shutdown.stop();
+    } finally {
+      release(body);
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
