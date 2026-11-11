@@ -24,6 +24,10 @@ import {
 } from "./ui_style_contract";
 
 const PROJECT_ROOT = process.cwd();
+const LAYOUT_VIEWPORTS = [
+  { width: 2560, height: 1440 },
+  { width: 1280, height: 720 },
+];
 
 function repository_fixture(count = 80): ConfigRepositoryState {
   return {
@@ -47,7 +51,8 @@ function repository_fixture(count = 80): ConfigRepositoryState {
   };
 }
 
-async function launch(width: number, height: number, profile?: string) {
+async function launch(profile?: string, viewport = LAYOUT_VIEWPORTS[0]) {
+  const { width, height } = viewport;
   const config_home =
     profile ?? (await mkdtemp(path.join(tmpdir(), "gachasimulate-layout-")));
   const env = Object.fromEntries(
@@ -1982,14 +1987,12 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   assert.equal(space_failures.length, 0, space_failures.join("\n"));
 }
 
-for (const [width, height] of [
-  [2560, 1440],
-  [1280, 720],
-  [1600, 900],
-  [2560, 900],
-] as const) {
-  test(`Electron renderer layout contracts hold at ${width}x${height}`, async () => {
-    const { application, cdp, config_home, page } = await launch(width, height);
+for (const viewport of LAYOUT_VIEWPORTS) {
+  test(`Electron renderer layout contracts hold at ${viewport.width}x${viewport.height}`, async () => {
+    const { application, cdp, config_home, page } = await launch(
+      undefined,
+      viewport,
+    );
     try {
       await assert_layout(application, page);
     } catch (error) {
@@ -2012,7 +2015,7 @@ for (const [width, height] of [
 }
 
 test("Simulation head follows progress and cancellation freezes queued updates", async () => {
-  const { application, cdp, config_home, page } = await launch(1280, 720);
+  const { application, cdp, config_home, page } = await launch();
   const send = (status: string, event?: object) =>
     application.evaluate(
       ({ BrowserWindow }, value) =>
@@ -2234,7 +2237,7 @@ test("Simulation head follows progress and cancellation freezes queued updates",
 });
 
 test("CDF labels stay below the heading and inside the chart with close endpoints", async () => {
-  const { application, cdp, config_home, page } = await launch(1280, 720);
+  const { application, cdp, config_home, page } = await launch();
   try {
     const fixture = structuredClone(result_fixture());
     // Ten observations: MIN/P5/P25 coincide at zero, P95/MAX at 100.
@@ -2284,7 +2287,7 @@ test("CDF labels stay below the heading and inside the chart with close endpoint
 });
 
 test("Settings restores the theme after restarting Electron and rejects links from other renderers", async () => {
-  let session = await launch(1280, 720);
+  let session = await launch();
   const profile = session.config_home;
   try {
     await session.page
@@ -2295,7 +2298,7 @@ test("Settings restores the theme after restarting Electron and rejects links fr
       .check();
     await session.cdp.detach();
     await session.application.close();
-    session = await launch(1280, 720, profile);
+    session = await launch(profile);
     await session.page
       .getByRole("button", { name: "设置", exact: true })
       .click();

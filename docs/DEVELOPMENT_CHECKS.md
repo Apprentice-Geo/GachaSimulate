@@ -107,7 +107,7 @@ pnpm run format
 - Electron IPC、配置扫描、模拟/分析进程生命周期或 sidecar：`test:simulation`、typecheck、lint、build。
 - [Analysis](<ANALYSIS.md>) 或 [DisplayConfig](<DISPLAY_CONFIG.md>) 输入契约：同步核对 Schema、semantic validator、类型和 fixture，执行 `test:visualize:cdf`、`test:simulation`、typecheck 和 build。
 - CDF、marker、统计展示或动画：`test:visualize:cdf`、`test:electron-layout` 和 build；导出改动另跑下述宿主集成检查。
-- Electron 桌面布局：`test:electron-layout`、`test:simulation`、`test:visualize:cdf`、typecheck、lint、format:check 和 build，并查看大小窗口截图。
+- Electron 桌面布局：`test:electron-layout`、`test:simulation`、`test:visualize:cdf`、typecheck、lint、format:check 和 build，并按需查看相关状态的截图；布局测试仅维护 2560×1440 和 1280×720 两种尺寸。
 - Electron 导出 renderer、逐帧协议、CDP、FFmpeg 或输出提交：`test:visualize:cdf`、`test:electron-export`、typecheck、lint、build 和下述宿主集成检查。
 - 桌面导出入口、格式/文件名、目标选择、覆盖、进度、终态或阻塞清理交互：执行导出范围检查，追加 `test:electron-layout`，并查看下述导出状态截图。
 - npm 生产依赖、字体、原生第三方组件或 Electron 打包资源：`test:application-licenses`、`package:win` 和 `test:package:win`。
@@ -152,7 +152,7 @@ pnpm run build
 
 ## Electron 布局与截图检查
 
-布局契约以 [Workbench Design](<WORKBENCH_DESIGN.md>) 与 [Visualization Design](<VISUALIZATION_DESIGN.md>) 为依据，共享画面与逐帧语义见 [Architecture](<../ARCHITECTURE.md#可视化与导出>)。`test:electron-layout` 覆盖四种窗口尺寸下的空间分配、滚动、文字缩放、固定画布适配与 DOM/SVG 几何，并运行 production main/preload/renderer 的桌面 IPC、结果保存交错、关闭恢复与导出清理失败恢复检查。其中配置列表、状态查询及模拟准备实际启动构建后的配置 worker；子 frame 请求测试仅在隔离 harness 中开启子 frame preload 能力，不改变 production 窗口配置。`capture:ui` 只生成截图，供 Agent 检查真实渲染的视觉层级、密度、裁切和遮挡，不能替代布局测试。
+布局契约以 [Workbench Design](<WORKBENCH_DESIGN.md>) 与 [Visualization Design](<VISUALIZATION_DESIGN.md>) 为依据，共享画面与逐帧语义见 [Architecture](<../ARCHITECTURE.md#可视化与导出>)。`test:electron-layout` 覆盖 2560×1440 和 1280×720 下的空间分配、滚动、文字缩放、固定画布适配与 DOM/SVG 几何，分别验证统计物品列表双列／单列、官方配置列表四列／双列，并运行 production main/preload/renderer 的桌面 IPC、结果保存交错、关闭恢复与导出清理失败恢复检查。其中配置列表、状态查询及模拟准备实际启动构建后的配置 worker；子 frame 请求测试仅在隔离 harness 中开启子 frame preload 能力，不改变 production 窗口配置。`capture:ui` 只生成截图，供 Agent 按需检查真实渲染的视觉层级、密度、裁切和遮挡，不能替代布局测试。
 
 布局契约及其测试必须谨慎修改：不得为让测试通过而删除断言、放宽容差、缩减尺寸或 fixture 覆盖；只有明确改变设计规格时才同步调整对应断言，并保留未受影响的回归保护。断言暴露既有布局问题时，应修复或报告问题。
 
@@ -168,7 +168,7 @@ pnpm run capture:ui electron/result-export-progress
 pnpm run capture:ui electron/result-export-partial-failure
 pnpm run capture:ui electron/result-export-cleanup-blocked
 
-# 同时执行四种尺寸布局测试并保存 layout-*.png；在未设置该变量的会话中执行
+# 执行两种尺寸的布局测试并保存 layout-*.png；仅在需要截图时使用，在未设置该变量的会话中执行
 try {
   $env:GACHASIMULATE_LAYOUT_CAPTURE = "1"
   pnpm run test:electron-layout

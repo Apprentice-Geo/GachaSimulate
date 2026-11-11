@@ -86,9 +86,15 @@ $IsolatedFunction = Read-TestFunction 'build_ffmpeg_win.ps1' 'Assert-IsolatedExe
 
 $SetupSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'setup_ffmpeg_win.ps1') -Raw
 $LockText = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'ffmpeg_windows_source_lock.json') -Raw
-foreach ($Scenario in @('acquire-failed', 'build-failed', 'success')) {
+foreach ($Scenario in @('acquire-failed', 'build-failed', 'success', 'updated-lock')) {
   & {
     param($Scenario, $Source, $LockText)
+    $SetupLock = $LockText | ConvertFrom-Json
+    if ($Scenario -eq 'updated-lock') {
+      $SetupLock.ffmpeg.archive_name = 'fixture-ffmpeg-source.tar.xz'
+      $SetupLock.zlib.archive_name = 'fixture-zlib-source.tar.xz'
+      $LockText = $SetupLock | ConvertTo-Json
+    }
     $script:Calls = @()
     function Join-Path {
       param($Path, $ChildPath)
@@ -103,14 +109,20 @@ foreach ($Scenario in @('acquire-failed', 'build-failed', 'success')) {
       if ($Scenario -eq 'acquire-failed') { throw 'injected acquire failure' }
     }
     function Invoke-TestBuild {
+      param($X264Source, $FfmpegArchive, $ZlibArchive)
       $script:Calls += 'build'
+      if ([IO.Path]::GetFileName($FfmpegArchive) -ne $SetupLock.ffmpeg.archive_name -or
+          [IO.Path]::GetFileName($ZlibArchive) -ne $SetupLock.zlib.archive_name -or
+          [IO.Path]::GetFileName($X264Source) -ne 'x264') {
+        throw 'Setup did not pass the source paths selected by the lock.'
+      }
       if ($Scenario -eq 'build-failed') { throw 'injected build failure' }
     }
     $Failure = $null
     try { Invoke-Expression $Source } catch { $Failure = $_ }
     $Expected = if ($Scenario -eq 'acquire-failed') { 'acquire' } else { 'acquire,build' }
     if (($script:Calls -join ',') -ne $Expected) { throw "Unexpected setup calls '$($script:Calls -join ',')' for $Scenario; failure: $Failure" }
-    if (($null -eq $Failure) -ne ($Scenario -eq 'success')) { throw 'Setup did not propagate failure.' }
+    if (($null -eq $Failure) -ne ($Scenario -in @('success', 'updated-lock'))) { throw "Setup did not propagate failure: $Failure" }
     Write-Output "PASS FFmpeg setup: $Scenario"
   } $Scenario $SetupSource $LockText
 }
