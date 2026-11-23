@@ -8,13 +8,6 @@ interface TopBarProps {
   animation_progress: AnimationProgress;
 }
 
-function format_statistic(value: number, unit: string): string {
-  const formatted = new Intl.NumberFormat("zh-CN", {
-    maximumFractionDigits: Number.isInteger(value) ? 0 : 1,
-  }).format(value);
-  return unit ? `${formatted} ${unit}` : formatted;
-}
-
 export function TopBar({ data, animation_progress }: TopBarProps) {
   const metadata_items = [
     { key: "target", label: "模拟目标", content: data.target },
@@ -22,12 +15,9 @@ export function TopBar({ data, animation_progress }: TopBarProps) {
       key: "runs",
       label: "累计模拟次数",
       content: (
-        <>
-          <span className="metadata-number">
-            {format_statistic(data.runs, "")}
-          </span>{" "}
-          次
-        </>
+        <span className="metadata-value">
+          <ResultValue value={`${data.runs} 次`} unit="次" />
+        </span>
       ),
     },
     {
@@ -52,6 +42,38 @@ export function TopBar({ data, animation_progress }: TopBarProps) {
     metric_style(animation_progress.metadata(index));
   return (
     <header className="top-bar">
+      <svg
+        className="result-card-fan"
+        aria-hidden="true"
+        focusable="false"
+        viewBox="0 0 120 100"
+        style={{ opacity: animation_progress.title_area(0).opacity }}
+      >
+        {(["blue", "purple", "gold"] as const).map((color, index) => (
+          <g
+            key={color}
+            transform={`rotate(${(index - 1) * 21} 60 84)`}
+            stroke={`var(--color-rarity-${color})`}
+          >
+            <rect x="36" y="15" width="48" height="69" rx="5" />
+            <rect
+              x="40"
+              y="19"
+              width="40"
+              height="61"
+              rx="3"
+              strokeWidth="1.3"
+            />
+            {color === "gold" && (
+              <path
+                d="M60 37 Q62 47 71 49 Q62 51 60 61 Q58 51 49 49 Q58 47 60 37Z"
+                fill="var(--color-rarity-gold)"
+                stroke="none"
+              />
+            )}
+          </g>
+        ))}
+      </svg>
       <div className="top-bar-inner">
         <div className="title-stack">
           <h1 style={title_style(0)}>{data.title}</h1>

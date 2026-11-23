@@ -56,7 +56,10 @@ export function StatisticPanel({
                     "--metric-number-length": metric.display_value.length,
                     "--metric-value-font-size": `var(--visualize-font-${metric.value_size})`,
                     ...metric_style(
-                      animation_progress.stat_content(metric.animation_index),
+                      animation_progress.stat_content(
+                        metric.animation_index,
+                        metric.key,
+                      ),
                     ),
                   } as CSSProperties
                 }

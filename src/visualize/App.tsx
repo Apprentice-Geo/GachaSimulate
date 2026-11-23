@@ -7,7 +7,10 @@ import {
   type ReactNode,
 } from "react";
 import { use_page_scale } from "./hooks/use_page_scale";
-import { ANIMATION_TOTAL_MS } from "./animation/timeline";
+import {
+  ANIMATION_TOTAL_MS,
+  quantile_reveal_frames,
+} from "./animation/timeline";
 import { build_animation_progress } from "./animation/progress";
 import { VisualizeScene } from "./VisualizeScene";
 import type { CDFViewModel } from "./types/cdf";
@@ -75,8 +78,12 @@ export default function App({
   }, []);
 
   const animation_progress = useMemo(
-    () => build_animation_progress(animation_elapsed_ms),
-    [animation_elapsed_ms],
+    () =>
+      build_animation_progress(
+        animation_elapsed_ms,
+        quantile_reveal_frames(input),
+      ),
+    [animation_elapsed_ms, input],
   );
   const animation_state = is_animating ? "playing" : "idle";
   return (

@@ -1,6 +1,5 @@
 import { WorkbenchIcon } from "../components/WorkbenchIcon";
 import { FilePenLine } from "lucide-react";
-import { useMemo } from "react";
 import { Button } from "../components/Button";
 import { Field } from "../components/Field";
 import { ResultLoadPanel } from "../components/ResultLoadPanel";
@@ -9,7 +8,10 @@ import type {
   ResultSessionController,
   ResultSessionState,
 } from "../result_session_controller";
-import { ANIMATION_TOTAL_MS } from "../../visualize/animation/timeline";
+import {
+  ANIMATION_TOTAL_MS,
+  quantile_reveal_frames,
+} from "../../visualize/animation/timeline";
 import { build_animation_progress } from "../../visualize/animation/progress";
 import { ChartPreview } from "../../visualize/components/ChartPreview";
 import { CDF_CHART_SIZE } from "../../visualize/view/scene_layout";
@@ -31,10 +33,6 @@ export function ResultEditorPage({
     status,
   } = session;
   const error = session.load_error ?? session.save_error;
-  const preview_animation = useMemo(
-    () => build_animation_progress(ANIMATION_TOTAL_MS),
-    [],
-  );
   const select = controller.select_result;
   const save = () => void controller.save().catch(() => undefined);
   const change_field = controller.change_field;
@@ -145,7 +143,10 @@ export function ResultEditorPage({
               <ChartPreview size={CDF_CHART_SIZE}>
                 <CDFChart
                   size={CDF_CHART_SIZE}
-                  animation_progress={preview_animation}
+                  animation_progress={build_animation_progress(
+                    ANIMATION_TOTAL_MS,
+                    quantile_reveal_frames(preview_data),
+                  )}
                   data={preview_data}
                 />
               </ChartPreview>

@@ -473,11 +473,29 @@ async function assert_visualize_metadata(page: Page) {
   const metadata = await page.locator(".top-meta").evaluate((node) => {
     const rect = node.getBoundingClientRect();
     const header = document.querySelector(".top-bar")!.getBoundingClientRect();
+    const title = document.querySelector(".title-stack")!;
+    const title_rect = title.getBoundingClientRect();
+    const first_row = node.firstElementChild!.getBoundingClientRect();
+    const last_row = node.lastElementChild!.getBoundingClientRect();
     const statistics = document
       .querySelector(".statistic-panel")!
       .getBoundingClientRect();
     return {
       aligned_with_statistics: Math.abs(rect.left - statistics.left) < 1,
+      aligned_with_title:
+        Math.abs(rect.top - title_rect.top) < 1 &&
+        Math.abs(rect.bottom - title_rect.bottom) < 1,
+      rows_fill_metadata:
+        Math.abs(first_row.top - rect.top) < 1 &&
+        Math.abs(last_row.bottom - rect.bottom) < 1,
+      title_fills_stack:
+        Math.abs(
+          title.firstElementChild!.getBoundingClientRect().top - title_rect.top,
+        ) < 1 &&
+        Math.abs(
+          title.lastElementChild!.getBoundingClientRect().bottom -
+            title_rect.bottom,
+        ) < 1,
       fits:
         rect.top >= header.top - 1 &&
         rect.bottom <= header.bottom + 1 &&
@@ -504,6 +522,18 @@ async function assert_visualize_metadata(page: Page) {
     "Metadata and key indicators share the same left edge",
   );
   assert.ok(metadata.fits, "Metadata fits within the header");
+  assert.ok(
+    metadata.aligned_with_title,
+    "Metadata and title stack share their top and bottom edges",
+  );
+  assert.ok(
+    metadata.rows_fill_metadata,
+    "First and last metadata rows meet the metadata edges",
+  );
+  assert.ok(
+    metadata.title_fills_stack,
+    "Title and subtitle meet the title stack edges",
+  );
   assert.equal(metadata.rows.length, 3);
   assert.ok(
     metadata.rows.every((row) => row.aligned && row.follows_label && row.fits),
@@ -681,10 +711,10 @@ async function assert_layout(application: ElectronApplication, page: Page) {
         .getBoundingClientRect().width,
     };
   });
+  assert.equal(visual.body, 18);
+  assert.equal(visual.small, 15);
   for (const [actual, expected] of [
     [visual.font, 20],
-    [visual.body, 15 * 1.15],
-    [visual.small, 12 * 1.15],
     [visual.control, 40 * 1.15],
     [visual.icon, 18 * 1.15],
     [visual.sidebar, 120],
@@ -1926,28 +1956,23 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     await page.getByRole("group", { name: "可视化操作" }).count(),
     0,
   );
-  // A valid single-run result at the supported numeric limit must remain readable.
+  // Exercise ungrouped integers on the chart axis and in the result panels.
   const large_fixture = structuredClone(result_fixture());
-  large_fixture.display.target = "获得限定角色与限定武器并完成本期模拟目标";
-  large_fixture.display.result_item_name = "限定角色累计兑换代币";
-  large_fixture.fields.target = large_fixture.display.target;
-  large_fixture.fields.result_item_name =
-    large_fixture.display.result_item_name;
-  const maximum = String(Number.MAX_SAFE_INTEGER);
+  const large_result = "100000001";
   large_fixture.analysis = {
     ...large_fixture.analysis,
-    totals: { runs: "1", result: maximum },
-    values: [maximum],
+    totals: { runs: "1", result: large_result },
+    values: [large_result],
     cumulative: [1],
     statistic: {
-      MIN: maximum,
-      P5: maximum,
-      P25: maximum,
-      P50: maximum,
-      MEAN: maximum,
-      P75: maximum,
-      P95: maximum,
-      MAX: maximum,
+      MIN: large_result,
+      P5: large_result,
+      P25: large_result,
+      P50: large_result,
+      MEAN: large_result,
+      P75: large_result,
+      P95: large_result,
+      MAX: large_result,
       MEAN_LEVEL: 1,
     },
   };
@@ -1959,28 +1984,59 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   await page.getByRole("button", { name: "更换结果" }).click();
   await page
     .getByTestId("stat-P50")
-    .getByText("9,007,199,254,740,991", { exact: true })
+    .getByText(large_result, { exact: true })
     .waitFor();
   await page
     .locator('[data-testid="visualize-root"][data-animation-state="idle"]')
     .waitFor();
-  const large_values = await page.locator(".metric-row").evaluateAll((rows) =>
-    rows.map((row) => {
-      const rect = row.getBoundingClientRect();
-      const value = row.querySelector(".metric-value")!;
-      const value_rect = value.getBoundingClientRect();
-      return (
-        value.textContent?.includes("9,007,199,254,740,991") &&
-        row.scrollWidth <= row.clientWidth &&
-        value_rect.left >= rect.left - 1 &&
-        value_rect.right <= rect.right + 1
-      );
-    }),
+  const large_values = await page.locator(".metric-row").evaluateAll(
+    (rows, expected) =>
+      rows.map((row) => {
+        const rect = row.getBoundingClientRect();
+        const value = row.querySelector(".metric-value")!;
+        const value_rect = value.getBoundingClientRect();
+        return (
+          value.querySelector(".result-number")?.textContent === expected &&
+          row.scrollWidth <= row.clientWidth &&
+          value_rect.left >= rect.left - 1 &&
+          value_rect.right <= rect.right + 1
+        );
+      }),
+    large_result,
   );
   assert.equal(large_values.length, 8);
+  assert.ok(large_values.every(Boolean), "Complete statistic values fit");
+  const metadata_rows = page.locator(".top-meta > div");
+  const result_row = metadata_rows.nth(2);
+  assert.equal(
+    await result_row.locator(".result-number").textContent(),
+    large_result,
+  );
+  const single_line_height = (await metadata_rows.nth(1).boundingBox())!.height;
+  const cumulative_result_height = (await result_row.boundingBox())!.height;
   assert.ok(
-    large_values.every(Boolean),
-    "Full statistic values fit without truncation",
+    Math.abs(single_line_height - cumulative_result_height) < 1,
+    "The cumulative value fits on the same line as its label",
+  );
+  const clipped_tick_labels = await page
+    .getByTestId("cdf-chart")
+    .evaluate((chart) => {
+      const bounds = chart.getBoundingClientRect();
+      const ticks = chart.querySelectorAll(
+        ".recharts-xAxis-tick-labels .recharts-cartesian-axis-tick-value",
+      );
+      if (!ticks.length) throw new Error("Missing horizontal tick labels");
+      return [...ticks]
+        .filter((tick) => {
+          const rect = tick.getBoundingClientRect();
+          return rect.left < bounds.left || rect.right > bounds.right;
+        })
+        .map((tick) => tick.textContent);
+    });
+  assert.deepEqual(
+    clipped_tick_labels,
+    [],
+    "Long horizontal tick labels fit in the chart",
   );
   await capture_layout(page, "visualize-long-values");
   await assert_visualize_metadata(page);

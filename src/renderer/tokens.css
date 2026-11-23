@@ -112,7 +112,6 @@
   --workbench-space-lg: calc(var(--desktop-unit) * 24);
   --workbench-control-height: calc(var(--desktop-unit) * 38);
 
-  --workbench-font-caption: var(--font-size-caption);
   --workbench-font-meta: var(--font-size-meta);
   --workbench-font-content: var(--font-size-content);
   --workbench-font-body: var(--font-size-body);

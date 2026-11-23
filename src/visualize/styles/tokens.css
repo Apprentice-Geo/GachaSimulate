@@ -45,9 +45,6 @@
   --font-mono: "JetBrains Mono", SourceHanSansSC, monospace;
   /* Convert the shared desktop scale to the fixed 3840 x 2160 design canvas. */
   --visualize-type-scale: 2;
-  --visualize-font-caption: calc(
-    var(--font-size-caption) * var(--visualize-type-scale)
-  );
   --visualize-font-meta: calc(
     var(--font-size-meta) * var(--visualize-type-scale)
   );

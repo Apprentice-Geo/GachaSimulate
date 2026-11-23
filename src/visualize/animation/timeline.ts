@@ -1,5 +1,7 @@
 import { VIDEO_FPS } from "../constants";
-import type { MarkerKey } from "../types/cdf";
+import { CDF_PLOT_SIZE } from "../view/scene_layout";
+import { CDF_MARKER_VIEW_CONFIG } from "../view/cdf_view_config";
+import type { CDFViewModel, MarkerKey } from "../types/cdf";
 
 export const ANIMATION_COMPLETION_FRAME = 57;
 export const ANIMATION_TOTAL_MS =
@@ -40,13 +42,54 @@ export const ANIMATION_TIMELINE = {
   NOTE: { start_frame: 44, completion_frame: 57 },
 } as const;
 
-export const MARKER_GROUP_START_FRAME: Readonly<Record<MarkerKey, number>> = {
-  P50: 42,
+export type QuantileFrames = Record<"P50" | "P95", number>;
+
+export function quantile_reveal_frames({
+  chart_points,
+  x_domain_max,
+}: Pick<CDFViewModel, "chart_points" | "x_domain_max">): QuantileFrames {
+  const first = chart_points[0];
+  const last = chart_points[chart_points.length - 1];
+  const x_distance = (draw: number) =>
+    ((draw - first.draw) / x_domain_max) * CDF_PLOT_SIZE.width;
+  // The length of a monotone staircase equals horizontal plus vertical travel.
+  const length =
+    x_distance(last.draw) +
+    (last.cumulative - first.cumulative) * CDF_PLOT_SIZE.height;
+  const { start_frame, completion_frame } = ANIMATION_TIMELINE.CURVE;
+  function crossing(level: number) {
+    let low = 0;
+    let high = chart_points.length - 1;
+    while (low < high) {
+      const mid = Math.floor((low + high) / 2);
+      if (chart_points[mid].cumulative < level) low = mid + 1;
+      else high = mid;
+    }
+    const distance =
+      x_distance(chart_points[low].draw) +
+      Math.max(0, level - first.cumulative) * CDF_PLOT_SIZE.height;
+    return {
+      step: low,
+      frame:
+        start_frame +
+        (length ? distance / length : 0) * (completion_frame - start_frame),
+    };
+  }
+  const median = crossing(CDF_MARKER_VIEW_CONFIG.P50.quantile_level!);
+  const upper = crossing(CDF_MARKER_VIEW_CONFIG.P95.quantile_level!);
+  return {
+    P50: median.step === upper.step ? upper.frame : median.frame,
+    P95: upper.frame,
+  };
+}
+
+export const MARKER_GROUP_START_FRAME: Readonly<
+  Record<Exclude<MarkerKey, keyof QuantileFrames>, number>
+> = {
   MEAN: 42,
   P25: 44,
   P75: 44,
   P5: 46,
-  P95: 46,
   MIN: 48,
   MAX: 48,
 };

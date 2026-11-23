@@ -17,7 +17,7 @@
   .field {
     color: var(--workbench-text-muted);
     display: grid;
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
     gap: var(--workbench-space-xs);
     min-width: 0;
   }
@@ -78,7 +78,7 @@
 
   .export-eyebrow {
     color: var(--workbench-text);
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
     letter-spacing: 0.16em;
     margin: 0 0 calc(var(--desktop-unit) * 5);
   }
@@ -190,7 +190,7 @@
 
   .export-summary-meta {
     color: var(--workbench-text);
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
     letter-spacing: 0.1em;
   }
 
@@ -209,7 +209,7 @@
   }
 
   .export-png-status {
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
     color: var(--workbench-text-muted);
     letter-spacing: normal;
   }
@@ -248,7 +248,7 @@
 
   .export-notice-detail {
     color: var(--workbench-text-muted);
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
   }
 
   .export-notice[data-kind="error"] {
@@ -328,7 +328,7 @@
   .renderer-eyebrow,
   .panel-kicker {
     color: var(--workbench-text-faint);
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
     letter-spacing: 0.14em;
     line-height: 1.4;
     margin: 0;
@@ -523,7 +523,7 @@
 
   .panel-id {
     color: var(--workbench-text-faint);
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
     margin-top: calc(var(--desktop-unit) * 4);
   }
 
@@ -739,7 +739,7 @@
 
   .item-search {
     color: var(--workbench-text-muted);
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
     min-width: 0;
     align-items: center;
     background: var(--workbench-input-bg);
@@ -797,7 +797,7 @@
 
   .simulation-item {
     color: var(--workbench-text-muted);
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
     min-width: 0;
     border: 1px solid transparent;
     cursor: pointer;
@@ -913,7 +913,7 @@
 
   .output-item span {
     color: var(--workbench-text-faint);
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
     letter-spacing: 0.06em;
   }
 
@@ -1064,7 +1064,7 @@
 
   .repository-overview dt {
     color: var(--workbench-text-faint);
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
   }
 
   .repository-overview dd {
@@ -1142,7 +1142,7 @@
   .source-badge {
     border-left: 3px solid;
     color: var(--workbench-text-muted);
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
     letter-spacing: 0.08em;
     padding-left: calc(var(--desktop-unit) * 8);
   }
@@ -1212,7 +1212,7 @@
   .repository-card-title span {
     border: 1px solid var(--workbench-card-status);
     color: var(--workbench-card-status);
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
     padding: calc(var(--desktop-unit) * 2) calc(var(--desktop-unit) * 5);
   }
 
@@ -1377,7 +1377,7 @@
 
   .result-editor-summary dt {
     color: var(--workbench-text-muted);
-    font-size: var(--workbench-font-caption);
+    font-size: var(--workbench-font-meta);
   }
 
   .result-editor-summary dd {

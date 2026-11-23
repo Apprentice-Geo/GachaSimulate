@@ -1,5 +1,4 @@
 :where(.visualize-scope) .result-number,
-:where(.visualize-scope) .metadata-number,
 :where(.visualize-scope) .metric-label,
 :where(.visualize-scope) .marker-label,
 :where(.visualize-scope) .reason-item strong,
@@ -17,6 +16,7 @@
 }
 :where(.visualize-scope) .metadata-value .result-number {
   font-weight: 400;
+  white-space: nowrap;
 }
 :where(.visualize-scope) .metadata-value small {
   font-size: inherit;
@@ -51,6 +51,18 @@
   position: relative;
   z-index: 1;
 }
+:where(.visualize-scope) .result-card-fan {
+  position: absolute;
+  width: calc(var(--page-margin) - 12px);
+  right: calc(6px - var(--page-margin));
+  top: -54px;
+  fill: var(--color-canvas);
+  stroke-width: 3;
+  pointer-events: none;
+}
+:where(.visualize-scope) .result-card-fan > g {
+  stroke-opacity: 0.68;
+}
 :where(.visualize-scope) .top-bar-inner {
   display: grid;
   grid-template-columns: var(--chart-width) minmax(0, 1fr);
@@ -61,6 +73,7 @@
   min-width: 0;
   display: grid;
   gap: 10px;
+  align-content: space-between;
   justify-items: start;
 }
 :where(.visualize-scope) .title-stack h1 {
@@ -90,9 +103,8 @@
 :where(.visualize-scope) .top-meta {
   color: var(--color-text-muted);
   display: grid;
-  font-size: var(--visualize-font-meta);
-  gap: 16px;
-  align-content: start;
+  font-size: var(--visualize-font-content);
+  align-content: space-between;
   line-height: 1.2;
   margin: 0;
   min-width: 0;
@@ -105,7 +117,6 @@
 :where(.visualize-scope) .top-meta dt {
   display: inline;
   color: var(--color-text-faint);
-  font-size: var(--visualize-font-caption);
 }
 :where(.visualize-scope) .top-meta dd {
   display: inline;
@@ -150,31 +161,34 @@
   position: relative;
 }
 /* Decorative borders must not change plot geometry when the host is scaled. */
+:where(.visualize-scope) .cdf-chart-shell::before,
 :where(.visualize-scope) .cdf-chart-shell::after {
-  border: 2px solid var(--color-hairline-strong);
+  --corner-ink: linear-gradient(var(--color-cdf-frame) 0 0);
+  --arm-width: 64px;
+  --arm-height: 48px;
   background:
-    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) left top /
-      64px 4px,
-    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) left top /
-      4px 64px,
-    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) right top /
-      64px 4px,
-    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) right top /
-      4px 64px,
-    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) left
-      bottom / 64px 4px,
-    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) left
-      bottom / 4px 64px,
-    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) right
-      bottom / 64px 4px,
-    linear-gradient(var(--color-cdf-frame), var(--color-cdf-frame)) right
-      bottom / 4px 64px;
+    var(--corner-ink) left top / var(--arm-width) 4px,
+    var(--corner-ink) right top / var(--arm-width) 4px,
+    var(--corner-ink) left bottom / var(--arm-width) 4px,
+    var(--corner-ink) right bottom / var(--arm-width) 4px,
+    var(--corner-ink) left top / 4px var(--arm-height),
+    var(--corner-ink) right top / 4px var(--arm-height),
+    var(--corner-ink) left bottom / 4px var(--arm-height),
+    var(--corner-ink) right bottom / 4px var(--arm-height);
   background-repeat: no-repeat;
-  border-radius: inherit;
   content: "";
-  inset: 0;
   pointer-events: none;
   position: absolute;
+}
+:where(.visualize-scope) .cdf-chart-shell::after {
+  border: 2px solid var(--color-hairline-strong);
+  inset: 0;
+}
+:where(.visualize-scope) .cdf-chart-shell::before {
+  --arm-width: 36px;
+  --arm-height: 24px;
+  inset: 12px;
+  opacity: 0.65;
 }
 .visualize-scope.chart-preview {
   flex: none;
@@ -194,7 +208,7 @@
   align-items: center;
   color: var(--color-text-faint);
   display: flex;
-  font-size: var(--visualize-font-caption);
+  font-size: var(--visualize-font-meta);
   justify-content: space-between;
   left: 48px;
   letter-spacing: 0;
@@ -208,7 +222,7 @@
   align-items: center;
   gap: 16px;
   color: var(--color-text-primary);
-  font-size: var(--visualize-font-content);
+  font-size: var(--visualize-font-body);
   font-weight: 500;
   line-height: 1;
 }
@@ -341,10 +355,6 @@
   min-width: 0;
 }
 :where(.visualize-scope) .metric-group-heading h2 {
-  color: var(--color-text-primary);
-  font-size: var(--visualize-font-content);
-  font-weight: 500;
-  line-height: 1;
   margin: 0;
 }
 :where(.visualize-scope) .metric-row {

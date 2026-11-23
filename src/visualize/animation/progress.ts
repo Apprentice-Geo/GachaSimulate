@@ -5,6 +5,7 @@ import {
   ANIMATION_COMPLETION_FRAME,
   ANIMATION_TIMELINE,
   MARKER_GROUP_START_FRAME,
+  type QuantileFrames,
 } from "./timeline";
 
 export interface FadeProgress {
@@ -36,9 +37,9 @@ export interface AnimationProgress {
   termination_detail: FadeProgress;
   stat_surface: FadeProgress;
   note: FadeProgress;
-  marker_line: (index: number) => ScaleProgress;
+  marker_line: (index: number, key?: MarkerKey) => ScaleProgress;
   marker_group: (key: MarkerKey) => FadeProgress;
-  stat_content: (index: number) => MetricProgress;
+  stat_content: (index: number, key?: MarkerKey) => MetricProgress;
 }
 
 export type Easing = (progress: number) => number;
@@ -160,6 +161,7 @@ function scale_progress(
 
 export function build_animation_progress(
   elapsed_ms: number,
+  quantiles: QuantileFrames,
 ): AnimationProgress {
   const frame_progress = Math.min(
     ANIMATION_COMPLETION_FRAME,
@@ -268,28 +270,48 @@ export function build_animation_progress(
       12,
       ease_out_quad,
     ),
-    marker_line: (index) =>
-      scale_progress(
+    marker_line: (index, key) => {
+      const start =
+        key === "P50" || key === "P95"
+          ? quantiles[key]
+          : ANIMATION_TIMELINE.MARKER_LINE.start_frame +
+            index * ANIMATION_TIMELINE.MARKER_LINE.stagger_frames;
+      return scale_progress(
         frame_progress,
-        ANIMATION_TIMELINE.MARKER_LINE.start_frame +
-          index * ANIMATION_TIMELINE.MARKER_LINE.stagger_frames,
-        ANIMATION_TIMELINE.MARKER_LINE.completion_frame +
-          index * ANIMATION_TIMELINE.MARKER_LINE.stagger_frames,
+        start,
+        start +
+          (ANIMATION_TIMELINE.MARKER_LINE.completion_frame -
+            ANIMATION_TIMELINE.MARKER_LINE.start_frame),
         0.35,
         1,
         ease_out_quad,
-      ),
-    marker_group: (key) =>
-      fade_progress(
+      );
+    },
+    marker_group: (key) => {
+      const start =
+        key === "P50" || key === "P95"
+          ? quantiles[key]
+          : MARKER_GROUP_START_FRAME[key];
+      return fade_progress(
         frame_progress,
-        MARKER_GROUP_START_FRAME[key],
-        MARKER_GROUP_START_FRAME[key] +
-          ANIMATION_TIMELINE.MARKER_GROUP_DURATION_FRAMES,
+        start,
+        start + ANIMATION_TIMELINE.MARKER_GROUP_DURATION_FRAMES,
         6,
         ease_out_quad,
-      ),
-    stat_content: (index) =>
-      timed_metric_progress(
+      );
+    },
+    stat_content: (index, key) => {
+      if (key === "P50" || key === "P95") {
+        const start = quantiles[key];
+        return timed_metric_progress(
+          frame_progress,
+          start,
+          start + ANIMATION_TIMELINE.MARKER_GROUP_DURATION_FRAMES,
+          0,
+          ease_out_quad,
+        );
+      }
+      return timed_metric_progress(
         frame_progress,
         ANIMATION_TIMELINE.STAT_CONTENT.start_frame +
           index * ANIMATION_TIMELINE.STAT_CONTENT.stagger_frames,
@@ -297,7 +319,8 @@ export function build_animation_progress(
           index * ANIMATION_TIMELINE.STAT_CONTENT.stagger_frames,
         32,
         ease_out_quad,
-      ),
+      );
+    },
   };
 }
 

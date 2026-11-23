@@ -21,7 +21,7 @@ Workbench 以任务操作、清晰反馈和稳定空间分配为中心。背景�
 | 形状 | 面板以直角、细边界与弱表面差异组织内容；装饰不改变内容几何 | 工作台控件保留圆角，可视化通过刻线、短色条与图表定位标记划分层次 |
 | 布局 | 主要分区稳定、边界对齐、滚动区域明确 | 工作台随窗口分配内容空间，可视化保持固定画布并整体等比适配 |
 
-工作台的题签与辅助标签使用 `caption`，次要元信息使用 `meta`，列表正文使用 `content`，卡片标题、普通摘要与导出任务摘要使用 `body`，分区标题与仓库概览数字使用 `heading`，页面标题与导出对话框标题使用 `title`。模拟流程 SVG 的状态、次数与百分比分别使用 `content`、`caption` 和 `title`，随 SVG 画面等比适配。样式通过 Workbench 角色映射引用共享层级，不再用 `desktop-unit` 推导字号，也不在页面新增独立像素字号；`font` 简写同样遵守此规则。单位相对所属数值缩小，沿用相对字号，不建立新的基础档位。间距和控件几何继续由工作台布局 token 管理。可视化的读数层级、画布和导出约束见 [Visualization Design](VISUALIZATION_DESIGN.md)。
+工作台的题签、辅助标签与次要元信息使用 `meta`，列表正文使用 `content`，卡片标题、普通摘要与导出任务摘要使用 `body`，分区标题与仓库概览数字使用 `heading`，页面标题与导出对话框标题使用 `title`。模拟流程 SVG 的状态、次数与百分比分别使用 `content`、`meta` 和 `title`，随 SVG 画面等比适配。样式通过 Workbench 角色映射引用共享层级，不再用 `desktop-unit` 推导字号，也不在页面新增独立像素字号；`font` 简写同样遵守此规则。单位相对所属数值缩小，沿用相对字号，不建立新的基础档位。间距和控件几何继续由工作台布局 token 管理。可视化的读数层级、画布和导出约束见 [Visualization Design](VISUALIZATION_DESIGN.md)。
 
 默认 Light，不跟随系统主题。侧栏底部的“设置”页提供浅色与深色选择，即时更新 Workbench 宿主的 `data-workbench-theme`，并通过桌面 renderer 的 localStorage 保存偏好；启动时在 React 渲染前恢复。非法或不可读的偏好回退到 Light；保存失败时仍切换当前主题，并显示无法保存的提示。两套主题提供相同名称的完整 token。颜色方案只作用于 Workbench，`.visualize-scope` 始终使用自己的暗色与原生控件方案。
 

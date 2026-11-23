@@ -106,6 +106,7 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
         const marker_visual = get_marker_visual(view.marker.weight);
         const marker_line_progress = animation_progress.marker_line(
           marker_line_index_by_key.get(view.marker.key) ?? index,
+          view.marker.key,
         );
         const marker_group_progress = animation_progress.marker_group(
           view.marker.key,

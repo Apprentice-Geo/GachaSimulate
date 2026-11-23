@@ -5,14 +5,11 @@ import type { CDFViewModel } from "../types/cdf";
 import { CDF_CHART_VIEW_CONFIG } from "../view/cdf_view_config";
 import type { AnimationProgress } from "../animation/progress";
 
-const CHART_MARGIN = {
-  top: 180,
-  right: 72,
-  bottom: 68,
-  left: 96,
-}; // 控制 Recharts 图表内容相对外层 SVG 的留白
-const Y_AXIS_WIDTH = 108;
-const X_AXIS_HEIGHT = 104;
+import {
+  CDF_CHART_MARGIN,
+  CDF_X_AXIS_HEIGHT,
+  CDF_Y_AXIS_WIDTH,
+} from "../view/scene_layout";
 const Y_CDF_AXIS_TICKS = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1];
 interface CDFChartProps {
   size: { width: number; height: number };
@@ -23,12 +20,6 @@ interface CDFChartProps {
 
 function format_percent(value: number): string {
   return `${Math.round(value * 100)}%`;
-}
-
-function format_draw(value: number): string {
-  return new Intl.NumberFormat("zh-CN", {
-    maximumFractionDigits: 0,
-  }).format(value);
 }
 
 export function CDFChart({
@@ -74,7 +65,7 @@ export function CDFChart({
         <LineChart
           data={data.chart_points}
           height={size.height}
-          margin={CHART_MARGIN}
+          margin={CDF_CHART_MARGIN}
           syncId="cdf-chart"
           width={size.width}
           style={{
@@ -96,8 +87,8 @@ export function CDFChart({
               fill: CDF_CHART_VIEW_CONFIG.tick_color,
               fontSize: "var(--visualize-font-content)",
             }}
-            tickFormatter={format_draw}
-            height={X_AXIS_HEIGHT}
+            tickFormatter={String}
+            height={CDF_X_AXIS_HEIGHT}
             label={{
               value: data.axis_title,
               position: "insideBottom",
@@ -120,7 +111,7 @@ export function CDFChart({
             tickMargin={10}
             tickLine={{ stroke: CDF_CHART_VIEW_CONFIG.axis_color }}
             type="number"
-            width={Y_AXIS_WIDTH}
+            width={CDF_Y_AXIS_WIDTH}
           />
           <CDFOverlay data={data} animation_progress={animation_progress} />
         </LineChart>
