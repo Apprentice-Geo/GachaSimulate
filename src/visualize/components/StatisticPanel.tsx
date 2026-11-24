@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { fade_style, metric_style } from "../animation/progress";
 import type { AnimationProgress } from "../animation/progress";
 import type { CDFViewModel } from "../types/cdf";
@@ -6,6 +6,7 @@ import { build_statistic_groups } from "../view/statistic_view_config";
 import { ResultValue } from "./ResultValue";
 
 interface StatisticPanelProps {
+  unit_editor?: ReactNode;
   data: CDFViewModel;
   animation_progress: AnimationProgress;
 }
@@ -13,6 +14,7 @@ interface StatisticPanelProps {
 export function StatisticPanel({
   data,
   animation_progress,
+  unit_editor,
 }: StatisticPanelProps) {
   const groups = build_statistic_groups(data.metrics);
   return (
@@ -42,6 +44,7 @@ export function StatisticPanel({
               )}
             >
               <h2 className="visualize-section-label">{group.title}</h2>
+              {group.id === "key-metrics" && unit_editor}
             </div>
             {group.metrics.map((metric) => (
               <div

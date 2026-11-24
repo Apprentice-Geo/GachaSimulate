@@ -1,5 +1,5 @@
 import { WorkbenchIcon } from "../components/WorkbenchIcon";
-import { ExternalLink, Moon, Settings, Sun } from "lucide-react";
+import { ExternalLink, Monitor, Moon, Settings, Sun } from "lucide-react";
 import { useState } from "react";
 import { app_info, type AppLink } from "../../shared/app_info";
 import { Button } from "../components/Button";
@@ -63,9 +63,6 @@ export function SettingsPage({
           <div className="settings-appearance">
             <div>
               <h3 className="settings-label">工作台主题</h3>
-              <p className="settings-description">
-                选择习惯的明暗风格，自动记住本次设置。
-              </p>
             </div>
             <fieldset className="settings-theme-options">
               <legend className="sr-only">工作台主题</legend>
@@ -73,6 +70,7 @@ export function SettingsPage({
                 [
                   { value: "light", label: "浅色", icon: Sun },
                   { value: "dark", label: "深色", icon: Moon },
+                  { value: "system", label: "跟随系统", icon: Monitor },
                 ] as const
               ).map(({ value, label, icon: Icon }) => (
                 <label key={value} className="settings-theme-option">
@@ -90,7 +88,7 @@ export function SettingsPage({
             </fieldset>
           </div>
           <p className="settings-description settings-theme-note">
-            结果可视化与导出素材保持深色画面。
+            主题仅用于工作台。结果图表与导出素材始终使用深色。
           </p>
           {theme_error && (
             <p role="alert" className="simulation-error">

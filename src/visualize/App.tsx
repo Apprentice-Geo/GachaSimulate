@@ -1,3 +1,4 @@
+import type { RenderDisplayField } from "./components/TopBar";
 import {
   useCallback,
   useEffect,
@@ -18,8 +19,10 @@ import type { CDFViewModel } from "./types/cdf";
 export default function App({
   input,
   render_controls,
+  edit,
 }: {
   input: CDFViewModel;
+  edit?: RenderDisplayField;
   render_controls: (controls: {
     replay: () => void;
     is_animating: boolean;
@@ -31,6 +34,7 @@ export default function App({
   const animation_frame_ref = useRef<number | null>(null);
   const viewport_ref = useRef<HTMLDivElement>(null);
 
+  const editing = !!edit;
   use_page_scale(viewport_ref);
 
   const start_animation = useCallback(() => {
@@ -59,8 +63,18 @@ export default function App({
   }, []);
 
   useEffect(() => {
-    if (input) start_animation();
-  }, [input, start_animation]);
+    start_animation();
+  }, [input.chart_points, start_animation]);
+
+  useEffect(() => {
+    if (editing) {
+      if (animation_frame_ref.current !== null)
+        cancelAnimationFrame(animation_frame_ref.current);
+      animation_frame_ref.current = null;
+      set_animation_elapsed_ms(ANIMATION_TOTAL_MS);
+      set_is_animating(false);
+    }
+  }, [editing]);
 
   useEffect(() => {
     document.documentElement.dataset.visualizeState = "ready";
@@ -91,6 +105,7 @@ export default function App({
       {render_controls({ replay: start_animation, is_animating })}
       <div className="visualize-scope visualize-viewport" ref={viewport_ref}>
         <VisualizeScene
+          edit={edit}
           animation_progress={animation_progress}
           animation_state={animation_state}
           data={input}

@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import { usePlotArea, useXAxisScale, useYAxisScale } from "recharts";
 import { get_marker_visual } from "./cdf_marker_visuals";
 import { use_marker_label_bounds } from "../hooks/use_marker_label_bounds";
@@ -21,6 +21,7 @@ interface CDFOverlayProps {
 }
 
 export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
+  const area_gradient = useId();
   const plot_area = usePlotArea();
   const x_scale = useXAxisScale();
   const y_scale = useYAxisScale();
@@ -65,12 +66,26 @@ export function CDFOverlay({ data, animation_progress }: CDFOverlayProps) {
 
   return (
     <g aria-hidden="true" className="marker-overlay" ref={ref}>
+      <defs>
+        <linearGradient id={area_gradient} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop
+            offset="0%"
+            stopColor={CDF_CHART_VIEW_CONFIG.curve_color}
+            stopOpacity={0.14}
+          />
+          <stop
+            offset="100%"
+            stopColor={CDF_CHART_VIEW_CONFIG.curve_color}
+            stopOpacity={0.015}
+          />
+        </linearGradient>
+      </defs>
       <path
         className="cdf-area-path"
         d={area_path}
-        fill={CDF_CHART_VIEW_CONFIG.curve_color}
+        fill={`url(#${area_gradient})`}
         style={{
-          opacity: animation_progress.curve_area * 0.055,
+          opacity: animation_progress.curve_area,
         }}
       />
       <path

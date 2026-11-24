@@ -11,7 +11,11 @@
   --color-rarity-purple: #b48aff;
   --color-rarity-gold: #f3c45c;
   --color-rarity-red: #f87586;
-  --color-cdf-frame: var(--color-rarity-blue);
+  --color-cdf-frame: color-mix(
+    in srgb,
+    var(--color-rarity-blue) 48%,
+    var(--color-hairline)
+  );
   --color-canvas: #12101b;
   --color-host-divider: #555555;
   --color-panel: #17151f;

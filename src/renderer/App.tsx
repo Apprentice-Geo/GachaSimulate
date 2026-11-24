@@ -1,27 +1,26 @@
 import { WorkbenchIcon } from "./components/WorkbenchIcon";
+import { BarChart3, PanelsTopLeft, Play, Settings, Store } from "lucide-react";
 import {
-  BarChart3,
-  FilePenLine,
-  PanelsTopLeft,
-  Play,
-  Settings,
-  Store,
-} from "lucide-react";
-import { useState, useMemo, useSyncExternalStore, type ReactNode } from "react";
+  useState,
+  useLayoutEffect,
+  useMemo,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { ExportWorkflow } from "./ExportWorkflow";
 import { SimulationPage } from "./pages/SimulationPage";
-import { ResultEditorPage } from "./pages/ResultEditorPage";
+import { ChartPreviewPage } from "./pages/ChartPreviewPage";
 import { ConfigRepositoryPage } from "./pages/ConfigRepositoryPage";
 import { ResultVisualizePage } from "./pages/ResultVisualizePage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { save_theme, type WorkbenchTheme } from "./theme";
+import { save_theme, watch_theme, type WorkbenchTheme } from "./theme";
 import { ResultSessionController } from "./result_session_controller";
 import { ResultErrorBoundary } from "./components/ResultErrorBoundary";
 
 type Page =
   | "simulation"
   | "config-repository"
-  | "result-editor"
+  | "chart-preview"
   | "result-visualize"
   | "settings";
 
@@ -41,21 +40,19 @@ const pages: Array<{
     icon: <WorkbenchIcon icon={Store} aria-hidden="true" size={18} />,
   },
   {
-    id: "result-editor",
-    label: "结果编辑",
-    icon: <WorkbenchIcon icon={FilePenLine} aria-hidden="true" size={18} />,
-  },
-  {
     id: "result-visualize",
     label: "结果可视化",
     icon: <WorkbenchIcon icon={BarChart3} aria-hidden="true" size={18} />,
   },
 ];
 
-export default function App() {
-  const [theme, set_theme] = useState<WorkbenchTheme>(() =>
-    document.body.dataset.workbenchTheme === "dark" ? "dark" : "light",
-  );
+export default function App({
+  initial_theme,
+}: {
+  initial_theme: WorkbenchTheme;
+}) {
+  const [theme, set_theme] = useState(initial_theme);
+  useLayoutEffect(() => watch_theme(theme), [theme]);
   const [theme_error, set_theme_error] = useState<string | null>(null);
   const change_theme = (next: WorkbenchTheme) => {
     set_theme(next);
@@ -77,7 +74,6 @@ export default function App() {
   );
   const result_state = result_session.result;
   const select_result = result_controller.select_result;
-  const visualize_input = result_session.model;
   const export_context = useMemo(
     () =>
       result_state
@@ -110,7 +106,13 @@ export default function App() {
                 <button
                   key={page.id}
                   className="renderer-nav-button"
-                  aria-current={active_page === page.id ? "page" : undefined}
+                  aria-current={
+                    active_page === page.id ||
+                    (active_page === "chart-preview" &&
+                      page.id === "result-visualize")
+                      ? "page"
+                      : undefined
+                  }
                   aria-label={page.label}
                   type="button"
                   onClick={() => set_active_page(page.id)}
@@ -141,14 +143,14 @@ export default function App() {
           <main className="renderer-main">
             <div className="renderer-content">
               <SimulationPage active={active_page === "simulation"} />
-              {active_page === "result-editor" ? (
+              {active_page === "chart-preview" && result_session.preview ? (
                 <ResultErrorBoundary
                   key={result_state?.session_id}
                   on_select={select_result}
                 >
-                  <ResultEditorPage
-                    session={result_session}
-                    controller={result_controller}
+                  <ChartPreviewPage
+                    data={result_session.preview}
+                    on_return={() => set_active_page("result-visualize")}
                   />
                 </ResultErrorBoundary>
               ) : active_page === "result-visualize" ? (
@@ -158,7 +160,8 @@ export default function App() {
                 >
                   <ResultVisualizePage
                     actions_host={visualize_actions_host}
-                    input={visualize_input}
+                    controller={result_controller}
+                    on_preview={() => set_active_page("chart-preview")}
                     session={result_session}
                     on_select_result={select_result}
                     export_active={export_active}

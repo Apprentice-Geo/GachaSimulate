@@ -536,7 +536,7 @@
   .simulation-page,
   .repository-page,
   .settings-page,
-  .result-editor {
+  .chart-preview-page {
     justify-content: flex-start;
     margin-inline: auto;
   }
@@ -1025,7 +1025,7 @@
     margin-bottom: calc(var(--desktop-unit) * 20);
   }
 
-  .result-editor-header {
+  .chart-preview-header {
     grid-template-columns: calc(var(--desktop-unit) * 52) minmax(0, 1fr) auto;
     margin-bottom: calc(var(--desktop-unit) * 20);
   }
@@ -1311,48 +1311,7 @@
     margin: var(--workbench-space-sm) 0 0;
   }
 
-  .result-editor-workbench {
-    display: grid;
-    flex: 1;
-    gap: calc(var(--desktop-unit) * 18);
-    grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
-    grid-template-rows: minmax(0, 1fr);
-    min-height: 0;
-    width: 100%;
-  }
-
-  .result-editor-form {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .result-editor-fields {
-    align-content: start;
-    display: grid;
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    gap: var(--workbench-space-md);
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .result-editor-form .panel-heading {
-    margin-bottom: var(--workbench-space-md);
-  }
-
-  .result-editor-textarea {
-    field-sizing: content;
-    max-height: calc(var(--desktop-unit) * 160);
-    overflow-y: auto;
-    overflow-wrap: anywhere;
-    resize: none;
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
-  }
-
-  .result-editor-summary {
+  .preview-summary {
     display: grid;
     flex-shrink: 0;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1361,26 +1320,26 @@
     border-bottom: 1px solid var(--workbench-border);
   }
 
-  .result-editor-summary > div {
+  .preview-summary > div {
     border-left: 2px solid var(--workbench-border);
     min-width: 0;
     padding-inline: calc(var(--desktop-unit) * 11);
   }
 
-  .result-editor-summary > div:first-child {
+  .preview-summary > div:first-child {
     border-left-color: var(--workbench-primary);
   }
 
-  .result-editor-summary > div:last-child {
+  .preview-summary > div:last-child {
     padding-right: 0;
   }
 
-  .result-editor-summary dt {
+  .preview-summary dt {
     color: var(--workbench-text-muted);
     font-size: var(--workbench-font-meta);
   }
 
-  .result-editor-summary dd {
+  .preview-summary dd {
     color: var(--workbench-text);
     font-family: var(--workbench-font-mono);
     font-size: var(--workbench-font-body);
@@ -1389,12 +1348,12 @@
     overflow-wrap: anywhere;
   }
 
-  .result-editor-summary code {
+  .preview-summary code {
     font-size: inherit;
     font-weight: 400;
   }
 
-  .result-editor-summary-unit {
+  .preview-summary-unit {
     color: var(--workbench-text-muted);
     font-family: var(--workbench-font-ui);
     font-size: 0.65em;
@@ -1402,12 +1361,14 @@
   }
 
   .result-cdf-preview {
+    flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 0;
   }
 
   .result-cdf-chart {
+    max-width: clamp(540px, 48%, 1120px);
     background: var(--workbench-surface);
     display: flex;
     flex-direction: column;
@@ -1418,17 +1379,15 @@
     width: 100%;
   }
 
-  .result-save-status {
-    color: var(--workbench-text-muted);
-    font-size: var(--workbench-font-meta);
-    margin: calc(var(--desktop-unit) * 12) 0 0;
-  }
-
   .export-format-options input {
     width: calc(var(--desktop-unit) * 13);
     height: calc(var(--desktop-unit) * 13);
   }
 
+  .simulation-item-panel,
+  .simulation-item,
+  .local-config-list > span,
+  .export-format-option,
   .instrument-panel,
   .repository-card,
   .repository-source,
@@ -1438,10 +1397,6 @@
     border-radius: var(--workbench-radius-panel);
   }
   .item-search,
-  .simulation-item-panel,
-  .simulation-item,
-  .local-config-list > span,
-  .export-format-option,
   .export-name-input,
   .status-badge,
   .simulation-error,
@@ -1485,6 +1440,12 @@
     border-top: 1px solid var(--workbench-border);
     margin-top: var(--workbench-space-xs);
     padding-top: var(--workbench-space-xs);
+  }
+  .sidebar-save-status {
+    color: var(--workbench-text-muted);
+    font-size: var(--workbench-font-meta);
+    text-align: center;
+    margin-top: var(--workbench-space-xs);
   }
   .visualize-sidebar-actions .workbench-button {
     font-size: var(--workbench-font-meta);

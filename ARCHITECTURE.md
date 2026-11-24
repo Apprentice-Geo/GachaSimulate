@@ -18,7 +18,7 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 - `cpp/`：Runtime 执行 IR；同层还包含 GSR 编解码、统计、core、analyzer 和 benchmark。
 - `src/main/`：受信任的 Electron 宿主；`SimulationTask` 管理配置编译准备、core 与模拟产物，`ResultEditor` 管理 analyzer、带身份的结果会话与导出快照，`ExportTaskCoordinator` 管理导出 reservation、main-owned 目录选择、目标文件身份、最近任务目录授权和统一准入，内部 `ExportHost` 管理隐藏导出窗口、CDP 截图、FFmpeg、逐产物安全提交与可重试的残留资源清理。`ConfigManager` 管理配置来源与安装事务；`config_snapshot.ts` 集中文件快照、内容摘要、协议校验和运行编译，由 `config_worker.ts` 在受控线程中执行，`ConfigWorkerClient` 管理请求身份、线程故障及可重试的有界退出。`native_process.ts` 提供可信原生程序定位、终止和有界等待，不拥有业务任务状态。
 - `src/preload/`：main 与桌面 renderer、隐藏导出 renderer 之间相互隔离的固定 IPC 桥。
-- `src/renderer/`：桌面界面与任务状态，不直接访问 Node.js。`App.tsx` 管理顶层 Shell、页面切换、工作台主题与 ExportWorkflow，并持有 `ResultSessionController`；controller 集中保留当前结果、草稿、已保存字段、载入与保存队列、错误和准备好的数值模型，页面切换不销毁这些业务状态。`pages/` 分别承载模拟、结果编辑、配置仓库和设置页面。`theme.ts` 在 React 渲染前恢复本地主题偏好，设置页切换后即时应用并保存。软件信息从构建时的项目元数据读取，外部链接仅向 preload 传递固定目标 ID，由 main 校验桌面 sender 与 ID 后打开。结果编辑的普通摘要由 Workbench 渲染，只有 CDF 预览使用 Visualization 画面组件。
+- `src/renderer/`：桌面界面与任务状态，不直接访问 Node.js。`App.tsx` 管理顶层 Shell、页面切换、工作台主题与 ExportWorkflow，并持有 `ResultSessionController`；controller 集中保留当前结果、草稿、已保存字段、载入与保存队列、错误和准备好的数值模型，页面切换不销毁这些业务状态。`pages/` 分别承载模拟、结果可视化、图表预览、配置仓库和设置页面。`theme.ts` 在 React 渲染前恢复本地主题偏好，设置页切换后即时应用并保存。软件信息从构建时的项目元数据读取，外部链接仅向 preload 传递固定目标 ID，由 main 校验桌面 sender 与 ID 后打开。原位编辑控件由工作台注入正式画面的文字位置。图表预览使用共享 CDF 组件，导出宿主只渲染展示内容。
 - `src/export-renderer/`：只消费 CDF view model 与逐帧消息的隐藏 Electron renderer；不访问桌面 preload API、文件系统或子进程。
 - `src/visualize/`：平台无关的 Analysis/DisplayConfig 校验、CDF 视图模型和共享场景。
 - `test-fixtures/configs/`：主仓库测试与语义 fixture；`benchmark/cases/`：独立 benchmark 配置。
@@ -49,7 +49,7 @@ Electron main 在 `app.getPath("userData")` 下管理桌面数据：已安装配
 
 ## 可视化与导出
 
-`src/visualize/` 是平台无关的结果可视化层，将经过校验的 `Analysis + DisplayConfig v2` 转换为 CDF view model，供 Electron 展示与素材导出共享。导航、模拟表单、GSR 对话框、结果编辑页与任务交互属于桌面宿主，不进入本层；本层不依赖 Electron 或 Node.js API。
+`src/visualize/` 是平台无关的结果可视化层，将经过校验的 `Analysis + DisplayConfig v2` 转换为 CDF view model，供 Electron 展示与素材导出共享。导航、模拟表单、GSR 对话框、原位编辑交互与任务交互属于桌面宿主，不进入本层；本层不依赖 Electron 或 Node.js API。
 
 ```text
 Analysis -------> validate_analysis -> prepare_cdf_data --+

@@ -41,7 +41,10 @@ function error_of(reason: unknown): Error {
   return reason instanceof Error ? reason : new Error(String(reason));
 }
 
-function fields_equal(left: DisplayFields, right: DisplayFields): boolean {
+export function fields_equal(
+  left: DisplayFields,
+  right: DisplayFields,
+): boolean {
   return DISPLAY_FIELD_KEYS.every((key) => left[key] === right[key]);
 }
 

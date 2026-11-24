@@ -147,7 +147,6 @@ export function SimulationOrbit({
                   y="125"
                   width="86"
                   height="139"
-                  rx="12"
                   fill={`url(#${id}-${color}-face)`}
                   stroke={`var(--workbench-card-${color})`}
                   strokeWidth="3"
@@ -157,7 +156,6 @@ export function SimulationOrbit({
                   y="131"
                   width="74"
                   height="127"
-                  rx="8"
                   fill="none"
                   stroke={`var(--workbench-card-${color})`}
                   strokeWidth="1"

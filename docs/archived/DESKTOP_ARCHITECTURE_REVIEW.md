@@ -87,7 +87,7 @@ YAML -> TS Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 
 ### D01：旧保存响应覆盖新会话或同会话的新草稿
 
-相关代码：[ResultEditorPage](../../src/renderer/pages/ResultEditorPage.tsx)、[App](../../src/renderer/App.tsx)。
+相关代码：[ResultEditorPage](https://github.com/Apprentice-Geo/GachaSimulate/blob/07835b994f49d8a7c6eca436c1b60ce6a87d3569/src/renderer/pages/ResultEditorPage.tsx)、[App](../../src/renderer/App.tsx)。
 
 编辑页维护自己的 `save_queue`、`save_version` 和 `fields_ref`。保存成功后，`apply_state()` 会通过 `on_state()` 更新 App 的共享结果。App 切换页面时会卸载编辑页，但已经发出的异步操作仍可回调父组件。
 
@@ -184,7 +184,7 @@ App 在 React 渲染阶段构建模型，异常没有在结果选择请求内转
 
 ### D05：文案保存和预览反复传递、重建完整分析数据
 
-相关代码：[ResultEditor](../../src/main/result_editor.ts)、[ResultEditorState](../../src/shared/result_editor.ts)、[ResultEditorPage](../../src/renderer/pages/ResultEditorPage.tsx)、[App](../../src/renderer/App.tsx)。
+相关代码：[ResultEditor](../../src/main/result_editor.ts)、[ResultEditorState](../../src/shared/result_editor.ts)、[ResultEditorPage](https://github.com/Apprentice-Geo/GachaSimulate/blob/07835b994f49d8a7c6eca436c1b60ce6a87d3569/src/renderer/pages/ResultEditorPage.tsx)、[App](../../src/renderer/App.tsx)。
 
 修改六个展示字段中的任意一项，失焦保存后 main 返回完整 `ResultEditorState`，包含整份 `analysis`。因此仅保存少量文字也会通过 Electron IPC 再次序列化和传递分布数组。
 

@@ -51,18 +51,6 @@
   position: relative;
   z-index: 1;
 }
-:where(.visualize-scope) .result-card-fan {
-  position: absolute;
-  width: calc(var(--page-margin) - 12px);
-  right: calc(6px - var(--page-margin));
-  top: -54px;
-  fill: var(--color-canvas);
-  stroke-width: 3;
-  pointer-events: none;
-}
-:where(.visualize-scope) .result-card-fan > g {
-  stroke-opacity: 0.68;
-}
 :where(.visualize-scope) .top-bar-inner {
   display: grid;
   grid-template-columns: var(--chart-width) minmax(0, 1fr);
@@ -155,7 +143,11 @@
 :where(.visualize-scope) .cdf-chart-shell {
   animation: none;
   border: none;
-  background: var(--color-panel);
+  background: linear-gradient(
+    155deg,
+    var(--color-panel-soft),
+    var(--color-panel) 65%
+  );
   height: 100%;
   overflow: hidden;
   position: relative;
