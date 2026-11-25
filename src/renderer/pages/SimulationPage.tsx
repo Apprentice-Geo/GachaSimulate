@@ -1,6 +1,6 @@
 import { WorkbenchIcon } from "../components/WorkbenchIcon";
 import { SimulationOrbit } from "../components/SimulationOrbit";
-import { FolderOpen, Play, Search } from "lucide-react";
+import { ChartColumn, FolderOpen, Play, Search } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "../components/Button";
 import { Field } from "../components/Field";
@@ -29,7 +29,15 @@ const status_labels: Record<SimulationStatus, string> = {
   cancelled: "已取消",
 };
 
-export function SimulationPage({ active }: { active: boolean }) {
+export function SimulationPage({
+  active,
+  result_loading,
+  on_view_result,
+}: {
+  active: boolean;
+  result_loading: boolean;
+  on_view_result: () => Promise<void>;
+}) {
   const [configs, set_configs] = useState<InstalledConfig[]>([]);
   const [selected_key, set_selected_key] = useState("");
   const [loading, set_loading] = useState(true);
@@ -184,9 +192,10 @@ export function SimulationPage({ active }: { active: boolean }) {
     }
   };
 
-  const open_results = async () => {
+  const result_action = async (action: () => Promise<void>) => {
+    set_operation_error(null);
     try {
-      await window.desktopApi.openResultsDirectory();
+      await action();
     } catch (reason) {
       set_operation_error(
         reason instanceof Error ? reason.message : String(reason),
@@ -375,7 +384,7 @@ export function SimulationPage({ active }: { active: boolean }) {
               <div className="simulation-actions">
                 <Button
                   type="button"
-                  disabled={busy}
+                  disabled={busy || result_loading}
                   onClick={() => void start()}
                 >
                   <WorkbenchIcon icon={Play} size={16} aria-hidden="true" />
@@ -415,19 +424,37 @@ export function SimulationPage({ active }: { active: boolean }) {
                   )}
                 </span>
                 {result_path && (
-                  <Button
-                    variant="ghost"
-                    size="inline"
-                    type="button"
-                    onClick={() => void open_results()}
-                  >
-                    <WorkbenchIcon
-                      icon={FolderOpen}
-                      size={16}
-                      aria-hidden="true"
-                    />
-                    打开结果目录
-                  </Button>
+                  <div className="simulation-result-actions">
+                    <Button
+                      size="inline"
+                      disabled={result_loading}
+                      onClick={() => void result_action(on_view_result)}
+                    >
+                      <WorkbenchIcon
+                        icon={ChartColumn}
+                        size={16}
+                        aria-hidden="true"
+                      />
+                      {result_loading ? "正在载入…" : "查看本次结果"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="inline"
+                      type="button"
+                      onClick={() =>
+                        void result_action(
+                          window.desktopApi.openResultsDirectory,
+                        )
+                      }
+                    >
+                      <WorkbenchIcon
+                        icon={FolderOpen}
+                        size={16}
+                        aria-hidden="true"
+                      />
+                      打开结果目录
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>

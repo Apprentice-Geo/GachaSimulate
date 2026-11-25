@@ -89,6 +89,28 @@ export function SimulationOrbit({
       <svg viewBox="0 0 440 420" aria-hidden="true" focusable="false">
         <defs>
           <OrbitOctahedron id={`${id}-octahedron`} moving={moving} />
+          <linearGradient id={`${id}-foil`} x1="0" y1="0" x2="1" y2="0.8">
+            <stop
+              offset="0.30"
+              stopColor="var(--workbench-card-gold-highlight)"
+              stopOpacity="0"
+            />
+            <stop
+              offset="0.41"
+              stopColor="var(--workbench-card-gold-highlight)"
+              stopOpacity="0.45"
+            />
+            <stop
+              offset="0.45"
+              stopColor="var(--workbench-card-gold-highlight)"
+              stopOpacity="0.12"
+            />
+            <stop
+              offset="0.54"
+              stopColor="var(--workbench-card-gold-highlight)"
+              stopOpacity="0"
+            />
+          </linearGradient>
           {cards.map(({ color }) => (
             <linearGradient
               key={color}
@@ -156,7 +178,7 @@ export function SimulationOrbit({
                   y="131"
                   width="74"
                   height="127"
-                  fill="none"
+                  fill={color === "gold" ? `url(#${id}-foil)` : "none"}
                   stroke={`var(--workbench-card-${color})`}
                   strokeWidth="1"
                 />

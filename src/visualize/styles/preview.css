@@ -54,13 +54,18 @@
   resize: none;
   padding: 0 0.12em;
   border: 0;
-  outline: 2px dashed var(--color-text-faint);
+  outline: 1px solid var(--color-hairline);
   outline-offset: 1px;
   color: inherit;
-  background: var(--color-panel);
+  background: transparent;
   font: inherit;
   line-height: inherit;
   overflow-wrap: anywhere;
+}
+:where(.visualize-scope) .scene-edit-field textarea:hover,
+:where(.visualize-scope) .scene-edit-field textarea:placeholder-shown {
+  outline-color: var(--color-hairline-strong);
+  background: var(--color-panel);
 }
 :where(.visualize-scope) .scene-edit-field textarea:focus {
   outline: 3px solid var(--color-cdf-line);

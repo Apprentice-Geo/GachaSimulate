@@ -142,7 +142,21 @@ export default function App({
           </aside>
           <main className="renderer-main">
             <div className="renderer-content">
-              <SimulationPage active={active_page === "simulation"} />
+              <SimulationPage
+                active={active_page === "simulation"}
+                result_loading={result_session.loading}
+                on_view_result={async () => {
+                  if (!(await result_controller.open_simulation_result())) {
+                    throw new Error(
+                      result_controller.get_snapshot().load_error ??
+                        "无法载入本次结果。",
+                    );
+                  }
+                  set_active_page((page) =>
+                    page === "simulation" ? "result-visualize" : page,
+                  );
+                }}
+              />
               {active_page === "chart-preview" && result_session.preview ? (
                 <ResultErrorBoundary
                   key={result_state?.session_id}

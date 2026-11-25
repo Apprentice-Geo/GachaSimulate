@@ -39,6 +39,7 @@ function setup() {
     response: ReturnType<typeof deferred<SavedResultFields>>;
   }> = [];
   const controller = new ResultSessionController({
+    openSimulationResult: async () => fixture("completed run"),
     selectGsrResult: () => {
       const request = deferred<ResultEditorState | null>();
       selections.push(request);
@@ -65,6 +66,25 @@ function setup() {
   };
   return { controller, selections, saves, open, saved };
 }
+
+test("opening a completed run preserves the current draft if its pending save fails", async () => {
+  const w = setup();
+  await w.open("A");
+  w.controller.change_field("title", "draft A");
+  const saving = w.controller.save();
+  const rejected = assert.rejects(saving, /disk unavailable/);
+  const opening = w.controller.open_simulation_result();
+  await tick();
+  w.saves[0].response.reject(new Error("disk unavailable"));
+  await rejected;
+  assert.equal(await opening, false);
+  assert.equal(w.controller.get_snapshot().draft?.title, "draft A");
+  const retry = w.controller.open_simulation_result();
+  await tick();
+  w.saved(1);
+  assert.equal(await retry, true);
+  assert.equal(w.controller.get_snapshot().result?.session_id, "completed run");
+});
 
 test("a previous session save cannot replace a new session or its busy state", async () => {
   const w = setup();

@@ -233,6 +233,10 @@ app.whenReady().then(() => {
     return simulation.start(request);
   });
   desktop_ipc.handle("cancel-simulation", () => shutdown_native());
+  desktop_ipc.handle("open-simulation-result", () => {
+    admission.admit("analysis");
+    return result_editor.open(simulation.completed_result_path);
+  });
   desktop_ipc.handle("select-gsr-result", async () => {
     admission.admit("analysis");
     const result = await dialog.showOpenDialog(require_main_window(), {

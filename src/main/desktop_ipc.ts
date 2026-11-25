@@ -74,6 +74,7 @@ const validators: { [C in DesktopChannel]: Validator<C> } = {
   }),
   "cancel-simulation": no_args,
   "select-gsr-result": no_args,
+  "open-simulation-result": no_args,
   "save-result-fields": one(validate_save_result_fields_request),
   "prepare-export": one(validate_export_preparation_request),
   "select-export-destination": one(validate_export_destination_request),

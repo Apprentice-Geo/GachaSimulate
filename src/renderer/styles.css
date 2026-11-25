@@ -969,12 +969,19 @@
     border-top: 1px solid var(--workbench-border);
     color: var(--workbench-text-muted);
     display: flex;
+    flex-wrap: wrap;
     font-size: var(--workbench-font-meta);
     gap: calc(var(--desktop-unit) * 12);
     justify-content: space-between;
     margin-top: auto;
     min-height: calc(var(--desktop-unit) * 40);
     padding-top: calc(var(--desktop-unit) * 12);
+  }
+
+  .simulation-result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--workbench-space-sm);
   }
 
   .workbench-button--ghost {
@@ -1368,7 +1375,7 @@
   }
 
   .result-cdf-chart {
-    max-width: clamp(540px, 48%, 1120px);
+    container-type: size;
     background: var(--workbench-surface);
     display: flex;
     flex-direction: column;

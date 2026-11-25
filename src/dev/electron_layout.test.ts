@@ -14,6 +14,7 @@ import { emulate_viewport } from "./electron_viewport";
 import { result_fixture, simulation_fixture } from "./ui_fixtures";
 import { app_info } from "../shared/app_info";
 import { theme_storage_key } from "../renderer/theme";
+import { CDF_CHART_SIZE } from "../visualize/view/scene_layout";
 import {
   assert_style_boundaries,
   chart_style,
@@ -259,6 +260,13 @@ async function assert_preview_width(page: Page) {
         node.clientWidth -
         parseFloat(style.paddingLeft) -
         parseFloat(style.paddingRight),
+      available_height:
+        node.clientHeight -
+        parseFloat(style.paddingTop) -
+        parseFloat(style.paddingBottom),
+      left: host.left,
+      content_left:
+        node.getBoundingClientRect().left + parseFloat(style.paddingLeft),
       width: host.width,
       height: host.height,
       chart_height: chart.height,
@@ -267,8 +275,17 @@ async function assert_preview_width(page: Page) {
   });
   assert_pixel_equal(
     geometry.width,
-    geometry.available,
-    "preview uses the content width",
+    Math.min(
+      geometry.available,
+      geometry.available_height * 2,
+      CDF_CHART_SIZE.width,
+    ),
+    "preview fits the scrollport height and available width",
+  );
+  assert_pixel_equal(
+    geometry.left,
+    geometry.content_left,
+    "preview aligns left",
   );
   assert_pixel_equal(
     geometry.height,

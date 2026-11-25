@@ -36,6 +36,7 @@ export type DesktopRequests = {
   "start-simulation": { args: [request: SimulationRequest]; result: void };
   "cancel-simulation": { args: []; result: void };
   "select-gsr-result": { args: []; result: ResultEditorState | null };
+  "open-simulation-result": { args: []; result: ResultEditorState };
   "save-result-fields": {
     args: [request: SaveResultFieldsRequest];
     result: SavedResultFields;
@@ -88,6 +89,7 @@ export type DesktopApi = {
   startSimulation: DesktopInvoke<"start-simulation">;
   cancelSimulation: DesktopInvoke<"cancel-simulation">;
   selectGsrResult: DesktopInvoke<"select-gsr-result">;
+  openSimulationResult: DesktopInvoke<"open-simulation-result">;
   saveResultFields: DesktopInvoke<"save-result-fields">;
   prepareExport: DesktopInvoke<"prepare-export">;
   selectExportDestination: DesktopInvoke<"select-export-destination">;

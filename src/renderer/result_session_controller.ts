@@ -68,7 +68,7 @@ export class ResultSessionController {
   constructor(
     private readonly api: Pick<
       DesktopApi,
-      "selectGsrResult" | "saveResultFields"
+      "selectGsrResult" | "openSimulationResult" | "saveResultFields"
     >,
   ) {}
 
@@ -84,7 +84,19 @@ export class ResultSessionController {
     for (const listener of this.listeners) listener();
   }
 
-  select_result = (): Promise<boolean> => {
+  select_result = (): Promise<boolean> =>
+    this.load_result(() => this.api.selectGsrResult());
+
+  open_simulation_result = (): Promise<boolean> =>
+    this.load_result(async () => {
+      await this.save();
+      if (this.session?.error) throw this.session.error;
+      return this.api.openSimulationResult();
+    });
+
+  private load_result(
+    load: () => Promise<ResultEditorState | null>,
+  ): Promise<boolean> {
     if (this.loading) return this.loading;
     const request = ++this.load_id;
     this.update({
@@ -95,9 +107,7 @@ export class ResultSessionController {
     });
     const operation = (async () => {
       try {
-        const result = await Promise.resolve().then(() =>
-          this.api.selectGsrResult(),
-        );
+        const result = await Promise.resolve().then(load);
         if (request !== this.load_id) return false;
         if (!result) {
           this.update({ status: "未选择文件。", load_status: "未选择文件。" });
@@ -144,7 +154,7 @@ export class ResultSessionController {
     })();
     this.loading = operation;
     return operation;
-  };
+  }
 
   change_field = (key: keyof DisplayFields, value: string): void => {
     const session = this.session;
