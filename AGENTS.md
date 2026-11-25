@@ -12,7 +12,7 @@
 - UI 设计原则与交互不变量：[Workbench Design](<docs/WORKBENCH_DESIGN.md>)、[Visualization Design](<docs/VISUALIZATION_DESIGN.md>)。
 - 开发与提交前按影响范围执行检查：[Development Checks](<docs/DEVELOPMENT_CHECKS.md>)。
 - FFmpeg 源码准备、构建脚本职责与材料收集等项目维护脚本：[scripts README](<scripts/README.md>)。
-- 此处未列出的文档视作开发临时文档，不承诺长期存在和有效。
+- 以上是日常开发入口。`docs/archived/` 保存已结束的实验和审查记录，追溯相关决策时可查阅。
 
 ## 开发环境与启动入口
 
