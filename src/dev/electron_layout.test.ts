@@ -945,6 +945,42 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     "正在保存 GSR",
   );
   await page.locator(".simulation-status").scrollIntoViewIfNeeded();
+  const status_row = page.locator(".simulation-status");
+  const before_completion = await status_row.boundingBox();
+  await send("completed", {
+    type: "completed",
+    result_path: "example.gsr",
+    total_runs: 100,
+    total_result: 100,
+  });
+  const [row, label, view, directory] = await Promise.all([
+    status_row.boundingBox(),
+    status_row.getByRole("status").boundingBox(),
+    status_row.getByRole("button", { name: "查看本次结果" }).boundingBox(),
+    status_row.getByRole("button", { name: "打开结果目录" }).boundingBox(),
+  ]);
+  assert.ok(before_completion && row && label && view && directory);
+  assert_pixel_equal(
+    row.height,
+    before_completion.height,
+    "stable status row height",
+  );
+  assert.doesNotMatch(await status_row.innerText(), /example\.gsr/);
+  assert.ok(
+    label.x + label.width <= view.x && view.x + view.width <= directory.x,
+  );
+  for (const button of [view, directory]) {
+    assert_pixel_equal(
+      button.y + button.height / 2,
+      label.y + label.height / 2,
+      "vertically centered result action",
+    );
+  }
+  assert_pixel_equal(
+    directory.x + directory.width,
+    row.x + row.width,
+    "right-aligned result actions",
+  );
   await send("idle", { type: "started" });
   await page.locator(".simulation-actions").scrollIntoViewIfNeeded();
   const selection_before = await simulation.boundingBox();

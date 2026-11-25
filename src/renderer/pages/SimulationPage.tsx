@@ -57,7 +57,6 @@ export function SimulationPage({
     total: number;
     unit: string;
   } | null>(null);
-  const [result_path, set_result_path] = useState("");
   const cancellation_requested = useRef(false);
   const key = (config: InstalledConfig) => `${config.source}:${config.id}`;
   const selected =
@@ -110,13 +109,11 @@ export function SimulationPage({
         if (event?.type === "started") {
           set_stage("loading_config");
           set_progress(null);
-          set_result_path("");
           set_operation_error(null);
         }
         if (event?.type === "stage") set_stage(event.stage);
         if (event?.type === "progress") set_progress(event);
         if (event?.type === "completed") {
-          set_result_path(event.result_path);
           set_progress({
             completed: event.total_runs,
             total: event.total_runs,
@@ -139,7 +136,6 @@ export function SimulationPage({
     cancellation_requested.current = false;
     set_operation_error(null);
     set_progress(null);
-    set_result_path("");
     set_stage("loading_config");
     const canonical_result_item = selected_result_item(
       result_item,
@@ -178,7 +174,6 @@ export function SimulationPage({
   const cancel = async () => {
     cancellation_requested.current = true;
     set_status("cancelling");
-    set_result_path("");
     set_operation_error(null);
     try {
       await window.desktopApi.cancelSimulation();
@@ -414,18 +409,12 @@ export function SimulationPage({
                 progress={progress}
                 active={active}
               />
-              <div className="simulation-status" role="status">
-                <span title={result_path || undefined}>
-                  状态 / {status_labels[status]}
-                  {result_path && (
-                    <span className="simulation-result-path">
-                      {result_path}
-                    </span>
-                  )}
-                </span>
-                {result_path && (
+              <div className="simulation-status">
+                <span role="status">状态 / {status_labels[status]}</span>
+                {status === "completed" && (
                   <div className="simulation-result-actions">
                     <Button
+                      variant="link"
                       size="inline"
                       disabled={result_loading}
                       onClick={() => void result_action(on_view_result)}

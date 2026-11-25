@@ -187,9 +187,7 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
         });
       });
       await page.getByRole("button", { name: "运行模拟" }).click();
-      await page
-        .getByText("/tmp/completed-while-away.gsr", { exact: true })
-        .waitFor();
+      await page.getByRole("button", { name: "查看本次结果" }).waitFor();
       await screenshot(page, "electron/simulation-navigation");
     }
 
