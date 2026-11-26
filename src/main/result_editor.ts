@@ -188,6 +188,17 @@ export class ResultEditor {
     return this.snapshot_now(expected_session_id);
   }
 
+  async discard_failed_save(expected_session_id: string): Promise<void> {
+    const barrier = this.save_queue;
+    await barrier;
+    if (expected_session_id !== this.session_id)
+      throw new Error("result session has changed");
+    if (barrier !== this.save_queue)
+      throw new Error("a newer save is already queued");
+    if (this.save_error?.session_id === expected_session_id)
+      this.save_error = null;
+  }
+
   async wait_for_pending_saves(expected_session_id: string): Promise<void> {
     const barrier = this.save_queue;
     await barrier;

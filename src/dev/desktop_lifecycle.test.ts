@@ -176,9 +176,8 @@ test("renderer rejects unrenderable loads before publishing and can load again",
     await page.getByRole("button", { name: "编辑", exact: true }).click();
     await page.waitForFunction(
       () =>
-        document.querySelector<HTMLTextAreaElement>(
-          'textarea[aria-label="标题"]',
-        )?.value === "recovered result",
+        document.querySelector<HTMLInputElement>('input[aria-label="标题"]')
+          ?.value === "recovered result",
     );
   } finally {
     await application.close();

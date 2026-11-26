@@ -144,7 +144,9 @@ export default function App({
             <div className="renderer-content">
               <SimulationPage
                 active={active_page === "simulation"}
-                result_loading={result_session.loading}
+                result_loading={
+                  result_session.loading || result_session.discarding
+                }
                 on_view_result={async () => {
                   if (!(await result_controller.open_simulation_result())) {
                     throw new Error(

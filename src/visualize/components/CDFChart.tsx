@@ -8,6 +8,7 @@ import type { AnimationProgress } from "../animation/progress";
 import {
   CDF_CHART_MARGIN,
   CDF_X_AXIS_HEIGHT,
+  CDF_X_AXIS_TITLE_STYLE,
   CDF_Y_AXIS_WIDTH,
 } from "../view/scene_layout";
 const Y_CDF_AXIS_TICKS = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1];
@@ -28,6 +29,10 @@ export function CDFChart({
   animation_progress,
   style,
 }: CDFChartProps) {
+  const surface_style = {
+    opacity: animation_progress.chart_surface.opacity,
+    transform: `translateY(${animation_progress.chart_surface.translate_y}px)`,
+  };
   return (
     <div
       className="cdf-chart-shell"
@@ -45,10 +50,7 @@ export function CDFChart({
         className="cdf-axis-titles"
         width={size.width}
         height={size.height}
-        style={{
-          opacity: animation_progress.chart_surface.opacity,
-          transform: `translateY(${animation_progress.chart_surface.translate_y}px)`,
-        }}
+        style={surface_style}
       >
         <text
           className="y-axis-title"
@@ -68,10 +70,7 @@ export function CDFChart({
           margin={CDF_CHART_MARGIN}
           syncId="cdf-chart"
           width={size.width}
-          style={{
-            opacity: animation_progress.chart_surface.opacity,
-            transform: `translateY(${animation_progress.chart_surface.translate_y}px)`,
-          }}
+          style={surface_style}
         >
           <CartesianGrid
             stroke={CDF_CHART_VIEW_CONFIG.grid_color}
@@ -89,12 +88,6 @@ export function CDFChart({
             }}
             tickFormatter={String}
             height={CDF_X_AXIS_HEIGHT}
-            label={{
-              value: data.axis_title,
-              position: "insideBottom",
-              offset: -5,
-              className: "axis-title",
-            }}
             tickLine={{ stroke: CDF_CHART_VIEW_CONFIG.axis_color }}
             type="number"
           />
@@ -116,6 +109,12 @@ export function CDFChart({
           <CDFOverlay data={data} animation_progress={animation_progress} />
         </LineChart>
       )}
+      <div
+        className="axis-title"
+        style={{ ...surface_style, ...CDF_X_AXIS_TITLE_STYLE }}
+      >
+        {data.axis_title}
+      </div>
     </div>
   );
 }

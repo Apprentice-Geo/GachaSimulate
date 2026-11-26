@@ -1358,6 +1358,12 @@
     overflow-wrap: anywhere;
   }
 
+  .preview-summary dd:has(.preview-summary-unit) {
+    display: flex;
+    align-items: baseline;
+    white-space: nowrap;
+  }
+
   .preview-summary code {
     font-size: inherit;
     font-weight: 400;
@@ -1368,6 +1374,10 @@
     font-family: var(--workbench-font-ui);
     font-size: 0.65em;
     font-weight: 400;
+    min-width: 0;
+    overflow: hidden;
+    padding-inline-start: 0.25em;
+    text-overflow: ellipsis;
   }
 
   .result-cdf-preview {

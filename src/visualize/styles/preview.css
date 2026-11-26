@@ -31,10 +31,8 @@
   display: inline-block;
   vertical-align: baseline;
   max-width: 100%;
+  min-width: 0;
   position: relative;
-}
-:where(.visualize-scope) .title-stack > :has(.scene-edit-field) {
-  max-width: 100%;
 }
 :where(.visualize-scope) .metric-group-heading .scene-edit-field {
   max-width: 55%;
@@ -42,16 +40,12 @@
   color: var(--color-text-muted);
   font-size: var(--visualize-font-content);
 }
-:where(.visualize-scope) .scene-edit-field textarea {
+:where(.visualize-scope) .scene-edit-field input {
   field-sizing: content;
-  overflow: auto;
-  scrollbar-width: none;
   display: inline-block;
   vertical-align: bottom;
   max-width: 100%;
   min-width: 2em;
-  max-height: 2.5lh;
-  resize: none;
   padding: 0 0.12em;
   border: 0;
   outline: 1px solid var(--color-hairline);
@@ -60,17 +54,16 @@
   background: transparent;
   font: inherit;
   line-height: inherit;
-  overflow-wrap: anywhere;
 }
-:where(.visualize-scope) .scene-edit-field textarea:hover,
-:where(.visualize-scope) .scene-edit-field textarea:placeholder-shown {
+:where(.visualize-scope) .scene-edit-field input:hover,
+:where(.visualize-scope) .scene-edit-field input:placeholder-shown {
   outline-color: var(--color-hairline-strong);
   background: var(--color-panel);
 }
-:where(.visualize-scope) .scene-edit-field textarea:focus {
+:where(.visualize-scope) .scene-edit-field input:focus {
   outline: 3px solid var(--color-cdf-line);
 }
-:where(.visualize-scope) .scene-edit-field textarea::placeholder {
+:where(.visualize-scope) .scene-edit-field input::placeholder {
   color: var(--color-text-faint);
 }
 :where(.visualize-scope) .scene-save-error {
@@ -87,6 +80,8 @@
   width: max-content;
   max-width: 700px;
   font: 400 var(--visualize-font-content) / 1.2 var(--font-ui);
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 :where(.visualize-scope) .top-bar:has(.scene-save-error) {
   z-index: 3;

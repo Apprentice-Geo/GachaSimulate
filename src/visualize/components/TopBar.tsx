@@ -19,7 +19,9 @@ export function TopBar({ data, animation_progress, edit }: TopBarProps) {
     {
       key: "target",
       label: "模拟目标",
-      content: edit?.("target") ?? data.target,
+      content: edit?.("target") ?? (
+        <span className="scene-text">{data.target}</span>
+      ),
     },
     {
       key: "runs",
@@ -32,7 +34,14 @@ export function TopBar({ data, animation_progress, edit }: TopBarProps) {
     },
     {
       key: "result",
-      label: <>累计{edit?.("result_item_name") ?? data.result_item.name}</>,
+      label: (
+        <>
+          <span>累计</span>
+          {edit?.("result_item_name") ?? (
+            <span className="scene-text">{data.result_item.name}</span>
+          )}
+        </>
+      ),
       content: (
         <span className="metadata-value">
           <ResultValue
@@ -52,17 +61,26 @@ export function TopBar({ data, animation_progress, edit }: TopBarProps) {
     <header className="top-bar">
       <div className="top-bar-inner">
         <div className="title-stack">
-          <h1 style={title_style(0)}>{edit?.("title") ?? data.title}</h1>
+          <h1 style={title_style(0)}>
+            {edit?.("title") ?? (
+              <span className="scene-text">{data.title}</span>
+            )}
+          </h1>
           {(edit || data.subtitle) && (
             <p className="outline" style={title_style(1)}>
-              {edit?.("subtitle") ?? data.subtitle}
+              {edit?.("subtitle") ?? (
+                <span className="scene-text">{data.subtitle}</span>
+              )}
             </p>
           )}
         </div>
         <dl className="top-meta" aria-label="模拟元信息">
           {metadata_items.map((item, index) => (
             <div key={item.key} style={metadata_style(index)}>
-              <dt>{item.label}：</dt>
+              <dt>
+                {item.label}
+                <span>：</span>
+              </dt>
               <dd>{item.content}</dd>
             </div>
           ))}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import VisualizeApp from "../../visualize/App";
 import type { DisplayField } from "../../visualize/components/TopBar";
@@ -20,6 +20,7 @@ const field_labels: Record<DisplayField, string> = {
 };
 
 function save_status(session: ResultSessionState) {
+  if (session.discarding) return "正在放弃更改…";
   if (session.saving) return "正在保存…";
   if (session.save_error) return "保存失败";
   if (
@@ -50,9 +51,10 @@ export function ResultVisualizePage({
 }) {
   const { loading, load_error: error, load_status: status } = session;
   const select = on_select_result;
-  const [edit_mode, set_edit_mode] = useState(!!session.save_error);
+  const [edit_mode, set_edit_mode] = useState(false);
   const [finishing, set_finishing] = useState(false);
   const [last_field, set_last_field] = useState<DisplayField>("title");
+  const discard_button = useRef<HTMLButtonElement>(null);
   const editing = edit_mode || !!session.save_error;
   const input = editing ? session.preview : session.model;
   const save = () => {
@@ -73,22 +75,29 @@ export function ResultVisualizePage({
 
   const render_field = (field: DisplayField) => (
     <span className="scene-edit-field" data-field={field}>
-      <textarea
-        rows={1}
+      <input
+        type="text"
         aria-label={field_labels[field]}
         placeholder={`添加${field_labels[field]}`}
-        readOnly={finishing}
+        readOnly={finishing || session.discarding}
         value={session.draft?.[field] ?? ""}
         onChange={(event) => {
           set_last_field(field);
           controller.change_field(field, event.currentTarget.value);
         }}
-        onBlur={save}
+        onBlur={(event) => {
+          if (
+            discard_button.current &&
+            event.relatedTarget === discard_button.current
+          )
+            return;
+          save();
+        }}
       />
       {session.save_error && last_field === field && (
         <span className="scene-save-error" role="alert">
           保存失败：{session.save_error}
-          <button type="button" onClick={save}>
+          <button type="button" disabled={session.discarding} onClick={save}>
             重试保存
           </button>
         </span>
@@ -112,7 +121,9 @@ export function ResultVisualizePage({
               >
                 <Button
                   variant="ghost"
-                  disabled={finishing || loading || export_active}
+                  disabled={
+                    finishing || loading || session.discarding || export_active
+                  }
                   onClick={() =>
                     editing ? void finish() : set_edit_mode(true)
                   }
@@ -120,9 +131,29 @@ export function ResultVisualizePage({
                   {editing ? "完成编辑" : "编辑"}
                 </Button>
                 {editing ? (
-                  <span className="sidebar-save-status" role="status">
-                    {save_status(session)}
-                  </span>
+                  <>
+                    {session.save_error && (
+                      <Button
+                        ref={discard_button}
+                        variant="ghost"
+                        disabled={
+                          finishing ||
+                          session.saving ||
+                          session.discarding ||
+                          loading
+                        }
+                        onClick={async () => {
+                          if (await controller.discard_failed_draft())
+                            set_edit_mode(false);
+                        }}
+                      >
+                        放弃未保存更改
+                      </Button>
+                    )}
+                    <span className="sidebar-save-status" role="status">
+                      {save_status(session)}
+                    </span>
+                  </>
                 ) : (
                   <>
                     <Button

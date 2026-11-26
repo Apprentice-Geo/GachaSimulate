@@ -51,7 +51,7 @@ export function VisualizeShell({
 
       {(edit || data.note) && (
         <p className="page-note" style={fade_style(animation_progress.note)}>
-          {edit?.("note") ?? data.note}
+          {edit?.("note") ?? <span className="scene-text">{data.note}</span>}
         </p>
       )}
     </main>

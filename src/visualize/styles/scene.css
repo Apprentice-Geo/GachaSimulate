@@ -14,12 +14,28 @@
 :where(.visualize-scope) .metric-value small {
   font-family: var(--font-ui);
 }
+:where(.visualize-scope) .metadata-value {
+  align-items: baseline;
+  display: flex;
+  min-width: 0;
+}
 :where(.visualize-scope) .metadata-value .result-number {
+  flex: none;
   font-weight: 400;
   white-space: nowrap;
 }
 :where(.visualize-scope) .metadata-value small {
   font-size: inherit;
+  min-width: 0;
+  padding-inline-start: 0.25em;
+}
+:where(.visualize-scope) .scene-text,
+:where(.visualize-scope) .axis-title,
+:where(.visualize-scope) .metadata-value small,
+:where(.visualize-scope) .metric-value small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 :where(.visualize-scope) .visualize-page {
   --canvas-border-width: 2px;
@@ -60,9 +76,16 @@
 :where(.visualize-scope) .title-stack {
   min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   align-content: space-between;
   justify-items: start;
+}
+:where(.visualize-scope) .title-stack > * {
+  max-width: 100%;
+}
+:where(.visualize-scope) .scene-text {
+  display: block;
 }
 :where(.visualize-scope) .title-stack h1 {
   color: var(--color-text-primary);
@@ -99,17 +122,22 @@
   text-align: left;
 }
 :where(.visualize-scope) .top-meta > div {
+  align-items: baseline;
+  display: grid;
+  grid-template-columns: fit-content(50%) minmax(0, 1fr);
+}
+:where(.visualize-scope) .top-meta dt,
+:where(.visualize-scope) .top-meta dd {
+  align-items: baseline;
+  display: flex;
   min-width: 0;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 :where(.visualize-scope) .top-meta dt {
-  display: inline;
   color: var(--color-text-faint);
 }
 :where(.visualize-scope) .top-meta dd {
-  display: inline;
   margin: 0;
-  overflow-wrap: anywhere;
 }
 :where(.visualize-scope) .main-region {
   display: grid;
@@ -231,9 +259,12 @@
 /* 轴标题样式 */
 :where(.visualize-scope) .axis-title {
   color: var(--color-text-muted);
-  fill: var(--color-text-muted);
   font-size: var(--visualize-font-heading);
   font-weight: 500;
+  line-height: 1;
+  pointer-events: none;
+  position: absolute;
+  text-align: center;
 }
 :where(.visualize-scope) .cdf-axis-titles {
   inset: 0;
@@ -326,6 +357,7 @@
 :where(.visualize-scope) .metric-group {
   display: grid;
   --metric-row-min-height: 132px;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 64px repeat(
       var(--metric-row-count),
       minmax(var(--metric-row-min-height), 1fr)
@@ -355,7 +387,7 @@
   background: transparent;
   border-bottom: 2px solid var(--color-hairline);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) fit-content(60%);
   min-height: 132px;
   min-width: 0;
   padding: 0;
@@ -417,6 +449,7 @@
   flex: 0 0 auto;
   gap: 8px;
   margin-left: 12px;
+  min-width: 0;
 }
 :where(.visualize-scope) .metric-value span {
   font-size: min(
@@ -430,6 +463,7 @@
   color: var(--color-text-muted);
   font-size: var(--visualize-font-content);
   font-weight: 400;
+  min-width: 0;
 }
 :where(.visualize-scope) .termination-region {
   --section-accent: var(--color-rarity-green);

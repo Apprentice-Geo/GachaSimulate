@@ -36,6 +36,8 @@ DisplayConfig v2 是 GSR 对应的独立展示配置，以 `<stem>.visualize.jso
 
 Electron 的结果可视化与图表预览共享当前 GSR 会话。main 调用 C++ analyzer 并校验 Analysis；画面中可直接编辑的六个展示字段在失焦时原子保存到 sidecar。重新打开结果时只从 sidecar 恢复展示配置，分析数据从 GSR 重新获取。非法 sidecar 不被自动覆盖。
 
+保存失败后，用户可以保留草稿并重试，也可以放弃未保存更改，使用最近一次成功载入或保存的展示配置继续查看、切换结果和导出。放弃操作只清除当前会话的草稿和保存错误，保留已有 sidecar。
+
 未有 sidecar 时，标题、目标和副标题分别默认为“标题待填写”“目标待填写”和“副标题待填写”，供用户编辑；已有 sidecar 时恢复其中的原文。
 
 DisplayConfig sidecar 使用独立的 16 MiB 大小上限。视图模型只在内存中合并已校验的 `Analysis + DisplayConfig`，不将 Analysis 写入 sidecar，也不修改 GSR。

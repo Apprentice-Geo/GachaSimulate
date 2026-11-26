@@ -1034,8 +1034,8 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     await unit_input.fill(unit);
     await assert_contained(
       page,
-      ".metric-group-heading:has(textarea)",
-      '[data-field="result_item_unit"] textarea',
+      '.metric-group-heading:has([data-field="result_item_unit"])',
+      '[data-field="result_item_unit"] input',
     );
     const total = page.locator(".top-meta > div").last();
     assert.equal(
@@ -1060,43 +1060,14 @@ async function assert_layout(application: ElectronApplication, page: Page) {
     assert.equal(await scene.getAttribute("data-animation-state"), "idle");
   }
   await capture_layout(page, "inline-editor");
-  const original_note = await note.inputValue();
   await note.focus();
   assert.equal(
     await note.evaluate((node) => getComputedStyle(node).outlineStyle),
     "solid",
   );
-  const short_height = (await note.boundingBox())!.height;
-  const long_note = "长说明文本用于验证自动换行与高度调整。".repeat(100);
-  await note.fill(long_note);
-  const long_geometry = await note.evaluate((node) => ({
-    height: node.getBoundingClientRect().height,
-    scrollHeight: node.scrollHeight,
-    clientHeight: node.clientHeight,
-    scrollWidth: node.scrollWidth,
-    clientWidth: node.clientWidth,
-  }));
-  assert.ok(long_geometry.height > short_height, "long text grows the field");
-  assert.ok(
-    long_geometry.scrollHeight > long_geometry.clientHeight,
-    "very long text scrolls within the bounded field",
-  );
-  assert.ok(
-    long_geometry.scrollWidth <= long_geometry.clientWidth,
-    "long text wraps without horizontal clipping",
-  );
-  assert.equal(
-    await note.inputValue(),
-    long_note,
-    "soft wrapping preserves text",
-  );
-  await capture_layout(page, "editor-long-text");
-  await note.fill(original_note);
-  assert_pixel_equal(
-    (await note.boundingBox())!.height,
-    short_height,
-    "field shrinks when long text is removed",
-  );
+  await note.fill("第一行\n第二行");
+  assert.match(await note.inputValue(), /^第一行 *第二行$/);
+  await note.fill(result_fixture().fields.note);
   await application.evaluate(({ ipcMain }) => {
     ipcMain.removeHandler("save-result-fields");
     ipcMain.handle("save-result-fields", () => {
@@ -1120,6 +1091,184 @@ async function assert_layout(application: ElectronApplication, page: Page) {
   await page.getByRole("button", { name: "重试保存" }).click();
   await page.getByRole("status").filter({ hasText: "已保存" }).waitFor();
   await subtitle.fill(original_subtitle);
+  await page.getByRole("button", { name: "完成编辑" }).click();
+
+  const fixture = result_fixture();
+  await application.evaluate(
+    ({ ipcMain }, next) => {
+      ipcMain.removeHandler("save-result-fields");
+      ipcMain.handle("save-result-fields", () => {
+        throw new Error("持续写入失败");
+      });
+      ipcMain.removeHandler("discard-result-draft");
+      ipcMain.handle("discard-result-draft", () => undefined);
+      ipcMain.removeHandler("select-gsr-result");
+      ipcMain.handle("select-gsr-result", () => next);
+    },
+    { ...fixture, session_id: "replacement" },
+  );
+  await page.getByRole("button", { name: "编辑", exact: true }).click();
+  const title = page.getByLabel("标题", { exact: true });
+  await title.fill("无法保存的标题");
+  await page.getByRole("button", { name: "完成编辑" }).click();
+  await page.getByRole("alert").filter({ hasText: "持续写入失败" }).waitFor();
+  await page.getByRole("button", { name: "运行模拟", exact: true }).click();
+  await page.getByRole("button", { name: "结果可视化", exact: true }).click();
+  assert.equal(await title.inputValue(), "无法保存的标题");
+  await title.focus();
+  await page.getByRole("button", { name: "放弃未保存更改" }).click();
+  await page
+    .getByRole("heading", { name: fixture.fields.title, exact: true })
+    .waitFor();
+  await page.getByRole("button", { name: "更换结果" }).click();
+  await application.evaluate(({ ipcMain }) => {
+    ipcMain.removeHandler("save-result-fields");
+    ipcMain.handle("save-result-fields", (_event, request) => ({
+      session_id: request.session_id,
+      display: { display_version: 2, ...request.fields },
+    }));
+  });
+  await page.getByRole("button", { name: "编辑", exact: true }).click();
+
+  const fields = [
+    {
+      key: "title",
+      label: "标题",
+      container: ".title-stack h1",
+      rendered: ".title-stack h1 .scene-text",
+    },
+    {
+      key: "subtitle",
+      label: "副标题",
+      container: ".title-stack p",
+      rendered: ".title-stack p .scene-text",
+    },
+    {
+      key: "target",
+      label: "模拟目标",
+      container: ".top-meta dd",
+      rendered: ".top-meta dd .scene-text",
+    },
+    {
+      key: "result_item_name",
+      label: "统计物品名称",
+      container: ".top-meta dt",
+      rendered: ".top-meta dt .scene-text",
+    },
+    {
+      key: "result_item_unit",
+      label: "单位",
+      container: ".metric-group-heading",
+      rendered: ".top-meta .metadata-value small:last-child",
+    },
+    {
+      key: "note",
+      label: "说明",
+      container: ".page-note",
+      rendered: ".page-note .scene-text",
+    },
+  ] as const;
+  const long_text = "超长文案 Text ".repeat(50);
+  const viewport = page.locator(".visualize-viewport");
+  const assert_text_fits = async () => {
+    assert.ok(
+      await viewport.evaluate(
+        (node) =>
+          node.scrollWidth <= node.clientWidth &&
+          node.scrollHeight <= node.clientHeight,
+      ),
+      "long text does not add a viewport scrollbar",
+    );
+    await assert_contained(page, ".top-bar", ".top-bar-inner");
+    await assert_contained(page, ".title-stack", ".title-stack h1");
+    const metadata_stays_single_line = await page
+      .locator(".top-meta > div")
+      .evaluateAll((rows) =>
+        rows.every((row) => {
+          const label = row.querySelector("dt")!.getBoundingClientRect();
+          const value = row.querySelector("dd")!.getBoundingClientRect();
+          const number = row
+            .querySelector(".result-number")
+            ?.getBoundingClientRect();
+          return (
+            value.left >= label.right - 1 &&
+            value.top < label.bottom &&
+            label.top < value.bottom &&
+            (!number || number.right <= value.right + 1)
+          );
+        }),
+      );
+    assert.ok(
+      metadata_stays_single_line,
+      "each metadata value stays beside its label",
+    );
+    await assert_contained(
+      page,
+      '[data-stat-key="P5"]',
+      '[data-stat-key="P5"] .metric-value',
+    );
+    await assert_contained(page, ".cdf-chart-shell", ".axis-title");
+  };
+  const heights = await page
+    .locator(".top-meta > div")
+    .evaluateAll((rows) =>
+      rows.map((row) => row.getBoundingClientRect().height),
+    );
+  for (const { key, label, container } of fields) {
+    const field = page.getByLabel(label, { exact: true });
+    const height = (await field.boundingBox())!.height;
+    await field.fill(long_text);
+    await field.press("End");
+    assert.ok(await field.evaluate((node) => node.scrollLeft > 0), label);
+    assert_pixel_equal((await field.boundingBox())!.height, height, label);
+    const input_selector = `[data-field="${key}"] input`;
+    await assert_contained(
+      page,
+      `${container}:has(${input_selector})`,
+      input_selector,
+    );
+    await assert_text_fits();
+  }
+  assert.deepEqual(
+    await page
+      .locator(".top-meta > div")
+      .evaluateAll((rows) =>
+        rows.map((row) => row.getBoundingClientRect().height),
+      ),
+    heights,
+    "long metadata fields leave row heights unchanged",
+  );
+  await capture_layout(page, "editor-long-text");
+  await page.getByRole("button", { name: "完成编辑" }).click();
+  const ellipsized = (node: Element) =>
+    node.scrollWidth > node.clientWidth &&
+    getComputedStyle(node).textOverflow === "ellipsis" &&
+    getComputedStyle(node).whiteSpace === "nowrap";
+  await page.locator(".title-stack h1 .scene-text").waitFor();
+  await assert_text_fits();
+  for (const { rendered } of fields)
+    assert.ok(
+      await page.locator(rendered).last().evaluate(ellipsized),
+      rendered,
+    );
+  assert.equal(
+    await page
+      .getByTestId("stat-P50")
+      .locator(".metric-value small")
+      .textContent(),
+    ` ${long_text}`,
+  );
+  await page.getByRole("button", { name: "图表预览" }).click();
+  assert.ok(await page.locator(".axis-title").evaluate(ellipsized));
+  assert.ok(await page.locator(".preview-summary-unit").evaluate(ellipsized));
+  await assert_contained(page, ".cdf-chart-shell", ".axis-title");
+  await page.getByRole("button", { name: "返回完整画面" }).click();
+  await page.getByRole("button", { name: "编辑", exact: true }).click();
+  for (const { key, label } of fields) {
+    const field = page.getByLabel(label, { exact: true });
+    assert.equal(await field.inputValue(), long_text, label);
+    await field.fill(fixture.fields[key]);
+  }
   await page.getByRole("button", { name: "完成编辑" }).click();
   await page.getByRole("button", { name: "图表预览" }).click();
   await assert_vertical_fill(page, ".renderer-main", ".chart-preview-page");

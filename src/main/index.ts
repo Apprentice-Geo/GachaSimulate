@@ -252,6 +252,10 @@ app.whenReady().then(() => {
     admission.admit("result-save");
     return result_editor.save(request);
   });
+  desktop_ipc.handle("discard-result-draft", (session_id) => {
+    admission.admit("result-save");
+    return result_editor.discard_failed_save(session_id);
+  });
   desktop_ipc.handle("prepare-export", (request) => {
     return export_tasks.prepare(request);
   });

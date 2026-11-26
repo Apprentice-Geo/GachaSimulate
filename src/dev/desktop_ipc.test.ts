@@ -115,7 +115,7 @@ async function launch_desktop_harness(
   return { application, page, directory };
 }
 
-test("a completed simulation opens its own GSR directly in the visualization", async () => {
+test("a completed simulation opens its GSR, and a rejected edit can be discarded before exporting or reopening it", async () => {
   const { application, page, directory } =
     await launch_desktop_harness("native");
   try {
@@ -126,6 +126,32 @@ test("a completed simulation opens its own GSR directly in the visualization", a
     await page.getByRole("button", { name: "启动模拟" }).click();
     await page.getByRole("button", { name: "查看本次结果" }).click();
     await page.getByTestId("visualize-root").waitFor();
+    await page.getByRole("button", { name: "编辑", exact: true }).click();
+    const item = page.getByLabel("统计物品名称", { exact: true });
+    const original_name = await item.inputValue();
+    await item.fill("");
+    await page.getByRole("button", { name: "完成编辑" }).click();
+    await page.getByRole("button", { name: "重试保存", exact: true }).waitFor();
+    await page
+      .getByRole("button", { name: "放弃未保存更改", exact: true })
+      .click();
+    await page
+      .locator(".top-meta dt")
+      .last()
+      .getByText(original_name, { exact: true })
+      .waitFor();
+
+    await page.getByRole("button", { name: "导出素材", exact: true }).click();
+    await page.getByRole("checkbox", { name: /MP4 动画/ }).uncheck();
+    await page.getByRole("checkbox", { name: /PNG 静帧/ }).check();
+    await page
+      .getByRole("button", { name: "选择导出目录", exact: true })
+      .click();
+    await page.getByText("导出完成", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "关闭通知", exact: true }).click();
+
+    await page.getByRole("button", { name: "运行模拟", exact: true }).click();
+    await page.getByRole("button", { name: "查看本次结果" }).click();
     await page.getByRole("button", { name: "图表预览" }).click();
     assert.equal(
       await page.locator(".preview-summary dd").nth(1).innerText(),

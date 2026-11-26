@@ -56,7 +56,7 @@ export function StatisticPanel({
                 style={
                   {
                     "--metric-color": metric.color,
-                    "--metric-number-length": metric.display_value.length,
+                    "--metric-number-length": String(metric.value).length,
                     "--metric-value-font-size": `var(--visualize-font-${metric.value_size})`,
                     ...metric_style(
                       animation_progress.stat_content(
