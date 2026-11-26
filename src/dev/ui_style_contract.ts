@@ -505,6 +505,7 @@ export async function assert_export_style(
     await page.evaluate(() => document.fonts.ready);
     assert.equal(await page.locator("body.visualize-scope > #root").count(), 1);
     assert.deepEqual(await chart_style(page), expected);
+    assert.equal(await page.getByRole("textbox").count(), 0);
     assert.equal(
       await page.locator(".visualize-viewport, .result-cdf-chart").count(),
       0,

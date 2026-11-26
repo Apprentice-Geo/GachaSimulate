@@ -36,10 +36,12 @@ export type DesktopRequests = {
   "start-simulation": { args: [request: SimulationRequest]; result: void };
   "cancel-simulation": { args: []; result: void };
   "select-gsr-result": { args: []; result: ResultEditorState | null };
+  "open-simulation-result": { args: []; result: ResultEditorState };
   "save-result-fields": {
     args: [request: SaveResultFieldsRequest];
     result: SavedResultFields;
   };
+  "discard-result-draft": { args: [session_id: string]; result: void };
   "prepare-export": {
     args: [request: ExportPreparationRequest];
     result: ExportPreparationAccepted;
@@ -88,7 +90,9 @@ export type DesktopApi = {
   startSimulation: DesktopInvoke<"start-simulation">;
   cancelSimulation: DesktopInvoke<"cancel-simulation">;
   selectGsrResult: DesktopInvoke<"select-gsr-result">;
+  openSimulationResult: DesktopInvoke<"open-simulation-result">;
   saveResultFields: DesktopInvoke<"save-result-fields">;
+  discardResultDraft: DesktopInvoke<"discard-result-draft">;
   prepareExport: DesktopInvoke<"prepare-export">;
   selectExportDestination: DesktopInvoke<"select-export-destination">;
   confirmExportOverwrite: DesktopInvoke<"confirm-export-overwrite">;

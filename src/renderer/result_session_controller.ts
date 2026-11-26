@@ -19,6 +19,7 @@ export type ResultSessionState = Readonly<{
   preview: CDFViewModel | null;
   loading: boolean;
   saving: boolean;
+  discarding: boolean;
   status?: string;
   load_status?: string;
   load_error: string | null;
@@ -41,7 +42,10 @@ function error_of(reason: unknown): Error {
   return reason instanceof Error ? reason : new Error(String(reason));
 }
 
-function fields_equal(left: DisplayFields, right: DisplayFields): boolean {
+export function fields_equal(
+  left: DisplayFields,
+  right: DisplayFields,
+): boolean {
   return DISPLAY_FIELD_KEYS.every((key) => left[key] === right[key]);
 }
 
@@ -58,6 +62,7 @@ export class ResultSessionController {
     preview: null,
     loading: false,
     saving: false,
+    discarding: false,
     load_error: null,
     save_error: null,
   };
@@ -65,7 +70,10 @@ export class ResultSessionController {
   constructor(
     private readonly api: Pick<
       DesktopApi,
-      "selectGsrResult" | "saveResultFields"
+      | "selectGsrResult"
+      | "openSimulationResult"
+      | "saveResultFields"
+      | "discardResultDraft"
     >,
   ) {}
 
@@ -81,7 +89,20 @@ export class ResultSessionController {
     for (const listener of this.listeners) listener();
   }
 
-  select_result = (): Promise<boolean> => {
+  select_result = (): Promise<boolean> =>
+    this.load_result(() => this.api.selectGsrResult());
+
+  open_simulation_result = (): Promise<boolean> =>
+    this.load_result(async () => {
+      await this.save();
+      if (this.session?.error) throw this.session.error;
+      return this.api.openSimulationResult();
+    });
+
+  private load_result(
+    load: () => Promise<ResultEditorState | null>,
+  ): Promise<boolean> {
+    if (this.state.discarding) return Promise.resolve(false);
     if (this.loading) return this.loading;
     const request = ++this.load_id;
     this.update({
@@ -92,9 +113,7 @@ export class ResultSessionController {
     });
     const operation = (async () => {
       try {
-        const result = await Promise.resolve().then(() =>
-          this.api.selectGsrResult(),
-        );
+        const result = await Promise.resolve().then(load);
         if (request !== this.load_id) return false;
         if (!result) {
           this.update({ status: "未选择文件。", load_status: "未选择文件。" });
@@ -141,11 +160,17 @@ export class ResultSessionController {
     })();
     this.loading = operation;
     return operation;
-  };
+  }
 
   change_field = (key: keyof DisplayFields, value: string): void => {
     const session = this.session;
-    if (!session || this.state.loading || session.draft[key] === value) return;
+    if (
+      !session ||
+      this.state.loading ||
+      this.state.discarding ||
+      session.draft[key] === value
+    )
+      return;
     session.draft = { ...session.draft, [key]: value };
     session.revision += 1;
     this.update({
@@ -157,9 +182,40 @@ export class ResultSessionController {
     });
   };
 
+  discard_failed_draft = async (): Promise<boolean> => {
+    const session = this.session;
+    if (
+      !session?.error ||
+      session.pending ||
+      this.state.loading ||
+      this.state.discarding
+    )
+      return false;
+    this.update({ discarding: true });
+    try {
+      await this.api.discardResultDraft(session.result.session_id);
+      session.draft = session.result.fields;
+      session.error = null;
+      this.update({
+        draft: session.draft,
+        preview: this.state.model,
+        save_error: null,
+        load_error: null,
+        load_status: undefined,
+        status: "已放弃未保存更改。",
+      });
+      return true;
+    } catch (reason) {
+      this.update({ save_error: `无法放弃更改。${error_of(reason).message}` });
+      return false;
+    } finally {
+      this.update({ discarding: false });
+    }
+  };
+
   save = (): Promise<void> => {
     const session = this.session;
-    if (!session) return Promise.resolve();
+    if (!session || this.state.discarding) return Promise.resolve();
     if (session.pending && session.enqueued_revision === session.revision)
       return session.queue;
     if (
@@ -246,7 +302,8 @@ export class ResultSessionController {
         !session ||
         this.session !== session ||
         session.result.session_id !== session_id ||
-        this.state.loading
+        this.state.loading ||
+        this.state.discarding
       )
         throw new Error("result session has changed; please export again");
     };

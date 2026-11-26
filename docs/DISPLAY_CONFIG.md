@@ -34,7 +34,9 @@ DisplayConfig v2 是 GSR 对应的独立展示配置，以 `<stem>.visualize.jso
 
 `result_item.id`、`totals.result`、`totals.runs`、CDF、统计指标和终止原因来自 GSR 经 analyzer 生成的 Analysis，不能由 DisplayConfig 覆盖。`result_item_name` 只控制展示名称，单位和说明也不参与统计计算。
 
-Electron 的结果编辑页与结果可视化页共享当前 GSR 会话。main 调用 C++ analyzer 并校验 Analysis；编辑页的六个展示字段在失焦时原子保存到 sidecar。重新打开结果时只从 sidecar 恢复展示配置，分析数据从 GSR 重新获取。非法 sidecar 不被自动覆盖。
+Electron 的结果可视化与图表预览共享当前 GSR 会话。main 调用 C++ analyzer 并校验 Analysis；画面中可直接编辑的六个展示字段在失焦时原子保存到 sidecar。重新打开结果时只从 sidecar 恢复展示配置，分析数据从 GSR 重新获取。非法 sidecar 不被自动覆盖。
+
+保存失败后，用户可以保留草稿并重试，也可以放弃未保存更改，使用最近一次成功载入或保存的展示配置继续查看、切换结果和导出。放弃操作只清除当前会话的草稿和保存错误，保留已有 sidecar。
 
 未有 sidecar 时，标题、目标和副标题分别默认为“标题待填写”“目标待填写”和“副标题待填写”，供用户编辑；已有 sidecar 时恢复其中的原文。
 

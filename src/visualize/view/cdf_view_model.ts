@@ -22,12 +22,6 @@ function non_negative(value: string, name: string): number {
   return number;
 }
 
-function format_number(value: number): string {
-  return new Intl.NumberFormat("zh-CN", {
-    maximumFractionDigits: Number.isInteger(value) ? 0 : 1,
-  }).format(value);
-}
-
 function get_metric_color(key: StatisticKey): string {
   return CDF_MARKER_VIEW_CONFIG[key].color;
 }
@@ -109,8 +103,8 @@ export function apply_cdf_display(
   const result_item = { ...data.result_item, name: display.result_item_name };
   const format_result_item_value = (value: number) =>
     display.result_item_unit
-      ? `${format_number(value)} ${display.result_item_unit}`
-      : format_number(value);
+      ? `${value} ${display.result_item_unit}`
+      : String(value);
 
   return {
     title: display.title,

@@ -6,7 +6,7 @@ interface ChartPreviewProps {
   children: ReactNode;
 }
 
-/** Keep design coordinates intact; only the host adapts to available width. */
+/** Fit one complete chart into the preview scrollport at its design aspect ratio. */
 export function ChartPreview({ size, children }: ChartPreviewProps) {
   const [host_ref, available] = use_element_size<HTMLDivElement>();
   const scale = Math.min(available.width / size.width, 1);
@@ -15,7 +15,10 @@ export function ChartPreview({ size, children }: ChartPreviewProps) {
     <div
       className="visualize-scope chart-preview"
       ref={host_ref}
-      style={{ height: size.height * scale }}
+      style={{
+        maxWidth: `min(${size.width}px, ${(100 * size.width) / size.height}cqh)`,
+        height: size.height * scale,
+      }}
     >
       <div
         className="chart-preview-content"

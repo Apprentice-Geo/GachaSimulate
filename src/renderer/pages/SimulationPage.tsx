@@ -1,6 +1,6 @@
 import { WorkbenchIcon } from "../components/WorkbenchIcon";
 import { SimulationOrbit } from "../components/SimulationOrbit";
-import { FolderOpen, Play, Search } from "lucide-react";
+import { ChartColumn, FolderOpen, Play, Search } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "../components/Button";
 import { Field } from "../components/Field";
@@ -29,7 +29,15 @@ const status_labels: Record<SimulationStatus, string> = {
   cancelled: "已取消",
 };
 
-export function SimulationPage({ active }: { active: boolean }) {
+export function SimulationPage({
+  active,
+  result_loading,
+  on_view_result,
+}: {
+  active: boolean;
+  result_loading: boolean;
+  on_view_result: () => Promise<void>;
+}) {
   const [configs, set_configs] = useState<InstalledConfig[]>([]);
   const [selected_key, set_selected_key] = useState("");
   const [loading, set_loading] = useState(true);
@@ -49,7 +57,6 @@ export function SimulationPage({ active }: { active: boolean }) {
     total: number;
     unit: string;
   } | null>(null);
-  const [result_path, set_result_path] = useState("");
   const cancellation_requested = useRef(false);
   const key = (config: InstalledConfig) => `${config.source}:${config.id}`;
   const selected =
@@ -102,13 +109,11 @@ export function SimulationPage({ active }: { active: boolean }) {
         if (event?.type === "started") {
           set_stage("loading_config");
           set_progress(null);
-          set_result_path("");
           set_operation_error(null);
         }
         if (event?.type === "stage") set_stage(event.stage);
         if (event?.type === "progress") set_progress(event);
         if (event?.type === "completed") {
-          set_result_path(event.result_path);
           set_progress({
             completed: event.total_runs,
             total: event.total_runs,
@@ -131,7 +136,6 @@ export function SimulationPage({ active }: { active: boolean }) {
     cancellation_requested.current = false;
     set_operation_error(null);
     set_progress(null);
-    set_result_path("");
     set_stage("loading_config");
     const canonical_result_item = selected_result_item(
       result_item,
@@ -170,7 +174,6 @@ export function SimulationPage({ active }: { active: boolean }) {
   const cancel = async () => {
     cancellation_requested.current = true;
     set_status("cancelling");
-    set_result_path("");
     set_operation_error(null);
     try {
       await window.desktopApi.cancelSimulation();
@@ -184,9 +187,10 @@ export function SimulationPage({ active }: { active: boolean }) {
     }
   };
 
-  const open_results = async () => {
+  const result_action = async (action: () => Promise<void>) => {
+    set_operation_error(null);
     try {
-      await window.desktopApi.openResultsDirectory();
+      await action();
     } catch (reason) {
       set_operation_error(
         reason instanceof Error ? reason.message : String(reason),
@@ -375,7 +379,7 @@ export function SimulationPage({ active }: { active: boolean }) {
               <div className="simulation-actions">
                 <Button
                   type="button"
-                  disabled={busy}
+                  disabled={busy || result_loading}
                   onClick={() => void start()}
                 >
                   <WorkbenchIcon icon={Play} size={16} aria-hidden="true" />
@@ -405,29 +409,41 @@ export function SimulationPage({ active }: { active: boolean }) {
                 progress={progress}
                 active={active}
               />
-              <div className="simulation-status" role="status">
-                <span title={result_path || undefined}>
-                  状态 / {status_labels[status]}
-                  {result_path && (
-                    <span className="simulation-result-path">
-                      {result_path}
-                    </span>
-                  )}
-                </span>
-                {result_path && (
-                  <Button
-                    variant="ghost"
-                    size="inline"
-                    type="button"
-                    onClick={() => void open_results()}
-                  >
-                    <WorkbenchIcon
-                      icon={FolderOpen}
-                      size={16}
-                      aria-hidden="true"
-                    />
-                    打开结果目录
-                  </Button>
+              <div className="simulation-status">
+                <span role="status">状态 / {status_labels[status]}</span>
+                {status === "completed" && (
+                  <div className="simulation-result-actions">
+                    <Button
+                      variant="link"
+                      size="inline"
+                      disabled={result_loading}
+                      onClick={() => void result_action(on_view_result)}
+                    >
+                      <WorkbenchIcon
+                        icon={ChartColumn}
+                        size={16}
+                        aria-hidden="true"
+                      />
+                      {result_loading ? "正在载入…" : "查看本次结果"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="inline"
+                      type="button"
+                      onClick={() =>
+                        void result_action(
+                          window.desktopApi.openResultsDirectory,
+                        )
+                      }
+                    >
+                      <WorkbenchIcon
+                        icon={FolderOpen}
+                        size={16}
+                        aria-hidden="true"
+                      />
+                      打开结果目录
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>

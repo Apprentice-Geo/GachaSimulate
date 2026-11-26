@@ -5,7 +5,7 @@ import {
   resolve_export_frame_state,
 } from "../animation/export_frame";
 import {
-  build_animation_progress,
+  build_animation_progress as progress_with_quantiles,
   build_marker_line_order,
   ease_out_cubic,
   ease_out_quad,
@@ -23,11 +23,13 @@ import {
   constrain_marker_label,
   resolve_marker_label_collisions,
 } from "../view/cdf_overlay_layout";
+import { CDF_PLOT_SIZE } from "../view/scene_layout";
 import { STATISTIC_VIEW_ORDER } from "../view/statistic_view_config";
 import {
   ANIMATION_COMPLETION_FRAME,
   ANIMATION_TIMELINE,
   ANIMATION_TOTAL_MS,
+  quantile_reveal_frames,
   MARKER_GROUP_START_FRAME,
 } from "../animation/timeline";
 import type { MarkerView } from "../view/cdf_overlay_layout";
@@ -37,6 +39,9 @@ import type { DisplayConfig } from "../types/display_config";
 import { CDFChart } from "../components/CDFChart";
 import { VisualizeShell } from "../components/VisualizeShell";
 import { VisualizeScene } from "../VisualizeScene";
+
+const build_animation_progress = (ms: number) =>
+  progress_with_quantiles(ms, { P50: 42, P95: 46 });
 
 test("get_cdf_level_at_draw returns stepwise cumulative levels", () => {
   const sparse_points = [
@@ -278,7 +283,7 @@ test("CDF area preserves steps and closes only across observed values", () => {
 test("build_cdf_view_model normalizes Analysis and display fields together", () => {
   const analysis: Analysis = {
     result_item: { id: "tokens", name: "内部名称" },
-    totals: { runs: "4", result: "100" },
+    totals: { runs: "4", result: "9007199254740991" },
     values: ["1", "2", "3"],
     cumulative: [0.25, 0.75, 1],
     statistic: {
@@ -309,8 +314,8 @@ test("build_cdf_view_model normalizes Analysis and display fields together", () 
   assert.equal(view_model.title, display.title);
   assert.equal(view_model.subtitle, display.subtitle);
   assert.deepEqual(view_model.result_item, { id: "tokens", name: "代币" });
-  assert.equal(view_model.total_result, 100);
-  assert.equal(view_model.total_result_display, "100 测试币");
+  assert.equal(view_model.total_result, Number.MAX_SAFE_INTEGER);
+  assert.equal(view_model.total_result_display, "9007199254740991 测试币");
   assert.equal(view_model.runs, 4);
   assert.equal(view_model.result_item_unit, display.result_item_unit);
   assert.equal(view_model.axis_title, "结束时的代币");
@@ -344,7 +349,7 @@ test("build_cdf_view_model normalizes Analysis and display fields together", () 
     ...display,
     result_item_unit: "",
   });
-  assert.equal(without_unit.total_result_display, "100");
+  assert.equal(without_unit.total_result_display, "9007199254740991");
   assert.deepEqual(
     without_unit.metrics.map((metric) => metric.display_value),
     ["1", "1", "2", "2", "3", "2", "1", "3"],
@@ -530,14 +535,56 @@ test("marker lines use spatial order with stable semantic ties", () => {
   assert.equal(after_second_start.marker_line(1).opacity > 0, true);
 });
 
+test("quantile reveals track staircase length and synchronize the line, marker and statistic", () => {
+  const frames = quantile_reveal_frames({
+    x_domain_max: 100,
+    chart_points: [
+      { draw: 10, cumulative: 0.5 },
+      { draw: 50, cumulative: 0.95 },
+      { draw: 90, cumulative: 1 },
+    ],
+  });
+  assert.equal(frames.P50, ANIMATION_TIMELINE.CURVE.start_frame);
+  const distance = 0.4 * CDF_PLOT_SIZE.width + 0.45 * CDF_PLOT_SIZE.height;
+  const length = 0.8 * CDF_PLOT_SIZE.width + 0.5 * CDF_PLOT_SIZE.height;
+  assert.ok(Math.abs(frames.P95 - (16 + (32 * distance) / length)) < 1e-9);
+  for (const key of ["P50", "P95"] as const) {
+    for (const offset of [-1, 2, 10]) {
+      const state = progress_with_quantiles(
+        frame_to_ms(frames[key] + offset),
+        frames,
+      );
+      const opacity = state.marker_group(key).opacity;
+      assert.equal(opacity, state.marker_line(3, key).opacity);
+      assert.equal(opacity, state.stat_content(1, key).opacity);
+      if (offset < 0) assert.equal(opacity, 0);
+      else if (offset < 9) assert.ok(opacity > 0 && opacity < 1);
+      else assert.equal(opacity, 1);
+    }
+  }
+  const tied = quantile_reveal_frames({
+    x_domain_max: 100,
+    chart_points: [
+      { draw: 1, cumulative: 0.1 },
+      { draw: 80, cumulative: 1 },
+    ],
+  });
+  assert.equal(tied.P50, tied.P95);
+  assert.deepEqual(
+    quantile_reveal_frames({
+      x_domain_max: 1,
+      chart_points: [{ draw: 0, cumulative: 1 }],
+    }),
+    { P50: 16, P95: 16 },
+  );
+});
+
 test("marker groups follow semantic batches keyed by MarkerKey", () => {
   assert.deepEqual(MARKER_GROUP_START_FRAME, {
-    P50: 42,
     MEAN: 42,
     P25: 44,
     P75: 44,
     P5: 46,
-    P95: 46,
     MIN: 48,
     MAX: 48,
   });

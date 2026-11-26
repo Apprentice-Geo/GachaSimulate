@@ -78,7 +78,7 @@
 }
 .orbit-count {
   font-family: var(--workbench-font-mono);
-  font-size: var(--workbench-font-caption);
+  font-size: var(--workbench-font-meta);
   font-variant-numeric: tabular-nums;
 }
 .orbit-percent {

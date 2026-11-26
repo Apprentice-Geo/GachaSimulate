@@ -1,47 +1,54 @@
+import type { ReactNode } from "react";
+import type { DisplayConfig } from "../types/display_config";
 import { metric_style } from "../animation/progress";
 import type { AnimationProgress } from "../animation/progress";
 import type { CDFViewModel } from "../types/cdf";
 import { ResultValue } from "./ResultValue";
 
+export type DisplayField = Exclude<keyof DisplayConfig, "display_version">;
+export type RenderDisplayField = (field: DisplayField) => ReactNode;
+
 interface TopBarProps {
+  edit?: RenderDisplayField;
   data: CDFViewModel;
   animation_progress: AnimationProgress;
 }
 
-function format_statistic(value: number, unit: string): string {
-  const formatted = new Intl.NumberFormat("zh-CN", {
-    maximumFractionDigits: Number.isInteger(value) ? 0 : 1,
-  }).format(value);
-  return unit ? `${formatted} ${unit}` : formatted;
-}
-
-export function TopBar({ data, animation_progress }: TopBarProps) {
+export function TopBar({ data, animation_progress, edit }: TopBarProps) {
   const metadata_items = [
-    { key: "target", label: "模拟目标", content: data.target },
+    {
+      key: "target",
+      label: "模拟目标",
+      content: edit?.("target") ?? (
+        <span className="scene-text">{data.target}</span>
+      ),
+    },
     {
       key: "runs",
       label: "累计模拟次数",
       content: (
-        <>
-          <span className="metadata-number">
-            {format_statistic(data.runs, "")}
-          </span>{" "}
-          次
-        </>
+        <span className="metadata-value">
+          <ResultValue value={`${data.runs} 次`} unit="次" />
+        </span>
       ),
     },
     {
       key: "result",
-      label: `累计${data.result_item.name}`,
-      content: (
+      label: (
         <>
-          <span className="metadata-value">
-            <ResultValue
-              value={data.total_result_display}
-              unit={data.result_item_unit}
-            />
-          </span>
+          <span>累计</span>
+          {edit?.("result_item_name") ?? (
+            <span className="scene-text">{data.result_item.name}</span>
+          )}
         </>
+      ),
+      content: (
+        <span className="metadata-value">
+          <ResultValue
+            value={data.total_result_display}
+            unit={data.result_item_unit}
+          />
+        </span>
       ),
     },
   ];
@@ -54,17 +61,26 @@ export function TopBar({ data, animation_progress }: TopBarProps) {
     <header className="top-bar">
       <div className="top-bar-inner">
         <div className="title-stack">
-          <h1 style={title_style(0)}>{data.title}</h1>
-          {data.subtitle && (
+          <h1 style={title_style(0)}>
+            {edit?.("title") ?? (
+              <span className="scene-text">{data.title}</span>
+            )}
+          </h1>
+          {(edit || data.subtitle) && (
             <p className="outline" style={title_style(1)}>
-              {data.subtitle}
+              {edit?.("subtitle") ?? (
+                <span className="scene-text">{data.subtitle}</span>
+              )}
             </p>
           )}
         </div>
         <dl className="top-meta" aria-label="模拟元信息">
           {metadata_items.map((item, index) => (
             <div key={item.key} style={metadata_style(index)}>
-              <dt>{item.label}：</dt>
+              <dt>
+                {item.label}
+                <span>：</span>
+              </dt>
               <dd>{item.content}</dd>
             </div>
           ))}
