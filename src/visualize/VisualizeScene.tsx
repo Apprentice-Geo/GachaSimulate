@@ -1,3 +1,4 @@
+import type { RenderDisplayField } from "./components/TopBar";
 import type { CSSProperties } from "react";
 import { fade_style } from "./animation/progress";
 import type { AnimationProgress } from "./animation/progress";
@@ -7,6 +8,7 @@ import type { CDFViewModel } from "./types/cdf";
 import { CDF_CHART_SIZE } from "./view/scene_layout";
 
 interface VisualizeSceneProps {
+  edit?: RenderDisplayField;
   data: CDFViewModel;
   animation_progress: AnimationProgress;
   animation_state: "playing" | "primed" | "idle";
@@ -18,11 +20,13 @@ export function VisualizeScene({
   data,
   animation_progress,
   animation_state,
+  edit,
   render_mode,
   style,
 }: VisualizeSceneProps) {
   return (
     <VisualizeShell
+      edit={edit}
       animation_progress={animation_progress}
       animation_state={animation_state}
       chart_slot={

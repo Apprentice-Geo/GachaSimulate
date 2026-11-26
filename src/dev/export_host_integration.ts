@@ -114,8 +114,12 @@ function inspect_probe(png, expected_frame) {
   }
   if (decoded !== expected_frame)
     throw new Error("expected frame probe " + expected_frame + ", got " + decoded);
+  return bitmap;
+}
+
+function terminal_hash(bitmap) {
   for (let y = 0; y < 8; y += 1) {
-    bitmap.fill(0, y * size.width * 4, (y * size.width + 80) * 4);
+    bitmap.fill(0, y * input.width * 4, (y * input.width + 80) * 4);
   }
   return createHash("sha256").update(bitmap).digest("hex");
 }
@@ -228,9 +232,9 @@ globalThis.exportHostIntegrationPromise = app.whenReady().then(async () => {
     {
       ...base_dependencies,
       verify_frame_probe(buffer, frame) {
-        const hash = inspect_probe(buffer, frame);
+        const bitmap = inspect_probe(buffer, frame);
         mp4_frames.push(frame);
-        if (frame >= 57) terminal_hashes.push(hash);
+        if (frame >= input.png_frame) terminal_hashes.push(terminal_hash(bitmap));
       },
     },
   );
@@ -540,6 +544,8 @@ async function main(): Promise<void> {
       ffmpeg_crash_output,
       renderer_crash_output,
       png_only,
+      width: EXPORT_WIDTH,
+      png_frame: EXPORT_PNG_FRAME,
       progress_file,
       view_model: build_cdf_view_model(
         validate_analysis(analysis_fixture),
@@ -598,6 +604,10 @@ async function main(): Promise<void> {
     assert.deepEqual(
       result.mp4_frames,
       Array.from({ length: EXPORT_FRAME_COUNT }, (_, frame) => frame),
+    );
+    assert.equal(
+      result.terminal_hashes.length,
+      EXPORT_FRAME_COUNT - EXPORT_PNG_FRAME,
     );
     assert.equal(new Set(result.terminal_hashes).size, 1);
     assert.deepEqual(png_dimensions(await readFile(dual_png_output)), {

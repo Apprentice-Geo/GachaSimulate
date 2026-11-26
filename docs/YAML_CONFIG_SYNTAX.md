@@ -167,13 +167,15 @@ Action =
 
 语义：
 
-- `item += n`：增加 item 库存和累计获得，`n` 必须大于 0。
-- `item -= n`：减少 item 库存并累计消耗，`n` 必须大于 0。
-- `item = n`：设置 item 库存，`n` 可为 0。
+- `item += n`：库存增加 `n`，`n` 必须大于 0。
+- `item -= n`：库存减少 `n`，`n` 必须大于 0。
+- `item = n`：将库存设为 `n`，`n` 可为 0。
 - `draw pool_id`：从指定 pool 抽取一次并执行抽中条目的 actions。
 - `change pool_id`：切换主 pool。
 - `terminate reason`：结束本次模拟，并记录终止原因。
 - `ResolveActions` 是 `item_resolve.actions` 使用的更严格动作列表：非空，且必须有且仅有一个减少被分解 item 的 `-=` 动作。
+
+模拟结果记录所选物品的期末库存。需要统计累计获得量或消耗量时，请声明单独的计数物品，并在对应动作中累加。如果物品配置了 [Item Resolve](#item-resolve)，增加或设置库存时还会检查是否需要分解。
 
 约束：
 

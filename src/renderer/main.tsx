@@ -9,10 +9,10 @@ import "./styles.css";
 import "./starfield.css";
 import { restore_theme } from "./theme";
 
-restore_theme();
+const initial_theme = restore_theme();
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
-    <App />
+    <App initial_theme={initial_theme} />
   </StrictMode>,
 );

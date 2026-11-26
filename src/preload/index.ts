@@ -17,7 +17,10 @@ const desktop_api = {
   startSimulation: (request) => invoke_desktop("start-simulation", request),
   cancelSimulation: () => invoke_desktop("cancel-simulation"),
   selectGsrResult: () => invoke_desktop("select-gsr-result"),
+  openSimulationResult: () => invoke_desktop("open-simulation-result"),
   saveResultFields: (request) => invoke_desktop("save-result-fields", request),
+  discardResultDraft: (session_id) =>
+    invoke_desktop("discard-result-draft", session_id),
   prepareExport: (request) => invoke_desktop("prepare-export", request),
   selectExportDestination: (request) =>
     invoke_desktop("select-export-destination", request),

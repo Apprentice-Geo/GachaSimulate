@@ -233,6 +233,10 @@ app.whenReady().then(() => {
     return simulation.start(request);
   });
   desktop_ipc.handle("cancel-simulation", () => shutdown_native());
+  desktop_ipc.handle("open-simulation-result", () => {
+    admission.admit("analysis");
+    return result_editor.open(simulation.completed_result_path);
+  });
   desktop_ipc.handle("select-gsr-result", async () => {
     admission.admit("analysis");
     const result = await dialog.showOpenDialog(require_main_window(), {
@@ -247,6 +251,10 @@ app.whenReady().then(() => {
   desktop_ipc.handle("save-result-fields", (request) => {
     admission.admit("result-save");
     return result_editor.save(request);
+  });
+  desktop_ipc.handle("discard-result-draft", (session_id) => {
+    admission.admit("result-save");
+    return result_editor.discard_failed_save(session_id);
   });
   desktop_ipc.handle("prepare-export", (request) => {
     return export_tasks.prepare(request);

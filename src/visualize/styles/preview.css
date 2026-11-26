@@ -26,3 +26,83 @@
   margin: auto;
   zoom: var(--page-scale);
 }
+
+:where(.visualize-scope) .scene-edit-field {
+  display: inline-block;
+  vertical-align: baseline;
+  max-width: 100%;
+  min-width: 0;
+  position: relative;
+}
+:where(.visualize-scope) .metric-group-heading .scene-edit-field {
+  max-width: 55%;
+  margin-inline-end: 4px;
+  color: var(--color-text-muted);
+  font-size: var(--visualize-font-content);
+}
+:where(.visualize-scope) .scene-edit-field input {
+  field-sizing: content;
+  display: inline-block;
+  vertical-align: bottom;
+  max-width: 100%;
+  min-width: 2em;
+  padding: 0 0.12em;
+  border: 0;
+  outline: 1px solid var(--color-hairline);
+  outline-offset: 1px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  line-height: inherit;
+}
+:where(.visualize-scope) .scene-edit-field input:hover,
+:where(.visualize-scope) .scene-edit-field input:placeholder-shown {
+  outline-color: var(--color-hairline-strong);
+  background: var(--color-panel);
+}
+:where(.visualize-scope) .scene-edit-field input:focus {
+  outline: 3px solid var(--color-cdf-line);
+}
+:where(.visualize-scope) .scene-edit-field input::placeholder {
+  color: var(--color-text-faint);
+}
+:where(.visualize-scope) .scene-save-error {
+  background: var(--color-panel-soft);
+  color: var(--color-rarity-red);
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 8px 16px;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 3;
+  width: max-content;
+  max-width: 700px;
+  font: 400 var(--visualize-font-content) / 1.2 var(--font-ui);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+:where(.visualize-scope) .top-bar:has(.scene-save-error) {
+  z-index: 3;
+}
+:where(.visualize-scope) .metric-group-heading:has(.scene-save-error) {
+  position: relative;
+  z-index: 1;
+}
+:where(.visualize-scope) .top-meta .scene-save-error,
+:where(.visualize-scope) .metric-group-heading .scene-save-error {
+  left: auto;
+  right: 0;
+}
+:where(.visualize-scope) .page-note .scene-save-error {
+  top: auto;
+  bottom: 100%;
+}
+:where(.visualize-scope) .scene-save-error button {
+  color: var(--color-text-primary);
+  background: var(--color-panel);
+  border: 1px solid var(--color-hairline-strong);
+  font: inherit;
+  white-space: nowrap;
+}

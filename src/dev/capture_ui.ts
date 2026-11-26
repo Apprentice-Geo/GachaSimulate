@@ -22,7 +22,7 @@ const SCENARIOS = [
   "electron/settings-dark",
   "electron/config-repository",
   "electron/config-repository-local",
-  "electron/result-editor-empty",
+  "electron/result-chart-preview",
   "electron/result-editor-loaded",
   "electron/result-visualize-empty",
   "electron/result-visualize-loaded",
@@ -60,11 +60,13 @@ async function screenshot(page: Page, scenario: Scenario): Promise<void> {
 }
 
 async function wait_for_visualization(page: Page): Promise<void> {
-  await page
-    .locator(
-      '[data-testid="visualize-root"][data-load-state="ready"][data-animation-state="playing"]',
-    )
-    .waitFor({ timeout: 10_000 });
+  await page.getByTestId("visualize-root").waitFor();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
   await page
     .locator(
       '[data-testid="visualize-root"][data-load-state="ready"][data-animation-state="idle"]',
@@ -172,7 +174,7 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
     }
 
     if (scenarios.includes("electron/simulation-navigation")) {
-      await page.getByRole("button", { name: "结果编辑" }).click();
+      await page.getByRole("button", { name: "结果可视化" }).click();
       await application.evaluate(({ BrowserWindow }) => {
         BrowserWindow.getAllWindows()[0]?.webContents.send("simulation-event", {
           status: "completed",
@@ -185,9 +187,7 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
         });
       });
       await page.getByRole("button", { name: "运行模拟" }).click();
-      await page
-        .getByText("/tmp/completed-while-away.gsr", { exact: true })
-        .waitFor();
+      await page.getByRole("button", { name: "查看本次结果" }).waitFor();
       await screenshot(page, "electron/simulation-navigation");
     }
 
@@ -247,15 +247,11 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
       if (result_scenarios.length === 1) return;
     }
 
-    await page.getByRole("button", { name: "结果编辑" }).click();
+    await page.getByRole("button", { name: "结果可视化" }).click();
     await page.locator("#simulation-title").waitFor({ state: "hidden" });
 
-    if (scenarios.includes("electron/result-editor-empty")) {
-      await page.getByRole("heading", { name: "载入模拟结果" }).waitFor();
-      await screenshot(page, "electron/result-editor-empty");
-    }
-
     if (
+      !scenarios.includes("electron/result-chart-preview") &&
       !scenarios.includes("electron/result-editor-loaded") &&
       !scenarios.includes("electron/result-visualize-loaded") &&
       !scenarios.some((scenario) =>
@@ -276,10 +272,21 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
     await page.keyboard.press("Enter");
     await page.getByText("未选择文件。", { exact: true }).waitFor();
     await select_button.click();
-    await page.getByRole("button", { name: "更换 GSR" }).waitFor();
+    await page.getByRole("button", { name: "编辑", exact: true }).waitFor();
+    if (scenarios.includes("electron/result-chart-preview")) {
+      await page.getByRole("button", { name: "图表预览", exact: true }).click();
+      await screenshot(page, "electron/result-chart-preview");
+      await page.getByRole("button", { name: "返回完整画面" }).click();
+    }
 
     if (scenarios.includes("electron/result-editor-loaded")) {
+      await page.getByRole("button", { name: "编辑", exact: true }).click();
+      const unit = page.getByRole("textbox", { name: "单位", exact: true });
+      const original_unit = await unit.inputValue();
+      await unit.fill("");
       await screenshot(page, "electron/result-editor-loaded");
+      await unit.fill(original_unit);
+      await page.getByRole("button", { name: "完成编辑" }).click();
     }
     if (
       scenarios.includes("electron/result-visualize-loaded") ||
@@ -406,9 +413,8 @@ async function capture_electron(scenarios: Scenario[]): Promise<void> {
         ipcMain.removeHandler("select-gsr-result");
         ipcMain.handle("select-gsr-result", () => fixture);
       }, result_fixture());
-      await page.getByRole("button", { name: "结果编辑" }).click();
-      await page.getByRole("button", { name: "选择 GSR" }).click();
       await page.getByRole("button", { name: "结果可视化" }).click();
+      await page.getByRole("button", { name: "选择 GSR" }).click();
       await wait_for_visualization(page);
     }
   } finally {

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { CDFViewModel } from "../visualize/types/cdf";
 import { resolve_export_frame_state } from "../visualize/animation/export_frame";
 import { build_animation_progress } from "../visualize/animation/progress";
+import { quantile_reveal_frames } from "../visualize/animation/timeline";
 import { VisualizeScene } from "../visualize/VisualizeScene";
 import {
   ExportRendererCoordinator,
@@ -113,7 +114,10 @@ export default function ExportRendererApp() {
   return (
     <>
       <VisualizeScene
-        animation_progress={build_animation_progress(frame_state.elapsed_ms)}
+        animation_progress={build_animation_progress(
+          frame_state.elapsed_ms,
+          quantile_reveal_frames(initialization.view_model),
+        )}
         animation_state={frame_state.animation_state}
         data={initialization.view_model}
         render_mode="export"

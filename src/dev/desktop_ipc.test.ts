@@ -7,7 +7,9 @@ import { _electron as electron } from "playwright";
 import { result_fixture } from "./ui_fixtures";
 import type { DesktopExportEvent } from "../shared/export_task";
 
-async function launch_desktop_harness(enable_subframes = false) {
+async function launch_desktop_harness(
+  mode: "default" | "subframes" | "native" = "default",
+) {
   const directory = await mkdtemp(join(tmpdir(), "gachasimulate-desktop-ipc-"));
   const profile = join(directory, "profile");
   const config = join(profile, "configs", "installed", "test");
@@ -45,7 +47,7 @@ async function launch_desktop_harness(enable_subframes = false) {
     const load = Module._load;
     Module._load = function(name, ...args) {
       const loaded = load.call(this, name, ...args);
-      return ${enable_subframes} && name === "electron" ? new Proxy(loaded, { get(target, key) { return key === "BrowserWindow" ? TestWindow : target[key]; } }) : loaded;
+      return ${mode === "subframes"} && name === "electron" ? new Proxy(loaded, { get(target, key) { return key === "BrowserWindow" ? TestWindow : target[key]; } }) : loaded;
     };
     app.on("browser-window-created", (_event, window) => {
       if (state.main_id === null) state.main_id = window.id;
@@ -63,7 +65,7 @@ async function launch_desktop_harness(enable_subframes = false) {
     };
     const realSpawn = processes.spawn;
     processes.spawn = (command, ...args) => {
-      if (!String(command).includes("gachasimulate-")) return realSpawn(command, ...args);
+      if (${mode === "native"} || !String(command).includes("gachasimulate-")) return realSpawn(command, ...args);
       const child = Object.assign(new EventEmitter(), { pid: 123456789, exitCode: null, signalCode: null, stdout: new PassThrough(), stderr: new PassThrough() });
       queueMicrotask(() => {
         child.stdout.write(String(command).includes("-analyze") ? ${JSON.stringify(JSON.stringify(analysis))} : '{"type":"started"}\\n');
@@ -113,8 +115,57 @@ async function launch_desktop_harness(enable_subframes = false) {
   return { application, page, directory };
 }
 
+test("a completed simulation opens its GSR, and a rejected edit can be discarded before exporting or reopening it", async () => {
+  const { application, page, directory } =
+    await launch_desktop_harness("native");
+  try {
+    await assert.rejects(
+      page.evaluate(() => window.desktopApi.openSimulationResult()),
+      /尚无可查看的结果/,
+    );
+    await page.getByRole("button", { name: "启动模拟" }).click();
+    await page.getByRole("button", { name: "查看本次结果" }).click();
+    await page.getByTestId("visualize-root").waitFor();
+    await page.getByRole("button", { name: "编辑", exact: true }).click();
+    const item = page.getByLabel("统计物品名称", { exact: true });
+    const original_name = await item.inputValue();
+    await item.fill("");
+    await page.getByRole("button", { name: "完成编辑" }).click();
+    await page.getByRole("button", { name: "重试保存", exact: true }).waitFor();
+    await page
+      .getByRole("button", { name: "放弃未保存更改", exact: true })
+      .click();
+    await page
+      .locator(".top-meta dt")
+      .last()
+      .getByText(original_name, { exact: true })
+      .waitFor();
+
+    await page.getByRole("button", { name: "导出素材", exact: true }).click();
+    await page.getByRole("checkbox", { name: /MP4 动画/ }).uncheck();
+    await page.getByRole("checkbox", { name: /PNG 静帧/ }).check();
+    await page
+      .getByRole("button", { name: "选择导出目录", exact: true })
+      .click();
+    await page.getByText("导出完成", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "关闭通知", exact: true }).click();
+
+    await page.getByRole("button", { name: "运行模拟", exact: true }).click();
+    await page.getByRole("button", { name: "查看本次结果" }).click();
+    await page.getByRole("button", { name: "图表预览" }).click();
+    assert.equal(
+      await page.locator(".preview-summary dd").nth(1).innerText(),
+      "10",
+    );
+  } finally {
+    await application.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("production desktop IPC validates requests, rejects other windows and child frames, and contains navigation", async () => {
-  const { application, page, directory } = await launch_desktop_harness(true);
+  const { application, page, directory } =
+    await launch_desktop_harness("subframes");
   try {
     assert.ok(
       (await page.evaluate(() => window.desktopApi.getLogicalCpuCount())) > 0,

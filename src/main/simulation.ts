@@ -132,6 +132,12 @@ export class SimulationTask {
     return this.child !== null || this.preparing !== null;
   }
 
+  get completed_result_path(): string {
+    if (this.status !== "completed")
+      throw new Error("本次模拟尚无可查看的结果。");
+    return this.final_output;
+  }
+
   private notify(event: DesktopSimulationEvent): void {
     this.status = event.status;
     this.emit(event);

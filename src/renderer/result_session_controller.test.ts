@@ -38,7 +38,12 @@ function setup() {
     request: SaveResultFieldsRequest;
     response: ReturnType<typeof deferred<SavedResultFields>>;
   }> = [];
+  const discarded: string[] = [];
   const controller = new ResultSessionController({
+    openSimulationResult: async () => fixture("completed run"),
+    discardResultDraft: async (session_id) => {
+      discarded.push(session_id);
+    },
     selectGsrResult: () => {
       const request = deferred<ResultEditorState | null>();
       selections.push(request);
@@ -63,8 +68,56 @@ function setup() {
       display: { display_version: 2, ...request.fields },
     });
   };
-  return { controller, selections, saves, open, saved };
+  return { controller, selections, saves, discarded, open, saved };
 }
+
+test("opening a completed run preserves the current draft if its pending save fails", async () => {
+  const w = setup();
+  await w.open("A");
+  w.controller.change_field("title", "draft A");
+  const saving = w.controller.save();
+  const rejected = assert.rejects(saving, /disk unavailable/);
+  const opening = w.controller.open_simulation_result();
+  await tick();
+  w.saves[0].response.reject(new Error("disk unavailable"));
+  await rejected;
+  assert.equal(await opening, false);
+  assert.equal(w.controller.get_snapshot().draft?.title, "draft A");
+  const retry = w.controller.open_simulation_result();
+  await tick();
+  w.saved(1);
+  assert.equal(await retry, true);
+  assert.equal(w.controller.get_snapshot().result?.session_id, "completed run");
+});
+
+test("discarding a failed draft restores the last save and allows opening a completed run", async () => {
+  const w = setup();
+  await w.open("A");
+  w.controller.change_field("title", "last saved");
+  const first_save = w.controller.save();
+  await tick();
+  w.saved(0);
+  await first_save;
+
+  w.controller.change_field("title", "unsaved");
+  const opening = w.controller.open_simulation_result();
+  await tick();
+  assert.equal(await w.controller.discard_failed_draft(), false);
+  w.saves[1].response.reject(new Error("disk unavailable"));
+  assert.equal(await opening, false);
+  assert.equal(w.controller.get_snapshot().preview?.title, "unsaved");
+
+  assert.equal(await w.controller.discard_failed_draft(), true);
+  const restored = w.controller.get_snapshot();
+  assert.equal(restored.draft?.title, "last saved");
+  assert.equal(restored.preview, restored.model);
+  assert.equal(restored.save_error, null);
+  assert.equal(restored.load_error, null);
+  assert.equal(await w.controller.open_simulation_result(), true);
+  assert.equal(w.controller.get_snapshot().result?.session_id, "completed run");
+  assert.equal(w.saves.length, 2);
+  assert.deepEqual(w.discarded, ["A"]);
+});
 
 test("a previous session save cannot replace a new session or its busy state", async () => {
   const w = setup();

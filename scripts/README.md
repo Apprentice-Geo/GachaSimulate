@@ -8,7 +8,7 @@
 | 文件                                   | 职责                                                         |
 | -------------------------------------- | ------------------------------------------------------------ |
 | [check_cpp_win.ps1](check_cpp_win.ps1) | Windows 本地与 CI 共用的 C++ 格式化、Debug/Release CTest、clang-tidy、安装和隔离 PATH 冒烟入口。 |
-| `maintenance.test.ps1` | 使用故障注入验证原生程序安装的提交与回滚、FFmpeg 版本检查和一键入口失败传播；通过 `pnpm run test:maintenance` 执行，不编译或下载源码。 |
+| `maintenance.test.ps1` | 使用故障注入验证原生程序安装的提交与回滚、FFmpeg 版本检查、一键入口对源码锁的消费及失败传播；通过 `pnpm run test:maintenance` 执行，不编译或下载源码。 |
 
 ### Windows 应用打包
 
@@ -35,7 +35,7 @@ Windows 安装包包含 core/analyzer 和项目固定源码版本构建的 FFmpe
 | [build_ffmpeg_win.ps1](build_ffmpeg_win.ps1)                 | 唯一对外构建入口。检查 Windows x64 和源码身份，记录完整 MSYS2 包快照，调用内部 Bash 构建，检查产物集合、PE 导入和隔离 PATH 运行，再替换安装目录；失败保护旧产物。 |
 | [build_ffmpeg_win_ucrt64.sh](build_ffmpeg_win_ucrt64.sh)     | 内部编译实现，由 PowerShell 传入环境和路径。构建三个组件，收集源码、许可证、参数、日志、链接映射和能力清单，不直接供日常调用。 |
 | [package_ffmpeg_compliance.ps1](package_ffmpeg_compliance.ps1) | 校验材料与二进制的对应关系，生成版本化 ZIP、清单和校验文件；可记录本次安装包哈希。 |
-| [build_ffmpeg_win.test.mjs](build_ffmpeg_win.test.mjs)       | 静态检查构建入口，并检查源码锁，不含下载或安装命令。         |
+| [build_ffmpeg_win.test.mjs](build_ffmpeg_win.test.mjs)       | 静态检查离线构建入口不含下载或安装命令，不绑定源码版本或工具检查的具体写法。 |
 | [setup_ffmpeg_win.ps1](setup_ffmpeg_win.ps1)                 | 面向开发者的一键式下载和构建脚本，用于便捷构建 ffmpeg。      |
 | [package_ffmpeg_compliance.test.ps1](package_ffmpeg_compliance.test.ps1) | 使用已有构建的独立副本验证材料打包、错误输入拒绝、旧包保护和安装包哈希关联。 |
 | [ffmpeg_windows_source_lock.json](ffmpeg_windows_source_lock.json) | 自编译源码版本、归档名、哈希和 x264 提交的唯一配置来源。     |

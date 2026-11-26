@@ -1,6 +1,6 @@
 # Architecture
 
-本文档提供 GachaSimulate 的代码地图，帮助贡献者判断“功能在哪里”和“改动应落在哪一层”。这里只记录稳定边界；具体协议、参数和检查命令见专项文档。
+从下面的代码地图定位模块。跨进程的数据格式、版本和维护入口列在[契约索引](#契约索引)中。
 
 ## 鸟瞰
 
@@ -8,7 +8,7 @@ GachaSimulate 将 YAML 抽卡规则编译为中间表示，由 C++ Runtime 执�
 
 ```text
 YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
-     -> Analysis + DisplayConfig v2 -> CDF ViewModel
+Analysis + DisplayConfig v2 -> CDF ViewModel -> 桌面展示或素材导出
 ```
 
 ## 代码地图
@@ -16,9 +16,13 @@ YAML -> Config Compiler -> IR -> C++ Runtime -> GSR -> Analyzer -> Analysis
 - `packages/config-compiler/`：YAML 校验与 IR 编译；单次编译入口是 `compile_yaml`，配置仓库批量校验入口是 `validate_config_files`。
 - `packages/config-repository-contract/`：配置仓库 index、manifest 和包文件清单的纯协议校验；不执行网络、ZIP 或文件系统操作。
 - `cpp/`：Runtime 执行 IR；同层还包含 GSR 编解码、统计、core、analyzer 和 benchmark。
-- `src/main/`：受信任的 Electron 宿主；`SimulationTask` 管理配置编译准备、core 与模拟产物，`ResultEditor` 管理 analyzer、带身份的结果会话与导出快照，`ExportTaskCoordinator` 管理导出 reservation、main-owned 目录选择、目标文件身份、最近任务目录授权和统一准入，内部 `ExportHost` 管理隐藏导出窗口、CDP 截图、FFmpeg、逐产物安全提交与可重试的残留资源清理。`ConfigManager` 管理配置来源与安装事务；`config_snapshot.ts` 集中文件快照、内容摘要、协议校验和运行编译，由 `config_worker.ts` 在受控线程中执行，`ConfigWorkerClient` 管理请求身份、线程故障及可重试的有界退出。`native_process.ts` 提供可信原生程序定位、终止和有界等待，不拥有业务任务状态。
-- `src/preload/`：main 与桌面 renderer、隐藏导出 renderer 之间相互隔离的固定 IPC 桥。
-- `src/renderer/`：桌面界面与任务状态，不直接访问 Node.js。`App.tsx` 管理顶层 Shell、页面切换、工作台主题与 ExportWorkflow，并持有 `ResultSessionController`；controller 集中保留当前结果、草稿、已保存字段、载入与保存队列、错误和准备好的数值模型，页面切换不销毁这些业务状态。`pages/` 分别承载模拟、结果编辑、配置仓库和设置页面。`theme.ts` 在 React 渲染前恢复本地主题偏好，设置页切换后即时应用并保存。软件信息从构建时的项目元数据读取，外部链接仅向 preload 传递固定目标 ID，由 main 校验桌面 sender 与 ID 后打开。结果编辑的普通摘要由 Workbench 渲染，只有 CDF 预览使用 Visualization 画面组件。
+- `src/main/` 管理桌面应用的文件、原生进程和隐藏导出窗口。按任务定位入口：
+  - `ConfigManager` 管理配置来源与安装。配置 worker 读取文件快照，用同一份输入完成校验与编译。
+  - `SimulationTask` 启动 core，管理模拟、取消和结果提交。`native_process.ts` 提供原生程序定位与进程终止、等待操作。
+  - `ResultEditor` 调用 analyzer，管理当前 GSR 会话、展示字段保存与导出快照。
+  - `ExportTaskCoordinator` 管理导出请求、目录选择与目标文件。`ExportHost` 驱动隐藏窗口截图、FFmpeg 编码和产物提交。
+- `src/preload/` 为桌面窗口和隐藏导出窗口分别提供固定的 IPC 接口。
+- `src/renderer/` 承载工作台。`pages/` 下是各个页面，`App.tsx` 管理导航、主题和导出对话框。当前结果、编辑草稿和保存队列由顶层的 `ResultSessionController` 持有，切换页面后仍可继续编辑。
 - `src/export-renderer/`：只消费 CDF view model 与逐帧消息的隐藏 Electron renderer；不访问桌面 preload API、文件系统或子进程。
 - `src/visualize/`：平台无关的 Analysis/DisplayConfig 校验、CDF 视图模型和共享场景。
 - `test-fixtures/configs/`：主仓库测试与语义 fixture；`benchmark/cases/`：独立 benchmark 配置。
@@ -32,16 +36,15 @@ Electron main 在 `app.getPath("userData")` 下管理桌面数据：已安装配
 
 ## 边界与不变量
 
-- Config Compiler 是 YAML 到 IR 的唯一权威；C++ 不解析 YAML。
-- Config Compiler 定义 IR 的结构及 YAML 到 IR 的表示规则；C++ loader 将临时 IR 文件视为不可信输入并执行防御性校验，但不独立扩展 IR 表示。IR 只用于配套的 Compiler 与 Runtime 之间传递单次任务，不是持久化或兼容格式。
-- C++ Runtime 是模拟语义的唯一权威；GSR 是持久化模拟结果，analyzer 不重新模拟。
-- 固定 `global_seed` 时，每个 run 的随机流只由 `global_seed + run_index` 派生，不依赖 threads、chunk 数、执行顺序或 `total_runs`。该算法不兼容旧版基于 chunk 的随机序列，因此切换后相同 seed 的历史结果会改变一次；跨标准库的浮点分布也不承诺逐位一致。
+- Config Compiler 校验 YAML 并定义 IR。C++ loader 将临时 IR 文件视为不可信输入，检查后交给配套的 Runtime 执行。模拟语义由 Runtime 实现，analyzer 从保存的 GSR 计算统计量。
+- 每次模拟的随机流由全局种子和该次模拟的序号决定。使用同一实现时，改变线程数、分块方式、执行顺序或总次数，都不影响同一序号的随机流。不同标准库的浮点分布实现可能产生不同结果。
 - Electron renderer 不决定可执行文件和受信任文件路径；这些能力只存在于 main，并通过 preload 暴露固定操作。
-- 桌面请求、响应和事件的静态契约集中在 `src/shared/desktop_ipc.ts`。preload 的受类型约束桥与 main 的统一注册入口消费同一映射；main 先确认 sender 为有效主窗口、senderFrame 为主 frame 且当前 URL 为配置的应用页面，再执行运行时参数校验、准入与业务操作。主窗口限制页面导航与新窗口，桌面事件只发往有效应用主窗口；隐藏导出 renderer 保留独立桥和逐帧身份校验。
-- 配置列表与仓库状态查询每次都在线程中重新读取当前包的完整文件集合和内容。摘要相同才复用完整校验结论；远程 index TTL 不控制本地快照有效性。目录与配置变更使本地查询代次失效，旧查询不能发布旧目录结果；官方 index 下载使用独立的退出代次，本地变更不会使其失效，强制刷新也不使本地查询失效。被退出取消或准入拒绝的刷新不更新时间戳，正常响应和来源错误保留既有节流规则。模拟编译重新读取、验证并消费同一份输入快照，准备期间已占有模拟任务身份；取消、准入变化或退出后不能迟到启动 core。
-- 桌面 renderer 与隐藏导出 renderer 不直接通信；桌面 preload 只接受受限格式、基础文件名、会话标识和取消标识，目录及完整目标路径只在 main 内流转。系统目录选择器必须由受信任主窗口作为 parent；覆盖确认只往返 reservation id 和已存在文件的 basename。main 在覆盖确认及每个产物提交前复核目标身份，`ExportHost` 验证隐藏 renderer 消息的发送方、job id 和帧范围后才允许截图或写入编码器。
-- 导出目标替换成功即为提交点；提交后的正式产物不因取消或 backup 清理失败而回滚。清理失败时保留任务、资源引用、准入所有权及重试入口，renderer 只接收残留 basename，打开目录也只提交最近合格任务的 task id。
-- 关闭窗口、退出应用与导出清理后的退出共享一轮去重协调。协调器聚合等待已启动的停止操作，清理成功后才销毁主窗口；失败时先恢复配置 worker 服务，再恢复全局准入，仍有效的导出占用和已接受的模拟取消决定继续生效。worker 停止等待有界，超时仍保留退役线程所有权；旧线程尚未清理时不创建更多线程。配置下载对应的变更事务与刷新收尾也有界；超时保留原 Promise 和变更互斥，恢复后旧下载回包仍因代次失效被拒绝。
+- “查看本次结果”通过无参数 IPC 请求分析当前已成功提交的 GSR。main 从 `SimulationTask` 取得路径，经分析准入后交给 `ResultEditor`；桌面与手动选择文件共用结果会话及可视化流程。
+- 桌面 IPC 的请求、响应和事件类型见 `src/shared/desktop_ipc.ts`。main 核验主窗口、主 frame 和页面 URL 后才接受请求，随后校验参数与任务状态。主窗口限制导航和新窗口，外部链接以预定义 ID 打开。桌面事件仅发往有效主窗口。
+- 本地配置每次查询都重新读取整包文件，内容摘要一致时才复用校验结论。目录或配置变更会使在途的本地查询失效。远程 index 单独刷新和节流，退出取消或被拒绝的刷新不更新时间戳。模拟任务在编译前取得执行权，使用经过校验的同一份快照；取消或退出后不得启动 core。
+- 导出目录由 main 通过主窗口的系统对话框选择。桌面 renderer 用任务标识和文件名确认覆盖，完整目标路径留在 main。main 在确认覆盖和提交每个文件前复核目标身份。隐藏导出窗口使用独立 IPC，`ExportHost` 核验发送方、任务标识和帧号后才截图。
+- 每个导出文件替换成功即提交。此后即使取消任务或备份清理失败，也保留已提交的文件。清理失败的任务保留资源、占用与重试入口。桌面只显示残留文件名，通过任务标识请求打开最近一次合格任务的目录。
+- 窗口关闭与应用退出共用清理流程，所有已启动的停止操作完成后才销毁主窗口。退出失败时先恢复配置 worker，再接受新任务。超时的线程和配置事务保留所有权，避免重启重复线程或并发修改同一配置。已失效的下载响应不能提交。
 - `src/visualize/` 不依赖 Electron、Node.js 或导出宿主；Electron 展示与素材导出复用同一套输入处理和场景。
 - 启动原生进程的一层负责终止、等待和清理；失败任务不得留下临时 IR 或半成品结果。
 - 模拟取消决定一经接受，在该任务内不可撤销；main 停止转发后续进度并丢弃本次输出，即使 core 已写出完整结果或终止尝试失败。renderer 从点击取消起屏蔽已排队的进度和成功消息，保持读数冻结；终止失败时保留任务所有权与重试入口。
@@ -49,7 +52,7 @@ Electron main 在 `app.getPath("userData")` 下管理桌面数据：已安装配
 
 ## 可视化与导出
 
-`src/visualize/` 是平台无关的结果可视化层，将经过校验的 `Analysis + DisplayConfig v2` 转换为 CDF view model，供 Electron 展示与素材导出共享。导航、模拟表单、GSR 对话框、结果编辑页与任务交互属于桌面宿主，不进入本层；本层不依赖 Electron 或 Node.js API。
+`src/visualize/` 是平台无关的结果可视化层，将经过校验的 `Analysis + DisplayConfig v2` 转换为 CDF view model，供 Electron 展示与素材导出共享。导航、模拟表单、GSR 对话框、原位编辑交互与任务交互属于桌面宿主，不进入本层；本层不依赖 Electron 或 Node.js API。
 
 ```text
 Analysis -------> validate_analysis -> prepare_cdf_data --+
@@ -69,7 +72,7 @@ Analysis 和 DisplayConfig 不能绕过各自校验直接进入视图模型。�
 - `view/`：展示模型、统计配置和与画面有关的布局计算；CDF、marker、统计分组与布局计算不得散入组件。
 - `components/`：共享画面与交互组件，保持偏渲染。
 - `animation/`：交互展示和逐帧导出共用的时间轴与进度计算。
-- `styles/`：受 `.visualize-scope` 限定的共享设计 token 与画面样式，`index.css` 为桌面与导出共用入口，`preview.css` 提供交互宿主适配。ResultEditor CDF Preview、正式页面和导出根宿主建立相同 scope；Workbench token 独立位于 `src/renderer/tokens.css`，样式匹配在 Visualization 边界停止。Workbench 与 Visualization 的共享字号层级位于 `src/styles/typography.css`，Visualization 以固定倍率转换为画布坐标，保持独立深色主题；全局字体资源与 reset 位于 `src/styles/foundation.css`，设计原则见 [Workbench Design](docs/WORKBENCH_DESIGN.md) 与 [Visualization Design](docs/VISUALIZATION_DESIGN.md)。
+- `styles/`：图表预览、结果画面与导出窗口在 `.visualize-scope` 内加载同一套 `index.css`。交互宿主的适配样式位于 `preview.css`。工作台与结果画布只共享基础样式与字号层级，各自管理主题。
 - `types/`：Analysis、DisplayConfig 和 CDF view model 的静态类型。
 
 定位实现时优先搜索 `Analysis`、`DisplayConfig`、`build_cdf_view_model` 和 `VisualizeScene`。Electron 接入只提供输入并承载共享画面，不复制输入校验、视图模型或导出逻辑。
@@ -78,9 +81,9 @@ Analysis 和 DisplayConfig 不能绕过各自校验直接进入视图模型。�
 
 Electron 展示与素材导出复用同一套输入处理、视图模型、画面组件和动画进度。`src/export-renderer/` 负责导出页面与逐帧提交，`src/main/export_host.ts` 负责 CDP、FFmpeg 和输出提交；两者均位于平台无关的可视化层之外。
 
-桌面素材导出入口由 Workbench 侧栏操作组接入 `ExportWorkflow`。renderer 中的 `export_workflow_controller.ts` 集中维护交互流程的唯一状态、IPC 协调与异步身份检查，`use_export_workflow.ts` 通过订阅连接 React 生命周期；`ExportWorkflow` 管理模态外壳与焦点，`ExportDialogs` 展示表单、确认、进度和通知。main 继续作为导出 reservation、任务执行与资源清理的权威。`src/visualize/` 不接收 session ID、GSR 文件名、reservation、目录或任务路径；格式、目标选择、覆盖和任务状态由桌面 renderer 与 main 管理。
+工作台侧栏发起导出。`ExportWorkflow` 管理对话框与键盘焦点，`export_workflow_controller.ts` 协调格式选择、覆盖确认、进度和取消。文件名、目录和任务状态由桌面层处理。
 
-发起 main reservation 前，导出 controller 等待结果 controller 的 renderer 保存队列尾；保存失败、会话变化或准备取消会停止该次导出准备。随后仍经过 main 的保存屏障和独立复制的导出快照，后续编辑不能改变已接受任务的内容。
+导出前，renderer 等待当前结果的保存队列完成。保存失败、切换会话或取消准备都会终止这次请求。main 等待保存完成后复制一份快照，后续编辑不会改变已接受的导出任务。
 
 `VisualizeScene` 使用 `render_mode` 标记交互与导出宿主，二者共用纯画面，不承载操作按钮。Workbench 侧栏操作组通过 portal 挂载；结果页管理文件选择和导出入口，Visualization 交互宿主管理重播和动画状态。导出模式不使用页面缩放、真实时钟动画或宿主缩放；画布及视觉表现由 [Visualization Design](<docs/VISUALIZATION_DESIGN.md#结果画布>) 维护。
 
@@ -103,4 +106,4 @@ JSON 契约按约束范围划分权威：JSON Schema 定义字段、类型、必
 
 ## 专项文档
 
-配置语法见 `docs/YAML_CONFIG_SYNTAX.md`，IR 见 `docs/IR.md`，配置仓库协议见 `docs/CONFIG_REPOSITORY.md`，结果格式见 `docs/GSR.md`，分析格式见 `docs/ANALYSIS.md`，展示配置见 [DisplayConfig](docs/DISPLAY_CONFIG.md)，UI 设计原则与交互不变量见 [Workbench Design](docs/WORKBENCH_DESIGN.md) 与 [Visualization Design](docs/VISUALIZATION_DESIGN.md)，FFmpeg 开发与发布边界见 `scripts/README.md`，检查矩阵见 `docs/DEVELOPMENT_CHECKS.md`。
+工作台布局和交互见 [Workbench Design](docs/WORKBENCH_DESIGN.md)，图表和导出画面见 [Visualization Design](docs/VISUALIZATION_DESIGN.md)。开发环境和检查命令见 [Development Checks](docs/DEVELOPMENT_CHECKS.md)，FFmpeg 构建与发布见 [维护脚本](scripts/README.md)。

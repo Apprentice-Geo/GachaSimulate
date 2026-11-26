@@ -57,9 +57,13 @@ test("delayed saves cannot restore a previous session or replace a returning pag
         [first, second],
       );
       await page.reload({ waitUntil: "domcontentloaded" });
-      await page.getByRole("button", { name: "结果编辑", exact: true }).click();
+      await page
+        .getByRole("button", { name: "结果可视化", exact: true })
+        .click();
       await page.getByRole("button", { name: "选择 GSR", exact: true }).click();
+      await page.getByRole("button", { name: "编辑", exact: true }).click();
       await page.getByLabel("标题", { exact: true }).fill("A saved");
+      await page.getByRole("button", { name: "运行模拟", exact: true }).click();
       await page
         .getByRole("button", { name: "结果可视化", exact: true })
         .click();
@@ -80,7 +84,7 @@ test("delayed saves cannot restore a previous session or replace a returning pag
           .click();
         await page.locator('[data-testid="visualize-root"]').waitFor();
       }
-      await page.getByRole("button", { name: "结果编辑", exact: true }).click();
+      await page.getByRole("button", { name: "编辑", exact: true }).click();
       if (outcome === "new-draft")
         await page.getByLabel("标题", { exact: true }).fill("A newer draft");
       await application.evaluate(() => {
@@ -161,17 +165,19 @@ test("renderer rejects unrenderable loads before publishing and can load again",
       await page.locator('[data-testid="visualize-root"]').count(),
       1,
     );
-    await page.getByRole("button", { name: "结果编辑", exact: true }).click();
+    await page.getByRole("button", { name: "编辑", exact: true }).click();
     assert.equal(
       await page.getByLabel("标题", { exact: true }).inputValue(),
       first.fields.title,
     );
-    await page.getByRole("button", { name: "更换 GSR", exact: true }).click();
+    await page.getByRole("button", { name: "完成编辑", exact: true }).click();
+    await page.getByRole("button", { name: "更换结果", exact: true }).click();
+    await page.getByRole("heading", { name: "recovered result" }).waitFor();
+    await page.getByRole("button", { name: "编辑", exact: true }).click();
     await page.waitForFunction(
       () =>
-        document.querySelector<HTMLTextAreaElement>(
-          'textarea[aria-label="标题"]',
-        )?.value === "recovered result",
+        document.querySelector<HTMLInputElement>('input[aria-label="标题"]')
+          ?.value === "recovered result",
     );
   } finally {
     await application.close();

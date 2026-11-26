@@ -11,7 +11,11 @@
   --color-rarity-purple: #b48aff;
   --color-rarity-gold: #f3c45c;
   --color-rarity-red: #f87586;
-  --color-cdf-frame: var(--color-rarity-blue);
+  --color-cdf-frame: color-mix(
+    in srgb,
+    var(--color-rarity-blue) 48%,
+    var(--color-hairline)
+  );
   --color-canvas: #12101b;
   --color-host-divider: #555555;
   --color-panel: #17151f;
@@ -45,9 +49,6 @@
   --font-mono: "JetBrains Mono", SourceHanSansSC, monospace;
   /* Convert the shared desktop scale to the fixed 3840 x 2160 design canvas. */
   --visualize-type-scale: 2;
-  --visualize-font-caption: calc(
-    var(--font-size-caption) * var(--visualize-type-scale)
-  );
   --visualize-font-meta: calc(
     var(--font-size-meta) * var(--visualize-type-scale)
   );
