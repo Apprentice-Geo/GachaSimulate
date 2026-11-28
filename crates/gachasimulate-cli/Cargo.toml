@@ -1,0 +1,12 @@
+[package]
+name = "gachasimulate-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+gachasimulate-config.workspace = true
+gachasimulate-gsr.workspace = true
+gachasimulate-runtime.workspace = true
+gachasimulate-types.workspace = true
+serde_json.workspace = true
+zip = { version = "9.9", default-features = false, features = ["deflate-flate2-zlib-rs"] }

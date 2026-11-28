@@ -4,6 +4,7 @@ members = [
     "crates/gachasimulate-config",
     "crates/gachasimulate-runtime",
     "crates/gachasimulate-gsr",
+    "crates/gachasimulate-cli",
 ]
 resolver = "2"
 
@@ -13,6 +14,9 @@ edition = "2021"
 
 [workspace.dependencies]
 gachasimulate-types = { path = "crates/gachasimulate-types" }
+gachasimulate-config = { path = "crates/gachasimulate-config" }
+gachasimulate-runtime = { path = "crates/gachasimulate-runtime" }
+gachasimulate-gsr = { path = "crates/gachasimulate-gsr" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 thiserror = "2"
