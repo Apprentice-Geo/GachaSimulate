@@ -515,3 +515,20 @@ fn header_meta_derives_from_program_and_matches_writer() {
     let writer = MemoryChunkWriter::new(&meta, &mut chunks);
     assert_eq!(writer.metadata(), &meta);
 }
+
+#[test]
+fn program_rejects_reasons_exceeding_gsr_header_metadata_budget() {
+    let mut program = fixtures::deterministic_program();
+    // 64 distinct 1 MiB reasons plus fixed header, item ID/name, and u32
+    // length prefixes exceed MAX_GSR_METADATA_BYTES (64 MiB).
+    program.reasons = (0..64)
+        .map(|index| format!("{index:02}{}", "r".repeat(MAX_STRING_BYTES - 2)))
+        .collect();
+    assert!(matches!(
+        program.validate_invariants(),
+        Err(ProgramInvariantError::InvalidField {
+            field: "reasons",
+            ..
+        })
+    ));
+}

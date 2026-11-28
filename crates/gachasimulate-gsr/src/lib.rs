@@ -23,16 +23,12 @@ pub use format::{GsrFileWriter, GsrReader};
 pub use gachasimulate_types::{
     Analysis, AnalysisResultItem, AnalysisStatistic, AnalysisTotals, AnalysisValidationError,
     GsrError, GsrHeaderMeta, GsrWriteSummary, ResultChunk, ResultChunkWriter, ResultRecord,
-    TerminationReasonShare, MAX_ANALYSIS_JSON_BYTES, MAX_CHUNK_RECORDS, MAX_GSR_FILE_BYTES,
-    MAX_REASONS, MAX_RUNS, MAX_STRING_BYTES,
+    TerminationReasonShare, GSR_HEADER_BYTES, MAX_ANALYSIS_JSON_BYTES, MAX_CHUNK_RECORDS,
+    MAX_GSR_FILE_BYTES, MAX_GSR_METADATA_BYTES, MAX_REASONS, MAX_RUNS, MAX_STRING_BYTES,
 };
 
 pub const GSR_MAGIC: [u8; 4] = *b"GSR\0";
 pub const GSR_VERSION: u32 = 3;
-pub const GSR_HEADER_BYTES: u32 = 48;
-/// Maximum encoded header size, including the fixed header, ID, name and
-/// all reason strings with their length prefixes.
-pub const MAX_GSR_METADATA_BYTES: u64 = 64 * 1024 * 1024;
 pub const GSR_CHUNK_HEADER_BYTES: u64 = 16;
 pub const GSR_RECORD_BYTES: u64 = 12;
 pub const GSR_TRAILER_BYTES: u64 = 24;

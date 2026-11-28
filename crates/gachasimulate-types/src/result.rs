@@ -8,6 +8,10 @@ pub const MAX_RUNS: u64 = 1_000_000_007;
 pub const MAX_CHUNK_RECORDS: usize = 1_048_576;
 pub const MAX_REASONS: usize = 65_536;
 pub const MAX_STRING_BYTES: usize = 1024 * 1024;
+pub const GSR_HEADER_BYTES: u32 = 48;
+/// Maximum encoded GSR v3 header size, including the fixed header, result item
+/// ID and display name, and all reason strings with their u32 length prefixes.
+pub const MAX_GSR_METADATA_BYTES: u64 = 64 * 1024 * 1024;
 pub const MAX_GSR_FILE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 pub const MAX_ANALYSIS_JSON_BYTES: usize = 64 * 1024 * 1024;
 

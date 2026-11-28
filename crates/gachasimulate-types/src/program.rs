@@ -2,7 +2,10 @@ use std::collections::HashSet;
 
 use thiserror::Error;
 
-use crate::{is_identifier, ConfigItem, MAX_REASONS, MAX_STRING_BYTES};
+use crate::{
+    is_identifier, ConfigItem, GSR_HEADER_BYTES, MAX_GSR_METADATA_BYTES, MAX_REASONS,
+    MAX_STRING_BYTES,
+};
 
 pub const MAX_CONDITION_DEPTH: usize = 256;
 
@@ -187,12 +190,25 @@ impl CompiledProgram {
         if self.reasons.is_empty() || self.reasons.len() > MAX_REASONS {
             return Err(field("reasons", "invalid reason count"));
         }
+        let selected_item = &self.items[self.result_item as usize];
+        let mut header_bytes = u64::from(GSR_HEADER_BYTES)
+            + selected_item.id.len() as u64
+            + selected_item.name.len() as u64;
         for (index, reason) in self.reasons.iter().enumerate() {
             if reason.is_empty() || reason.len() > MAX_STRING_BYTES {
                 return Err(entry("reasons", index, "invalid reason length"));
             }
             if index > 0 && self.reasons[index - 1] >= *reason {
                 return Err(entry("reasons", index, "must be sorted and unique"));
+            }
+            header_bytes = header_bytes
+                .checked_add(4 + reason.len() as u64)
+                .ok_or_else(|| field("reasons", "encoded GSR header metadata exceeds limit"))?;
+            if header_bytes > MAX_GSR_METADATA_BYTES {
+                return Err(field(
+                    "reasons",
+                    "encoded GSR header metadata exceeds 64 MiB limit",
+                ));
             }
         }
 
