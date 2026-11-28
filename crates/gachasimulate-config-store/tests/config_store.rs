@@ -190,6 +190,91 @@ fn refresh_uses_ttl_and_reports_errors_without_losing_the_last_remote_index() {
 }
 
 #[test]
+fn package_urls_resolve_against_the_last_successful_effective_index_url() {
+    const EFFECTIVE_INDEX: &str = "https://cdn.example/official/v2/index.json";
+    const EFFECTIVE_PACKAGE: &str = "https://cdn.example/official/v2/packages/foo.zip";
+
+    #[derive(Default)]
+    struct RedirectedIndex {
+        http: FakeDownloader,
+        calls: Mutex<Vec<(String, bool)>>,
+    }
+    impl ConfigDownloader for RedirectedIndex {
+        fn download(&self, url: &str, limit: usize) -> Result<Vec<u8>, DesktopError> {
+            self.http.download(url, limit)
+        }
+
+        fn download_resolved(
+            &self,
+            url: &str,
+            limit: usize,
+            same_origin_redirects: bool,
+        ) -> Result<(Vec<u8>, String), DesktopError> {
+            self.calls
+                .lock()
+                .unwrap()
+                .push((url.into(), same_origin_redirects));
+            let bytes = self.download(url, limit)?;
+            Ok((
+                bytes,
+                if url == INDEX { EFFECTIVE_INDEX } else { url }.into(),
+            ))
+        }
+    }
+
+    let tmp = TempDir::new();
+    let downloader = Arc::new(RedirectedIndex::default());
+    let package = zip(&files("foo", 1));
+    downloader.http.serve_package(package.clone());
+    downloader.http.responses.lock().unwrap().remove(PACKAGE);
+    downloader.http.serve(EFFECTIVE_PACKAGE, package);
+    let store = ConfigStore::with_options(tmp.configs(), options(downloader.clone())).unwrap();
+
+    assert!(store
+        .refresh_config_repository(None)
+        .unwrap()
+        .source_error
+        .is_none());
+    downloader.http.responses.lock().unwrap().remove(INDEX);
+    assert!(store
+        .refresh_config_repository(Some(true))
+        .unwrap()
+        .source_error
+        .is_some());
+    assert_eq!(
+        store.install_config("foo").unwrap().official[0].status,
+        RepositoryConfigStatus::Installed,
+    );
+    assert_eq!(
+        &*downloader.calls.lock().unwrap(),
+        &[
+            (INDEX.into(), false),
+            (INDEX.into(), false),
+            (EFFECTIVE_PACKAGE.into(), true)
+        ],
+    );
+}
+
+#[test]
+fn a_second_store_cannot_open_or_recover_the_root_until_the_first_is_dropped() {
+    let tmp = TempDir::new();
+    let root = tmp.configs();
+    let store = ConfigStore::new(root.clone()).unwrap();
+    let stage = root.join(".staging/in-progress");
+    fs::create_dir_all(&stage).unwrap();
+
+    let error = ConfigStore::new(root.clone())
+        .err()
+        .expect("second store acquired the lock");
+    assert_eq!(error.code, DesktopErrorCode::Conflict);
+    assert!(stage.is_dir());
+    drop(store);
+
+    let _store = ConfigStore::new(root).unwrap();
+    assert!(!stage.exists());
+}
+
+#[test]
 fn sources_with_the_same_id_coexist_and_return_independent_owned_snapshots() {
     let tmp = TempDir::new();
     let root = tmp.configs();
@@ -571,7 +656,8 @@ fn scans_and_resolution_reject_local_symlinks() {
     use std::os::windows::fs::{symlink_dir, symlink_file};
 
     let tmp = TempDir::new();
-    let local = tmp.0.join("local");
+    let parent = tmp.0.join("parent");
+    let local = parent.join("local");
     write_package(&local, "foo", 1);
     let alias = tmp.0.join("alias");
     if let Err(error) = symlink_dir(&local, &alias) {
@@ -607,6 +693,18 @@ fn scans_and_resolution_reject_local_symlinks() {
         .contains("regular file"));
     assert!(store.list_configs().unwrap().is_empty());
     assert!(target.is_file());
+
+    fs::remove_file(&yaml).unwrap();
+    fs::rename(&target, &yaml).unwrap();
+    let moved = tmp.0.join("moved");
+    fs::rename(&parent, &moved).unwrap();
+    symlink_dir(&moved, &parent).unwrap();
+    assert!(fs::symlink_metadata(&local).unwrap().is_dir());
+    assert!(store
+        .resolve_snapshot(ConfigSource::Local, "foo")
+        .unwrap_err()
+        .message
+        .contains("real directory"));
 }
 
 #[test]
@@ -687,10 +785,110 @@ fn mutations_conflict_with_an_in_flight_update_or_an_active_simulation() {
 }
 
 #[test]
+fn update_and_uninstall_recheck_simulation_after_waiting_for_the_shared_gate() {
+    struct UpdateDownload {
+        http: FakeDownloader,
+        entered: mpsc::Sender<()>,
+        proceed: Mutex<mpsc::Receiver<()>>,
+        block: AtomicBool,
+    }
+    impl ConfigDownloader for UpdateDownload {
+        fn download(&self, url: &str, limit: usize) -> Result<Vec<u8>, DesktopError> {
+            if url == PACKAGE && self.block.load(Ordering::SeqCst) {
+                self.entered.send(()).unwrap();
+                self.proceed
+                    .lock()
+                    .unwrap()
+                    .recv_timeout(Duration::from_secs(10))
+                    .unwrap();
+            }
+            self.http.download(url, limit)
+        }
+    }
+    let tmp = TempDir::new();
+    let (entered, downloading) = mpsc::channel();
+    let (proceed, wait) = mpsc::channel();
+    let downloader = Arc::new(UpdateDownload {
+        http: FakeDownloader::default(),
+        entered,
+        proceed: Mutex::new(wait),
+        block: AtomicBool::new(false),
+    });
+    downloader.http.serve_package(zip(&files("foo", 1)));
+    let gate = Arc::new(Mutex::new(()));
+    let active = Arc::new(AtomicBool::new(false));
+    let mut options = options(downloader.clone());
+    options.mutation_gate = Some(gate.clone());
+    let simulation = active.clone();
+    options.simulation_active = Some(Arc::new(move || simulation.load(Ordering::SeqCst)));
+    let store = Arc::new(ConfigStore::with_options(tmp.configs(), options).unwrap());
+    store.refresh_config_repository(None).unwrap();
+    store.install_config("foo").unwrap();
+    let previous = store
+        .resolve_snapshot(ConfigSource::Installed, "foo")
+        .unwrap();
+    downloader.http.serve_package(zip(&files("foo", 2)));
+    store.refresh_config_repository(Some(true)).unwrap();
+    downloader.block.store(true, Ordering::SeqCst);
+
+    let (finished, result) = mpsc::channel();
+    let worker = store.clone();
+    let update = std::thread::spawn(move || finished.send(worker.update_config("foo")).unwrap());
+    downloading.recv_timeout(Duration::from_secs(10)).unwrap();
+    let simulation_admission = gate.try_lock().expect("download must not hold the gate");
+    proceed.send(()).unwrap();
+    assert_eq!(
+        result.recv_timeout(Duration::from_millis(100)).unwrap_err(),
+        mpsc::RecvTimeoutError::Timeout,
+    );
+    active.store(true, Ordering::SeqCst);
+    drop(simulation_admission);
+    let error = result
+        .recv_timeout(Duration::from_secs(10))
+        .unwrap()
+        .unwrap_err();
+    assert_eq!(error.code, DesktopErrorCode::Conflict);
+    update.join().unwrap();
+
+    let simulation_admission = gate.lock().unwrap();
+    active.store(false, Ordering::SeqCst);
+    let (finished, result) = mpsc::channel();
+    let worker = store.clone();
+    let uninstall =
+        std::thread::spawn(move || finished.send(worker.uninstall_config("foo")).unwrap());
+    assert_eq!(
+        result.recv_timeout(Duration::from_millis(100)).unwrap_err(),
+        mpsc::RecvTimeoutError::Timeout,
+    );
+    active.store(true, Ordering::SeqCst);
+    drop(simulation_admission);
+    let error = result
+        .recv_timeout(Duration::from_secs(10))
+        .unwrap()
+        .unwrap_err();
+    assert_eq!(error.code, DesktopErrorCode::Conflict);
+    uninstall.join().unwrap();
+
+    assert_eq!(
+        store
+            .resolve_snapshot(ConfigSource::Installed, "foo")
+            .unwrap(),
+        previous
+    );
+    assert_eq!(
+        store.get_config_repository_state().unwrap().official[0].status,
+        RepositoryConfigStatus::UpdateAvailable
+    );
+    assert!(empty_staging(&tmp.configs()));
+}
+
+#[test]
+#[ignore = "requires GACHASIMULATE_CONFIGS_DIST to point at GachaSimulate-Configs/dist"]
 fn real_1e_packages_install_and_compile_when_dist_is_supplied() {
-    let Some(dist) = std::env::var_os("GACHASIMULATE_CONFIGS_DIST").map(PathBuf::from) else {
-        return;
-    };
+    let dist = PathBuf::from(
+        std::env::var_os("GACHASIMULATE_CONFIGS_DIST")
+            .expect("GACHASIMULATE_CONFIGS_DIST must point at GachaSimulate-Configs/dist"),
+    );
     let index_json = fs::read_to_string(dist.join("index.json")).unwrap();
     let index = read_repository_index(&index_json).unwrap();
     assert!(!index.configs.is_empty());

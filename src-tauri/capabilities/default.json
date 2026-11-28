@@ -4,7 +4,25 @@
   "description": "Least-privilege capability for the GachaSimulate main window",
   "windows": ["main"],
   "permissions": [
-    "core:default",
-    "core:event:default"
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-open-app-link",
+    "allow-list-configs",
+    "allow-get-config-repository-state",
+    "allow-refresh-config-repository",
+    "allow-install-config",
+    "allow-update-config",
+    "allow-uninstall-config",
+    "allow-select-local-config-directory",
+    "allow-get-logical-cpu-count",
+    "allow-get-simulation-state",
+    "allow-start-simulation",
+    "allow-cancel-simulation",
+    "allow-open-results-directory",
+    "allow-select-gsr-result",
+    "allow-open-simulation-result",
+    "allow-confirm-result-session",
+    "allow-save-result-fields",
+    "allow-discard-result-draft"
   ]
 }

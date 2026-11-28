@@ -492,7 +492,7 @@ jobs:
 
       - name: Build Tauri renderer and check Tauri crate
         run: |
-          pnpm run prepare:application-licenses
+          pnpm run prepare:tauri-licenses
           pnpm run build:tauri:renderer
           pnpm run tauri:stage-worker
           cargo clippy -p gachasimulate-tauri --all-targets -- -D warnings
@@ -502,3 +502,22 @@ jobs:
 
       - name: Verify Tauri NSIS fresh install and bundled resources
         run: pnpm run test:package:tauri:win
+
+      - name: Package FFmpeg compliance materials for the verified Tauri installer
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem 'target/release/bundle/nsis/GachaSimulate_*_x64-setup.exe' | Select-Object -First 1
+          if (-not $installer) {
+            throw 'Verified Tauri Windows installer was not found.'
+          }
+          ./scripts/package_ffmpeg_compliance.ps1 -Installer $installer.FullName -OutputDirectory target/release/bundle/compliance
+
+      - name: Upload verified Tauri preview assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-windows-preview-assets
+          path: |
+            target/release/bundle/nsis/GachaSimulate_*_x64-setup.exe
+            target/release/bundle/compliance/*-ffmpeg-compliance.zip
+            target/release/bundle/compliance/*-ffmpeg-compliance.zip.sha256
+          if-no-files-found: error

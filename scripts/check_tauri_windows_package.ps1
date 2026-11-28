@@ -15,6 +15,17 @@ if (-not (Test-Path -LiteralPath $SourceFfmpeg -PathType Leaf)) {
   throw "Missing self-built FFmpeg binary at $SourceFfmpeg"
 }
 
+$UninstallRegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall"
+if (Test-Path -LiteralPath $UninstallRegPath) {
+  $ExistingInstall = Get-ChildItem -LiteralPath $UninstallRegPath -ErrorAction SilentlyContinue | Where-Object {
+    $props = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue
+    ($_.PSChildName -eq "GachaSimulate") -or ($props -and $props.PSObject.Properties["DisplayName"] -and $props.DisplayName -eq "GachaSimulate")
+  }
+  if ($ExistingInstall) {
+    throw "Refusing to run NSIS smoke install while an existing per-user GachaSimulate installation is registered under HKCU Uninstall. Run in a clean user profile or uninstall first."
+  }
+}
+
 $InstallRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("gachasimulate-tauri-install-" + [guid]::NewGuid().ToString("N"))
 $SmokeData = Join-Path ([System.IO.Path]::GetTempPath()) ("gachasimulate-tauri-smoke-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
@@ -42,7 +53,7 @@ try {
     throw "Installed FFmpeg differs from self-built source binary: $SourceFfmpeg"
   }
 
-  & node (Join-Path $PSScriptRoot "application_licenses.mjs") --verify $LicenseDir
+  & node (Join-Path $PSScriptRoot "application_licenses.mjs") --verify $LicenseDir --include-rust
   if ($LASTEXITCODE -ne 0) {
     throw "Installed application license verification failed."
   }

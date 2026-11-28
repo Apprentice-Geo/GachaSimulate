@@ -3,6 +3,9 @@
 mod download;
 mod package;
 mod storage;
+#[cfg(test)]
+#[path = "../tests/support/temp_dir.rs"]
+mod temp_dir;
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -19,6 +22,7 @@ use gachasimulate_desktop_contract::{
 };
 use gachasimulate_types::ConfigRepositoryIndex;
 use sha2::{Digest, Sha256};
+use url::Url;
 
 use download::{check_size, https_url};
 pub use download::{
@@ -35,6 +39,7 @@ pub struct ConfigStoreOptions {
     pub index_url: String,
     pub downloader: Arc<dyn ConfigDownloader>,
     pub simulation_active: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+    pub mutation_gate: Option<Arc<Mutex<()>>>,
     pub now: Arc<dyn Fn() -> Instant + Send + Sync>,
 }
 
@@ -44,6 +49,7 @@ impl Default for ConfigStoreOptions {
             index_url: OFFICIAL_CONFIG_INDEX_URL.into(),
             downloader: Arc::new(HttpsConfigDownloader::new()),
             simulation_active: None,
+            mutation_gate: None,
             now: Arc::new(Instant::now),
         }
     }
@@ -61,10 +67,15 @@ pub struct ConfigStore {
 
 #[derive(Default)]
 struct State {
-    remote: Option<ConfigRepositoryIndex>,
+    remote: Option<RemoteIndex>,
     source_error: Option<String>,
     refreshed_at: Option<Instant>,
     local_directory: Option<PathBuf>,
+}
+
+struct RemoteIndex {
+    index: ConfigRepositoryIndex,
+    url: Url,
 }
 
 impl ConfigStore {
@@ -106,7 +117,7 @@ impl ConfigStore {
             .collect();
         let mut official = Vec::new();
         if let Some(remote) = &state.remote {
-            for entry in &remote.configs {
+            for entry in &remote.index.configs {
                 let status = if installed.remove(&entry.id).is_none() {
                     RepositoryConfigStatus::Available
                 } else if self.storage.sha256(&entry.id).as_deref() == Some(&entry.sha256) {
@@ -162,11 +173,13 @@ impl ConfigStore {
 
         let remote = (|| {
             let url = https_url(&self.options.index_url)?;
-            let bytes = self.download(url.as_str(), CONFIG_INDEX_DOWNLOAD_LIMIT)?;
+            let (bytes, url) = self.download(&url, CONFIG_INDEX_DOWNLOAD_LIMIT, false)?;
             let json = std::str::from_utf8(&bytes).map_err(|error| {
                 repository_error(format!("repository index must be valid UTF-8: {error}"))
             })?;
-            read_repository_index(json).map_err(|error| repository_error(error.to_string()))
+            let index =
+                read_repository_index(json).map_err(|error| repository_error(error.to_string()))?;
+            Ok::<_, DesktopError>(RemoteIndex { index, url })
         })();
         {
             let mut state = self.write_state()?;
@@ -193,10 +206,13 @@ impl ConfigStore {
     pub fn uninstall_config(&self, id: &str) -> Result<ConfigRepositoryState, DesktopError> {
         let _operation = self.begin_change()?;
         check_id(id)?;
-        {
+        let stage = self.storage.stage()?;
+        let result = (|| {
+            let _gate = self.lock_mutation()?;
             let _state = self.write_state()?;
-            self.storage.uninstall(id)?;
-        }
+            self.storage.uninstall(&stage, id)
+        })();
+        Storage::finish(&stage, result)?;
         self.get_config_repository_state()
     }
 
@@ -217,6 +233,7 @@ impl ConfigStore {
         })?;
         let directory = path::absolute(&normalized).map_err(|error| io_error(directory, error))?;
         {
+            let _gate = self.lock_mutation()?;
             let mut state = self.write_state()?;
             let result = self.storage.set_local_directory(&directory);
             state.local_directory = if result.is_ok() {
@@ -232,22 +249,25 @@ impl ConfigStore {
     fn install_or_update(&self, id: &str) -> Result<ConfigRepositoryState, DesktopError> {
         let _operation = self.begin_change()?;
         check_id(id)?;
-        let entry = self
-            .read_state()?
-            .remote
-            .as_ref()
-            .and_then(|remote| remote.configs.iter().find(|entry| entry.id == id))
-            .cloned()
-            .ok_or_else(|| {
-                DesktopError::new(
-                    DesktopErrorCode::NotFound,
-                    "configuration is not present in the official source",
-                )
-            })?;
+        let (entry, base) = {
+            let state = self.read_state()?;
+            state
+                .remote
+                .as_ref()
+                .and_then(|remote| {
+                    let entry = remote.index.configs.iter().find(|entry| entry.id == id)?;
+                    Some((entry.clone(), remote.url.clone()))
+                })
+                .ok_or_else(|| {
+                    DesktopError::new(
+                        DesktopErrorCode::NotFound,
+                        "configuration is not present in the official source",
+                    )
+                })?
+        };
 
         // The index validator has already checked download_url's relative
         // path syntax, including percent-encoded separators and traversals.
-        let base = https_url(&self.options.index_url)?;
         let url = base
             .join(&entry.download_url)
             .map_err(|error| repository_error(format!("invalid package URL: {error}")))?;
@@ -256,7 +276,7 @@ impl ConfigStore {
                 "package URL must resolve to the HTTPS index origin",
             ));
         }
-        let bytes = self.download(url.as_str(), CONFIG_ZIP_DOWNLOAD_LIMIT)?;
+        let (bytes, _) = self.download(&url, CONFIG_ZIP_DOWNLOAD_LIMIT, true)?;
         if sha256_hex(&bytes) != entry.sha256 {
             return Err(repository_error(
                 "configuration package SHA-256 does not match the index",
@@ -268,7 +288,7 @@ impl ConfigStore {
             let staged_config = stage.join(id);
             extract_zip(&bytes, &staged_config)?;
             validate_snapshot(id, ConfigSource::Installed, read_directory(&staged_config)?)?;
-            self.check_simulation()?;
+            let _gate = self.lock_mutation()?;
             let _state = self.write_state()?;
             self.storage.commit_install(&stage, id, entry.sha256)
         })();
@@ -283,10 +303,25 @@ impl ConfigStore {
         }
     }
 
-    fn download(&self, url: &str, limit: usize) -> Result<Vec<u8>, DesktopError> {
-        let bytes = self.options.downloader.download(url, limit)?;
+    fn download(
+        &self,
+        url: &Url,
+        limit: usize,
+        same_origin_redirects: bool,
+    ) -> Result<(Vec<u8>, Url), DesktopError> {
+        let (bytes, resolved) = self.options.downloader.download_resolved(
+            url.as_str(),
+            limit,
+            same_origin_redirects,
+        )?;
         check_size(&bytes, limit)?;
-        Ok(bytes)
+        let resolved = https_url(&resolved)?;
+        if same_origin_redirects && resolved.origin() != url.origin() {
+            return Err(repository_error(
+                "configuration redirect must stay on the package origin",
+            ));
+        }
+        Ok((bytes, resolved))
     }
 
     fn begin_operation(&self) -> Result<MutexGuard<'_, ()>, DesktopError> {
@@ -301,8 +336,21 @@ impl ConfigStore {
 
     fn begin_change(&self) -> Result<MutexGuard<'_, ()>, DesktopError> {
         let operation = self.begin_operation()?;
-        self.check_simulation()?;
+        drop(self.lock_mutation()?);
         Ok(operation)
+    }
+
+    // The operation guard is already held. Acquire the state write guard
+    // only after this check, keeping the gate through publication.
+    fn lock_mutation(&self) -> Result<Option<MutexGuard<'_, ()>>, DesktopError> {
+        let gate = self
+            .options
+            .mutation_gate
+            .as_ref()
+            .map(|gate| gate.lock().map_err(|_| lock_error()))
+            .transpose()?;
+        self.check_simulation()?;
+        Ok(gate)
     }
 
     fn check_simulation(&self) -> Result<(), DesktopError> {
@@ -338,7 +386,17 @@ impl ConfigSnapshotProvider for ConfigStore {
         check_id(config_id)?;
         let state = self.read_state()?;
         let root = match source {
-            ConfigSource::Installed => &self.storage.installed,
+            ConfigSource::Installed => {
+                if self.storage.has_pending(config_id)? {
+                    return Err(DesktopError::new(
+                        DesktopErrorCode::Conflict,
+                        format!(
+                            "configuration {config_id} has a pending transaction that requires recovery"
+                        ),
+                    ));
+                }
+                &self.storage.installed
+            }
             ConfigSource::Local => state.local_directory.as_ref().ok_or_else(|| {
                 DesktopError::new(
                     DesktopErrorCode::NotFound,

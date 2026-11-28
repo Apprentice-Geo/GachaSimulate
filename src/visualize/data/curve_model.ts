@@ -1,4 +1,8 @@
-import { validate_analysis } from "./analysis";
+import {
+  consume_wire_parsed_analysis,
+  parse_canonical_u64,
+  validate_and_parse_analysis,
+} from "./analysis";
 import { validate_display_config } from "./validate_display_config";
 import type { Analysis, TerminationReason } from "../types/analysis";
 import type { MarkerKey, StatisticKey } from "../types/cdf";
@@ -9,7 +13,6 @@ import {
   STATISTIC_VIEW_ORDER,
 } from "../view/statistic_view_config";
 
-const MAX_U64 = 0xffff_ffff_ffff_ffffn;
 const RATIO_PRECISION = 1_000_000_000_000n;
 const RATIO_DIVISOR = 1_000_000_000_000;
 
@@ -109,18 +112,7 @@ export interface CurveViewModel {
 }
 
 export function parse_u64_bigint(value: string, label: string): bigint {
-  if (
-    typeof value !== "string" ||
-    value.length > 20 ||
-    !/^(?:0|[1-9][0-9]*)$/.test(value)
-  ) {
-    throw new Error(`${label} must be a canonical unsigned integer string`);
-  }
-  const parsed = BigInt(value);
-  if (parsed < 0n || parsed > MAX_U64) {
-    throw new Error(`${label} is outside the supported u64 range`);
-  }
-  return parsed;
+  return parse_canonical_u64(value, label);
 }
 
 export function compute_x_domain_max(max_draw: bigint): bigint {
@@ -161,22 +153,15 @@ export function get_cdf_level_at_exact_draw(
 }
 
 export function prepare_curve_data(input: Analysis): PreparedCurveData {
-  const analysis = validate_analysis(input);
-  const runs = parse_u64_bigint(analysis.totals.runs, "totals.runs");
-  if (runs < 1n) {
-    throw new Error("totals.runs must be positive");
-  }
-  const total_result = parse_u64_bigint(
-    analysis.totals.result,
-    "totals.result",
-  );
+  const parsed =
+    consume_wire_parsed_analysis(input) ?? validate_and_parse_analysis(input);
+  const { analysis, runs, total_result } = parsed;
 
   const stat_entries: Partial<Record<StatisticKey, ExactStatisticReading>> = {};
   for (const key of STATISTIC_KEYS) {
-    const text = analysis.statistic[key];
     stat_entries[key] = {
-      value: parse_u64_bigint(text, `statistic.${key}`),
-      text,
+      value: parsed.statistic[key],
+      text: analysis.statistic[key],
     };
   }
   const statistic = {
@@ -184,25 +169,18 @@ export function prepare_curve_data(input: Analysis): PreparedCurveData {
     MEAN_LEVEL: analysis.statistic.MEAN_LEVEL,
   };
 
-  const point_count = analysis.values.length;
-  const max_observed = parse_u64_bigint(
-    analysis.values[point_count - 1],
-    `values[${point_count - 1}]`,
-  );
+  const point_count = parsed.values.length;
+  const max_observed = parsed.values[point_count - 1];
   const max_draw =
     statistic.MAX.value > max_observed ? statistic.MAX.value : max_observed;
   const x_domain_max = compute_x_domain_max(max_draw);
 
   const chart_points = new Array<ExactCDFPoint>(point_count);
   for (let index = 0; index < point_count; index += 1) {
-    const draw_text = analysis.values[index];
-    const draw =
-      index === point_count - 1
-        ? max_observed
-        : parse_u64_bigint(draw_text, `values[${index}]`);
+    const draw = parsed.values[index];
     chart_points[index] = {
       draw,
-      draw_text,
+      draw_text: analysis.values[index],
       x_ratio: draw_to_plot_ratio(draw, x_domain_max),
       cumulative: analysis.cumulative[index],
     };

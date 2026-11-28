@@ -135,4 +135,11 @@ test("curve model rejects u64 overflows, zero runs, and non-canonical integers",
       totals: { ...analysis.totals, runs: "0" },
     }),
   );
+  // Reject huge multi-million-digit strings before calling BigInt.
+  assert.throws(() =>
+    prepare_curve_data({
+      ...analysis,
+      values: ["1", "9".repeat(200_000)],
+    }),
+  );
 });

@@ -2,7 +2,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, OnceLock,
+        Arc, Mutex, OnceLock,
     },
 };
 
@@ -18,9 +18,12 @@ use tauri::{Emitter, Manager, State, WindowEvent};
 use tauri_plugin_dialog::{DialogExt, FilePath};
 use tauri_plugin_opener::OpenerExt;
 
+const SHUTDOWN_ERROR_EVENT_NAME: &str = "desktop://shutdown-error";
+
 pub struct AppState {
     pub config_store: Arc<ConfigStore>,
     pub host: Arc<DesktopHost>,
+    mutation_gate: Arc<Mutex<()>>,
     shutdown_in_progress: AtomicBool,
     allow_close: AtomicBool,
 }
@@ -34,6 +37,7 @@ impl AppState {
         let configs_dir = data_root.join("configs");
         let results_dir = data_root.join("results");
 
+        let mutation_gate = Arc::new(Mutex::new(()));
         let simulation_slot: Arc<OnceLock<SimulationHost>> = Arc::new(OnceLock::new());
         let sim_active_slot = simulation_slot.clone();
         let mut store_options = ConfigStoreOptions {
@@ -50,6 +54,7 @@ impl AppState {
                     )
                 })
             })),
+            mutation_gate: Some(mutation_gate.clone()),
             ..ConfigStoreOptions::default()
         };
         if let Ok(index_url) = std::env::var("GACHASIMULATE_CONFIG_INDEX_URL") {
@@ -85,6 +90,7 @@ impl AppState {
         Ok(Self {
             config_store,
             host,
+            mutation_gate,
             shutdown_in_progress: AtomicBool::new(false),
             allow_close: AtomicBool::new(false),
         })
@@ -244,7 +250,17 @@ async fn start_simulation(
     request: SimulationCommandRequest,
 ) -> Result<SimulationTaskSnapshot, DesktopError> {
     let host = state.host.clone();
-    run_blocking(move || host.simulation.start_simulation(request)).await
+    let gate = state.mutation_gate.clone();
+    run_blocking(move || {
+        let _guard = gate.lock().map_err(|_| {
+            DesktopError::new(
+                DesktopErrorCode::Internal,
+                "simulation admission gate poisoned",
+            )
+        })?;
+        host.simulation.start_simulation(request)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -358,8 +374,9 @@ pub fn run() {
                                 window_handle.app_handle().exit(0);
                             }
                         }
-                        Err(_) => {
+                        Err(error) => {
                             state.shutdown_in_progress.store(false, Ordering::Release);
+                            let _ = window_handle.emit(SHUTDOWN_ERROR_EVENT_NAME, &error);
                         }
                     }
                 });

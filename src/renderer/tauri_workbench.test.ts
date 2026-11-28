@@ -402,6 +402,138 @@ test("TauriSimulationController restores cancellation after double failure, supp
   flakyController.disconnect();
 });
 
+test("TauriSimulationController preserves pending cancel across late start reply, replays deferred reconnect completion, and locks concurrent starts during listener setup", async () => {
+  const events = load_fixture<{
+    cancelRace: { beforeCancel: SimulationTaskEvent[] };
+  }>("simulation-events.json");
+  const idle: SimulationTaskSnapshot = {
+    taskId: null,
+    seq: 0,
+    status: "idle",
+    stage: null,
+    completedRuns: 0,
+    totalRuns: 0,
+    totalResult: null,
+    resultFilename: null,
+    message: null,
+    cancelRetryable: false,
+  };
+  const running = events.cancelRace.beforeCancel[1].snapshot;
+
+  // 1. Late start_simulation reply must not hide an in-flight cancel request.
+  let resolveLateStart!: (snapshot: SimulationTaskSnapshot) => void;
+  let resolveLateCancel!: (snapshot: SimulationTaskSnapshot) => void;
+  const lateMock = create_mock_transport({
+    get_simulation_state: () => idle,
+    start_simulation: () =>
+      new Promise<SimulationTaskSnapshot>((r) => {
+        resolveLateStart = r;
+      }),
+    cancel_simulation: () =>
+      new Promise<SimulationTaskSnapshot>((r) => {
+        resolveLateCancel = r;
+      }),
+  });
+  const lateCtrl = new TauriSimulationController(
+    createTauriDesktopClient(lateMock.transport),
+  );
+  await lateCtrl.connect();
+  const startPromise = lateCtrl.start(SAMPLE_REQUEST, 8);
+  await Promise.resolve();
+  lateMock.emit(SIMULATION_EVENT_NAME, {
+    taskId: running.taskId!,
+    seq: running.seq,
+    snapshot: running,
+  });
+  const cancelPromise = lateCtrl.cancel();
+  assert.equal(lateCtrl.get_snapshot().cancellingLocally, true);
+  // Start reply arrives before cancel reply -> cancellingLocally must stay true!
+  resolveLateStart(running);
+  await startPromise;
+  assert.equal(lateCtrl.get_snapshot().cancellingLocally, true);
+  resolveLateCancel({
+    ...running,
+    seq: running.seq + 1,
+    status: "cancelled",
+  });
+  await cancelPromise;
+  assert.equal(lateCtrl.get_snapshot().cancellingLocally, false);
+  assert.equal(lateCtrl.get_snapshot().snapshot.status, "cancelled");
+  lateCtrl.disconnect();
+
+  // 2. Reconnect read returning completed during pending cancel is buffered
+  // and reconciled when cancel + fallback state read both reject.
+  let hostState: SimulationTaskSnapshot = running;
+  let failHostReads = false;
+  let rejectCancel!: (reason: unknown) => void;
+  const reconMock = create_mock_transport({
+    get_simulation_state: () => {
+      if (failHostReads) throw { code: "io", message: "fallback read failed" };
+      return hostState;
+    },
+    cancel_simulation: () =>
+      new Promise<SimulationTaskSnapshot>((_res, rej) => {
+        rejectCancel = rej;
+      }),
+  });
+  const reconCtrl = new TauriSimulationController(
+    createTauriDesktopClient(reconMock.transport),
+  );
+  await reconCtrl.connect();
+  const reconCancel = reconCtrl.cancel();
+  // Host finishes while cancel is in-flight; reconnect observes completed snapshot.
+  hostState = {
+    ...running,
+    seq: running.seq + 1,
+    status: "completed",
+    stage: null,
+    completedRuns: running.totalRuns,
+    totalResult: "1234",
+    resultFilename: "done.gsr",
+  };
+  await reconCtrl.refresh_from_host();
+  // Still frozen while cancel is pending.
+  assert.equal(reconCtrl.get_snapshot().snapshot.status, "running");
+  assert.equal(reconCtrl.get_snapshot().cancellingLocally, true);
+  // Cancel rejects and fallback getSimulationState fails -> buffered completed reconciles!
+  failHostReads = true;
+  rejectCancel({ code: "conflict", message: "task already finished" });
+  await reconCancel;
+  assert.equal(reconCtrl.get_snapshot().cancellingLocally, false);
+  assert.equal(reconCtrl.get_snapshot().snapshot.status, "completed");
+  assert.equal(reconCtrl.get_snapshot().snapshot.resultFilename, "done.gsr");
+  reconCtrl.disconnect();
+
+  // 3. Two concurrent start() calls while listener subscription is still pending
+  // must only invoke start_simulation once.
+  let resolveListen!: (unlisten: () => void) => void;
+  let startCount = 0;
+  const raceTransport: TauriTransport = {
+    async invoke<T>(command: DesktopCommand) {
+      if (command === "get_simulation_state") return idle as T;
+      if (command === "start_simulation") {
+        startCount += 1;
+        return running as T;
+      }
+      throw { code: "notImplemented", message: command };
+    },
+    listen() {
+      return new Promise((r) => {
+        resolveListen = r;
+      });
+    },
+  };
+  const raceCtrl = new TauriSimulationController(
+    createTauriDesktopClient(raceTransport),
+  );
+  const first = raceCtrl.start(SAMPLE_REQUEST, 8);
+  const second = raceCtrl.start(SAMPLE_REQUEST, 8);
+  resolveListen(() => undefined);
+  assert.deepEqual(await Promise.all([first, second]), [true, false]);
+  assert.equal(startCount, 1);
+  raceCtrl.disconnect();
+});
+
 test("TauriResultSessionController confirms valid big-integer candidates and keeps active session on failure or stale confirm", async () => {
   const largeCandidate = load_fixture<ResultCandidateSession>(
     "result-candidate-large-total.json",

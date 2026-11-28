@@ -1,7 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::{self, Cursor, Write};
 use std::path::Path;
+use std::time::SystemTime;
 
 use gachasimulate_config::{compile_snapshot, read_config_items, validate_config_package};
 use gachasimulate_desktop_contract::{
@@ -66,6 +67,10 @@ pub(crate) fn is_link(metadata: &Metadata) -> bool {
 }
 
 pub(crate) fn require_directory(path: &Path) -> io::Result<()> {
+    directory_metadata(path).map(|_| ())
+}
+
+fn directory_metadata(path: &Path) -> io::Result<Metadata> {
     let metadata = fs::symlink_metadata(path)?;
     if !metadata.is_dir() || is_link(&metadata) {
         return Err(io::Error::new(
@@ -73,57 +78,175 @@ pub(crate) fn require_directory(path: &Path) -> io::Result<()> {
             "path must be a real directory",
         ));
     }
-    Ok(())
+    Ok(metadata)
 }
 
-pub(crate) fn read_file(path: &Path, limit: u64) -> io::Result<Vec<u8>> {
-    fn regular_file(metadata: &Metadata) -> io::Result<()> {
+#[derive(PartialEq, Eq)]
+struct EntryStamp {
+    len: u64,
+    modified: SystemTime,
+    created: Option<SystemTime>,
+    #[cfg(unix)]
+    unix_identity: (u64, u64, i64, i64),
+}
+
+impl EntryStamp {
+    fn new(metadata: &Metadata) -> io::Result<Self> {
+        #[cfg(unix)]
+        use std::os::unix::fs::MetadataExt;
+        Ok(Self {
+            len: metadata.len(),
+            modified: metadata.modified()?,
+            created: metadata.created().ok(),
+            #[cfg(unix)]
+            unix_identity: (
+                metadata.dev(),
+                metadata.ino(),
+                metadata.ctime(),
+                metadata.ctime_nsec(),
+            ),
+        })
+    }
+
+    fn regular_file(metadata: &Metadata) -> io::Result<Self> {
         if !metadata.is_file() || is_link(metadata) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "path must be a regular file",
             ));
         }
-        Ok(())
+        Self::new(metadata)
     }
+}
 
-    let before = fs::symlink_metadata(path)?;
-    regular_file(&before)?;
+fn changed() -> io::Error {
+    io::Error::new(
+        io::ErrorKind::InvalidData,
+        "configuration changed while being read",
+    )
+}
+
+pub(crate) fn read_file(path: &Path, limit: u64) -> io::Result<Vec<u8>> {
+    let before = EntryStamp::regular_file(&fs::symlink_metadata(path)?)?;
     let mut options = OpenOptions::new();
     options.read(true);
     #[cfg(windows)]
     {
         use std::os::windows::fs::OpenOptionsExt;
+        // FILE_SHARE_READ blocks concurrent open writers that can defer timestamp updates;
         // FILE_FLAG_OPEN_REPARSE_POINT opens a substituted link itself.
+        options.share_mode(0x0000_0001);
         options.custom_flags(0x0020_0000);
     }
     let file = options.open(path)?;
-    let opened = file.metadata()?;
-    regular_file(&opened)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        if (before.dev(), before.ino()) != (opened.dev(), opened.ino()) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "file changed while opening",
-            ));
-        }
+    if before != EntryStamp::regular_file(&file.metadata()?)? {
+        return Err(changed());
     }
-    let bytes = read_up_to(file, limit)?;
+    let bytes = read_up_to(&file, limit)?;
     if bytes.len() as u64 > limit {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
             format!("file exceeds {limit} bytes"),
         ));
     }
+    if bytes.len() as u64 != before.len
+        || before != EntryStamp::regular_file(&file.metadata()?)?
+        || before != EntryStamp::regular_file(&fs::symlink_metadata(path)?)?
+    {
+        return Err(changed());
+    }
     Ok(bytes)
 }
 
 pub(crate) fn read_directory(directory: &Path) -> Result<Vec<ConfigPackageBytes>, DesktopError> {
-    require_directory(directory).map_err(|error| io_error(directory, error))?;
+    read_directory_with(directory, read_file)
+}
+
+fn read_directory_with(
+    directory: &Path,
+    mut read_entry: impl FnMut(&Path, u64) -> io::Result<Vec<u8>>,
+) -> Result<Vec<ConfigPackageBytes>, DesktopError> {
+    #[cfg(windows)]
+    let _ancestors = pin_directory_path(directory)?;
+    let canonical = checked_directory_path(directory)?;
+    let before = directory_stamp(directory)?;
+    let entries = directory_entries(directory)?;
+    let mut files = Vec::with_capacity(entries.len());
+    for (name, stamp) in &entries {
+        let path = directory.join(name);
+        if stamp != &file_stamp(&path)? {
+            return Err(io_error(&path, changed()));
+        }
+        let bytes = read_entry(&path, CONFIG_PACKAGE_FILE_SIZE_LIMIT)
+            .map_err(|error| io_error(&path, error))?;
+        if stamp != &file_stamp(&path)? {
+            return Err(io_error(&path, changed()));
+        }
+        files.push(ConfigPackageBytes {
+            path: name.clone(),
+            bytes,
+        });
+    }
+    if entries != directory_entries(directory)?
+        || before != directory_stamp(directory)?
+        || canonical != checked_directory_path(directory)?
+    {
+        return Err(io_error(directory, changed()));
+    }
+    Ok(files)
+}
+
+fn checked_directory_path(directory: &Path) -> Result<std::path::PathBuf, DesktopError> {
+    let ancestors: Vec<_> = directory.ancestors().collect();
+    for path in ancestors.into_iter().rev() {
+        require_directory(path).map_err(|error| io_error(path, error))?;
+    }
+    fs::canonicalize(directory).map_err(|error| io_error(directory, error))
+}
+
+#[cfg(windows)]
+fn pin_directory_path(directory: &Path) -> Result<Vec<File>, DesktopError> {
+    use std::os::windows::fs::OpenOptionsExt;
+    let ancestors: Vec<_> = directory.ancestors().collect();
+    ancestors
+        .into_iter()
+        .rev()
+        .map(|path| {
+            // Open the directory itself and keep it from being renamed or
+            // turned into a junction while the package path is in use.
+            let handle = OpenOptions::new()
+                .read(true)
+                .share_mode(0x1)
+                .custom_flags(0x0220_0000) // BACKUP_SEMANTICS | OPEN_REPARSE_POINT
+                .open(path)
+                .map_err(|error| io_error(path, error))?;
+            let metadata = handle.metadata().map_err(|error| io_error(path, error))?;
+            if !metadata.is_dir() || is_link(&metadata) {
+                return Err(io_error(
+                    path,
+                    io::Error::new(io::ErrorKind::InvalidInput, "path must be a real directory"),
+                ));
+            }
+            Ok(handle)
+        })
+        .collect()
+}
+
+fn directory_stamp(path: &Path) -> Result<EntryStamp, DesktopError> {
+    directory_metadata(path)
+        .and_then(|metadata| EntryStamp::new(&metadata))
+        .map_err(|error| io_error(path, error))
+}
+
+fn file_stamp(path: &Path) -> Result<EntryStamp, DesktopError> {
+    fs::symlink_metadata(path)
+        .and_then(|metadata| EntryStamp::regular_file(&metadata))
+        .map_err(|error| io_error(path, error))
+}
+
+fn directory_entries(directory: &Path) -> Result<BTreeMap<String, EntryStamp>, DesktopError> {
     let entries = fs::read_dir(directory).map_err(|error| io_error(directory, error))?;
-    let mut files = Vec::new();
+    let mut files = BTreeMap::new();
     for entry in entries {
         if files.len() == CONFIG_PACKAGE_FILE_LIMIT {
             return Err(repository_error("configuration package exceeds 64 files"));
@@ -134,10 +257,7 @@ pub(crate) fn read_directory(directory: &Path) -> Result<Vec<ConfigPackageBytes>
             .into_string()
             .map_err(|_| repository_error("configuration file name must be valid UTF-8"))?;
         check_yaml_name(&path)?;
-        let file = entry.path();
-        let bytes = read_file(&file, CONFIG_PACKAGE_FILE_SIZE_LIMIT)
-            .map_err(|error| io_error(&file, error))?;
-        files.push(ConfigPackageBytes { path, bytes });
+        files.insert(path, file_stamp(&entry.path())?);
     }
     Ok(files)
 }
@@ -198,11 +318,18 @@ pub(crate) fn extract_zip(bytes: &[u8], directory: &Path) -> Result<(), DesktopE
         }
         let path = directory.join(name);
         File::create_new(&path)
-            .and_then(|mut file| file.write_all(&bytes))
+            .and_then(|mut file| {
+                file.write_all(&bytes)?;
+                file.sync_all()
+            })
             .map_err(|error| io_error(&path, error))?;
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../tests/support/package_read.rs"]
+mod tests;
 
 pub(crate) fn validate_snapshot(
     id: &str,

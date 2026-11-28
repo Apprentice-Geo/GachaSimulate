@@ -139,7 +139,12 @@ export function TauriSimulationPage({
     effective_status === "saving" ||
     effective_status === "cancelling";
   const can_start =
-    !busy && !result_loading && !loading && !config_error && Boolean(selected);
+    !busy &&
+    !sim.startBusy &&
+    !result_loading &&
+    !loading &&
+    !config_error &&
+    Boolean(selected);
   const can_cancel =
     !sim.cancellingLocally &&
     !sim.startingLocally &&

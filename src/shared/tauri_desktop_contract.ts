@@ -1,4 +1,7 @@
-import { validate_analysis } from "../visualize/data/analysis";
+import {
+  validate_and_parse_analysis,
+  type ParsedAnalysis,
+} from "../visualize/data/analysis";
 import { validate_display_config } from "../visualize/data/validate_display_config";
 import type { Analysis } from "../visualize/types/analysis";
 import type { DisplayConfig } from "../visualize/types/display_config";
@@ -26,6 +29,7 @@ export const MAX_RUNS = MAX_TOTAL_RUNS;
 export const MAX_DESKTOP_THREADS = 256;
 export const DISPLAY_CONFIG_JSON_BYTE_LIMIT = 16 * 1024 * 1024;
 export const SIMULATION_EVENT_NAME = "simulation://event";
+export const SHUTDOWN_ERROR_EVENT_NAME = "desktop://shutdown-error";
 
 export type DesktopErrorCode =
   | "invalidRequest"
@@ -373,34 +377,10 @@ export function validateDisplayConfig(value: unknown): DisplayConfig {
   return display;
 }
 
-function assertAnalysisU64Bounds(analysis: Analysis): void {
-  if (!isU64Decimal(analysis.totals.runs) || BigInt(analysis.totals.runs) < 1n)
-    throw new Error("analysis totals.runs exceeds u64 range");
-  if (!isU64Decimal(analysis.totals.result))
-    throw new Error("analysis totals.result exceeds u64 range");
-  for (const value of analysis.values) {
-    if (!isU64Decimal(value))
-      throw new Error("analysis values entry exceeds u64 range");
-  }
-  const statKeys = [
-    "P5",
-    "P25",
-    "P50",
-    "P75",
-    "P95",
-    "MIN",
-    "MEAN",
-    "MAX",
-  ] as const;
-  for (const key of statKeys) {
-    if (!isU64Decimal(analysis.statistic[key]))
-      throw new Error(`analysis statistic.${key} exceeds u64 range`);
-  }
-}
-
-export function validateResultCandidateSession(
-  value: unknown,
-): ResultCandidateSession {
+export function validateResultCandidateSessionWithParsed(value: unknown): {
+  candidate: ResultCandidateSession;
+  parsed: ParsedAnalysis;
+} {
   const candidate = exactObject(
     value,
     ["sessionId", "filename", "fields", "analysis", "display"],
@@ -422,18 +402,26 @@ export function validateResultCandidateSession(
     !fields.result_item_name
   )
     throw new Error("invalid display fields");
-  const analysis = validate_analysis(candidate.analysis);
-  assertAnalysisU64Bounds(analysis);
+  const parsed = validate_and_parse_analysis(candidate.analysis);
   const display = validateDisplayConfig(candidate.display);
   if (DISPLAY_FIELD_KEYS.some((key) => fields[key] !== display[key]))
     throw new Error("Result candidate fields differ from display");
   return {
-    sessionId: candidate.sessionId,
-    filename: candidate.filename,
-    fields: candidate.fields as DisplayFields,
-    analysis,
-    display,
+    candidate: {
+      sessionId: candidate.sessionId,
+      filename: candidate.filename,
+      fields: candidate.fields as DisplayFields,
+      analysis: parsed.analysis,
+      display,
+    },
+    parsed,
   };
+}
+
+export function validateResultCandidateSession(
+  value: unknown,
+): ResultCandidateSession {
+  return validateResultCandidateSessionWithParsed(value).candidate;
 }
 
 function isCancelling(status: SimulationStatus): boolean {
@@ -458,6 +446,7 @@ export class SimulationClientTracker {
   #freezeReadings = false;
   #hydrated = false;
   #futureEvent: SimulationTaskEvent | null = null;
+  #deferredSnapshot: SimulationTaskSnapshot | null = null;
 
   get snapshot(): Readonly<SimulationTaskSnapshot> {
     return this.#snapshot;
@@ -526,11 +515,16 @@ export class SimulationClientTracker {
   }
 
   private replayFutureEvent(): boolean {
-    if (!this.#hydrated || this.#cancelPending || this.#futureEvent === null)
-      return false;
+    if (!this.#hydrated || this.#cancelPending) return false;
     const future = this.#futureEvent;
+    const deferred = this.#deferredSnapshot;
+    if (future === null && deferred === null) return false;
     this.#futureEvent = null;
-    return this.applyEvent(future);
+    this.#deferredSnapshot = null;
+    if (future !== null && (deferred === null || future.seq >= deferred.seq)) {
+      return this.applyEvent(future);
+    }
+    return deferred !== null ? this.reconcileSnapshot(deferred, false) : false;
   }
 
   private reconcileSnapshot(
@@ -562,8 +556,17 @@ export class SimulationClientTracker {
         !failedCleanup &&
         (isCancelling(current.status) ||
           (this.#cancelPending && !cancelSettled))
-      )
+      ) {
+        if (
+          !isCancelling(current.status) &&
+          this.#cancelPending &&
+          !cancelSettled &&
+          next.seq > (this.#deferredSnapshot?.seq ?? 0)
+        ) {
+          this.#deferredSnapshot = { ...next };
+        }
         return false;
+      }
     }
 
     this.#freezeReadings =

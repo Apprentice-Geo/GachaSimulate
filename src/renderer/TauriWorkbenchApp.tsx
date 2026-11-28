@@ -84,10 +84,34 @@ export function TauriWorkbenchApp({
     () => new TauriResultSessionController(client),
   );
 
+  const [shutdown_error, set_shutdown_error] = useState<string | null>(null);
+
   useEffect(() => {
     void simulation_controller.connect().catch(() => undefined);
     return () => simulation_controller.disconnect();
   }, [simulation_controller]);
+
+  useEffect(() => {
+    if (!client.onShutdownError) return;
+    let active = true;
+    let unlisten: (() => void) | null = null;
+    void client
+      .onShutdownError((error) => {
+        if (active) set_shutdown_error(error.message);
+      })
+      .then((fn) => {
+        if (active) {
+          unlisten = fn;
+        } else {
+          fn();
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, [client]);
 
   const result_session = useSyncExternalStore(
     result_controller.subscribe,
@@ -135,6 +159,18 @@ export function TauriWorkbenchApp({
         </nav>
       </aside>
       <main className="renderer-main">
+        {shutdown_error && (
+          <div className="simulation-error" role="alert">
+            <span>无法关闭应用：{shutdown_error}</span>
+            <button
+              type="button"
+              className="button button-ghost"
+              onClick={() => set_shutdown_error(null)}
+            >
+              知道了
+            </button>
+          </div>
+        )}
         <div className="renderer-content">
           <TauriSimulationPage
             active={active_page === "simulation"}

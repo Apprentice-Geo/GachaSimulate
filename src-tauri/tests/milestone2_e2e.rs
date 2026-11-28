@@ -389,6 +389,16 @@ fn milestone2_fresh_install_e2e_covers_same_id_switch_item_cancel_restart_and_la
         "cancelled simulation must not leave temp files or commit new GSR"
     );
 
+    // Verify second ConfigStore opening the same active data_root is rejected with Conflict.
+    let second_store = ConfigStore::new(data_root.join("configs"));
+    assert!(
+        matches!(
+            second_store,
+            Err(ref err) if err.code == DesktopErrorCode::Conflict
+        ),
+        "second app instance targeting the same data root must be blocked by root lock"
+    );
+
     // Clean shutdown and simulate full app restart on the same data_root.
     host.shutdown().unwrap();
     drop(host);

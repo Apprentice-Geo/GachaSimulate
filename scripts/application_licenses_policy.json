@@ -7,6 +7,52 @@
     "MIT",
     "MIT AND ISC"
   ],
+  "rust_allowed_license_expressions": [
+    "(MIT OR Apache-2.0) AND Unicode-3.0",
+    "0BSD OR MIT OR Apache-2.0",
+    "Apache-2.0",
+    "Apache-2.0 / MIT",
+    "Apache-2.0 AND MIT",
+    "Apache-2.0 OR MIT",
+    "BSD-3-Clause",
+    "BSD-3-Clause AND MIT",
+    "BSD-3-Clause/MIT",
+    "CC0-1.0 OR MIT-0 OR Apache-2.0",
+    "CDLA-Permissive-2.0",
+    "MIT",
+    "MIT OR Apache-2.0",
+    "MIT OR Apache-2.0 OR Zlib",
+    "MIT OR Zlib OR Apache-2.0",
+    "MIT/Apache-2.0",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense OR MIT",
+    "Unlicense/MIT",
+    "Zlib",
+    "Zlib OR Apache-2.0 OR MIT"
+  ],
+  "rust_reviewed_overrides": {
+    "alloc-stdlib@0.3.0": {
+      "license_expression": "BSD-3-Clause",
+      "license_file": "third_party/licenses/rust-brotli-BSD-3-Clause.txt"
+    },
+    "selectors@0.38.0": {
+      "license_expression": "MPL-2.0",
+      "license_file": "third_party/licenses/stylo-MPL-2.0.txt"
+    },
+    "webview2-com@0.39.1": {
+      "license_expression": "MIT",
+      "license_file": "third_party/licenses/webview2-rs-MIT.txt"
+    },
+    "webview2-com-macros@0.8.1": {
+      "license_expression": "MIT",
+      "license_file": "third_party/licenses/webview2-rs-MIT.txt"
+    },
+    "webview2-com-sys@0.39.1": {
+      "license_expression": "MIT",
+      "license_file": "third_party/licenses/webview2-rs-MIT.txt"
+    }
+  },
   "reviewed_overrides": {
     "victory-vendor@37.3.6": {
       "license_expression": "MIT AND ISC",

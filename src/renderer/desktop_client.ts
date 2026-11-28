@@ -1,7 +1,8 @@
 import {
+  SHUTDOWN_ERROR_EVENT_NAME,
   SIMULATION_EVENT_NAME,
   validateDisplayConfig,
-  validateResultCandidateSession,
+  validateResultCandidateSessionWithParsed,
   validateSimulationTaskEvent,
   validateSimulationTaskSnapshot,
   type AppLink,
@@ -21,6 +22,7 @@ import {
   type SimulationTaskEvent,
   type SimulationTaskSnapshot,
 } from "../shared/tauri_desktop_contract";
+import { register_wire_parsed_analysis } from "../visualize/data/analysis";
 
 export type TauriUnlisten = () => void;
 
@@ -111,6 +113,9 @@ export interface TauriDesktopClient {
   discardResultDraft(request: DiscardResultDraftRequest): Promise<void>;
   onSimulationEvent(
     listener: (event: SimulationTaskEvent) => void,
+  ): Promise<TauriUnlisten>;
+  onShutdownError?(
+    listener: (error: DesktopCommandError) => void,
   ): Promise<TauriUnlisten>;
 }
 
@@ -206,15 +211,20 @@ export function createTauriDesktopClient(
       ),
     openResultsDirectory: () => call<void>("open_results_directory"),
     selectGsrResult: async () => {
-      const candidate = await call<unknown>("select_gsr_result");
-      return candidate === null
-        ? null
-        : validateResultCandidateSession(candidate);
+      const raw = await call<unknown>("select_gsr_result");
+      if (raw === null) return null;
+      const { candidate, parsed } =
+        validateResultCandidateSessionWithParsed(raw);
+      register_wire_parsed_analysis(candidate.analysis, parsed);
+      return candidate;
     },
-    openSimulationResult: async () =>
-      validateResultCandidateSession(
+    openSimulationResult: async () => {
+      const { candidate, parsed } = validateResultCandidateSessionWithParsed(
         await call<unknown>("open_simulation_result"),
-      ),
+      );
+      register_wire_parsed_analysis(candidate.analysis, parsed);
+      return candidate;
+    },
     confirmResultSession: async (request) =>
       validateConfirmResponse(
         await call<unknown>("confirm_result_session", { request }),
@@ -234,6 +244,18 @@ export function createTauriDesktopClient(
             // Ignore malformed wire events instead of crashing the UI loop.
           }
         });
+      } catch (reason) {
+        throw toDesktopError(reason);
+      }
+    },
+    onShutdownError: async (listener) => {
+      try {
+        return await transport.listen<unknown>(
+          SHUTDOWN_ERROR_EVENT_NAME,
+          (raw) => {
+            listener(toDesktopError(raw));
+          },
+        );
       } catch (reason) {
         throw toDesktopError(reason);
       }

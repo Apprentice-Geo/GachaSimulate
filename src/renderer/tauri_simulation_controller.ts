@@ -13,10 +13,24 @@ import {
 export type TauriSimulationState = Readonly<{
   snapshot: Readonly<SimulationTaskSnapshot>;
   startingLocally: boolean;
+  startBusy: boolean;
   cancellingLocally: boolean;
   eventsConnected: boolean;
   error: string | null;
 }>;
+
+function isCancelSettledForPending(
+  snapshot: Readonly<SimulationTaskSnapshot>,
+  pending: { taskId: number; baselineSeq: number },
+): boolean {
+  if (snapshot.taskId !== pending.taskId) return true;
+  if (snapshot.seq <= pending.baselineSeq) return false;
+  return (
+    snapshot.status === "cancelled" ||
+    snapshot.status === "failed" ||
+    (snapshot.status === "cancelling" && !snapshot.cancelRetryable)
+  );
+}
 
 /**
  * App-owned simulation controller that binds to the host's sequenced task
@@ -28,12 +42,14 @@ export class TauriSimulationController {
   private readonly listeners = new Set<() => void>();
   private unlisten: TauriUnlisten | null = null;
   private connectionGen = 0;
-  private startInFlight = false;
+  private startLocked = false;
+  private startAwaitingEvent = false;
   private startBaselineTaskId: number | null = null;
-  private cancelInFlight = false;
+  private pendingCancel: { taskId: number; baselineSeq: number } | null = null;
   private state: TauriSimulationState = {
     snapshot: this.tracker.snapshot,
     startingLocally: false,
+    startBusy: false,
     cancellingLocally: false,
     eventsConnected: false,
     error: null,
@@ -57,10 +73,15 @@ export class TauriSimulationController {
   };
 
   private emit(patch: Partial<TauriSimulationState> = {}): void {
+    const snapshot = this.tracker.snapshot;
     this.state = {
       ...this.state,
-      snapshot: this.tracker.snapshot,
-      startingLocally: this.startInFlight,
+      snapshot,
+      startingLocally: this.startAwaitingEvent,
+      startBusy: this.startLocked,
+      cancellingLocally:
+        this.pendingCancel !== null &&
+        !isCancelSettledForPending(snapshot, this.pendingCancel),
       eventsConnected: this.unlisten !== null,
       ...patch,
     };
@@ -78,20 +99,13 @@ export class TauriSimulationController {
         if (this.tracker.applyEvent(event)) {
           const next = this.tracker.snapshot;
           if (
-            this.startInFlight &&
+            this.startAwaitingEvent &&
             next.taskId !== null &&
             next.taskId !== this.startBaselineTaskId
           ) {
-            this.startInFlight = false;
+            this.startAwaitingEvent = false;
           }
-          const cancelSettledByEvent =
-            next.status === "cancelling" ||
-            next.status === "cancelled" ||
-            next.status === "failed";
-          this.emit({
-            cancellingLocally: this.cancelInFlight && !cancelSettledByEvent,
-            error: next.message,
-          });
+          this.emit({ error: next.message });
         }
       });
       if (gen !== this.connectionGen) {
@@ -128,95 +142,85 @@ export class TauriSimulationController {
     this.tracker.reconcile(fresh);
     const next = this.tracker.snapshot;
     if (
-      this.startInFlight &&
+      this.startAwaitingEvent &&
       next.taskId !== null &&
       next.taskId !== this.startBaselineTaskId
     ) {
-      this.startInFlight = false;
+      this.startAwaitingEvent = false;
     }
-    const cancelSettledBySnapshot =
-      next.status === "cancelling" ||
-      next.status === "cancelled" ||
-      next.status === "failed";
-    this.emit({
-      cancellingLocally: this.cancelInFlight && !cancelSettledBySnapshot,
-      error: next.message,
-    });
+    this.emit({ error: next.message });
   }
 
   async start(
     request: SimulationCommandRequest,
     maxThreads: number,
   ): Promise<boolean> {
-    if (this.startInFlight) return false;
+    if (this.startLocked) return false;
     try {
       validateSimulationCommandRequest(request, maxThreads);
     } catch (reason) {
       this.emit({ error: toDesktopError(reason).message });
       return false;
     }
-    if (this.unlisten === null) {
-      try {
-        await this.connect();
-      } catch (reason) {
-        this.emit({ error: toDesktopError(reason).message });
-        return false;
-      }
-    }
-    const gen = this.connectionGen;
+    this.startLocked = true;
     this.startBaselineTaskId = this.tracker.snapshot.taskId;
-    this.startInFlight = true;
+    this.startAwaitingEvent = true;
     this.emit({ error: null });
     try {
+      if (this.unlisten === null) {
+        await this.connect();
+        this.startBaselineTaskId = this.tracker.snapshot.taskId;
+      }
+      const gen = this.connectionGen;
       const snapshot = await this.client.startSimulation(request);
-      this.startInFlight = false;
+      this.startAwaitingEvent = false;
       if (gen !== this.connectionGen) {
         this.emit();
         return false;
       }
       this.tracker.reconcile(snapshot);
-      this.emit({
-        cancellingLocally: false,
-        error: this.tracker.snapshot.message,
-      });
+      this.emit({ error: this.tracker.snapshot.message });
       return true;
     } catch (reason) {
-      this.startInFlight = false;
+      this.startAwaitingEvent = false;
       this.emit({ error: toDesktopError(reason).message });
       return false;
+    } finally {
+      this.startLocked = false;
+      this.startAwaitingEvent = false;
+      this.emit();
     }
   }
 
   async cancel(): Promise<void> {
     const cancelRequest = this.tracker.requestCancel();
     if (!cancelRequest) return;
-    this.cancelInFlight = true;
-    this.emit({ cancellingLocally: true, error: null });
+    const pending = {
+      taskId: cancelRequest.taskId,
+      baselineSeq: this.tracker.snapshot.seq,
+    };
+    this.pendingCancel = pending;
+    this.emit({ error: null });
     try {
       const snapshot = await this.client.cancelSimulation(cancelRequest);
-      this.cancelInFlight = false;
+      if (this.pendingCancel === pending) this.pendingCancel = null;
       this.tracker.reconcileAfterCancel(snapshot);
-      this.emit({
-        cancellingLocally: false,
-        error: this.tracker.snapshot.message,
-      });
+      this.emit({ error: this.tracker.snapshot.message });
     } catch (reason) {
       const cancelError = toDesktopError(reason);
       try {
         const fresh = await this.client.getSimulationState();
-        this.cancelInFlight = false;
+        if (this.pendingCancel === pending) this.pendingCancel = null;
         this.tracker.reconcileAfterCancel(fresh);
         this.emit({
-          cancellingLocally: false,
           error: this.tracker.snapshot.message ?? cancelError.message,
         });
       } catch {
-        this.cancelInFlight = false;
+        if (this.pendingCancel === pending) this.pendingCancel = null;
         // Release the tracker's pending-cancel lock so the user can retry cancel
-        // and any buffered terminal event can reconcile immediately.
+        // and any buffered terminal event or snapshot can reconcile immediately.
         this.tracker.reconcileAfterCancel(this.tracker.snapshot);
         this.emit({
-          cancellingLocally: false,
           error: this.tracker.snapshot.message ?? cancelError.message,
         });
       }

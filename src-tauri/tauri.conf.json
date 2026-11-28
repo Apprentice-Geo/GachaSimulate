@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: asset: http://asset.localhost https://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
+      "csp": "default-src 'self'; connect-src 'self' http://ipc.localhost https://ipc.localhost ipc:; img-src 'self' data: asset: http://asset.localhost https://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
     }
   },
   "bundle": {
@@ -35,10 +35,6 @@
       "icons/icon.ico"
     ],
     "externalBin": ["bin/gachasimulate-worker"],
-    "resources": {
-      "../build/application-licenses/*": "licenses/",
-      "../build/ffmpeg/win32-x64/bin/ffmpeg.exe": "ffmpeg/bin/ffmpeg.exe"
-    },
     "windows": {
       "nsis": {
         "installMode": "currentUser",

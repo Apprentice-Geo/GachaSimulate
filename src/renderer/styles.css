@@ -1515,6 +1515,19 @@
     flex-shrink: 0;
   }
 
+  .result-summary-panel .panel-heading {
+    flex-wrap: wrap;
+    gap: var(--workbench-space-sm) var(--workbench-space-md);
+  }
+
+  .result-summary-filename {
+    flex: 0 1 auto;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
   .result-summary-overview-grid {
     display: grid;
     gap: var(--workbench-space-md) var(--workbench-space-lg);

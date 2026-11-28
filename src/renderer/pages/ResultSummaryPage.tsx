@@ -114,7 +114,10 @@ export function ResultSummaryPage({
                 结果概览
               </h2>
             </div>
-            <code className="panel-id" data-testid="summary-filename">
+            <code
+              className="panel-id result-summary-filename"
+              data-testid="summary-filename"
+            >
               {result.filename}
             </code>
           </div>

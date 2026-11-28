@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 
 const LICENSE_FILE_PATTERN = /^(?:license|licence|copying|notice)(?:[.-].*)?$/i;
 const INTERNAL_PACKAGE_PREFIX = "@gachasimulate/";
+const RUST_TAURI_ROOT_PACKAGES = ["gachasimulate-tauri", "gachasimulate-host"];
+const RUST_TARGET_PLATFORM = "x86_64-pc-windows-msvc";
 
 function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -195,7 +197,158 @@ export function renderThirdPartyLicenses(packages) {
   );
 }
 
-async function prepareApplicationLicenses(inventory, projectRoot) {
+export function readRustLicenseInventory(projectRoot) {
+  const output = execFileSync(
+    "cargo",
+    [
+      "metadata",
+      "--format-version",
+      "1",
+      "--locked",
+      "--filter-platform",
+      RUST_TARGET_PLATFORM,
+    ],
+    {
+      cwd: projectRoot,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "inherit"],
+    },
+  );
+  const metadata = JSON.parse(output);
+  const workspaceIds = new Set(metadata.workspace_members ?? []);
+  const packageById = new Map(
+    (metadata.packages ?? []).map((pkg) => [pkg.id, pkg]),
+  );
+  const nodeById = new Map(
+    (metadata.resolve?.nodes ?? []).map((node) => [node.id, node]),
+  );
+  const roots = (metadata.packages ?? [])
+    .filter((pkg) => RUST_TAURI_ROOT_PACKAGES.includes(pkg.name))
+    .map((pkg) => pkg.id);
+  if (roots.length !== RUST_TAURI_ROOT_PACKAGES.length) {
+    throw new Error(
+      `Missing expected Rust root packages in cargo metadata: ${RUST_TAURI_ROOT_PACKAGES.join(", ")}`,
+    );
+  }
+  const visited = new Set();
+  const walk = (id) => {
+    if (visited.has(id)) return;
+    visited.add(id);
+    const node = nodeById.get(id);
+    if (!node) return;
+    for (const dep of node.deps ?? []) {
+      const kinds = dep.dep_kinds ?? [];
+      const isRuntime =
+        kinds.length === 0 || kinds.some((entry) => entry.kind === null);
+      if (isRuntime) walk(dep.pkg);
+    }
+  };
+  for (const root of roots) walk(root);
+
+  return [...visited]
+    .filter((id) => !workspaceIds.has(id))
+    .map((id) => packageById.get(id))
+    .filter(Boolean)
+    .map((pkg) => ({
+      name: pkg.name,
+      version: pkg.version,
+      license: pkg.license ?? null,
+      repository: pkg.repository ?? null,
+      directory: path.dirname(pkg.manifest_path),
+    }));
+}
+
+export async function collectRustPackages(rustInventory, policy, projectRoot) {
+  const allowed = new Set(policy.rust_allowed_license_expressions ?? []);
+  const overrides = policy.rust_reviewed_overrides ?? {};
+  const reviewedNames = new Set(
+    Object.keys(overrides).map((key) => key.slice(0, key.lastIndexOf("@"))),
+  );
+  const packages = new Map();
+
+  for (const crate of rustInventory) {
+    if (typeof crate.name !== "string" || typeof crate.version !== "string") {
+      throw new Error("Missing Rust crate name or version in metadata.");
+    }
+    if (typeof crate.license !== "string" || !allowed.has(crate.license)) {
+      throw new Error(
+        `Unreviewed Rust license expression for ${crate.name}@${crate.version}: ${String(crate.license)}`,
+      );
+    }
+    const key = `${crate.name}@${crate.version}`;
+    const override = overrides[key];
+    let licenseFiles = await readLicenseFiles(crate.directory);
+    if (licenseFiles.length === 0) {
+      if (override) {
+        if (override.license_expression !== crate.license) {
+          throw new Error(
+            `Reviewed Rust override license mismatch for ${key}.`,
+          );
+        }
+        licenseFiles = [
+          {
+            name: path.basename(override.license_file),
+            text: normalizeText(
+              await fs.readFile(
+                path.join(projectRoot, override.license_file),
+                "utf8",
+              ),
+            ),
+          },
+        ];
+      } else if (reviewedNames.has(crate.name)) {
+        throw new Error(
+          `Unreviewed version of specially handled Rust crate: ${key}.`,
+        );
+      } else {
+        throw new Error(`Missing license text for Rust crate ${key}.`);
+      }
+    }
+    packages.set(key, {
+      key,
+      name: crate.name,
+      version: crate.version,
+      license: crate.license,
+      repository: crate.repository ?? null,
+      licenseFiles,
+    });
+  }
+
+  return [...packages.values()].sort((left, right) =>
+    compareText(left.key, right.key),
+  );
+}
+
+export function renderRustThirdPartyLicenses(packages) {
+  const sections = packages.map((item) => {
+    const files = item.licenseFiles
+      .map(
+        (licenseFile) =>
+          `--- ${licenseFile.name} ---\n\n${licenseFile.text.trimEnd()}`,
+      )
+      .join("\n\n");
+    const repoLine = item.repository ? `\nRepository: ${item.repository}` : "";
+    return `${"=".repeat(80)}\n${item.key}\nLicense: ${item.license}${repoLine}\n\n${files}`;
+  });
+  return normalizeText(
+    [
+      "GachaSimulate third-party Rust runtime dependency licenses",
+      "",
+      `Generated from cargo metadata (--locked --filter-platform ${RUST_TARGET_PLATFORM})`,
+      "covering gachasimulate.exe and gachasimulate-worker.exe.",
+      "Workspace gachasimulate-* crates are covered by the project GPL-3.0-or-later license.",
+      "",
+      ...sections,
+    ].join("\n"),
+  );
+}
+
+async function prepareApplicationLicenses(
+  inventory,
+  projectRoot,
+  rustInventory = null,
+) {
   const policy = await loadLicensePolicy(projectRoot);
   const packages = await collectPackages(inventory, policy, projectRoot);
   const aggregate = renderThirdPartyLicenses(packages);
@@ -214,22 +367,39 @@ async function prepareApplicationLicenses(inventory, projectRoot) {
     name: "THIRD_PARTY_LICENSES.txt",
     content: Buffer.from(aggregate),
   });
+  let rustPackages = null;
+  if (rustInventory !== null) {
+    rustPackages = await collectRustPackages(
+      rustInventory,
+      policy,
+      projectRoot,
+    );
+    const rustAggregate = renderRustThirdPartyLicenses(rustPackages);
+    if (rustAggregate.toLowerCase().includes(projectRoot.toLowerCase())) {
+      throw new Error(
+        "Rust application license inventory exposes the workspace path.",
+      );
+    }
+    materials.push({
+      name: "THIRD_PARTY_RUST_LICENSES.txt",
+      content: Buffer.from(rustAggregate),
+    });
+  }
   for (const material of materials) {
     if (!material.content.length)
       throw new Error(`Empty application license material: ${material.name}`);
   }
-  return { aggregate, packages, materials };
+  return { aggregate, packages, rustPackages, materials };
 }
 
 export async function generateApplicationLicenses({
   inventory,
   outputDirectory,
   projectRoot,
+  rustInventory = null,
 }) {
-  const { aggregate, packages, materials } = await prepareApplicationLicenses(
-    inventory,
-    projectRoot,
-  );
+  const { aggregate, packages, rustPackages, materials } =
+    await prepareApplicationLicenses(inventory, projectRoot, rustInventory);
 
   await fs.rm(outputDirectory, { recursive: true, force: true });
   await fs.mkdir(outputDirectory, { recursive: true });
@@ -239,17 +409,19 @@ export async function generateApplicationLicenses({
       material.content,
     );
   }
-  return { aggregate, packages };
+  return { aggregate, packages, rustPackages };
 }
 
 export async function verifyApplicationLicenses({
   inventory,
   directory,
   projectRoot,
+  rustInventory = null,
 }) {
   const { materials } = await prepareApplicationLicenses(
     inventory,
     projectRoot,
+    rustInventory,
   );
   const actualNames = (await fs.readdir(directory)).sort(compareText);
   const expectedNames = materials.map(({ name }) => name).sort(compareText);
@@ -273,15 +445,23 @@ async function main() {
     path.dirname(fileURLToPath(import.meta.url)),
     "..",
   );
-  const inventory = readPnpmLicenseInventory(projectRoot);
   const args = process.argv.slice(2);
-  if (args.length) {
-    if (args.length !== 2 || args[0] !== "--verify")
-      throw new Error("Usage: application_licenses.mjs [--verify <directory>]");
+  const includeRust = args.includes("--include-rust");
+  const filteredArgs = args.filter((arg) => arg !== "--include-rust");
+  const inventory = readPnpmLicenseInventory(projectRoot);
+  const rustInventory = includeRust
+    ? readRustLicenseInventory(projectRoot)
+    : null;
+  if (filteredArgs.length) {
+    if (filteredArgs.length !== 2 || filteredArgs[0] !== "--verify")
+      throw new Error(
+        "Usage: application_licenses.mjs [--verify <directory>] [--include-rust]",
+      );
     await verifyApplicationLicenses({
       inventory,
-      directory: path.resolve(args[1]),
+      directory: path.resolve(filteredArgs[1]),
       projectRoot,
+      rustInventory,
     });
     process.stdout.write("Verified packaged application license materials.\n");
     return;
@@ -289,15 +469,19 @@ async function main() {
   const outputDirectory = path.join(
     projectRoot,
     "build",
-    "application-licenses",
+    includeRust ? "tauri-application-licenses" : "application-licenses",
   );
-  const { packages } = await generateApplicationLicenses({
+  const { packages, rustPackages } = await generateApplicationLicenses({
     inventory,
     outputDirectory,
     projectRoot,
+    rustInventory,
   });
+  const rustSummary = rustPackages
+    ? ` and ${rustPackages.length} Rust runtime crates`
+    : "";
   process.stdout.write(
-    `Prepared application licenses for ${packages.length} production packages.\n`,
+    `Prepared application licenses for ${packages.length} production packages${rustSummary}.\n`,
   );
 }
 

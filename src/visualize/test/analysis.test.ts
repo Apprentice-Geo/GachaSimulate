@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import Ajv2020 from "ajv/dist/2020";
+import analysis_schema from "../../../docs/schemas/analysis.schema.json";
+import display_schema from "../../../docs/schemas/display_config.schema.json";
 import { validate_analysis } from "../data/analysis";
 import { validate_display_config } from "../data/validate_display_config";
 import analysis_fixture from "../fixtures/example_analysis.json";
 import display_fixture from "../fixtures/example_display.json";
+
+const ajv_analysis = new Ajv2020({ allErrors: true }).compile(analysis_schema);
+const ajv_display = new Ajv2020({ allErrors: true }).compile(display_schema);
 
 const valid = {
   result_item: { id: "draw_count", name: "抽数" },
@@ -31,6 +37,8 @@ test("validates Analysis without display metadata", () => {
 });
 
 test("shared fixtures satisfy Analysis and DisplayConfig contracts", () => {
+  assert.equal(ajv_analysis(analysis_fixture), true);
+  assert.equal(ajv_display(display_fixture), true);
   assert.deepEqual(validate_analysis(analysis_fixture), analysis_fixture);
   assert.deepEqual(validate_display_config(display_fixture), display_fixture);
 });

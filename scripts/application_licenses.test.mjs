@@ -6,7 +6,9 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  collectRustPackages,
   generateApplicationLicenses,
+  loadLicensePolicy,
   readPnpmLicenseInventory,
   verifyApplicationLicenses,
 } from "./application_licenses.mjs";
@@ -220,5 +222,89 @@ test("packaged license verification rejects changed, missing, and stale material
     await fs.writeFile(material, license);
     await fs.writeFile(path.join(directory, "stale-license.txt"), "stale");
     await assert.rejects(verify, /file collection/);
+  });
+});
+
+test("Rust runtime crate license inventory validates expressions, overrides, and rejects unreviewed crates", async () => {
+  await withFixture(async (root) => {
+    const policy = await loadLicensePolicy(projectRoot);
+    const okCrateDir = path.join(root, "ok-crate");
+    await fs.mkdir(okCrateDir, { recursive: true });
+    await fs.writeFile(
+      path.join(okCrateDir, "LICENSE-MIT"),
+      "MIT License\r\nCopyright Test",
+      "utf8",
+    );
+    const emptyOverrideDir = path.join(root, "override-crate");
+    await fs.mkdir(emptyOverrideDir, { recursive: true });
+
+    const collected = await collectRustPackages(
+      [
+        {
+          name: "webview2-com",
+          version: "0.39.1",
+          license: "MIT",
+          repository: "https://github.com/wravery/webview2-rs",
+          directory: emptyOverrideDir,
+        },
+        {
+          name: "alpha-crate",
+          version: "1.0.0",
+          license: "MIT OR Apache-2.0",
+          repository: null,
+          directory: okCrateDir,
+        },
+      ],
+      policy,
+      projectRoot,
+    );
+    assert.deepEqual(
+      collected.map((entry) => entry.key),
+      ["alpha-crate@1.0.0", "webview2-com@0.39.1"],
+    );
+    assert.equal(
+      collected[0].licenseFiles[0].text,
+      "MIT License\nCopyright Test\n",
+    );
+    assert.match(
+      collected[1].licenseFiles[0].text,
+      /Permission is hereby granted/,
+    );
+
+    await assert.rejects(
+      collectRustPackages(
+        [
+          {
+            name: "bad-license",
+            version: "0.1.0",
+            license: "AGPL-3.0-only",
+            repository: null,
+            directory: okCrateDir,
+          },
+        ],
+        policy,
+        projectRoot,
+      ),
+      /Unreviewed Rust license expression/,
+    );
+
+    const missingTextDir = path.join(root, "missing-text");
+    await fs.mkdir(missingTextDir, { recursive: true });
+    await assert.rejects(
+      collectRustPackages(
+        [
+          {
+            name: "no-license-file",
+            version: "0.1.0",
+            license: "MIT",
+            repository: null,
+            directory: missingTextDir,
+          },
+        ],
+        policy,
+        projectRoot,
+      ),
+      /Missing license text for Rust crate/,
+    );
   });
 });
