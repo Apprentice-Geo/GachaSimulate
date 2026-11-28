@@ -24,6 +24,8 @@ node_modules/
 .docs/superpowers/
 /build/
 /target/
+/src-tauri/bin/
+/src-tauri/gen/
 .ruff_cache/
 profile.prof
 profile.pstats

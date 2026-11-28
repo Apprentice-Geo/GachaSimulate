@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const LICENSE_FILE_PATTERN = /^(?:license|licence|copying|notice)(?:\..*)?$/i;
+const LICENSE_FILE_PATTERN = /^(?:license|licence|copying|notice)(?:[.-].*)?$/i;
 const INTERNAL_PACKAGE_PREFIX = "@gachasimulate/";
 
 function compareText(left, right) {

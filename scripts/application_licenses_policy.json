@@ -1,6 +1,12 @@
 {
   "policy_version": 1,
-  "allowed_license_expressions": ["BSD-3-Clause", "ISC", "MIT", "MIT AND ISC"],
+  "allowed_license_expressions": [
+    "Apache-2.0 OR MIT",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT",
+    "MIT AND ISC"
+  ],
   "reviewed_overrides": {
     "victory-vendor@37.3.6": {
       "license_expression": "MIT AND ISC",

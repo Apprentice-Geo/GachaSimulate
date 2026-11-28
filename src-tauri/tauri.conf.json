@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "GachaSimulate",
+  "version": "0.3.2",
+  "identifier": "com.gachasimulate.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm run dev:tauri:renderer",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "pnpm run build:tauri:renderer",
+    "frontendDist": "../dist/tauri-renderer"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "GachaSimulate",
+        "width": 1360,
+        "height": 820,
+        "minWidth": 1280,
+        "minHeight": 720,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: asset: http://asset.localhost https://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "externalBin": ["bin/gachasimulate-worker"],
+    "resources": {
+      "../build/application-licenses/*": "licenses/",
+      "../build/ffmpeg/win32-x64/bin/ffmpeg.exe": "ffmpeg/bin/ffmpeg.exe"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["SimpChinese", "English"]
+      }
+    }
+  }
+}

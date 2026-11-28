@@ -416,3 +416,89 @@ jobs:
         run: |
           $env:GACHASIMULATE_REQUIRE_EXPORT_HOST_INTEGRATION = '1'
           pnpm run test:electron-export:integration
+
+  rust-windows:
+    name: Rust workspace quality and tests (Windows)
+    runs-on: windows-latest
+    needs: actionlint
+
+    steps:
+      - name: Preserve repository line endings
+        run: git config --global core.autocrlf input
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo registry and build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lint Rust core and host crates
+        run: cargo clippy --workspace --exclude gachasimulate-tauri --all-targets -- -D warnings
+
+      - name: Test Rust core and host crates
+        run: cargo test --workspace --exclude gachasimulate-tauri
+
+  tauri-package-windows:
+    name: Tauri Windows installer (NSIS)
+    runs-on: windows-latest
+    needs: [node-quality, rust-windows, ffmpeg-windows]
+
+    steps:
+      - name: Preserve repository line endings
+        run: git config --global core.autocrlf input
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Cargo registry and build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download self-built FFmpeg binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-windows-x64
+          path: build/ffmpeg/win32-x64/bin
+
+      - name: Download FFmpeg build evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-windows-x64-evidence
+          path: build/ffmpeg/win32-x64/materials
+
+      - name: Build Tauri renderer and check Tauri crate
+        run: |
+          pnpm run prepare:application-licenses
+          pnpm run build:tauri:renderer
+          pnpm run tauri:stage-worker
+          cargo clippy -p gachasimulate-tauri --all-targets -- -D warnings
+
+      - name: Build Tauri NSIS installer
+        run: pnpm run package:tauri:win
+
+      - name: Verify Tauri NSIS fresh install and bundled resources
+        run: pnpm run test:package:tauri:win

@@ -7,6 +7,12 @@
   "private": true,
   "scripts": {
     "dev": "pnpm run build:packages && electron-vite dev",
+    "dev:tauri:renderer": "vite --config vite.tauri.config.ts",
+    "build:tauri:renderer": "tsc --noEmit && vite build --config vite.tauri.config.ts",
+    "tauri:stage-worker": "pwsh -NoProfile -File scripts/stage_tauri_worker.ps1",
+    "tauri:dev": "pnpm run tauri:stage-worker && tauri dev",
+    "package:tauri:win": "pnpm run prepare:application-licenses && pnpm run tauri:stage-worker && tauri build --bundles nsis",
+    "test:package:tauri:win": "pwsh -NoProfile -File scripts/check_tauri_windows_package.ps1",
     "test:markdown:links": "node --test scripts/markdown_links.test.mjs",
     "check:cpp": "pwsh -NoProfile -File scripts/check_cpp_win.ps1",
     "check:cpp:format": "pwsh -NoProfile -File scripts/check_cpp_win.ps1 -Task Format",
@@ -79,6 +85,7 @@
   "dependencies": {
     "@gachasimulate/config-compiler": "workspace:*",
     "@gachasimulate/config-repository-contract": "workspace:*",
+    "@tauri-apps/api": "2.12.5",
     "ajv": "^8.20.0",
     "lucide-react": "^1.14.0",
     "react": "^19.2.6",
@@ -89,6 +96,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@tauri-apps/cli": "2.12.6",
     "@types/node": "^25.7.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

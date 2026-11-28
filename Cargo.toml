@@ -8,6 +8,7 @@ members = [
     "crates/gachasimulate-desktop-contract",
     "crates/gachasimulate-config-store",
     "crates/gachasimulate-host",
+    "src-tauri",
 ]
 resolver = "2"
 

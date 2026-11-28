@@ -36,6 +36,7 @@
     "src/renderer/**/*.ts",
     "src/renderer/**/*.tsx",
     "electron.vite.config.ts",
+    "vite.tauri.config.ts",
     "docs/**/*.json"
   ]
 }
