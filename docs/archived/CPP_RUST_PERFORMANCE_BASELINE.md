@@ -7,9 +7,9 @@
 - 在代表持续吞吐的 **`1,000,000 runs`** 规模下（程序编译就绪后开始计时，直至完整批量模拟并写完 GSR）：
   - **单线程**：Rust 较 C++ 快 **`3.35–3.94×`**（`baseline_probability` `528.95 ms` vs `2082.56 ms`；`condition_tree_rules` `524.66 ms` vs `2014.49 ms`；`weighted_pool` `1257.83 ms` vs `4215.99 ms`）。
   - **16 线程**：Rust 较 C++ 快 **`2.79–2.94×`**（`126.63–210.22 ms` vs `366.02–617.81 ms`）。
-- 在 **`10,000 runs`** 规模下，Rust 单线程快 **`2.99–3.01×`**，16 线程快 **`1.45–1.86×`**。在 **`100 runs`** 规模下，核心耗时仅 `1.6–4.0 ms`，受线程创建与 Windows 进程启动主导（Rust `0.92–1.18×`）。
+- 在 **`10,000 runs`** 规模下，Rust 单线程快 **`2.99–3.01×`**，16 线程快 **`1.45–1.86×`**。在 **`100 runs`** 规模下，核心耗时仅 `1.6–4.0 ms`，受线程创建、文件落盘与插桩差异主导（Rust `0.92–1.18×`）。
 - **重新打开 GSR → 写出 Analysis JSON**（含子进程完整生命周期）：在 `1,000,000 runs` 下 Rust 进程总耗时为 `53.73–60.89 ms`（进程内核心统计与写盘为 `34.98–40.52 ms`），C++ 为 `56.81–69.36 ms`，C++ / Rust 进程耗时比为 **`1.00–1.20×`**。
-- **峰值内存（Windows Working Set）**：在 `1,000,000 runs` 下，Rust 单线程模拟仅占 **`5.7 MiB`**（C++ 为 `17.4–17.5 MiB`），16 线程模拟占 `12.3–13.4 MiB`（C++ 为 `17.8 MiB`）；Rust 分析进程稳定在 **`5.4 MiB`**（C++ 为 `13.7 MiB`）。流式分块 GSR v3 将内存与总 run 数解耦。
+- **峰值内存（Windows Working Set）**：在 `1,000,000 runs` 下，Rust 单线程模拟仅占 **`5.7 MiB`**（C++ 为 `17.4–17.5 MiB`），16 线程模拟占 `12.3–13.4 MiB`（C++ 为 `17.8 MiB`）；本组低基数配置下 Rust 分析进程稳定在 **`5.4 MiB`**（C++ 为 `13.7 MiB`）。分块流式 GSR v3 将模拟期结果缓冲与总 run 数解耦；分析阶段不保留原始 run 数组，但仍按不同期末库存值的基数维护频数表（受 64 MiB 紧凑 Analysis JSON 早停上限约束）。
 - **GSR 文件体积**：`1,000,000 runs` 下 C++ v2 为 `12,000,128–12,000,143 B`，Rust v3 为 `12,001,108–12,001,111 B`（仅增加约 `0.008%` 的块头开销）。
 - **结果一致性**：确定性配置 `condition_tree_rules` 两端 `total_result` 完全一致（`600` / `60,000` / `6,000,000`）；随机配置在百万 runs 下的 `total_result` 相对差异仅 `-0.10%`（`baseline_probability`）与 `+0.014%`（`weighted_pool`），符合两套独立随机流的统计波动范围。
 
@@ -35,26 +35,62 @@
 
 - **配置与参数**：`benchmark/cases/baseline_probability`、`benchmark/cases/condition_tree_rules`、`benchmark/cases/weighted_pool`；统计物品 `draw_count`，种子 `123`，线程数 `1` 与 `16`。
 - **重复与交错**：`100`、`10,000`、`1,000,000 runs` 分别独立重复 `7`、`5`、`3` 次，共 `180` 组试验，固定种子 `20261128` 随机打散执行顺序；测量前进行一次未计入统计的预热；测量期间无并行编译或编码负载。
-- **计时边界**：
-  - **模拟 → GSR（核心耗时）**：两端均从编译好的程序在内存中就绪后开始计时，到完整批量模拟并落盘完成 GSR 为止。C++ 端使用 TS 编译器预先生成 IR，测量 `gachasimulate-core.exe` 输出 `{"type":"stage","stage":"simulating"}`（`load_ir_file` 完成）至 `{"type":"completed"}`（`write_gsr_v2` 完成）的 `perf_counter` 差值；Rust 端读取 `gachasimulate-cli.exe simulate --timing` 在 `compile_snapshot` 完成后至临时 GSR 原子提交完成的 `Instant::now()` 耗时。
+- **计时边界（含插桩差异说明）**：
+  - **模拟 → GSR（核心耗时）**：两端均在程序编译就绪后开始计时，到完整批量模拟并落盘完成 GSR 为止，但存在插桩边界差异：C++ 端使用 TS 编译器预先生成 IR，在父进程通过 `perf_counter` 记录 `gachasimulate-core.exe` 输出 `{"type":"stage","stage":"simulating"}`（`load_ir_file` 完成）至 `{"type":"completed"}`（`write_gsr_v2` 完成）的间隔（包含节流进度 JSON 输出与管道传递）；Rust 端读取 `gachasimulate-cli.exe simulate --timing` 在 `compile_snapshot` 完成后至临时 GSR 原子替换完成的进程内 `Instant::now()` 耗时（使用空进度回调，不含进程启动）。上述插桩差异在 `100 runs`（数毫秒）档位占比明显，在 `1,000,000 runs`（数百至数千毫秒）档位可忽略。
   - **GSR → Analysis JSON**：以子进程完整墙钟时间衡量“重新打开 GSR 至写完紧凑 Analysis JSON 文件”的端到端耗时（C++ 重定向 `gachasimulate-analyze.exe` 标准输出到文件；Rust 使用 `gachasimulate-cli.exe analyze --input ... --output ... --timing`），并同时记录 Rust 进程内分析+写盘耗时以剥离 Windows 进程启动开销。
 - **峰值内存**：对每个子进程在退出后、关闭句柄前统一调用 Win32 `GetProcessMemoryInfo` 读取内核维护的 `PeakWorkingSetSize`（可准确捕获毫秒级短进程的峰值工作集）。
 
 ### 复测命令
 
+`benchmark/cases/<case>` 仅包含 `config.yaml` 与 `termination.yaml`，不包含 `manifest.yaml`。复测时需先为每个 case 准备包含最小 `manifest.yaml` 的临时目录，并由 `@gachasimulate/config-compiler` 预编译 C++ 所需的 IR JSON：
+
 ```powershell
 # 1. 构建 C++ Release 基线（旧实现退场后可从提交 7214d2d 检出复建）
 pnpm run check:cpp:release
+pnpm run build:packages
 
 # 2. 构建 Rust Release 二进制
 cargo build --release -p gachasimulate-cli
 
-# 3. 单次手工运行示例（先由 @gachasimulate/config-compiler 生成 <case>.ir.json）
-build\native\bin\gachasimulate-core.exe --ir <case>.ir.json --total-runs 1000000 --seed 123 --threads 16 --output <abs-cpp.gsr>
-build\native\bin\gachasimulate-analyze.exe --input <abs-cpp.gsr> > <cpp-analysis.json>
+# 3. 准备单个 case 的临时配置目录（补齐 manifest.yaml）与 C++ IR JSON
+$case = "baseline_probability"
+$work = Join-Path ([IO.Path]::GetTempPath()) "gs-1g-repro"
+$cfgDir = Join-Path $work $case
+New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
+Copy-Item "benchmark\cases\$case\config.yaml", "benchmark\cases\$case\termination.yaml" -Destination $cfgDir
+@"
+id: $case
+name: $case
+description: benchmark case
+terminations:
+  - file: termination.yaml
+    name: default
+"@ | Set-Content (Join-Path $cfgDir "manifest.yaml") -Encoding utf8
 
-target\release\gachasimulate-cli.exe simulate --config-dir <case-dir-with-manifest> --termination termination.yaml --result-item draw_count --runs 1000000 --seed 123 --threads 16 --output <abs-rust.gsr> --timing
-target\release\gachasimulate-cli.exe analyze --input <abs-rust.gsr> --output <rust-analysis.json> --timing
+$irPath = Join-Path $work "$case.ir.json"
+node -e "
+const fs = require('node:fs');
+const path = require('node:path');
+const { compile_yaml } = require('./packages/config-compiler/dist/index.js');
+const dir = process.argv[1];
+const out = compile_yaml(
+  fs.readFileSync(path.join(dir, 'config.yaml'), 'utf8'),
+  fs.readFileSync(path.join(dir, 'termination.yaml'), 'utf8'),
+  fs.readFileSync(path.join(dir, 'manifest.yaml'), 'utf8'),
+  'draw_count'
+);
+fs.writeFileSync(process.argv[2], JSON.stringify(out.ir));
+" $cfgDir $irPath
+
+# 4. 运行 C++ 与 Rust Release 测量（示例：1,000,000 runs、16 线程）
+$cppGsr = Join-Path $work "$case-cpp.gsr"
+$rustGsr = Join-Path $work "$case-rust.gsr"
+Remove-Item $cppGsr, $rustGsr -ErrorAction SilentlyContinue
+build\native\bin\gachasimulate-core.exe --ir $irPath --total-runs 1000000 --seed 123 --threads 16 --output $cppGsr
+build\native\bin\gachasimulate-analyze.exe --input $cppGsr > (Join-Path $work "$case-cpp.analysis.json")
+
+target\release\gachasimulate-cli.exe simulate --config-dir $cfgDir --termination termination.yaml --result-item draw_count --runs 1000000 --seed 123 --threads 16 --output $rustGsr --timing
+target\release\gachasimulate-cli.exe analyze --input $rustGsr --output (Join-Path $work "$case-rust.analysis.json") --timing
 ```
 
 ## 结果：100 runs（7 次独立重复）
@@ -81,7 +117,7 @@ target\release\gachasimulate-cli.exe analyze --input <abs-rust.gsr> --output <ru
 | `weighted_pool` | 1 | 29.87 (23.46–46.99) | 20.46 (13.85–23.95) | 1.96 | 1.46× | 6.0 | 5.4 |
 | `weighted_pool` | 16 | 26.42 (23.36–32.50) | 18.49 (15.21–41.52) | 1.98 | 1.43× | 6.0 | 5.4 |
 
-> 该规模主要用于观察固定启动与线程调度开销：模拟核心耗时约 `1.6–4.0 ms`，分析进程耗时的绝大部分为 Windows 进程创建成本（Rust 进程内分析仅 `1.7–2.0 ms`）。
+> 该规模主要用于观察固定开销：模拟核心耗时约 `1.6–4.0 ms`（两端均不含进程启动，主要受线程创建、文件创建/原子替换及 C++ 端管道事件传递影响）；分析进程总耗时的绝大部分为 Windows 进程创建成本（Rust 进程内分析仅 `1.7–2.0 ms`）。
 
 ## 结果：10,000 runs（5 次独立重复）
 
