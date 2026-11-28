@@ -48,7 +48,7 @@
 
 两端都从编译好的程序就绪后开始计时，到完整批量模拟并写完 GSR 为止；另计从重新打开该 GSR 到写完 Analysis JSON 的耗时。按配置、规模和线程数并列记录两端耗时、耗时比（C++ / Rust）、峰值内存（统一采样模拟或分析进程的 Windows 工作集）、GSR 字节数和实际 `total_result`。小规模结果用于观察固定开销，百万 runs 用于比较持续吞吐。各 agent 可并行开发，性能采样与本机的全量编译、4K 编码等高负载任务错开。
 
-测完将实测表、开发机配置与工具链版本、两端提交、运行命令和差异说明写入 `docs/archived/CPP_RUST_PERFORMANCE_BASELINE.md`，并在本节补上报告链接。解释结果时注明两端的随机流和 GSR 布局差异。
+测完将实测表、开发机配置与工具链版本、两端提交、运行命令和差异说明写入 `docs/archived/CPP_RUST_PERFORMANCE_BASELINE.md`，并在本节补上报告链接。[C++ / Rust 性能报告](../archived/CPP_RUST_PERFORMANCE_BASELINE.md)解释结果时注明两端的随机流和 GSR 布局差异。
 
 ### 编译和打包
 
