@@ -291,9 +291,11 @@ dependencies = [
  "gachasimulate-gsr",
  "gachasimulate-runtime",
  "gachasimulate-types",
+ "getrandom",
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
 ]
 
 [[package]]
