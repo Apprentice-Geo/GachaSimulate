@@ -1,27 +1,33 @@
 use std::{
     fs,
+    io::{Cursor, Write},
     path::{Path, PathBuf},
+    process::Command,
     sync::atomic::{AtomicU64, Ordering},
 };
 
 use gachasimulate_cli::{
-    load_package_zip_snapshot, read_dist_index, read_file_bytes, run_pipeline,
+    load_directory_snapshot, load_package_zip_snapshot, read_bounded_archive, read_dist_index,
+    run_pipeline, sha256_hex,
 };
 use gachasimulate_config::{ConfigSnapshot, TerminationSource};
+use gachasimulate_gsr::analyze_gsr_file;
 use gachasimulate_runtime::SimulationOptions;
+use zip::{write::SimpleFileOptions, CompressionMethod, System, ZipWriter};
 
 static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-struct TempGsr(PathBuf);
+struct TempDir(PathBuf);
 
-impl TempGsr {
+impl TempDir {
     fn new(label: &str) -> Self {
         let id = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!(
-            "gachasimulate-1f-{label}-{}-{id}.gsr",
+            "gachasimulate-1f-{label}-{}-{id}",
             std::process::id()
         ));
-        let _ = fs::remove_file(&path);
+        let _ = fs::remove_dir_all(&path);
+        fs::create_dir_all(&path).unwrap();
         Self(path)
     }
 
@@ -30,9 +36,9 @@ impl TempGsr {
     }
 }
 
-impl Drop for TempGsr {
+impl Drop for TempDir {
     fn drop(&mut self) {
-        let _ = fs::remove_file(&self.0);
+        let _ = fs::remove_dir_all(&self.0);
     }
 }
 
@@ -79,11 +85,8 @@ termination_rule:
             .into(),
         }],
     };
-    // Draw 1: token=2 -> retain 1, excess=1 < 2 -> no resolve (target=0)
-    // Draw 2: token=4 -> excess=3 -> 1 batch -> token=2, target=1
-    // Draw 3: token=4 -> excess=3 -> 1 batch -> token=2, target=2 -> terminate!
-    // Every run finishes in exactly 3 draws.
-    let gsr = TempGsr::new("deterministic");
+    let temp = TempDir::new("deterministic");
+    let gsr = temp.path().join("det.gsr");
     let options = SimulationOptions {
         total_runs: 100,
         seed: 123,
@@ -91,14 +94,8 @@ termination_rule:
         chunk_size: Some(17),
         max_in_flight_chunks: Some(3),
     };
-    let (summary, analysis) = run_pipeline(
-        &snapshot,
-        "termination.yaml",
-        "draw_count",
-        &options,
-        gsr.path(),
-    )
-    .unwrap();
+    let (summary, analysis) =
+        run_pipeline(&snapshot, "termination.yaml", "draw_count", &options, &gsr).unwrap();
     assert_eq!(summary.total_runs, 100);
     assert_eq!(summary.total_result, 300);
     assert_eq!(analysis.result_item.id, "draw_count");
@@ -119,7 +116,6 @@ termination_rule:
 
 #[test]
 fn geometric_distribution_pipeline_matches_analytical_expectation_and_is_thread_invariant() {
-    // Geometric(p = 0.25): E[X] = 4, P(X <= 1) = 0.25, P(X <= 4) = 1 - 0.75^4 = 0.68359375.
     let snapshot = ConfigSnapshot {
         manifest_yaml: "\
 id: geom_demo
@@ -155,8 +151,9 @@ termination_rule:
             .into(),
         }],
     };
-    let gsr_1t = TempGsr::new("geom-1t");
-    let gsr_8t = TempGsr::new("geom-8t");
+    let temp = TempDir::new("geom");
+    let gsr_1t = temp.path().join("geom_1t.gsr");
+    let gsr_8t = temp.path().join("geom_8t.gsr");
     let opts_1t = SimulationOptions {
         total_runs: 100_000,
         seed: 123,
@@ -177,7 +174,7 @@ termination_rule:
         "termination.yaml",
         "draw_count",
         &opts_1t,
-        gsr_1t.path(),
+        &gsr_1t,
     )
     .unwrap();
     let (sum_8t, ana_8t) = run_pipeline(
@@ -185,15 +182,13 @@ termination_rule:
         "termination.yaml",
         "draw_count",
         &opts_8t,
-        gsr_8t.path(),
+        &gsr_8t,
     )
     .unwrap();
 
-    // Thread/chunk invariance: identical totals & identical Analysis.
     assert_eq!(sum_1t.total_result, sum_8t.total_result);
     assert_eq!(ana_1t, ana_8t);
 
-    // Analytical checks: E[X] = 4.0 (within 0.05 for 100k runs), P(X <= 1) ~= 0.25.
     let empirical_mean = sum_1t.total_result as f64 / 100_000.0;
     assert!(
         (empirical_mean - 4.0).abs() < 0.05,
@@ -208,6 +203,145 @@ termination_rule:
 }
 
 #[test]
+fn cli_preserves_existing_gsr_on_failure_blocks_input_aliasing_and_ignores_extra_files() {
+    let temp = TempDir::new("cli-safety");
+    let cfg_dir = temp.path();
+    fs::write(
+        cfg_dir.join("manifest.yaml"),
+        "id: demo\nname: Demo\ndescription: Test\nterminations:\n  - file: termination.yaml\n    name: Done\n",
+    )
+    .unwrap();
+    fs::write(
+        cfg_dir.join("config.yaml"),
+        "schema_version: 2\nitems: [draw_count, target]\npools:\n  - main:\n      - probability: 1\n        actions: target += 1\nevery_draw: draw_count += 1\n",
+    )
+    .unwrap();
+    fs::write(
+        cfg_dir.join("termination.yaml"),
+        "retained_items: []\ntermination_rule:\n  condition:\n    check: target >= 1\n    actions: terminate done\n",
+    )
+    .unwrap();
+
+    let cli = env!("CARGO_BIN_EXE_gachasimulate-cli");
+    // Write result.gsr directly inside the config directory.
+    let gsr_path = cfg_dir.join("result.gsr");
+    let status = Command::new(cli)
+        .args([
+            "simulate",
+            "--config-dir",
+            cfg_dir.to_str().unwrap(),
+            "--runs",
+            "10",
+            "--threads",
+            "1",
+            "--output",
+            gsr_path.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let valid_bytes = fs::read(&gsr_path).unwrap();
+
+    // Rerunning with --threads 0 must fail AND preserve the existing valid result.gsr,
+    // and loading the config dir must ignore the binary result.gsr next to the YAMLs.
+    let failed = Command::new(cli)
+        .args([
+            "simulate",
+            "--config-dir",
+            cfg_dir.to_str().unwrap(),
+            "--runs",
+            "10",
+            "--threads",
+            "0",
+            "--output",
+            gsr_path.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(!failed.success());
+    assert_eq!(fs::read(&gsr_path).unwrap(), valid_bytes);
+    analyze_gsr_file(&gsr_path).unwrap();
+    load_directory_snapshot(cfg_dir).unwrap();
+
+    // Analyzing with --output aliasing --input must be rejected without clobbering result.gsr.
+    let aliased = Command::new(cli)
+        .args([
+            "analyze",
+            "--input",
+            gsr_path.to_str().unwrap(),
+            "--output",
+            gsr_path.to_str().unwrap(),
+        ])
+        .status()
+        .unwrap();
+    assert!(!aliased.success());
+    assert_eq!(fs::read(&gsr_path).unwrap(), valid_bytes);
+}
+
+#[test]
+fn zip_loader_rejects_duplicate_entries_and_symlinks() {
+    // Duplicate entry names in ZIP.
+    let mut buf = Cursor::new(Vec::new());
+    {
+        let mut writer = ZipWriter::new(&mut buf);
+        let opts = SimpleFileOptions::default()
+            .compression_method(CompressionMethod::Stored)
+            .system(System::Unix)
+            .unix_permissions(0o644);
+        writer.start_file("manifest.yaml", opts).unwrap();
+        writer
+            .write_all(b"id: demo\nname: D\ndescription: ''\nterminations: [{file: termination.yaml, name: T}]\n")
+            .unwrap();
+        writer.start_file("config.yaml", opts).unwrap();
+        writer.write_all(b"schema_version: 2\n").unwrap();
+        writer.start_file("config.yamX", opts).unwrap();
+        writer.write_all(b"schema_version: 2\n").unwrap();
+        writer.start_file("termination.yaml", opts).unwrap();
+        writer.write_all(b"retained_items: []\n").unwrap();
+        writer.finish().unwrap();
+    }
+    let mut raw_zip = buf.into_inner();
+    // Rename `config.yamX` -> `config.yaml` in both local header and central directory
+    // so the archive genuinely contains two duplicate `config.yaml` entries.
+    let needle = b"config.yamX";
+    let mut patched = 0usize;
+    for pos in 0..=raw_zip.len() - needle.len() {
+        if &raw_zip[pos..pos + needle.len()] == needle {
+            raw_zip[pos + needle.len() - 1] = b'l';
+            patched += 1;
+        }
+    }
+    assert_eq!(patched, 2);
+    let err = load_package_zip_snapshot("demo", &raw_zip).unwrap_err();
+    assert!(err.contains("duplicate"), "unexpected error: {err}");
+
+    // Symlink entry in ZIP.
+    let mut sym_buf = Cursor::new(Vec::new());
+    {
+        let mut writer = ZipWriter::new(&mut sym_buf);
+        let file_opts = SimpleFileOptions::default()
+            .compression_method(CompressionMethod::Stored)
+            .system(System::Unix)
+            .unix_permissions(0o644);
+        writer.start_file("manifest.yaml", file_opts).unwrap();
+        writer
+            .write_all(b"id: demo\nname: D\ndescription: ''\nterminations: [{file: termination.yaml, name: T}]\n")
+            .unwrap();
+        writer.start_file("config.yaml", file_opts).unwrap();
+        writer.write_all(b"schema_version: 2\n").unwrap();
+        writer
+            .add_symlink("termination.yaml", "other.yaml", file_opts)
+            .unwrap();
+        writer.finish().unwrap();
+    }
+    let err = load_package_zip_snapshot("demo", &sym_buf.into_inner()).unwrap_err();
+    assert!(
+        err.contains("not a regular file") || err.contains("non-regular"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
 #[ignore = "requires GACHASIMULATE_CONFIGS_DIST to point at GachaSimulate-Configs/dist"]
 fn official_1e_packages_validate_compile_simulate_and_analyze_end_to_end() {
     let dist_dir = PathBuf::from(
@@ -215,18 +349,58 @@ fn official_1e_packages_validate_compile_simulate_and_analyze_end_to_end() {
             .expect("GACHASIMULATE_CONFIGS_DIST must be set"),
     );
     let index = read_dist_index(&dist_dir).unwrap();
-    assert!(!index.configs.is_empty());
+    assert_eq!(index.configs.len(), 16);
 
+    // Pinned statistical sanity windows (mean draw count) verified against the
+    // existing C++ engine and analytical expectations for representative official configs.
+    let expected_mean_bounds: &[(&str, &str, u64, u64)] = &[
+        (
+            "sanguosha_mengzhihuilang_8_last24",
+            "termination.yaml",
+            55,
+            85,
+        ),
+        (
+            "sanguosha_mengzhihuilang_4_last24",
+            "termination.yaml",
+            75,
+            115,
+        ),
+        (
+            "wangzhe_sanrio_sunshangxiang",
+            "termination_skin.yaml",
+            65,
+            95,
+        ),
+        ("wangzhe_wenxinjian_lixin", "termination_skin.yaml", 35, 55),
+        (
+            "wangzhe_zhenpinchuanshuo_nezha2",
+            "termination_skin.yaml",
+            30,
+            50,
+        ),
+    ];
+
+    let temp = TempDir::new("official-1e");
     let mut total_terminations = 0usize;
+    let mut checked_bounds = 0usize;
     for entry in &index.configs {
         let zip_path = dist_dir.join(&entry.download_url);
-        let zip_bytes = read_file_bytes(&zip_path).unwrap();
+        let zip_bytes = read_bounded_archive(&zip_path).unwrap();
+        assert_eq!(
+            sha256_hex(&zip_bytes),
+            entry.sha256,
+            "SHA-256 mismatch for {}",
+            entry.id
+        );
         let (manifest, snapshot) = load_package_zip_snapshot(&entry.id, &zip_bytes).unwrap();
         assert_eq!(manifest.id, entry.id);
 
         for termination in &manifest.terminations {
             total_terminations += 1;
-            let gsr = TempGsr::new(&format!("{}-{}", entry.id, total_terminations));
+            let gsr = temp
+                .path()
+                .join(format!("{}-{total_terminations}.gsr", entry.id));
             let options = SimulationOptions {
                 total_runs: 2_000,
                 seed: 123,
@@ -234,31 +408,31 @@ fn official_1e_packages_validate_compile_simulate_and_analyze_end_to_end() {
                 chunk_size: None,
                 max_in_flight_chunks: None,
             };
-            let (summary, analysis) = run_pipeline(
-                &snapshot,
-                &termination.file,
-                "draw_count",
-                &options,
-                gsr.path(),
-            )
-            .unwrap();
+            let (summary, analysis) =
+                run_pipeline(&snapshot, &termination.file, "draw_count", &options, &gsr).unwrap();
             assert_eq!(summary.total_runs, 2_000);
             assert_eq!(analysis.totals.runs, "2000");
             assert_eq!(analysis.totals.result, summary.total_result.to_string());
-            println!(
-                "1F OK: {} / {} -> runs={}, total_result={}, P50={}, MEAN={}",
-                entry.id,
-                termination.file,
-                analysis.totals.runs,
-                analysis.totals.result,
-                analysis.statistic.p50,
-                analysis.statistic.mean
-            );
+            let mean: u64 = analysis.statistic.mean.parse().unwrap();
+            let p50: u64 = analysis.statistic.p50.parse().unwrap();
+            assert!(mean > 0 && p50 > 0);
+            if let Some(&(_, _, lo, hi)) = expected_mean_bounds
+                .iter()
+                .find(|&&(id, file, _, _)| id == entry.id && file == termination.file)
+            {
+                assert!(
+                    (lo..=hi).contains(&mean),
+                    "{} / {} mean {} outside expected [{}, {}]",
+                    entry.id,
+                    termination.file,
+                    mean,
+                    lo,
+                    hi
+                );
+                checked_bounds += 1;
+            }
         }
     }
-    println!(
-        "1F COMPLETE: {} packages, {} terminations verified end-to-end",
-        index.configs.len(),
-        total_terminations
-    );
+    assert_eq!(total_terminations, 34);
+    assert_eq!(checked_bounds, expected_mean_bounds.len());
 }

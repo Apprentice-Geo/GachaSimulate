@@ -1,6 +1,9 @@
 use std::{env, fs, path::PathBuf, process::ExitCode, time::Instant};
 
-use gachasimulate_cli::{load_directory_snapshot, load_package_zip_snapshot};
+use gachasimulate_cli::{
+    allocate_sibling_temp_path, commit_temp_file, load_directory_snapshot,
+    load_package_zip_snapshot, paths_refer_to_same_file, read_bounded_archive,
+};
 use gachasimulate_config::compile_snapshot;
 use gachasimulate_gsr::{analyze_gsr_file, GsrFileWriter, GsrHeaderMeta};
 use gachasimulate_runtime::{simulate_to_writer, CancelToken, SimulationOptions};
@@ -17,7 +20,7 @@ fn main() -> ExitCode {
 
 fn run(args: Vec<String>) -> Result<(), String> {
     let Some(command) = args.first().map(String::as_str) else {
-        return Err("usage: gachasimulate-cli <simulate|analyze|bench> [options]".to_string());
+        return Err("usage: gachasimulate-cli <simulate|analyze> [options]".to_string());
     };
     match command {
         "simulate" => run_simulate(&args[1..]),
@@ -90,8 +93,7 @@ fn run_simulate(args: &[String]) -> Result<(), String> {
 
     let output = output.ok_or_else(|| "--output is required".to_string())?;
     let snapshot = if let Some((id, zip_path)) = package_zip {
-        let bytes = fs::read(&zip_path)
-            .map_err(|error| format!("failed to read {}: {error}", zip_path.display()))?;
+        let bytes = read_bounded_archive(&zip_path)?;
         load_package_zip_snapshot(&id, &bytes)?.1
     } else if let Some(dir) = config_dir {
         load_directory_snapshot(&dir)?
@@ -111,12 +113,23 @@ fn run_simulate(args: &[String]) -> Result<(), String> {
     let meta = GsrHeaderMeta::from_program(&program, &options)
         .map_err(|error| format!("header metadata error: {error}"))?;
 
-    // Start timing after the compiled program is ready, matching 1G specification.
+    // Write to a sibling temporary file so any validation/runtime failure
+    // leaves an existing output file untouched.
+    let temp_output = allocate_sibling_temp_path(&output, "gsr")?;
     let started = Instant::now();
-    let writer = GsrFileWriter::create(&output, &meta)
-        .map_err(|error| format!("failed to create GSR: {error}"))?;
-    let summary = simulate_to_writer(&program, &options, &CancelToken::new(), writer, |_| {})
-        .map_err(|error| format!("simulation failed: {error}"))?;
+    let writer = GsrFileWriter::create(&temp_output, &meta).map_err(|error| {
+        let _ = fs::remove_file(&temp_output);
+        format!("failed to create GSR: {error}")
+    })?;
+    let summary = match simulate_to_writer(&program, &options, &CancelToken::new(), writer, |_| {})
+    {
+        Ok(summary) => summary,
+        Err(error) => {
+            let _ = fs::remove_file(&temp_output);
+            return Err(format!("simulation failed: {error}"));
+        }
+    };
+    commit_temp_file(&temp_output, &output)?;
     let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
 
     if report_timing {
@@ -153,13 +166,23 @@ fn run_analyze(args: &[String]) -> Result<(), String> {
     }
 
     let input = input.ok_or_else(|| "--input is required".to_string())?;
+    if let Some(output_path) = &output {
+        if paths_refer_to_same_file(&input, output_path)? {
+            return Err("--output must not refer to the same file as --input".to_string());
+        }
+    }
+
     let started = Instant::now();
     let analysis = analyze_gsr_file(&input).map_err(|error| format!("analysis failed: {error}"))?;
     let json = serde_json::to_string(&analysis)
         .map_err(|error| format!("failed to serialize analysis: {error}"))?;
     if let Some(output_path) = &output {
-        fs::write(output_path, format!("{json}\n"))
-            .map_err(|error| format!("failed to write {}: {error}", output_path.display()))?;
+        let temp_output = allocate_sibling_temp_path(output_path, "analysis")?;
+        fs::write(&temp_output, format!("{json}\n")).map_err(|error| {
+            let _ = fs::remove_file(&temp_output);
+            format!("failed to write {}: {error}", temp_output.display())
+        })?;
+        commit_temp_file(&temp_output, output_path)?;
     } else if !report_timing {
         println!("{json}");
     }
