@@ -1,0 +1,319 @@
+{
+  "cancelRace": {
+    "beforeCancel": [
+      {
+        "taskId": 41,
+        "seq": 1,
+        "snapshot": {
+          "taskId": 41,
+          "seq": 1,
+          "status": "starting",
+          "stage": "loadingConfig",
+          "completedRuns": 0,
+          "totalRuns": 2,
+          "totalResult": null,
+          "resultFilename": null,
+          "message": null,
+          "cancelRetryable": false
+        }
+      },
+      {
+        "taskId": 41,
+        "seq": 2,
+        "snapshot": {
+          "taskId": 41,
+          "seq": 2,
+          "status": "running",
+          "stage": "simulating",
+          "completedRuns": 0,
+          "totalRuns": 2,
+          "totalResult": null,
+          "resultFilename": null,
+          "message": null,
+          "cancelRetryable": false
+        }
+      },
+      {
+        "taskId": 41,
+        "seq": 3,
+        "snapshot": {
+          "taskId": 41,
+          "seq": 3,
+          "status": "running",
+          "stage": "simulating",
+          "completedRuns": 1,
+          "totalRuns": 2,
+          "totalResult": null,
+          "resultFilename": null,
+          "message": null,
+          "cancelRetryable": false
+        }
+      }
+    ],
+    "lateEvents": [
+      {
+        "taskId": 41,
+        "seq": 4,
+        "snapshot": {
+          "taskId": 41,
+          "seq": 4,
+          "status": "running",
+          "stage": "simulating",
+          "completedRuns": 2,
+          "totalRuns": 2,
+          "totalResult": null,
+          "resultFilename": null,
+          "message": null,
+          "cancelRetryable": false
+        }
+      },
+      {
+        "taskId": 41,
+        "seq": 5,
+        "snapshot": {
+          "taskId": 41,
+          "seq": 5,
+          "status": "completed",
+          "stage": "saving",
+          "completedRuns": 2,
+          "totalRuns": 2,
+          "totalResult": "9007199254740993",
+          "resultFilename": "fixed-example.gsr",
+          "message": null,
+          "cancelRetryable": false
+        }
+      }
+    ],
+    "cancellationEvents": [
+      {
+        "taskId": 41,
+        "seq": 4,
+        "snapshot": {
+          "taskId": 41,
+          "seq": 4,
+          "status": "cancelling",
+          "stage": "simulating",
+          "completedRuns": 1,
+          "totalRuns": 2,
+          "totalResult": null,
+          "resultFilename": null,
+          "message": null,
+          "cancelRetryable": false
+        }
+      },
+      {
+        "taskId": 41,
+        "seq": 5,
+        "snapshot": {
+          "taskId": 41,
+          "seq": 5,
+          "status": "cancelling",
+          "stage": "simulating",
+          "completedRuns": 1,
+          "totalRuns": 2,
+          "totalResult": null,
+          "resultFilename": null,
+          "message": "Worker cleanup timed out",
+          "cancelRetryable": true
+        }
+      },
+      {
+        "taskId": 41,
+        "seq": 6,
+        "snapshot": {
+          "taskId": 41,
+          "seq": 6,
+          "status": "cancelling",
+          "stage": "simulating",
+          "completedRuns": 1,
+          "totalRuns": 2,
+          "totalResult": null,
+          "resultFilename": null,
+          "message": null,
+          "cancelRetryable": false
+        }
+      },
+      {
+        "taskId": 41,
+        "seq": 7,
+        "snapshot": {
+          "taskId": 41,
+          "seq": 7,
+          "status": "cancelled",
+          "stage": "simulating",
+          "completedRuns": 1,
+          "totalRuns": 2,
+          "totalResult": null,
+          "resultFilename": null,
+          "message": null,
+          "cancelRetryable": false
+        }
+      }
+    ]
+  },
+  "pageSwitch": {
+    "newTaskStart": {
+      "taskId": 42,
+      "seq": 8,
+      "snapshot": {
+        "taskId": 42,
+        "seq": 8,
+        "status": "starting",
+        "stage": "loadingConfig",
+        "completedRuns": 0,
+        "totalRuns": 2,
+        "totalResult": null,
+        "resultFilename": null,
+        "message": null,
+        "cancelRetryable": false
+      }
+    },
+    "snapshot": {
+      "taskId": 42,
+      "seq": 9,
+      "status": "running",
+      "stage": "simulating",
+      "completedRuns": 0,
+      "totalRuns": 2,
+      "totalResult": null,
+      "resultFilename": null,
+      "message": null,
+      "cancelRetryable": false
+    },
+    "deliveries": [
+      {
+        "event": {
+          "taskId": 41,
+          "seq": 10,
+          "snapshot": {
+            "taskId": 41,
+            "seq": 10,
+            "status": "running",
+            "stage": "simulating",
+            "completedRuns": 2,
+            "totalRuns": 2,
+            "totalResult": null,
+            "resultFilename": null,
+            "message": null,
+            "cancelRetryable": false
+          }
+        },
+        "applied": false
+      },
+      {
+        "event": {
+          "taskId": 42,
+          "seq": 9,
+          "snapshot": {
+            "taskId": 42,
+            "seq": 9,
+            "status": "running",
+            "stage": "simulating",
+            "completedRuns": 0,
+            "totalRuns": 2,
+            "totalResult": null,
+            "resultFilename": null,
+            "message": null,
+            "cancelRetryable": false
+          }
+        },
+        "applied": false
+      },
+      {
+        "event": {
+          "taskId": 42,
+          "seq": 10,
+          "snapshot": {
+            "taskId": 42,
+            "seq": 10,
+            "status": "running",
+            "stage": "simulating",
+            "completedRuns": 1,
+            "totalRuns": 2,
+            "totalResult": null,
+            "resultFilename": null,
+            "message": null,
+            "cancelRetryable": false
+          }
+        },
+        "applied": true
+      },
+      {
+        "event": {
+          "taskId": 42,
+          "seq": 8,
+          "snapshot": {
+            "taskId": 42,
+            "seq": 8,
+            "status": "starting",
+            "stage": "loadingConfig",
+            "completedRuns": 0,
+            "totalRuns": 2,
+            "totalResult": null,
+            "resultFilename": null,
+            "message": null,
+            "cancelRetryable": false
+          }
+        },
+        "applied": false
+      },
+      {
+        "event": {
+          "taskId": 42,
+          "seq": 10,
+          "snapshot": {
+            "taskId": 42,
+            "seq": 10,
+            "status": "running",
+            "stage": "simulating",
+            "completedRuns": 1,
+            "totalRuns": 2,
+            "totalResult": null,
+            "resultFilename": null,
+            "message": null,
+            "cancelRetryable": false
+          }
+        },
+        "applied": false
+      },
+      {
+        "event": {
+          "taskId": 42,
+          "seq": 11,
+          "snapshot": {
+            "taskId": 42,
+            "seq": 11,
+            "status": "saving",
+            "stage": "saving",
+            "completedRuns": 1,
+            "totalRuns": 2,
+            "totalResult": null,
+            "resultFilename": null,
+            "message": null,
+            "cancelRetryable": false
+          }
+        },
+        "applied": true
+      },
+      {
+        "event": {
+          "taskId": 42,
+          "seq": 12,
+          "snapshot": {
+            "taskId": 42,
+            "seq": 12,
+            "status": "completed",
+            "stage": "saving",
+            "completedRuns": 2,
+            "totalRuns": 2,
+            "totalResult": "9007199254740993",
+            "resultFilename": "fixed-example.gsr",
+            "message": null,
+            "cancelRetryable": false
+          }
+        },
+        "applied": true
+      }
+    ]
+  }
+}

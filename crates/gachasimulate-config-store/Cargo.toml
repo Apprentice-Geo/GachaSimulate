@@ -1,0 +1,9 @@
+[package]
+name = "gachasimulate-config-store"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+gachasimulate-types.workspace = true
+gachasimulate-config.workspace = true
+gachasimulate-desktop-contract.workspace = true

@@ -139,9 +139,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "gachasimulate-config-store"
+version = "0.1.0"
+dependencies = [
+ "gachasimulate-config",
+ "gachasimulate-desktop-contract",
+ "gachasimulate-types",
+]
+
+[[package]]
+name = "gachasimulate-desktop-contract"
+version = "0.1.0"
+dependencies = [
+ "gachasimulate-types",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "gachasimulate-gsr"
 version = "0.1.0"
 dependencies = [
+ "gachasimulate-types",
+]
+
+[[package]]
+name = "gachasimulate-host"
+version = "0.1.0"
+dependencies = [
+ "gachasimulate-config",
+ "gachasimulate-desktop-contract",
+ "gachasimulate-gsr",
  "gachasimulate-types",
 ]
 

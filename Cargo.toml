@@ -5,6 +5,9 @@ members = [
     "crates/gachasimulate-runtime",
     "crates/gachasimulate-gsr",
     "crates/gachasimulate-cli",
+    "crates/gachasimulate-desktop-contract",
+    "crates/gachasimulate-config-store",
+    "crates/gachasimulate-host",
 ]
 resolver = "2"
 
@@ -17,6 +20,7 @@ gachasimulate-types = { path = "crates/gachasimulate-types" }
 gachasimulate-config = { path = "crates/gachasimulate-config" }
 gachasimulate-runtime = { path = "crates/gachasimulate-runtime" }
 gachasimulate-gsr = { path = "crates/gachasimulate-gsr" }
+gachasimulate-desktop-contract = { path = "crates/gachasimulate-desktop-contract" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 thiserror = "2"
