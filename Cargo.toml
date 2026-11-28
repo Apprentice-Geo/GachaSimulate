@@ -24,3 +24,8 @@ gachasimulate-desktop-contract = { path = "crates/gachasimulate-desktop-contract
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 thiserror = "2"
+sha2 = "0.11"
+zip = { version = "9.9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+url = "2"
+ureq = { version = "3", default-features = false, features = ["native-tls"] }
+httpdate = "1"
