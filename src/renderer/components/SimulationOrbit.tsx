@@ -35,7 +35,9 @@ export function SimulationOrbit({
   active: boolean;
 }) {
   const id = useId();
-  const [visible, setVisible] = useState(!document.hidden);
+  const [visible, setVisible] = useState(
+    () => typeof document === "undefined" || !document.hidden,
+  );
   useEffect(() => {
     const update = () => setVisible(!document.hidden);
     document.addEventListener("visibilitychange", update);
