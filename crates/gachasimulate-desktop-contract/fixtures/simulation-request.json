@@ -1,0 +1,9 @@
+{
+  "configSource": "local",
+  "configId": "example",
+  "termination": "termination.yaml",
+  "resultItem": "score",
+  "totalRuns": 2,
+  "seed": -42,
+  "threads": 2
+}

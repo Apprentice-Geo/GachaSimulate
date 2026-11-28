@@ -1,0 +1,10 @@
+[package]
+name = "gachasimulate-host"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+gachasimulate-types.workspace = true
+gachasimulate-config.workspace = true
+gachasimulate-gsr.workspace = true
+gachasimulate-desktop-contract.workspace = true

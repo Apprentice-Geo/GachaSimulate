@@ -28,6 +28,7 @@
   "include": [
     "src/**/*.d.ts",
     "src/dev/**/*.ts",
+    "src/shared/tauri_desktop_contract*.ts",
     "src/visualize/**/*.ts",
     "src/visualize/**/*.tsx",
     "src/main/**/*.ts",

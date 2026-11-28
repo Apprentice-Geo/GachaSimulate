@@ -1,0 +1,56 @@
+{
+  "sessionId": "session-42",
+  "filename": "fixed-example.gsr",
+  "fields": {
+    "title": "标题待填写",
+    "target": "目标待填写",
+    "result_item_name": "积分",
+    "note": "MEAN 受极端值影响，P50 表示一半结果不超过该值，P95 表示 95% 结果不超过该值。MIN、MAX 受模拟次数影响，不代表理论极限。",
+    "subtitle": "副标题待填写",
+    "result_item_unit": ""
+  },
+  "analysis": {
+    "result_item": {
+      "id": "score",
+      "name": "积分"
+    },
+    "totals": {
+      "runs": "2",
+      "result": "9007199254740993"
+    },
+    "values": [
+      "4503599627370496",
+      "4503599627370497"
+    ],
+    "cumulative": [
+      0.5,
+      1.0
+    ],
+    "statistic": {
+      "P5": "4503599627370496",
+      "P25": "4503599627370496",
+      "P50": "4503599627370496",
+      "P75": "4503599627370496",
+      "P95": "4503599627370496",
+      "MIN": "4503599627370496",
+      "MEAN": "4503599627370496",
+      "MEAN_LEVEL": 0.5,
+      "MAX": "4503599627370497"
+    },
+    "termination_reason": [
+      {
+        "reason": "done",
+        "proportion": 100
+      }
+    ]
+  },
+  "display": {
+    "display_version": 2,
+    "title": "标题待填写",
+    "target": "目标待填写",
+    "result_item_name": "积分",
+    "note": "MEAN 受极端值影响，P50 表示一半结果不超过该值，P95 表示 95% 结果不超过该值。MIN、MAX 受模拟次数影响，不代表理论极限。",
+    "subtitle": "副标题待填写",
+    "result_item_unit": ""
+  }
+}

@@ -1,0 +1,13 @@
+[package]
+name = "gachasimulate-desktop-contract"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+gachasimulate-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+gachasimulate-types = { workspace = true, features = ["fixtures"] }

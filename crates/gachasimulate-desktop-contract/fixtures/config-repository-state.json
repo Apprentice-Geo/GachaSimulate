@@ -1,0 +1,39 @@
+{
+  "official": [
+    {
+      "id": "example",
+      "name": "官方示例",
+      "description": "已安装的官方配置",
+      "status": "installed"
+    },
+    {
+      "id": "weighted_pool",
+      "name": "加权池",
+      "description": "官方配置有更新",
+      "status": "updateAvailable"
+    }
+  ],
+  "localDirectory": "C:\\Configs",
+  "localConfigs": [
+    {
+      "id": "example",
+      "name": "本地示例",
+      "description": "与官方配置共用 ID",
+      "source": "local",
+      "terminations": [
+        {
+          "file": "termination.yaml",
+          "name": "固定终止条件"
+        }
+      ],
+      "items": [
+        {
+          "id": "score",
+          "name": "积分"
+        }
+      ]
+    }
+  ],
+  "sourceError": null,
+  "localError": null
+}

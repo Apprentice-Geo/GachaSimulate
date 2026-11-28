@@ -1,0 +1,12 @@
+{
+  "sessionId": "session-42",
+  "display": {
+    "display_version": 2,
+    "title": "积分分布",
+    "target": "累计积分",
+    "result_item_name": "积分",
+    "note": "两次模拟",
+    "subtitle": "固定种子",
+    "result_item_unit": "分"
+  }
+}
