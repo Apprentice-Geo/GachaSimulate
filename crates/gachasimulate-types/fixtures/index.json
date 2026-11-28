@@ -1,0 +1,12 @@
+{
+  "format_version": 1,
+  "configs": [
+    {
+      "id": "example",
+      "name": "示例配置",
+      "description": "Deterministic score example",
+      "download_url": "packages/example.zip",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}

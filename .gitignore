@@ -23,6 +23,7 @@ node_modules/
 .superpowers/
 .docs/superpowers/
 /build/
+/target/
 .ruff_cache/
 profile.prof
 profile.pstats

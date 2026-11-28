@@ -1,0 +1,10 @@
+[package]
+name = "gachasimulate-runtime"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+gachasimulate-types.workspace = true
+
+[dev-dependencies]
+gachasimulate-types = { workspace = true, features = ["fixtures"] }

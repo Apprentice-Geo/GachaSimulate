@@ -1,0 +1,10 @@
+schema_version: 2
+items:
+  - score: 积分
+pools:
+  - main:
+      - probability: 1
+        actions: score += 1
+initial: score = 1
+every_draw:
+  - score += 1

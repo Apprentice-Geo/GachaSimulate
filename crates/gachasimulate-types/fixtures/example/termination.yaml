@@ -1,0 +1,5 @@
+retained_items: []
+termination_rule:
+  condition:
+    check: score >= 3
+    actions: terminate done

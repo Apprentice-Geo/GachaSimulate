@@ -1,0 +1,6 @@
+id: example
+name: 示例配置
+description: Deterministic score example
+terminations:
+  - file: termination.yaml
+    name: Done

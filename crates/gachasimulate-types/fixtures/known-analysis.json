@@ -1,0 +1,22 @@
+{
+  "result_item": { "id": "score", "name": "积分" },
+  "totals": { "runs": "3", "result": "18" },
+  "values": ["2", "6", "10"],
+  "cumulative": [0.3333333333333333, 0.6666666666666666, 1],
+  "statistic": {
+    "P5": "2",
+    "P25": "4",
+    "P50": "6",
+    "P75": "8",
+    "P95": "9",
+    "MIN": "2",
+    "MEAN": "6",
+    "MEAN_LEVEL": 0.6666666666666666,
+    "MAX": "10"
+  },
+  "termination_reason": [
+    { "reason": "alpha", "proportion": 34 },
+    { "reason": "beta", "proportion": 33 },
+    { "reason": "gamma", "proportion": 33 }
+  ]
+}
