@@ -5,6 +5,9 @@ edition.workspace = true
 
 [dependencies]
 gachasimulate-types.workspace = true
+granit-parser = { version = "2.0.0", default-features = false, features = ["error_messages"] }
+num-bigint = "0.4.6"
+serde_json.workspace = true
 
 [dev-dependencies]
 gachasimulate-types = { workspace = true, features = ["fixtures"] }
