@@ -14,12 +14,11 @@
 //! chunk count and full file size (three u64s). The trailer permits writing
 //! the complete stream without seeking back to the header.
 
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-    marker::PhantomData,
-    path::Path,
-};
+mod analyze;
+mod format;
+
+pub use analyze::{analyze_gsr_file, analyze_gsr_reader};
+pub use format::{GsrFileWriter, GsrReader};
 
 pub use gachasimulate_types::{
     Analysis, AnalysisResultItem, AnalysisStatistic, AnalysisTotals, AnalysisValidationError,
@@ -31,68 +30,9 @@ pub use gachasimulate_types::{
 pub const GSR_MAGIC: [u8; 4] = *b"GSR\0";
 pub const GSR_VERSION: u32 = 3;
 pub const GSR_HEADER_BYTES: u32 = 48;
+/// Maximum encoded header size, including the fixed header, ID, name and
+/// all reason strings with their length prefixes.
+pub const MAX_GSR_METADATA_BYTES: u64 = 64 * 1024 * 1024;
 pub const GSR_CHUNK_HEADER_BYTES: u64 = 16;
 pub const GSR_RECORD_BYTES: u64 = 12;
 pub const GSR_TRAILER_BYTES: u64 = 24;
-
-#[derive(Debug)]
-pub struct GsrFileWriter {
-    meta: GsrHeaderMeta,
-}
-
-impl GsrFileWriter {
-    /// Opens a caller-selected output path and writes the header and reasons.
-    pub fn create(_path: impl AsRef<Path>, _meta: &GsrHeaderMeta) -> Result<Self, GsrError> {
-        Err(GsrError::NotImplemented)
-    }
-}
-
-impl ResultChunkWriter for GsrFileWriter {
-    fn metadata(&self) -> &GsrHeaderMeta {
-        &self.meta
-    }
-
-    fn write_chunk(&mut self, _chunk: &ResultChunk) -> Result<(), GsrError> {
-        Err(GsrError::NotImplemented)
-    }
-
-    fn finish(self) -> Result<GsrWriteSummary, GsrError> {
-        Err(GsrError::NotImplemented)
-    }
-}
-
-#[derive(Debug)]
-pub struct GsrReader<R: Read> {
-    meta: GsrHeaderMeta,
-    _reader: PhantomData<R>,
-}
-
-impl GsrReader<BufReader<File>> {
-    pub fn open(_path: impl AsRef<Path>) -> Result<Self, GsrError> {
-        Err(GsrError::NotImplemented)
-    }
-}
-
-impl<R: Read> GsrReader<R> {
-    /// Consumes the header and validates the metadata.
-    pub fn new(_reader: R) -> Result<Self, GsrError> {
-        Err(GsrError::NotImplemented)
-    }
-
-    pub fn metadata(&self) -> &GsrHeaderMeta {
-        &self.meta
-    }
-
-    /// Returns None only after validating the trailer and end of stream.
-    pub fn next_chunk(&mut self) -> Result<Option<ResultChunk>, GsrError> {
-        Err(GsrError::NotImplemented)
-    }
-}
-
-pub fn analyze_gsr_file(_path: impl AsRef<Path>) -> Result<Analysis, GsrError> {
-    Err(GsrError::NotImplemented)
-}
-
-pub fn analyze_gsr_reader<R: Read>(_reader: R) -> Result<Analysis, GsrError> {
-    Err(GsrError::NotImplemented)
-}
