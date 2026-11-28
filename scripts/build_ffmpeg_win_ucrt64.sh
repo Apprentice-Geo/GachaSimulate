@@ -177,9 +177,9 @@ ffmpeg_configure=(
   "--enable-ffprobe"
   "--enable-zlib"
   "--enable-libx264"
-  "--enable-decoder=png,h264"
+  "--enable-decoder=png,h264,rawvideo"
   "--enable-encoder=libx264"
-  "--enable-demuxer=image2pipe,mov"
+  "--enable-demuxer=image2pipe,mov,rawvideo"
   "--enable-muxer=mp4"
   "--enable-protocol=file,pipe"
   "--enable-parser=png,h264"
@@ -244,9 +244,11 @@ if [[ "$program" != ffmpeg || "$label" != version || ( "$reported_version" != "$
 fi
 grep -Eq '^[[:space:]]*V[^[:space:]]*[[:space:]]+png([[:space:]]|$)' "$materials/decoders.txt"
 grep -Eq '^[[:space:]]*V[^[:space:]]*[[:space:]]+h264([[:space:]]|$)' "$materials/decoders.txt"
+grep -Eq '^[[:space:]]*V[^[:space:]]*[[:space:]]+rawvideo([[:space:]]|$)' "$materials/decoders.txt"
 grep -Eq '^[[:space:]]*V[^[:space:]]*[[:space:]]+libx264([[:space:]]|$)' "$materials/encoders.txt"
 grep -Eq '^[[:space:]]+D[[:space:]]+image2pipe([[:space:]]|$)' "$materials/demuxers.txt"
 grep -Eq '^[[:space:]]+D[[:space:]]+mov,mp4,' "$materials/demuxers.txt"
+grep -Eq '^[[:space:]]+D[[:space:]]+rawvideo([[:space:]]|$)' "$materials/demuxers.txt"
 grep -Eq '^[[:space:]]+E[[:space:]]+mp4([[:space:]]|$)' "$materials/muxers.txt"
 for protocol in file pipe; do
   grep -Eq "^[[:space:]]*$protocol([[:space:]]|$)" "$materials/protocols.txt"

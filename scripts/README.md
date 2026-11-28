@@ -81,7 +81,7 @@ pnpm run test:ffmpeg:compliance
 
 zlib 从官方归档构建静态库并运行上游检查；x264 构建静态 8-bit 库，关闭 CLI、OpenCL 和共享库。两者只安装到本次临时私有前缀，不写入 MSYS2。FFmpeg 的 pkg-config 搜索限制到该前缀，链接映射确认使用私有 zlib，并拒绝系统 zlib/x264 静态库。
 
-FFmpeg 从 `--disable-everything --disable-autodetect` 开始裁剪，启用 PNG 输入、libx264 编码、MP4 封装及回归探测所需组件，使用 `--enable-gpl`，不启用 nonfree。精确参数以 Bash 实现和本次材料为准。configure 会自动带入依赖，例如 MOV/MP4 所需的 AC3 parser 和 ffmpeg 所需的基础过滤器；这些组件不代表启用了音频编码或网络。
+FFmpeg 从 `--disable-everything --disable-autodetect` 开始裁剪，启用 `rawvideo` 与 PNG 输入、libx264 编码、MP4 封装及回归探测所需组件，使用 `--enable-gpl`，不启用 nonfree。精确参数以 Bash 实现和本次材料为准。configure 会自动带入依赖，例如 MOV/MP4 所需的 AC3 parser 和 ffmpeg 所需的基础过滤器；这些组件不代表启用了音频编码或网络。
 
 成功产物安装到 `build/ffmpeg/win32-x64`。在同卷 staging 目录完成能力检查后，PowerShell 验证 `bin/` 只有 `ffmpeg.exe`、`ffprobe.exe`，PE 导入只含允许的 Windows 系统 DLL，并复制到临时目录、清空开发工具 PATH 后运行。通过后再替换安装目录；替换失败时恢复旧产物。整个目录被 Git 忽略。
 
