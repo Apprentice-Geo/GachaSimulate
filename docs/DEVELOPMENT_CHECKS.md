@@ -96,6 +96,32 @@ pnpm run test:package:win
 pnpm run format
 ```
 
+### Rust 工作区与 Tauri 桌面（迁移分支）
+
+Rust 侧在 Windows x64 使用 `rustc`/`cargo` stable 工具链（含 `rustfmt`、`clippy`）。
+
+```powershell
+# Rust 格式、静态检查与全工作区测试
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+
+# 可选：针对配置仓库 dist 的全量 1E 配置包实测
+$env:GACHASIMULATE_CONFIGS_DIST = "d:\codes\GachaSimulate-Configs\dist"
+cargo test -p gachasimulate-config-store -- --ignored
+cargo test -p gachasimulate-tauri --test milestone2_e2e
+Remove-Item Env:GACHASIMULATE_CONFIGS_DIST -ErrorAction SilentlyContinue
+
+# Tauri 本地开发（不依赖预先构建 FFmpeg）与 NSIS 打包验证
+pnpm run tauri:dev
+pnpm run prepare:tauri-licenses
+pnpm run package:tauri:win
+pnpm run test:package:tauri:win
+
+# 真实安装版 WebView2 端到端 UI 验收（需联网访问官方配置仓库，且不得存在已安装的 HKCU 实例）
+node scripts/verify_tauri_installed_workbench.mjs
+```
+
 ## 按影响范围选择
 
 以下名称对应上述命令；专项检查和截图命令见后续章节。
@@ -111,6 +137,7 @@ pnpm run format
 - Electron 导出 renderer、逐帧协议、CDP、FFmpeg 或输出提交：`test:visualize:cdf`、`test:electron-export`、typecheck、lint、build 和下述宿主集成检查。
 - 桌面导出入口、格式/文件名、目标选择、覆盖、进度、终态或阻塞清理交互：执行导出范围检查，追加 `test:electron-layout`，并查看下述导出状态截图。
 - npm 生产依赖、字体、原生第三方组件或 Electron 打包资源：`test:application-licenses`、`package:win` 和 `test:package:win`。
+- Rust 工作区、Tauri 宿主、Tauri 工作台或 Rust 依赖：`cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`、`test:application-licenses`、`test:visualize:cdf`、`test:simulation`、`package:tauri:win` 和 `test:package:tauri:win`。
 - 工程维护脚本：`test:maintenance`；许可证生成或核对另跑 `test:application-licenses`，FFmpeg 构建另按 [scripts README](../scripts/README.md) 执行源码、构建和材料检查。
 - 文档：核对命令与完成状态，执行 `test:markdown:links`；跨层契约变更仍按对应范围验证。
 

@@ -12,6 +12,31 @@
 
 本机已复测 Electron 基线的模拟与结果会话、CDF、两种窗口尺寸的布局和真实 PNG／MP4 导出。导出集成检查通过了帧序、终态、取消及异常退出清理断言，随后已恢复普通生产构建。
 
+## 阶段一与阶段二落地记录（2026-11-28）
+
+当前集成分支 `refactor/tauri-rust-canvas` 已完成**阶段一（1A–1G）**、**3A 前置随包 FFmpeg `rawvideo` 构建**以及**阶段二（2A–2E）**全部交付与验收，停在阶段二终点；阶段三（3A 4K 帧传输实验与 3B–3E）留待后续推进，旧 Electron/C++ 实现与发布链暂予保留。
+
+### 已完成里程碑与提交
+
+- **阶段一 · 计算核心与配置仓库（1A–1G）**：主仓库合入 `gachasimulate-types`、`gachasimulate-config`、`gachasimulate-runtime`、`gachasimulate-gsr`、`gachasimulate-cli` 与性能对照报告 [C++ / Rust 性能报告](../archived/CPP_RUST_PERFORMANCE_BASELINE.md)；配套配置仓库在 `refactor/rust-packager`（`e275e0e`）迁至 Rust 打包并通过 Ubuntu CI。
+- **3A 前置 · 随包 FFmpeg `rawvideo`（`109cddc`）**：在 [build_ffmpeg_win_ucrt64.sh](../../scripts/build_ffmpeg_win_ucrt64.sh) 启用 `rawvideo` 解复用/解码，完成 Windows x64 UCRT64 静态构建（FFmpeg 9.0.1），并以开发机外部 FFmpeg 8.0.1 实测 64×64 RGBA → H.264/yuv420p 编解码像素一致性（通道最大差 `2/255`）。
+- **阶段二 · Tauri 工作台（2A–2E）**：
+  - `2A`（`cdf643c`）：冻结 18 个 Tauri 命令、`simulation://event`、任务状态机与 `DisplayConfig` v2 契约（`crates/gachasimulate-desktop-contract`、`src/shared/tauri_desktop_contract.ts`）。
+  - `2B`（`97c64ba`）：实现独立 `gachasimulate-worker` 子进程、任务宿主、协作取消/强杀清理、流式 GSR 提交校验与原子 sidecar 会话（`crates/gachasimulate-host`）。
+  - `2C`（`df5df43` 及终审收口）：实现 Windows Schannel HTTPS 下载（30 秒共享超时、同源重定向校验、有效索引 URL 保留、5 分钟 TTL 缓存与离线回退）、事务日志与跨进程根目录锁（`.store.lock`）、`sync_all()` 落盘屏障、共享 `mutation_gate` 与同 ID `installed`/`local` 双来源共存（`crates/gachasimulate-config-store`）。
+  - `2D`（`50931f0` 及终审收口）：实现零 `eval` 单遍 `BigInt` 曲线数据模型（支持 `u64::MAX` 与精确 `9007199254740993` 读数）、绑定任务 ID/序号的取消冻结与重连同步、以及隐藏阶段三可视化/编辑/导出入口的结果摘要工作台（`src/visualize/data/curve_model.ts`、`src/renderer/TauriWorkbenchApp.tsx`）。
+  - `2E`（`20ff38e` 及终审收口）：交付最小权限 Tauri v2 壳（18 命令 `AppManifest` ACL、严格无 `'unsafe-eval'` CSP + `http://ipc.localhost`、`desktop://shutdown-error` 阻塞关闭提示、资源拆离保证 `tauri:dev` 干净检出可用）、55 个 npm 生产包 + 255 个 Windows x64 Rust 运行时 crate 许可证盘点、Windows CI（`rust-windows`、`tauri-package-windows`）与 NSIS 安装包 `GachaSimulate_0.3.2_x64-setup.exe`（42.50 MiB）。
+
+### 阶段二实测与验收边界
+
+- **静态与单元测试**：`cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`（含 `GACHASIMULATE_CONFIGS_DIST` 真实 1E 16 包校验）、`pnpm run format:check`、`pnpm run lint`、`pnpm run typecheck`、`pnpm run test:application-licenses`、`pnpm run test:visualize:cdf`、`tauri_desktop_contract.test.ts`、`tauri_workbench.test.ts`、`pnpm run test:markdown:links` 与 `pnpm run test:maintenance` 全绿。
+- **全新安装与真实 WebView2 UI 验收**：通过 [check_tauri_windows_package.ps1](../../scripts/check_tauri_windows_package.ps1) 与 [verify_tauri_installed_workbench.mjs](../../scripts/verify_tauri_installed_workbench.mjs) 对安装后的 `GachaSimulate.exe` 在隔离 `PATH` 与独立 `GACHASIMULATE_DATA_DIR` 下实测通过：随包字体 `JetBrains Mono` 与 `SourceHanSansSC` 均加载、控制台与 CSP 零报错、真实 GitHub HTTPS 目录刷新并安装 `sanguosha_maniandaji`、同数据目录第二实例被根目录锁以非零码拒绝、进程重启后配置持久化、同 ID 官方与本地配置分别运行、切换 `result_item` 后在结果摘要页精确展示 `9007199254740993`、长任务中途取消且结果目录零残留、发送 `WM_CLOSE` 后以退出码 `0` 退出且无残留 `gachasimulate-worker.exe`。
+- **已知环境边界**：开发机已预装 Edge WebView2 Runtime；NSIS 默认 `downloadBootstrapper` 在无 WebView2 Runtime 环境下的联网引导路径留待阶段三发布前在纯净 Windows 虚拟机中复核。
+
+### 后续阶段三启动入口
+
+下一阶段直接基于 `refactor/tauri-rust-canvas` 推进：先在已验证的 Tauri 壳上完成 **3A 4K 帧传输测量**，再按 **3B 共享 Canvas 2D 画面**、**3C Rust 导出宿主**、**3D React 编辑与导出 UI**、**3E 安装包联调及旧 Electron/C++ 退场** 顺序落地。
+
 ## 里程碑与交付条件
 
 | 里程碑 | 可运行的交付物 | 验收 |

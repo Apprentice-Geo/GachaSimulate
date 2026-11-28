@@ -14,10 +14,13 @@
 
 | 文件                                                         | 职责                                                         |
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| [application_licenses.mjs](application_licenses.mjs)         | 从实际 npm 生产依赖生成确定性的应用许可证材料；按版本化策略拒绝未复核许可证、缺失正文和版本失配。 |
-| [application_licenses.test.mjs](application_licenses.test.mjs) | 使用固定 fixture 验证生成、排序、拒绝路径和版本覆盖，并检查当前真实生产依赖树。 |
-| [application_licenses_policy.json](application_licenses_policy.json) | 应用许可证生成器允许的表达式、精确版本人工覆盖和静态材料映射。 |
-| [check_windows_package.ps1](check_windows_package.ps1)       | 检查当前版本 NSIS、unpacked 原生程序和许可证材料，核对包内 FFmpeg 与自编译源文件的 SHA-256，并在隔离开发工具 PATH 后运行包内 FFmpeg 版本检查和 core/analyzer。 |
+| [application_licenses.mjs](application_licenses.mjs)         | 从实际 npm 生产依赖生成确定性的应用许可证材料；传入 `--include-rust` 时同步通过 `cargo metadata --locked --filter-platform x86_64-pc-windows-msvc` 盘点 Tauri 主程序与 worker 的 Rust 运行时 crate 许可证，按版本化策略拒绝未复核许可证、缺失正文和版本失配。 |
+| [application_licenses.test.mjs](application_licenses.test.mjs) | 使用固定 fixture 验证 npm 与 Rust 许可证生成、排序、拒绝路径和版本覆盖，并检查当前真实生产依赖树。 |
+| [application_licenses_policy.json](application_licenses_policy.json) | 应用许可证生成器允许的 npm/Rust 表达式、精确版本人工覆盖和静态材料映射。 |
+| [check_windows_package.ps1](check_windows_package.ps1)       | 检查当前版本 Electron NSIS、unpacked 原生程序和许可证材料，核对包内 FFmpeg 与自编译源文件的 SHA-256，并在隔离开发工具 PATH 后运行包内 FFmpeg 版本检查和 core/analyzer。 |
+| [stage_tauri_worker.ps1](stage_tauri_worker.ps1)             | 构建并将 `gachasimulate-worker` 暂存为 Tauri `externalBin` 所需的 Windows target-triple 侧车文件名。 |
+| [check_tauri_windows_package.ps1](check_tauri_windows_package.ps1) | 拒绝覆盖已有 HKCU 安装后执行 Tauri NSIS 静默全新安装，验证包内主程序启停、FFmpeg SHA-256 与隔离 PATH 运行、`--include-rust` 许可证材料、大整数分析烟测，并直接针对安装后的 `gachasimulate-worker.exe` 运行 `milestone2_e2e`。 |
+| [verify_tauri_installed_workbench.mjs](verify_tauri_installed_workbench.mjs) | 静默安装 Tauri NSIS 包并通过 Playwright CDP 驱动真实安装版 Edge WebView2 界面，验收随包字体加载、零 CSP/控制台报错、在线 HTTPS 配置安装、多实例根目录锁、重启持久化、同 ID 官方/本地运行、切换物品精确展示 `9007199254740993`、中途取消零残留与 `WM_CLOSE` 正常退出。 |
 
 应用许可证的生成和包内验证共用 `application_licenses.mjs` 的材料准备逻辑。`node scripts/application_licenses.mjs --verify <目录>` 按策略及当前实际生产依赖重新计算期望材料，核对完整文件集合和内容，不修改目标目录。原生程序安装在验证后的 `bin` 替换成功时提交；之后旧备份清理失败只报告残留位置，不回滚新版。
 
